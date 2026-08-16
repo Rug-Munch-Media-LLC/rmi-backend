@@ -168,7 +168,13 @@ class TestAuthMiddleware:
         assert resp.status_code != 401
 
     def test_protected_path_returns_401_without_auth(self, client):
-        """Protected routes return 401 when X-API-Key is missing."""
+        """Protected routes return 401 when X-API-Key is missing.
+
+        Uses a PROTECTED_SUBPATH (app/core/auth.py) — subpaths under a
+        public prefix that are forced to require auth regardless of route
+        existence. Unknown top-level paths pass through to the 404 handler,
+        so they are not a valid probe for auth enforcement.
+        """
         # Temporarily set RMI_AUTH_TOKEN to force auth enforcement
         import app.core.auth as auth_mod
 
@@ -176,7 +182,7 @@ class TestAuthMiddleware:
         auth_mod.RMI_AUTH_TOKEN = "enforced-token-value"
 
         try:
-            resp = client.get("/api/v1/scanner/nonexistent-check")
+            resp = client.get("/api/v1/news/_admin/stats")
             assert resp.status_code == 401
             body = resp.json()
             assert "detail" in body
@@ -192,7 +198,7 @@ class TestAuthMiddleware:
 
         try:
             resp = client.get(
-                "/api/v1/scanner/nonexistent-check",
+                "/api/v1/news/_admin/stats",
                 headers={"X-API-Key": "wrong-key-value"},
             )
             assert resp.status_code == 401
@@ -419,13 +425,20 @@ class TestMarketEndpoints:
         assert "updated_at" in body
         assert isinstance(body["items"], list)
         # Each item must have required fields per the route
+        # (app/routers/market_intel/routes/market_data.py — merged
+        # DexScreener + CoinGecko list; no risk_score on items).
         if body["items"]:
             item = body["items"][0]
+            assert "rank" in item
             assert "symbol" in item
             assert "name" in item
             assert "address" in item
             assert "chain" in item
-            assert "risk_score" in item
+            assert "price" in item
+            assert "change_24h" in item
+            assert "volume_24h" in item
+            assert "market_cap" in item
+            assert "source" in item
 
     def test_market_launches_returns_valid_schema(self, client, auth_headers):
         """GET /api/v1/market/launches returns items with required fields."""
@@ -441,7 +454,11 @@ class TestMarketEndpoints:
         resp = client.get("/api/v1/market/trending", headers=auth_headers, params={"limit": 5})
         assert resp.status_code == 200
         body = resp.json()
-        assert body["total"] <= 5
+        # The route slices returned items to `limit`; `total` reports the
+        # number of collected items before slicing (DexScreener + CoinGecko
+        # sources), so assert the slice — not `total`.
+        assert len(body["items"]) <= 5
+        assert body["total"] >= len(body["items"])
 
     def test_market_trending_rejects_invalid_limit(self, client, auth_headers):
         """GET /api/v1/market/trending?limit=999 returns validation error."""

@@ -20,7 +20,7 @@ import pytest
 from app.domains.telegram.rugmunchbot import tools
 from app.domains.telegram.rugmunchbot.ta_indicators import ema, macd, rsi
 from app.domains.telegram.rugmunchbot.tools import _client, registry
-from app.domains.telegram.rugmunchbot.tools.ta import _summary_text, _verdict, technical_analysis
+from app.domains.telegram.rugmunchbot.tools.ta import _prediction_read, _summary_text, _verdict, technical_analysis
 
 EVM = "0x6982508145454Ce325dDbE47a25d4ec3d2311933"
 
@@ -262,6 +262,44 @@ class TestSummaryText:
         assert "S/R n/a" in text
 
 
+# ── Prediction read (pure function over real indicator digests) ──
+
+
+class TestPredictionRead:
+    def test_bullish_leaning(self) -> None:
+        analysis = _analysis(trend="BULLISH", ema_cross="BULLISH CROSS", macd_label="Bullish", rsi=62.0)
+        verdict = _verdict(analysis)
+        p = _prediction_read(analysis, verdict)
+        assert p["leaning"] == "bullish"
+        assert p["confidence"] in ("low", "medium", "high")
+        assert "not financial advice" in p["note"]
+        assert p["pump_risk"]["level"] in ("LOW", "MEDIUM", "HIGH")
+
+    def test_bearish_with_rising_momentum_neutralized(self) -> None:
+        # Momentum disagrees with the trend verdict -> honest neutral lean.
+        analysis = _analysis(trend="BEARISH", ema_cross="BEARISH CROSS", macd_label="Bearish", momentum="ACCELERATING")
+        verdict = _verdict(analysis)
+        p = _prediction_read(analysis, verdict)
+        assert p["leaning"] == "neutral"
+
+    def test_high_pump_risk_neutralizes_bullish(self) -> None:
+        analysis = _analysis(
+            trend="BULLISH",
+            macd_label="Bullish",
+            rsi=62.0,
+            pump_risk={"level": "HIGH", "score": 5, "reasons": []},
+        )
+        verdict = _verdict(analysis)
+        p = _prediction_read(analysis, verdict)
+        assert p["leaning"] == "neutral"
+        assert p["pump_risk"]["level"] == "HIGH"
+
+    def test_insufficient_data_degrades(self) -> None:
+        p = _prediction_read({}, {"bias": "insufficient_data", "reasons": []})
+        assert p["leaning"] == "insufficient_data"
+        assert p["confidence"] == "low"
+
+
 # ── Tool cascade with the fake HTTP boundary ────────────────────────────────
 
 
@@ -283,6 +321,18 @@ class TestTechnicalAnalysisTool:
         assert ind["ema_9"] > ind["ema_21"]
         assert ind["macd_label"] == "Bullish"
         assert d["verdict"]["bias"] == "bullish"
+        # Richer indicator surface + honest prediction read.
+        assert ind["sma_20"] is not None
+        assert ind["bollinger_upper"] is not None
+        assert ind["atr_14"] is not None
+        assert ind["volatility_pct"] is not None
+        assert ind["roc_24h"] is not None
+        assert ind["momentum"] in ("RISING", "ACCELERATING", "FALLING", "FADING", "SIDEWAYS")
+        assert ind["pump_risk"]["level"] in ("LOW", "MEDIUM", "HIGH")
+        pred = d["prediction"]
+        assert pred["leaning"] in ("bullish", "bearish", "neutral")
+        assert "not financial advice" in pred["note"]
+        assert "pump-risk" in d["summary_text"] or "mom " in d["summary_text"]
         assert "BULLISH" in d["verdict"]["one_liner"]
         assert "RSI-14" in d["summary_text"]
         assert result.source.startswith("backend:")
@@ -342,6 +392,8 @@ class TestTechnicalAnalysisTool:
         assert d["market"]["market_cap"] == 1_250_000.0
         assert "change_window_pct" not in d["market"]  # no candles → no window data
         assert d["verdict"]["bias"] == "insufficient_data"
+        assert d["prediction"]["leaning"] == "insufficient_data"
+        assert d["prediction"]["confidence"] == "low"
         assert "rsi" not in d  # never fabricate indicators
         assert result.symbols == ["TST"]
 

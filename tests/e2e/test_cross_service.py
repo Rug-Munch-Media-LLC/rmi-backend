@@ -182,14 +182,24 @@ class TestPryscraperIntegration:
         """GET /api/v1/pryscraper/stats returns circuit-breaker metrics."""
         from app.core.dependencies import get_pryscraper_client
 
+        # The bridge route awaits client.stats() (see pryscraper_bridge.py) —
+        # the mock must be an AsyncMock, and the real client nests the
+        # circuit-breaker dict under a "circuit_breaker" key.
         mock_client = MagicMock()
-        mock_client.get_stats.return_value = {
-            "name": "pryscraper",
-            "state": "closed",
-            "total_calls": 42,
-            "rejected_calls": 0,
-            "successful_calls": 40,
-        }
+        mock_client.stats = AsyncMock(
+            return_value={
+                "circuit_breaker": {
+                    "name": "pryscraper",
+                    "state": "closed",
+                    "total_calls": 42,
+                    "rejected_calls": 0,
+                    "successful_calls": 40,
+                },
+                "base_url": "http://pryscraper:8000",
+                "x402_offline": False,
+                "x402_payments_count": 0,
+            }
+        )
 
         app = client.app
         app.dependency_overrides[get_pryscraper_client] = lambda: mock_client
@@ -201,9 +211,9 @@ class TestPryscraperIntegration:
 
         assert resp.status_code == 200
         body = resp.json()
-        assert body["name"] == "pryscraper"
-        assert body["state"] in ("closed", "open", "half_open")
-        assert isinstance(body["total_calls"], int)
+        assert body["circuit_breaker"]["name"] == "pryscraper"
+        assert body["circuit_breaker"]["state"] in ("closed", "open", "half_open")
+        assert isinstance(body["circuit_breaker"]["total_calls"], int)
 
     @pytest.mark.e2e
     def test_pryscraper_timeout_returns_upstream_error(self, client, auth_headers):
@@ -231,13 +241,20 @@ class TestPryscraperIntegration:
         from app.core.dependencies import get_pryscraper_client
 
         mock_client = MagicMock()
-        mock_client.get_stats.return_value = {
-            "name": "pryscraper",
-            "state": "open",
-            "total_calls": 8,
-            "rejected_calls": 3,
-            "successful_calls": 0,
-        }
+        mock_client.stats = AsyncMock(
+            return_value={
+                "circuit_breaker": {
+                    "name": "pryscraper",
+                    "state": "open",
+                    "total_calls": 8,
+                    "rejected_calls": 3,
+                    "successful_calls": 0,
+                },
+                "base_url": "http://pryscraper:8000",
+                "x402_offline": False,
+                "x402_payments_count": 0,
+            }
+        )
 
         app = client.app
         app.dependency_overrides[get_pryscraper_client] = lambda: mock_client
@@ -249,8 +266,8 @@ class TestPryscraperIntegration:
 
         assert resp.status_code == 200
         body = resp.json()
-        assert "total_calls" in body
-        assert "rejected_calls" in body
+        assert "total_calls" in body["circuit_breaker"]
+        assert "rejected_calls" in body["circuit_breaker"]
 
     @pytest.mark.e2e
     def test_pryscraper_extract_returns_structured_data(self, client, auth_headers):
@@ -305,14 +322,18 @@ class TestPryscraperIntegration:
             "app.services.pryscraper_client.PryscraperClient.search_news",
             new_callable=AsyncMock,
         ) as mock_search:
-            mock_search.return_value = mock_articles
+            # The bridge route reads results.get("articles", []) — the
+            # client contract is a dict, not a bare list.
+            mock_search.return_value = {"articles": mock_articles}
 
             resp = client.get(
                 "/api/v1/news/search?q=bitcoin&max_results=5&days_back=3",
                 headers=auth_headers,
             )
 
-        assert resp.status_code in (200, 500)
+        # UpstreamError (5xx) is raised on search failure; 502 is the mapped
+        # status when the upstream is unreachable.
+        assert resp.status_code in (200, 500, 502)
         if resp.status_code == 200:
             body = resp.json()
             assert isinstance(body, list)
@@ -349,7 +370,12 @@ class TestUnifiedAuthIntegration:
     @pytest.mark.e2e
     def test_jwks_v1_endpoint_also_available(self, client):
         """GET /api/v1/auth/jwks provides the same data."""
-        resp = client.get("/api/v1/auth/jwks", headers={"X-API-Key": API_KEY})
+        # Public endpoint (PUBLIC_PREFIXES /api/v1/auth/). Anonymous access
+        # is allowed; the module-level API_KEY constant does NOT match the
+        # app's RMI_AUTH_TOKEN, and the middleware now rejects invalid
+        # presented credentials on public routes (uniform 401), so send no
+        # credential.
+        resp = client.get("/api/v1/auth/jwks")
         assert resp.status_code == 200
         body = resp.json()
         assert isinstance(body, dict)
@@ -400,7 +426,7 @@ class TestUnifiedAuthIntegration:
 
         from app.auth.jwt_validation import validate_token
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
             validate_token(expired_token)
 
         assert exc_info.value.status_code == 401  # type: ignore[union-attr]
@@ -410,7 +436,7 @@ class TestUnifiedAuthIntegration:
         """Malformed JWT is rejected — no service accepts it."""
         from app.auth.jwt_validation import validate_token
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
             validate_token("not-a-jwt-at-all")
 
         assert exc_info.value.status_code == 401  # type: ignore[union-attr]
@@ -420,7 +446,7 @@ class TestUnifiedAuthIntegration:
         """Empty token is rejected — no service accepts it."""
         from app.auth.jwt_validation import validate_token
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
             validate_token("")
 
         assert exc_info.value.status_code == 401  # type: ignore[union-attr]
@@ -440,7 +466,7 @@ class TestUnifiedAuthIntegration:
 
         from app.auth.jwt_validation import validate_token
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
             validate_token(wrong_token)
 
         assert exc_info.value.status_code == 401  # type: ignore[union-attr]
@@ -548,41 +574,55 @@ class TestFullUserFlow:
 
     @pytest.mark.e2e
     def test_wallet_query_after_scan(self, client, auth_headers):
-        """Authenticated user can query wallet data after scanning a token."""
-        mock_wallet_data = {
-            "wallet_labels": {
-                "labels": [{"type": "deployer", "label": "Token Creator"}],
-                "entity_name": "Test Entity",
-                "entity_type": "developer",
-            },
-            "wallet_tokens": {
-                "tokens": [
-                    {"symbol": "TFT", "value_usd": 5000, "risk_score": 10},
-                    {"symbol": "SAFE", "value_usd": 10000, "risk_score": 5},
-                ],
-                "total_value_usd": 15000,
-            },
-            "wallet_net_worth": {"total_usd": 15000},
-        }
+        """Authenticated admin-tier user can query wallet data after scanning."""
+        from app.core.dependencies import get_wallet_scanner
+        from app.domains.wallet.unified_wallet_scanner import WalletScanResult
 
-        mock_db = AsyncMock()
-        mock_db.fetch = AsyncMock(side_effect=lambda chain_name, **kwargs: mock_wallet_data.get(chain_name))
+        # The v2 wallet route tier-gates on headers (X-RMI-Key / X-Payment-Verified),
+        # NOT the JWT tier claim; "free" (no such header) returns a data_gated
+        # response with no "status" key. Use the internal key to reach the
+        # full-scan path, and mock the scanner dependency (the documented
+        # injection point) so enrichment phases don't hit Redis/LLMs.
+        fake_result = WalletScanResult(
+            address="0xWallet1234567890abcdef",
+            chain="ethereum",
+            scanned_at="2026-01-01T00:00:00Z",
+            labels=[{"type": "deployer", "label": "Token Creator"}],
+            entity_name="Test Entity",
+            entity_type="developer",
+            total_value_usd=15000.0,
+            token_count=2,
+            risk_score=12.5,
+            risk_flags=["deployer_dumped"],
+            modules_run=["wallet_labels", "wallet_tokens", "wallet_net_worth"],
+            tier="admin",
+            scan_duration_ms=123.0,
+        )
+        fake_scanner = MagicMock()
+        fake_scanner.scan = AsyncMock(return_value=fake_result)
 
-        with patch("app.databus.databus", mock_db):
+        app = client.app
+        app.dependency_overrides[get_wallet_scanner] = lambda: fake_scanner
+        try:
             resp = client.post(
                 "/api/v2/scanner/wallet/scan",
                 json={
                     "address": "0xWallet1234567890abcdef",
                     "chain": "ethereum",
                 },
-                headers=auth_headers,
+                headers={**auth_headers, "X-RMI-Key": os.environ["RMI_INTERNAL_KEY"]},
             )
+        finally:
+            app.dependency_overrides.pop(get_wallet_scanner, None)
 
-        if resp.status_code == 200:
-            body = resp.json()
-            assert body["status"] == "ok"
-            assert isinstance(body["risk_score"], (int, float))
-            assert isinstance(body["modules_run"], list)
+        assert resp.status_code == 200, f"Unexpected: {resp.status_code} {resp.text[:200]}"
+        body = resp.json()
+        assert body["status"] == "ok"
+        assert body["address"] == "0xWallet1234567890abcdef"
+        assert body["chain"] == "ethereum"
+        assert isinstance(body["risk_score"], (int, float))
+        assert isinstance(body["modules_run"], list)
+        assert body["tier"] == "admin"
 
     @pytest.mark.e2e
     def test_market_intel_accessible_with_jwt(self, client, auth_headers):
@@ -733,7 +773,6 @@ class TestProviderChainFallback:
         provider = UnifiedProvider()
 
         # Override _get_cache to return a simple dict-backed mock
-        real_cache_getter = provider._get_cache
 
         # Patch _birdeye_holders as our test proxy for fallback behavior
         # Instead of testing the complex cache + chain_client interaction,
@@ -877,9 +916,12 @@ class TestMultiAppAuth:
     @pytest.mark.e2e
     def test_wrong_api_key_rejected_by_backend(self, client):
         """Wrong X-API-Key gets 401 from backend endpoints."""
-        # Use a GET request to avoid CSRF interference
+        # Use a PROTECTED_SUBPATH — auth is enforced there regardless of the
+        # route-existence check (which passes unknown routes to the 404
+        # handler). /api/v1/pryscraper/health is treated as pass-through for
+        # unauthenticated GETs, so it cannot demonstrate rejection.
         resp = client.get(
-            "/api/v1/pryscraper/health",
+            "/api/v1/news/_admin/stats",
             headers={"X-API-Key": "wrong-key-12345"},
         )
 
@@ -888,7 +930,7 @@ class TestMultiAppAuth:
     @pytest.mark.e2e
     def test_missing_api_key_rejected_by_backend(self, client):
         """Missing X-API-Key gets 401 from backend endpoints."""
-        resp = client.get("/api/v1/pryscraper/health")
+        resp = client.get("/api/v1/news/_admin/stats")
 
         assert resp.status_code == 401, f"Missing API key should be 401, got {resp.status_code}: {resp.text[:200]}"
 
@@ -971,7 +1013,7 @@ class TestMultiAppAuth:
             algorithm="HS256",
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
             validate_token(token)
 
         assert exc_info.value.status_code == 401  # type: ignore[union-attr]

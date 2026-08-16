@@ -29,9 +29,15 @@ from typing import Any
 from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import _fmt_usd_amount
 
 __all__ = [
+    "_bundle_verdict_row",
+    "_bundle_wallet_count",
+    "_cex_funded_pct",
     "_clip",
     "_collapse_blank_lines",
+    "_distribution_verdict",
+    "_float_or_none",
     "_fmt_market_value",
+    "_holder_distribution_rows",
     "_key_metrics_rows",
     "_launch_intel_rows",
     "_lp_lock_pct",
@@ -188,6 +194,178 @@ def _freeze_auth(r: dict[str, Any]) -> bool | None:
     return v if isinstance(v, bool) else None
 
 
+def _float_or_none(value: Any) -> float | None:
+    """Best-effort float conversion (N/A-safe) for report metrics."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _bundle_wallet_count(ba: dict[str, Any]) -> int | None:
+    """Number of wallets implicated in a bundled launch, or None.
+
+    Prefers the launch-buyer count from ``detect_bundled_launch``, then the
+    distinct buyers across cluster/bundle blocks, then common funders. Only
+    counts wallets the engine actually identified — never fabricates a 0.
+    """
+    raw = ba.get("launch_buyers")
+    if raw is not None:
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            pass
+    for key in ("cluster_blocks", "bundle_blocks"):
+        blocks = ba.get(key)
+        if isinstance(blocks, list) and blocks:
+            total = 0
+            for b in blocks:
+                if not isinstance(b, dict):
+                    continue
+                try:
+                    total += int(b.get("buyer_count") or 0)
+                except (TypeError, ValueError):
+                    continue
+            if total > 0:
+                return total
+    funders = ba.get("common_funders")
+    if isinstance(funders, list) and funders:
+        return len(funders)
+    return None
+
+
+def _bundle_verdict_row(r: dict[str, Any]) -> str | None:
+    """Deep-scan Bundle row — a clear one-line verdict, honest when no data.
+
+    - 🔴 ``Bundle detected: N wallets`` (engine flagged a coordinated launch)
+    - 🟢 ``No bundle detected`` (engine scanned the launch window clean)
+    - ⚪ ``—`` (engine had no data — never claims "no bundle")
+    Returns ``None`` only when the scan carries no bundle payload at all.
+    """
+    ba = r.get("bundle_analysis")
+    if not isinstance(ba, dict):
+        return None
+    if ba.get("is_bundled"):
+        n = _bundle_wallet_count(ba)
+        conf = _float_or_none(ba.get("confidence"))
+        risk = html.escape(str(ba.get("risk_label") or "unknown")).upper()
+        conf_str = f"{conf:.0f}% conf" if conf is not None else "unknown conf"
+        count = f" <b>{n}</b> wallets" if n is not None else ""
+        return f"\U0001f534 Bundle detected:{count} \u00b7 {conf_str} \u00b7 {risk}"
+    if str(ba.get("result") or "").lower() == "scanned":
+        return "\U0001f7e2 No bundle detected"
+    return "\u2014"
+
+
+def _cex_funded_pct(r: dict[str, Any]) -> float | None:
+    """% of analyzed holders funded from a CEX wallet, or None when unknown.
+
+    Probes every engine payload that reports the number: the own wallet-
+    metrics engine (``wallet_metrics.cex_funded_pct``), the SENTINEL holder
+    analysis (``holder_analysis.exchange_funded_pct``), the own funding
+    engine (``funding_analysis.exchange_funded_pct``) and the backend
+    evidence bucket (``evidence.funding_analysis``). Returns the first
+    number a provider actually reported — never a fabricated 0.
+    """
+    wm = r.get("wallet_metrics")
+    if isinstance(wm, dict) and str(wm.get("result") or "") != "unavailable" and wm.get("cex_funded_pct") is not None:
+        pct = _float_or_none(wm.get("cex_funded_pct"))
+        if pct is not None:
+            return pct
+    ha = r.get("holder_analysis")
+    if isinstance(ha, dict) and ha.get("exchange_funded_pct") is not None:
+        pct = _float_or_none(ha.get("exchange_funded_pct"))
+        if pct is not None:
+            return pct
+    fa = r.get("funding_analysis")
+    if (
+        isinstance(fa, dict)
+        and str(fa.get("result") or "") != "unavailable"
+        and fa.get("exchange_funded_pct") is not None
+    ):
+        pct = _float_or_none(fa.get("exchange_funded_pct"))
+        if pct is not None:
+            return pct
+    ev = r.get("evidence")
+    if isinstance(ev, dict):
+        ef = ev.get("funding_analysis")
+        if isinstance(ef, dict) and ef.get("exchange_funded_pct") is not None:
+            pct = _float_or_none(ef.get("exchange_funded_pct"))
+            if pct is not None:
+                return pct
+    return None
+
+
+def _distribution_verdict(r: dict[str, Any]) -> tuple[str, str] | None:
+    """One-line holder-distribution verdict (emoji, word), or None when no data.
+
+    Thresholds mirror the canonical holder_clusters concentration bands
+    (top-10 ≥ 50% concentrated / ≥ 30% moderate) and the SENTINEL HHI bands
+    (≥ 3000 concentrated / ≥ 1500 moderate). Never claims a verdict when the
+    scan carries no concentration data.
+    """
+    ha = r.get("holder_analysis")
+    top10 = _float_or_none(ha.get("top_10_pct")) if isinstance(ha, dict) else None
+    if top10 is None:
+        ba = r.get("bundle_analysis")
+        if isinstance(ba, dict):
+            top10 = _float_or_none(ba.get("top10_holder_pct"))
+    if top10 is not None:
+        if top10 >= 50:
+            return ("\U0001f534", "CONCENTRATED")
+        if top10 >= 30:
+            return ("\U0001f7e1", "MODERATE")
+        return ("\U0001f7e2", "HEALTHY")
+    hhi = _float_or_none(ha.get("hhi")) if isinstance(ha, dict) else None
+    if hhi is not None:
+        if hhi >= 3000:
+            return ("\U0001f534", "CONCENTRATED")
+        if hhi >= 1500:
+            return ("\U0001f7e1", "MODERATE")
+        return ("\U0001f7e2", "HEALTHY")
+    return None
+
+
+def _holder_distribution_rows(r: dict[str, Any]) -> list[str]:
+    """Deep-scan-only Holder Distribution block (empty when no data).
+
+    Surfaces top-10/top-20 supply concentration, sniper/insider wallet
+    counts (GMGN holder analysis), and the exchange-funded share of the
+    analyzed holders, topped by a one-line distribution verdict. Honest-data
+    rule: every value renders only when a provider reported it.
+    """
+    rows: list[str] = []
+    ha = r.get("holder_analysis")
+    if not isinstance(ha, dict):
+        ha = {}
+    top10 = _float_or_none(ha.get("top_10_pct"))
+    top20 = _float_or_none(ha.get("top_20_pct"))
+    if top10 is not None:
+        row = f"  \U0001f40b Top-10 hold <b>{top10:.1f}%</b>"
+        if top20 is not None:
+            row += f" \u00b7 Top-20 <b>{top20:.1f}%</b>"
+        rows.append(row)
+    elif top20 is not None:
+        rows.append(f"  \U0001f40b Top-20 hold <b>{top20:.1f}%</b>")
+    cex = _cex_funded_pct(r)
+    if cex is not None:
+        rows.append(f"  \U0001f3e6 Exchange-funded <b>{cex:.1f}%</b> of analyzed holders")
+    gmgn_holders = (r.get("gmgn") or {}).get("holders") if isinstance(r.get("gmgn"), dict) else None
+    if isinstance(gmgn_holders, dict) and (gmgn_holders.get("sniper_count") or gmgn_holders.get("insider_count")):
+        parts = []
+        if gmgn_holders.get("sniper_count"):
+            parts.append(f"\U0001f3af <b>{int(gmgn_holders['sniper_count'])}</b> snipers")
+        if gmgn_holders.get("insider_count"):
+            parts.append(f"\U0001f575\ufe0f <b>{int(gmgn_holders['insider_count'])}</b> insiders")
+        rows.append("  " + " \u00b7 ".join(parts))
+    verdict = _distribution_verdict(r)
+    if verdict:
+        rows.append(f"  {verdict[0]} Distribution verdict: <b>{verdict[1]}</b>")
+    return rows
+
+
 def _holders_count(r: dict[str, Any]) -> int | None:
     """Total holder count from any source, or None.
 
@@ -305,13 +483,13 @@ def _key_metrics_rows(r: dict[str, Any], *, deep: bool = False) -> list[str]:
         rows.append(
             f"  LP Lock        {_risk_emoji(lp)} <b>{lp:.0f}%</b>" if lp is not None else "  LP Lock        <b>N/A</b>"
         )
-        ba = r.get("bundle_analysis")
-        if isinstance(ba, dict) and ba.get("is_bundled"):
-            conf = _fmt_num(ba.get("confidence"), suffix="%")
-            rows.append(
-                "  Bundle         "
-                + f"\U0001f534 <b>{conf}</b> {html.escape(str(ba.get('risk_label') or 'unknown')).upper()}"
-            )
+        bundle_row = _bundle_verdict_row(r)
+        if bundle_row is not None:
+            rows.append(f"  Bundle         {bundle_row}")
+        cex = _cex_funded_pct(r)
+        rows.append(
+            f"  CEX-Funded     \U0001f3e6 <b>{cex:.1f}%</b>" if cex is not None else "  CEX-Funded     <b>\u2014</b>"
+        )
         gmgn_holders = (r.get("gmgn") or {}).get("holders") if isinstance(r.get("gmgn"), dict) else None
         if isinstance(gmgn_holders, dict) and (gmgn_holders.get("sniper_count") or gmgn_holders.get("insider_count")):
             parts = []
@@ -375,8 +553,10 @@ def _launch_intel_rows(r: dict[str, Any]) -> list[str]:
     ba = r.get("bundle_analysis")
     if isinstance(ba, dict) and ba.get("is_bundled"):
         conf = _fmt_num(ba.get("confidence"), suffix="%")
+        n = _bundle_wallet_count(ba)
+        count = f", <b>{n}</b> launch wallets" if n is not None else ""
         rows.append(
-            f"  \U0001f4e6 Bundle launch: <b>{conf}</b> confidence, "
+            f"  \U0001f4e6 Bundle launch: <b>{conf}</b> confidence{count}, "
             f"{html.escape(str(ba.get('risk_label') or 'unknown')).upper()} risk"
         )
         if ba.get("deployer_funded_pct") is not None:

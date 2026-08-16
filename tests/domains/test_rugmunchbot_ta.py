@@ -12,10 +12,17 @@ import pytest
 from app.domains.telegram.rugmunchbot.handlers.scanning import format_ta_card
 from app.domains.telegram.rugmunchbot.ta_indicators import (
     analyze_candles,
+    atr,
+    bollinger,
     ema,
     macd,
+    momentum_label,
+    pump_risk,
+    realized_volatility,
+    roc,
     rsi,
     sma,
+    stdev,
 )
 
 
@@ -209,6 +216,106 @@ class TestAnalyzeCandles:
         window = candles[-20:]
         assert a["resistance"] == pytest.approx(max(c["high"] for c in window))
         assert a["support"] == pytest.approx(min(c["low"] for c in window))
+
+
+class TestVolatilityAndBands:
+    def test_stdev(self) -> None:
+        assert stdev([2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]) == pytest.approx(2.0)
+        assert stdev([1.0]) == 0.0
+
+    def test_bollinger_flat_series(self) -> None:
+        b = bollinger([1.0] * 30)
+        assert b["upper"] == pytest.approx(1.0)
+        assert b["lower"] == pytest.approx(1.0)
+        assert b["middle"] == pytest.approx(1.0)
+        assert b["percent_b"] == pytest.approx(0.5)
+        assert b["bandwidth"] == pytest.approx(0.0)
+
+    def test_bollinger_short_series_returns_none(self) -> None:
+        b = bollinger([1.0])
+        assert b["upper"] is None
+        assert b["percent_b"] is None
+
+    def test_atr_flat_series(self) -> None:
+        # high/low = close*1.02 / close*0.98 -> TR = high - low = 0.04 * close
+        candles = [{"time": i, "open": 1.0, "high": 1.02, "low": 0.98, "close": 1.0, "volume": 100} for i in range(30)]
+        a = atr(candles, 14)
+        assert a is not None
+        assert a == pytest.approx(0.04, abs=1e-9)
+
+    def test_atr_short_series_none(self) -> None:
+        candles = [{"time": i, "open": 1.0, "high": 1.02, "low": 0.98, "close": 1.0, "volume": 100} for i in range(5)]
+        assert atr(candles, 14) is None
+
+    def test_realized_volatility_flat_is_low(self) -> None:
+        # Constant drift -> zero dispersion -> ~0% realized vol.
+        v = realized_volatility([1.0 * (1.01**i) for i in range(30)])
+        assert v is not None
+        assert v < 0.5
+
+    def test_realized_volatility_short_none(self) -> None:
+        assert realized_volatility([1.0, 1.1]) is None
+
+
+class TestMomentumAndPumpRisk:
+    def test_roc(self) -> None:
+        assert roc([1.0, 1.1, 1.21], 2) == pytest.approx(21.0, abs=1e-9)
+        assert roc([1.0, 1.1], 2) is None
+
+    def test_momentum_label(self) -> None:
+        assert momentum_label(3.0, 10.0) == "ACCELERATING"
+        assert momentum_label(-3.0, -10.0) == "FADING"
+        assert momentum_label(1.0, 5.0) == "RISING"
+        assert momentum_label(-1.0, -5.0) == "FALLING"
+        assert momentum_label(0.0, 0.0) == "SIDEWAYS"
+        assert momentum_label(None, 1.0) == "N/A"
+
+    def test_pump_risk_volume_spike_high(self) -> None:
+        r = pump_risk({"volume_ratio": 5.0, "roc_24h": 40.0, "rsi": 90.0, "price": 1.0, "high": 1.01})
+        assert r["level"] == "HIGH"
+        assert r["score"] >= 4
+        assert any("volume" in reason for reason in r["reasons"])
+
+    def test_pump_risk_flat_low(self) -> None:
+        r = pump_risk({"volume_ratio": 1.0, "roc_24h": 0.5, "rsi": 50.0, "price": 1.0, "high": 1.1})
+        assert r["level"] == "LOW"
+
+    def test_pump_risk_dump_flags(self) -> None:
+        r = pump_risk({"volume_ratio": 1.0, "roc_24h": -30.0, "rsi": 25.0, "price": 1.0, "high": 1.1})
+        assert r["score"] >= 2
+        assert any("dump" in reason for reason in r["reasons"])
+
+    def test_pump_risk_flat_near_high_not_extended(self) -> None:
+        # Flat token near its recent high with no 24h run is NOT flagged.
+        r = pump_risk({"volume_ratio": 1.0, "roc_24h": 1.0, "rsi": 50.0, "price": 1.0, "high": 1.005})
+        assert r["level"] == "LOW"
+        assert all("high" not in reason for reason in r["reasons"])
+
+
+class TestAnalyzeCandlesRichIndicators:
+    def test_uptrend_surfaces_new_fields(self) -> None:
+        a = analyze_candles(_uptrend())
+        assert a is not None
+        assert a["sma_20"] is not None
+        assert a["bollinger_upper"] is not None
+        assert a["bollinger_middle"] is not None
+        assert a["bollinger_lower"] is not None
+        assert a["bollinger_upper"] > a["bollinger_middle"] > a["bollinger_lower"]
+        assert a["atr_14"] is not None
+        assert a["atr_pct"] is not None
+        assert a["volatility_pct"] is not None
+        assert a["roc_3h"] is not None
+        assert a["roc_24h"] is not None
+        assert a["momentum"] == "ACCELERATING"
+        assert a["pump_risk"]["level"] in ("LOW", "MEDIUM", "HIGH")
+        assert "score" in a["pump_risk"]
+        assert "reasons" in a["pump_risk"]
+
+    def test_flat_series_pump_risk_low(self) -> None:
+        a = analyze_candles([_candle(i, 1.0) for i in range(30)])
+        assert a is not None
+        assert a["momentum"] == "SIDEWAYS"
+        assert a["pump_risk"]["level"] == "LOW"
 
 
 class TestFormatTACard:

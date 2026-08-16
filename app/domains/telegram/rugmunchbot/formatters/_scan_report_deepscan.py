@@ -259,6 +259,8 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
     liq = data.get("liquidity_verification") or {}
     dev = data.get("dev_reputation") or {}
     authority = data.get("contract_authority") or {}
+    bundle = data.get("bundle_detection") or {}
+    exchange = data.get("exchange_funding") or {}
 
     lines: list[str] = [
         "\U0001f6e1\ufe0f <b>AEGIS DEEP FORENSIC SCAN</b>",
@@ -337,6 +339,40 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
         if holder.get("top_10_percentage") is not None:
             with contextlib.suppress(TypeError, ValueError):
                 lines.append(f"  \U0001f40b Top-10 Supply: <b>{float(holder['top_10_percentage']):.0f}%</b>")
+        if holder.get("top_20_percentage") is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                lines.append(f"  \U0001f40b Top-20 Supply: <b>{float(holder['top_20_percentage']):.0f}%</b>")
+        if holder.get("exchange_funded_percentage") is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                lines.append(f"  \U0001f3e6 Exchange-Funded: <b>{float(holder['exchange_funded_percentage']):.0f}%</b>")
+        if holder.get("new_wallets_percentage") is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                lines.append(f"  \U0001f195 New Wallets (<7d): <b>{float(holder['new_wallets_percentage']):.0f}%</b>")
+        # One-line distribution verdict (concentrated vs healthy).
+        top10_raw = holder.get("top_10_percentage")
+        hhi_raw = holder.get("hhi")
+        dist_emoji: str | None = None
+        dist_word: str | None = None
+        if top10_raw is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                top10_f = float(top10_raw)
+                if top10_f >= 50:
+                    dist_emoji, dist_word = "\U0001f534", "CONCENTRATED"
+                elif top10_f >= 30:
+                    dist_emoji, dist_word = "\U0001f7e1", "MODERATE"
+                else:
+                    dist_emoji, dist_word = "\U0001f7e2", "HEALTHY"
+        if dist_emoji is None and hhi_raw is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                hhi_f = float(hhi_raw)
+                if hhi_f >= 3000:
+                    dist_emoji, dist_word = "\U0001f534", "CONCENTRATED"
+                elif hhi_f >= 1500:
+                    dist_emoji, dist_word = "\U0001f7e1", "MODERATE"
+                else:
+                    dist_emoji, dist_word = "\U0001f7e2", "HEALTHY"
+        if dist_emoji is not None and dist_word is not None:
+            lines.append(f"  {dist_emoji} Distribution verdict: <b>{dist_word}</b>")
         for w in (holder.get("warnings") or [])[:3]:
             lines.append(f"  \u26a0\ufe0f {_clip(w, 120)}")
         lines.append("")
@@ -368,6 +404,67 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
         ca_level = str(authority.get("risk_level") or "LOW").upper()
         lines.append(f"  {_risk_level_emoji(ca_level)} Authority Risk: <b>{ca_level}</b>")
         for w in (authority.get("warnings") or [])[:3]:
+            lines.append(f"  \u26a0\ufe0f {_clip(w, 120)}")
+        lines.append("")
+
+    # ── Bundle detection (SENTINEL bundle_detection module) ──
+    if bundle:
+        lines.append("\U0001f4e6 <b>Bundle Detection</b>")
+        lines.append(d)
+        bundle_detected = bool(
+            bundle.get("deployer_funded")
+            or bundle.get("same_block_snipers")
+            or int(bundle.get("jito_bundles_detected") or 0) > 0
+            or str(bundle.get("risk_level") or "").upper() in ("HIGH", "CRITICAL")
+        )
+        if bundle_detected:
+            deployer_wallets = bundle.get("deployer_funded") or []
+            snipers = bundle.get("same_block_snipers") or []
+            n_wallets = len(deployer_wallets) + len(snipers)
+            try:
+                bundled_pct = float(bundle.get("total_bundled_percentage") or 0)
+            except (TypeError, ValueError):
+                bundled_pct = 0.0
+            b_level = str(bundle.get("risk_level") or "UNKNOWN").upper()
+            lines.append(f"  \U0001f534 Bundle detected: <b>{n_wallets}</b> wallets \u00b7 {bundled_pct:.0f}% bundled")
+            lines.append(f"     Risk: <b>{b_level}</b>")
+            if snipers:
+                lines.append(f"     \U0001f3af Same-block snipers: <b>{len(snipers)}</b>")
+            if deployer_wallets:
+                lines.append(f"     \U0001f468\u200d\U0001f4bb Deployer-funded wallets: <b>{len(deployer_wallets)}</b>")
+            if int(bundle.get("jito_bundles_detected") or 0) > 0:
+                lines.append(f"     \u26a1 Jito bundles: <b>{int(bundle['jito_bundles_detected'])}</b>")
+        else:
+            lines.append("  \U0001f7e2 No bundle detected")
+        for w in (bundle.get("warnings") or [])[:3]:
+            lines.append(f"  \u26a0\ufe0f {_clip(w, 120)}")
+        lines.append("")
+
+    # ── Exchange funding (SENTINEL exchange_funding module) ──
+    if exchange:
+        lines.append("\U0001f3e6 <b>Exchange Funding</b>")
+        lines.append(d)
+        try:
+            cex_pct = float(exchange.get("cex_funded_percentage") or 0)
+        except (TypeError, ValueError):
+            cex_pct = 0.0
+        try:
+            inst_pct = float(exchange.get("instant_buy_percentage") or 0)
+        except (TypeError, ValueError):
+            inst_pct = 0.0
+        cex_count = int(exchange.get("cex_funded_count") or 0)
+        total = int(exchange.get("total_buyers") or 0)
+        cex_emoji = "\U0001f534" if cex_pct > 50 else "\U0001f7e1" if cex_pct > 20 else "\U0001f7e2"
+        lines.append(f"  {cex_emoji} CEX-funded: <b>{cex_pct:.0f}%</b> ({cex_count}/{total} buyers)")
+        if inst_pct > 0:
+            lines.append(f"  \u26a1 Instant-buy (fund→buy <60s): <b>{inst_pct:.0f}%</b>")
+        breakdown = exchange.get("exchange_breakdown")
+        if isinstance(breakdown, dict) and breakdown:
+            top = sorted(breakdown.items(), key=lambda kv: kv[1], reverse=True)[:4]
+            lines.append("  \U0001f3e6 " + " \u00b7 ".join(f"{k}: {v}" for k, v in top))
+        e_level = str(exchange.get("risk_level") or "UNKNOWN").upper()
+        lines.append(f"  {_risk_level_emoji(e_level)} Funding verdict: <b>{e_level}</b>")
+        for w in (exchange.get("warnings") or [])[:3]:
             lines.append(f"  \u26a0\ufe0f {_clip(w, 120)}")
         lines.append("")
 

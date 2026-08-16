@@ -12,6 +12,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     _bundle_alert_line,
     _deployer_history_line,
     _wallet_freshness_line,
+    format_deep_scan_report,
     format_scan_report,
     format_wallet_composition_section,
 )
@@ -282,3 +283,74 @@ class TestAllIntelTogether:
         assert "Repeat Deployer" not in out
         assert "fresh wallets" not in out
         assert "CEX-funded" not in out
+
+
+class TestDeepScanJuicy:
+    """Deep-scan juicy intel: bundle verdict line, CEX-funded %, holder distribution."""
+
+    def test_bundle_verdict_red_with_wallet_count(self) -> None:
+        report = _base_report()
+        report["bundle_analysis"] = {
+            "result": "scanned",
+            "is_bundled": True,
+            "confidence": 82.5,
+            "risk_label": "critical",
+            "launch_buyers": 14,
+        }
+        out = format_deep_scan_report(report)
+        assert "Bundle detected: <b>14</b> wallets" in out
+        assert "82% conf" in out
+        assert "CRITICAL" in out
+
+    def test_bundle_verdict_green_when_scanned_clean(self) -> None:
+        report = _base_report()
+        report["bundle_analysis"] = {"result": "scanned", "is_bundled": False, "confidence": 8.0, "risk_label": "low"}
+        out = format_deep_scan_report(report)
+        assert "No bundle detected" in out
+        assert "Bundle detected" not in out
+
+    def test_bundle_verdict_dash_when_unavailable(self) -> None:
+        report = _base_report()
+        report["bundle_analysis"] = {"result": "unavailable", "is_bundled": False}
+        out = format_deep_scan_report(report)
+        # Honest-data rule: unavailable ≠ "no bundle", renders the dash.
+        assert "Bundle" in out
+        assert "No bundle detected" not in out
+        assert "Bundle detected" not in out
+
+    def test_cex_funded_from_wallet_metrics(self) -> None:
+        report = _base_report()
+        report["wallet_metrics"] = {"result": "scanned", "cex_funded_pct": 44.2}
+        out = format_deep_scan_report(report)
+        assert "CEX-Funded" in out
+        assert "44.2%" in out
+
+    def test_holder_distribution_section_with_verdict(self) -> None:
+        report = _base_report()
+        report["holder_analysis"] = {
+            "top_10_pct": 62.4,
+            "top_20_pct": 74.1,
+            "hhi": 4100,
+            "hhi_risk_level": "high",
+        }
+        report["gmgn"] = {"holders": {"sniper_count": 9, "insider_count": 3}}
+        out = format_deep_scan_report(report)
+        assert "Holder Distribution" in out
+        assert "Top-10 hold <b>62.4%</b> · Top-20 <b>74.1%</b>" in out
+        assert "<b>9</b> snipers" in out
+        assert "<b>3</b> insiders" in out
+        assert "Distribution verdict: <b>CONCENTRATED</b>" in out
+
+    def test_holder_distribution_omitted_when_no_data(self) -> None:
+        out = format_deep_scan_report(_base_report())
+        assert "Holder Distribution" not in out
+        assert "Distribution verdict" not in out
+
+    def test_regular_scan_never_shows_deep_only_rows(self) -> None:
+        report = _base_report()
+        report["bundle_analysis"] = {"result": "scanned", "is_bundled": True, "confidence": 90.0, "risk_label": "high"}
+        report["holder_analysis"] = {"top_10_pct": 80.0}
+        out = format_scan_report(report)
+        assert "Bundle detected" not in out
+        assert "CEX-Funded" not in out
+        assert "Holder Distribution" not in out

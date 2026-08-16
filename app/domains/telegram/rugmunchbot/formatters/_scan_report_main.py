@@ -30,6 +30,7 @@ from app.domains.telegram.rugmunchbot.formatters._scan_report_common import (
     _clip,
     _collapse_blank_lines,
     _fmt_market_value,
+    _holder_distribution_rows,
     _key_metrics_rows,
     _launch_intel_rows,
     _what_to_watch_line,
@@ -267,6 +268,13 @@ def _format_scan_report(
         if launch_rows:
             lines.extend(["", "\U0001f3af <b>Launch & Trading Intel</b>", d])
             lines.extend(launch_rows)
+
+    # ── 7c. Holder Distribution (deep scans only: concentration + snipers + verdict) ──
+    if deep:
+        holder_rows = _holder_distribution_rows(r)
+        if holder_rows:
+            lines.extend(["", "\U0001f465 <b>Holder Distribution</b>", d])
+            lines.extend(holder_rows)
 
     # ── 7c. Deep-scan enrichment sections (RugMap cluster, market snapshot,
     #        wallet composition) render INSIDE the report, before the footer ──
