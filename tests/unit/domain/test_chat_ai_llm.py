@@ -188,9 +188,9 @@ async def test_local_llm_falls_back_to_deepseek() -> None:
     finally:
         _llm.httpx.AsyncClient = _FakeLLMClient  # type: ignore[assignment]
     assert result is not None
-    assert result["model"] == _llm.DEEPSEEK_MODEL
+    assert result["model"] == _llm.QWEN_ANALYSIS_MODEL
     assert _FakeLLMClient.calls[0][0] == _llm.QWEN_CHAT_URL
-    assert _FakeLLMClient.calls[1][0] == _llm.DEEPSEEK_CHAT_URL
+    assert _FakeLLMClient.calls[1][0] == _llm.QWEN_ANALYSIS_CHAT_URL
     assert len(_FakeLLMClient.calls) == 2
 
 
@@ -425,7 +425,7 @@ async def test_local_llm_deep_question_tries_deepseek_first() -> None:
     _FakeLLMClient.calls.clear()
     await _llm._call_local_llm("investigate this wallet's funding sources", 1)
     url, _ = _FakeLLMClient.calls[0]
-    assert url == _llm.DEEPSEEK_CHAT_URL
+    assert url == _llm.QWEN_ANALYSIS_CHAT_URL
 
 
 def test_local_context_too_large_defers() -> None:
