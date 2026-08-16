@@ -5,8 +5,8 @@ Layers (free stack, per AGENTS.md):
      web search + RAG knowledge + market digest + scanner context in one
      call (fail-open). This is the same bridge the chat pipeline already
      uses.
-  2. SearXNG direct (SEARXNG_URL env, default http://127.0.0.1:8889) with
-     JSON output.
+  2. SearXNG direct (SEARXNG_BASE_URL env via app.config, default
+     http://127.0.0.1:8889) with JSON output.
   3. KNOWLEDGE FALLBACK — the tool NEVER returns a hard "failed query".
      When both live layers return zero results, ``web_search`` always
      produces a usable answer:
@@ -30,6 +30,7 @@ import asyncio
 import os
 import re
 
+from app.config import settings
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import http_get_json, http_post_json
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
@@ -37,7 +38,9 @@ from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 logger = get_logger("rmi_bot.tools.web")
 
 BRIDGE_CONTEXT_ENDPOINT = os.getenv("BRIDGE_CONTEXT_ENDPOINT", "http://127.0.0.1:8095/chat/context")
-SEARXNG_URL = os.getenv("SEARXNG_URL", "http://127.0.0.1:8889").rstrip("/")
+# Single source of truth: app.config.searxng_base_url (env SEARXNG_BASE_URL,
+# default http://127.0.0.1:8889).
+SEARXNG_URL = settings.searxng_base_url.rstrip("/")
 SEARXNG_TIMEOUT = 6.0
 
 # ══════════════════════════════════════════════════════════════════════════

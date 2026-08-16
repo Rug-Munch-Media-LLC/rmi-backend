@@ -134,6 +134,13 @@ _QUERY_TIMEOUT_SECONDS = 10
 _MAX_HOLDERS = 100  # balance query limit (top-N by net balance)
 _TOP_HOLDERS_OUTPUT = 50  # holders emitted in the payload
 _MAX_BUYERS = 500  # first-buy rows considered for same-block clustering
+# Row budget for the raw transfer/dex scans feeding the balance, first-in and
+# first-buy aggregations. Large tokens can have 1B+ evm_transfers rows; an
+# unbounded scan times out under max_execution_time. Each inner branch is
+# ordered by recency and capped here so the GROUP BY sees a bounded window
+# (most-recent transfers dominate current balances). Approximate for very
+# large tokens — intentional degradation over timeouts.
+_MAX_TRANSFERS_SCAN = 200_000
 
 # Cluster / classification thresholds live in ``_holder_clusters_helpers.py``
 # (pure logic, re-exported above).
@@ -420,7 +427,12 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
 
 
 def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
-    """Net balance per address from evm_transfers deltas (electrs-inspired)."""
+    """Net balance per address from evm_transfers deltas (electrs-inspired).
+
+    The inner UNION ALL branches are each ordered by recency and capped at
+    ``_MAX_TRANSFERS_SCAN`` rows so huge token tables (1B+ rows) return a
+    bounded top-N result instead of timing out under max_execution_time.
+    """
     client = _get_ch_client()
     if client is None:
         return None
@@ -431,21 +443,29 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
                 addr,
                 sum(balance) AS balance
             FROM (
-                SELECT
-                    to_address AS addr,
-                    toFloat64OrZero(value) AS balance
-                FROM wallet_memory.evm_transfers
-                WHERE token_address = %(token)s
-                  AND chain = %(chain)s
-                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                (
+                    SELECT
+                        to_address AS addr,
+                        toFloat64OrZero(value) AS balance
+                    FROM wallet_memory.evm_transfers
+                    WHERE token_address = %(token)s
+                      AND chain = %(chain)s
+                      AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                    ORDER BY block_timestamp DESC
+                    LIMIT %(scan_limit)s
+                )
                 UNION ALL
-                SELECT
-                    from_address AS addr,
-                    -toFloat64OrZero(value) AS balance
-                FROM wallet_memory.evm_transfers
-                WHERE token_address = %(token)s
-                  AND chain = %(chain)s
-                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                (
+                    SELECT
+                        from_address AS addr,
+                        -toFloat64OrZero(value) AS balance
+                    FROM wallet_memory.evm_transfers
+                    WHERE token_address = %(token)s
+                      AND chain = %(chain)s
+                      AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                    ORDER BY block_timestamp DESC
+                    LIMIT %(scan_limit)s
+                )
             )
             WHERE addr != ''
             GROUP BY addr
@@ -453,7 +473,7 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
             ORDER BY balance DESC
             LIMIT %(limit)s
             """,
-            {"token": token_address, "chain": chain, "limit": _MAX_HOLDERS},
+            {"token": token_address, "chain": chain, "limit": _MAX_HOLDERS, "scan_limit": _MAX_TRANSFERS_SCAN},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
         return cast("list[tuple[Any, ...]] | None", rows)
@@ -463,7 +483,11 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
 
 
 def _query_first_in_transfers(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
-    """First in-transfer per holder — funder, evidence tx, block, timestamp."""
+    """First in-transfer per holder — funder, evidence tx, block, timestamp.
+
+    The scan is bounded to the ``_MAX_TRANSFERS_SCAN`` most-recent in-transfers
+    so large token tables do not time out under max_execution_time.
+    """
     client = _get_ch_client()
     if client is None:
         return None
@@ -471,20 +495,30 @@ def _query_first_in_transfers(token_address: str, chain: str) -> list[tuple[Any,
         rows = client.execute(
             """
             SELECT
-                to_address AS holder,
+                holder,
                 argMin(from_address, block_timestamp) AS funder,
                 argMin(tx_hash, block_timestamp) AS first_tx,
                 argMin(block_number, block_timestamp) AS first_block,
                 min(block_timestamp) AS first_seen
-            FROM wallet_memory.evm_transfers
-            WHERE token_address = %(token)s
-              AND chain = %(chain)s
-              AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
-              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                          '0x000000000000000000000000000000000000dead')
-            GROUP BY to_address
+            FROM (
+                SELECT
+                    to_address AS holder,
+                    from_address,
+                    tx_hash,
+                    block_number,
+                    block_timestamp
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                              '0x000000000000000000000000000000000000dead')
+                ORDER BY block_timestamp DESC
+                LIMIT %(scan_limit)s
+            )
+            GROUP BY holder
             """,
-            {"token": token_address, "chain": chain},
+            {"token": token_address, "chain": chain, "scan_limit": _MAX_TRANSFERS_SCAN},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
         return cast("list[tuple[Any, ...]] | None", rows)
@@ -494,7 +528,11 @@ def _query_first_in_transfers(token_address: str, chain: str) -> list[tuple[Any,
 
 
 def _query_first_buy_blocks(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
-    """First DEX buy per address from dex_events (recipient preferred over sender)."""
+    """First DEX buy per address from dex_events (recipient preferred over sender).
+
+    The dex_events scan is bounded to the ``_MAX_TRANSFERS_SCAN`` most-recent
+    swap rows so large token tables do not time out under max_execution_time.
+    """
     client = _get_ch_client()
     if client is None:
         return None
@@ -518,12 +556,14 @@ def _query_first_buy_blocks(token_address: str, chain: str) -> list[tuple[Any, .
                   AND type = 'swap'
                   AND sender NOT IN ('', '0x0000000000000000000000000000000000000000',
                                         '0x000000000000000000000000000000000000dead')
+                ORDER BY block_timestamp DESC
+                LIMIT %(scan_limit)s
             )
             WHERE buyer != ''
             GROUP BY buyer
             LIMIT %(limit)s
             """,
-            {"token": token_address, "chain": chain, "limit": _MAX_BUYERS},
+            {"token": token_address, "chain": chain, "limit": _MAX_BUYERS, "scan_limit": _MAX_TRANSFERS_SCAN},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
         return cast("list[tuple[Any, ...]] | None", rows)
@@ -567,23 +607,28 @@ def _query_deploy_info(token_address: str, chain: str) -> dict[str, Any] | None:
 
 
 def _query_is_active(token_address: str, chain: str) -> bool:
-    """True when the token had any transfer in the last 24h (drives Redis TTL)."""
+    """True when the token had any transfer in the last 24h (drives Redis TTL).
+
+    Uses ``LIMIT 1`` as an existence probe so large token tables short-circuit
+    instead of counting every recent row under max_execution_time.
+    """
     client = _get_ch_client()
     if client is None:
         return False
     try:
         rows = client.execute(
             """
-            SELECT count()
+            SELECT 1
             FROM wallet_memory.evm_transfers
             WHERE token_address = %(token)s
               AND chain = %(chain)s
               AND block_timestamp >= now() - INTERVAL 24 HOUR
+            LIMIT 1
             """,
             {"token": token_address, "chain": chain},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
-        return bool(rows and rows[0] and rows[0][0] > 0)
+        return bool(rows)
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("is_active_query_failed: %s", exc)
         return False

@@ -49,6 +49,12 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.formatters._base import dex_button_rows
 from app.domains.telegram.rugmunchbot.handlers._image import _maybe_send_token_image
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_CHECK_ADDRESS,
+    ACTION_TRY_AGAIN,
+    failure_card,
+    token_not_found_card,
+)
 from app.domains.telegram.rugmunchbot.handlers._scanning_helpers import (
     _bucket_emoji,
     _ds_created_iso,
@@ -171,11 +177,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             _scan_cache_set(target, chain_key, result)
         if result["name"] == "Unknown" and not result["errors"]:
             await msg.edit_text(
-                f"\u274c <b>Token Not Found</b>\n\n"
-                f"No data found for <code>{target}</code>.\n\n"
-                f"\u2022 Check the address is correct\n"
-                f"\u2022 Ensure the token has a trading pair\n"
-                f"\u2022 Try specifying the chain: /scan <code>addr</code> solana",
+                token_not_found_card(target, cmd="scan"),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
@@ -210,7 +212,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("unknown_error", exc_info=True)
         logger.error(f"Scan error: {e}")
         await msg.edit_text(
-            f"\u274c <b>Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
+            failure_card("Scan Failed", "The scanner hit an unexpected error.", ACTION_CHECK_ADDRESS),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -331,10 +333,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             result = await scan_token(target, chain)
         if result["name"] == "Unknown" and not result["errors"]:
             await msg.edit_text(
-                f"\u274c <b>Token Not Found</b>\n\n"
-                f"No data found for <code>{target}</code>.\n\n"
-                f"\u2022 Check the address is correct\n"
-                f"\u2022 Try specifying the chain: /deepscan <code>addr</code> solana",
+                token_not_found_card(target, cmd="deepscan"),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
@@ -423,7 +422,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_deepscan_error", exc_info=True)
         logger.error(f"Deep scan error: {e}")
         await msg.edit_text(
-            f"\u274c <b>Deep Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
+            failure_card("Deep Scan Failed", "The deep scanner hit an unexpected error.", ACTION_CHECK_ADDRESS),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -479,7 +478,7 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         result = await fetch_sentinel_scan(target, chain)
         if not result:
             await msg.edit_text(
-                "\u274c <b>AEGIS scan failed</b>\n\nCould not reach the forensic pipeline. Please try again shortly.",
+                failure_card("AEGIS Scan Failed", "Could not reach the forensic pipeline.", ACTION_TRY_AGAIN),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
@@ -497,7 +496,7 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("sentinel_scan_error", exc_info=True)
         logger.error(f"SENTINEL scan error: {e}")
         await msg.edit_text(
-            f"\u274c <b>AEGIS Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
+            failure_card("AEGIS Scan Failed", "The forensic pipeline hit an unexpected error.", ACTION_CHECK_ADDRESS),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -545,7 +544,7 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_wallet_error", exc_info=True)
         logger.error(f"Wallet error: {e}")
         await msg.edit_text(
-            f"\u274c <b>Wallet Analysis Failed</b>\n\n{str(e)[:200]}",
+            failure_card("Wallet Analysis Failed", "Wallet forensics hit an unexpected error.", ACTION_TRY_AGAIN),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -562,7 +561,10 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if len(ctx.args or []) < 2:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "\u2696\ufe0f <b>Compare Tokens</b>\n\nUsage: /compare <code>addr1</code> <code>addr2</code>",
+            "\u2696\ufe0f <b>Compare Tokens</b>\n\n"
+            "Usage: /compare <code>addr1</code> <code>addr2</code>\n\n"
+            "Example: /compare <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code> "
+            "<code>0x2170Ed0880ac9A755fd29B2688956BD959F933F8</code>",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -670,7 +672,11 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             return
     else:
         logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}")
-    await update.message.reply_text(f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        f"\u274c Could not find token: <b>{symbol}</b>\n\n"
+        "Double-check the symbol, or paste the full address with /scan.",
+        parse_mode=ParseMode.HTML,
+    )
 
 
 # ── /deployer — quick deployer fingerprint check ──
@@ -685,6 +691,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f468\u200d\U0001f4bb <b>Deployer Fingerprint</b>\n\n"
             "Usage: /deployer <code>address</code>\n\n"
+            "Example: /deployer <code>0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</code>\n\n"
             "Runs a v2 security scan and extracts the deployer reputation: "
             "dev risk score, deployment history, rug count.",
             parse_mode=ParseMode.HTML,
@@ -708,7 +715,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         data = await scan_token_v2(target, chain)
         if data is None:
             await msg.edit_text(
-                "\u274c <b>Deployer Check Failed</b>\n\nv2 scanner unavailable. Please try again later.",
+                failure_card("Deployer Check Failed", "The scanner is unavailable right now.", ACTION_TRY_AGAIN),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
@@ -795,7 +802,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_deployer_error", exc_info=True)
         logger.error(f"cmd_deployer failed: {e}")
         await msg.edit_text(
-            f"\u274c <b>Deployer Check Failed</b>\n\n{str(e)[:200]}",
+            failure_card("Deployer Check Failed", "The deployer lookup hit an unexpected error.", ACTION_TRY_AGAIN),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -813,6 +820,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f525 <b>Hype Score</b>\n\n"
             "Usage: /hype <code>address_or_symbol</code>\n\n"
+            "Example: /hype <code>PEPE</code>\n\n"
             "Returns a 0-100 hype score based on market activity, "
             "volume momentum, token age, and price action.",
             parse_mode=ParseMode.HTML,
@@ -841,7 +849,11 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     address = pairs[0].get("baseToken", {}).get("address", "")
                     chain = pairs[0].get("chainId", "")
         if not address:
-            await msg.edit_text(f"\u274c Could not resolve token: <b>{target}</b>", parse_mode=ParseMode.HTML)
+            await msg.edit_text(
+                f"\u274c Could not resolve token: <b>{target}</b>\n\n"
+                "Check the symbol, or paste the full address with /scan.",
+                parse_mode=ParseMode.HTML,
+            )
             return
 
         # Boosts (paid hype signal)
@@ -861,11 +873,16 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         # Pair data
         tr = await client.get(f"{DEXSCREENER}/tokens/{address}")
         if tr.status_code != 200:
-            await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
+            await msg.edit_text(
+                "\u274c Token not found.\n\nCheck the address and try again.", parse_mode=ParseMode.HTML
+            )
             return
         pairs = _ds_pairs(tr.json())
         if not pairs:
-            await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
+            await msg.edit_text(
+                "\u274c No trading pairs found.\n\nEnsure the token has an active pair and try again.",
+                parse_mode=ParseMode.HTML,
+            )
             return
         p = pairs[0]
         name = p.get("baseToken", {}).get("name", "???")
@@ -1005,7 +1022,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_hype_error", exc_info=True)
         logger.error(f"cmd_hype failed: {e}")
         await msg.edit_text(
-            f"\u274c <b>Hype Check Failed</b>\n\n{str(e)[:200]}",
+            failure_card("Hype Check Failed", "The hype score lookup hit an unexpected error.", ACTION_TRY_AGAIN),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

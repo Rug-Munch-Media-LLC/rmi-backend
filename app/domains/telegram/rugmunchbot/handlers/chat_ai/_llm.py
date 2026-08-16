@@ -222,6 +222,47 @@ _WEB_RESULTS_MAX = 5
 # then falls through to live web results so current events stay current.
 _NEWS_THIN_THRESHOLD = 2
 
+# TA/MARKET answer-structure hint appended to the RETRIEVED CONTEXT block when
+# the question is TA-typed (NOT the persona — the persona is owned elsewhere).
+# It tells the model how to shape a technical/market answer (price + trend,
+# key S/R levels, volume/liquidity read, honest data-only citations) and to
+# close with a neutral not-financial-advice line. Deliberately compact so it
+# always fits the router budget even when the live data block is large.
+_TA_ANSWER_HINT = (
+    "TA/MARKET ANSWER FORMAT (follow this structure when the question asks "
+    "for technical or market analysis): 1) open with the current price and "
+    "the recent trend (bullish/bearish/neutral from the indicators above); "
+    "2) give key levels — support and resistance from the data above, and "
+    "where price sits relative to them; 3) add a volume/liquidity read — "
+    "24h change, volume trend and liquidity (real numbers only); 4) cite "
+    "only numbers present in the LIVE MARKET DATA block above — never "
+    "invent values; 5) close with a neutral not-financial-advice line, e.g. "
+    '"not financial advice — always DYOR".'
+)
+
+# EDUCATION / CRYPTO-LORE / TOKEN-USE-CASE questions (qtype "education" or
+# address-less "scam") are grounded by the RAG intel KB (rag_lookup) with a
+# SearXNG web fallback when the KB is thin. The hint below is appended to
+# the RETRIEVED CONTEXT block (same pattern as _TA_ANSWER_HINT) so the model
+# answers definition questions in a structured, useful way instead of
+# generic waffle: plain-language explanation -> concrete example -> risk /
+# why-it-matters. Compact so it always fits the router budget.
+_EDU_ANSWER_HINT = (
+    "EDUCATION/LORE ANSWER FORMAT (follow this structure for definition / "
+    "how-it-works / use-case questions): 1) open with a plain-language "
+    "explanation of the concept — what it is and how it actually works; "
+    "2) then give one concrete example (use a real one from the RAG/web "
+    "data above when present); 3) close with a short risk / why-it-matters "
+    "note — how this affects real users or what to watch out for. Cite the "
+    "RAG/web sources above when you use their facts; never invent "
+    "definitions, numbers or examples."
+)
+# An education/lore RAG gather with FEWER deduped hits than this (or a
+# context block shorter than this many chars) is "thin" — the router then
+# ALSO pulls live SearXNG results so the answer still gets sourced, current
+# specifics (mirrors the NEWS thin threshold).
+_EDU_RAG_THIN_HITS = 2
+_EDU_RAG_THIN_CHARS = 200
 # Type word sets (compact mirrors of tools/intent.py — keep in sync).
 _CTX_MARKET_RE = re.compile(
     r"\b(price|worth|value|cost|how much|market cap|mcap|fdv|trading at|"
@@ -421,11 +462,22 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
         return "", []
     if qtype == "news":
         return await _gather_news_context(question)
+    # EDUCATION / LORE (qtype "education" or address-less "scam") are pure
+    # knowledge asks — they answer from the RAG intel KB (rag_lookup) with a
+    # CONCURRENT SearXNG fallback (the KB search can take ~5s on the live
+    # backend — it must never starve the web layer), plus the education
+    # answer-structure hint (see ``_gather_edu_lore_context``).
+    if qtype in ("education", "scam"):
+        return await _gather_edu_lore_context(question)
 
     names: list[str] = list(_CTX_TOOL_SETS.get(qtype, []))
     low = question.lower()
+    # TA-typed question → run technical_analysis alongside price_lookup and
+    # append the TA answer-format hint to the retrieved context (see
+    # ``_TA_ANSWER_HINT``). TRENDING questions get the trending tool instead.
+    is_ta_question = qtype == "market" and bool(_CTX_TA_RE.search(low))
     if qtype == "market":
-        if _CTX_TA_RE.search(low) and "technical_analysis" not in names:
+        if is_ta_question and "technical_analysis" not in names:
             names.append("technical_analysis")
         elif _CTX_TRENDING_RE.search(low) and "trending" not in names:
             names.append("trending")
@@ -455,7 +507,13 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
         # down too).
         return await _gather_web_fallback(question)
     try:
-        block = build_tool_prompt_block(ok_results)[:_CONTEXT_MAX_CHARS]
+        block = build_tool_prompt_block(ok_results)
+        if is_ta_question:
+            # Reserve room for the hint so it always survives truncation.
+            block = block[: max(0, _CONTEXT_MAX_CHARS - len(_TA_ANSWER_HINT) - 2)]
+            block = f"{block}\n\n{_TA_ANSWER_HINT}"
+        else:
+            block = block[:_CONTEXT_MAX_CHARS]
     except Exception as exc:
         logger.debug("question-router prompt block failed (query %.60s): %s", question, exc)
         return "", []
@@ -464,6 +522,94 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
         for name, r in ok_results.items()
     ]
     return block, sources
+
+
+async def _gather_edu_lore_context(question: str) -> tuple[str, list[dict[str, str]]]:
+    """EDUCATION / LORE context: RAG intel KB + CONCURRENT live web layer.
+
+    Runs ``rag_lookup`` (intel KB: security_patterns / defi_exploits /
+    scam_patterns) and the SearXNG web fallback CONCURRENTLY so the slow KB
+    search (measured ~5s on the live backend) can never consume the whole
+    router budget and starve the web layer. The web layer is MERGED when the
+    KB is missing or thin (``_EDU_RAG_THIN_HITS`` / ``_EDU_RAG_THIN_CHARS``);
+    a rich KB stands alone. Either way the education answer-structure hint
+    (plain-language explanation → concrete example → risk/why-it-matters) is
+    appended to the RETRIEVED CONTEXT block. Fail-open: any failure returns
+    empty context and the LLM answers from its own knowledge.
+    """
+    from app.domains.telegram.rugmunchbot.tools import get_registry
+    from app.domains.telegram.rugmunchbot.tools.intent import tool_kwargs
+
+    spec = tool_kwargs(question, ["rag_lookup"])
+    spec["rag_lookup"] = {"query": question}
+    try:
+        rag_task = asyncio.create_task(get_registry().run_many_kwargs(spec))
+        web_task = asyncio.create_task(_gather_web_fallback(question))
+    except Exception as exc:
+        logger.debug("question-router edu/lore gather failed (query %.60s): %s", question, exc)
+        return "", []
+    try:
+        # FIRST_COMPLETED: the live SearXNG layer answers in ~1s while the KB
+        # search can take ~5s+ — never stall the answer on the slow KB. If the
+        # KB completes first (fast backend, cache), its hits are used;
+        # otherwise the web layer stands alone (fail-open: timeout caps the
+        # total wait).
+        done, pending = await asyncio.wait(
+            {rag_task, web_task},
+            timeout=_CONTEXT_GATHER_TIMEOUT,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        # RAG finished (or failed instantly via negative cache) but the web
+        # fetch is still in flight — give the web layer the REST of the
+        # router budget so a thin/absent KB never leaves the answer empty.
+        if rag_task in done and web_task in pending:
+            await asyncio.wait({web_task}, timeout=max(0.0, _CONTEXT_GATHER_TIMEOUT - 0.2))
+    except Exception as exc:
+        logger.debug("question-router edu/lore gather failed (query %.60s): %s", question, exc)
+    # Collect whatever finished within the budget (fail-open on the rest).
+    web_block, web_sources = "", []
+    try:
+        if not web_task.cancelled() and web_task.done():
+            web_block, web_sources = web_task.result()
+    except Exception as exc:
+        logger.debug("question-router web layer failed (query %.60s): %s", question, exc)
+    rag_block, rag_hits = "", []
+    try:
+        if not rag_task.cancelled() and rag_task.done():
+            rag_results = rag_task.result() or {}
+            rag_result = rag_results.get("rag_lookup")
+            if rag_result is not None and getattr(rag_result, "ok", False):
+                rag_data = rag_result.data if isinstance(rag_result.data, dict) else {}
+                rag_hits = rag_data.get("hits") or []
+                rag_block = str(rag_data.get("context") or "")
+    except Exception as exc:
+        logger.debug("question-router RAG layer failed (query %.60s): %s", question, exc)
+    finally:
+        for t in (rag_task, web_task):
+            if not t.done():
+                t.cancel()
+        if rag_task.cancelled() or web_task.cancelled():
+            await asyncio.gather(rag_task, web_task, return_exceptions=True)
+
+    rag_thin = not rag_block or len(rag_hits) < _EDU_RAG_THIN_HITS or len(rag_block) < _EDU_RAG_THIN_CHARS
+    if rag_thin and web_block:
+        block = "\n\n".join(b for b in (rag_block, web_block) if b)
+        sources = [
+            *[{"type": "rag_lookup", "query": question[:90], "title": "rag_lookup \u00b7 intel KB"}],
+            *web_sources,
+        ]
+        if not rag_block:
+            sources = web_sources
+    elif rag_block:
+        block = rag_block
+        sources = [{"type": "rag_lookup", "query": question[:90], "title": "rag_lookup \u00b7 intel KB"}]
+    else:
+        return "", []
+    # Reserve room for the hint so it always survives truncation.
+    block = block[: max(0, _CONTEXT_MAX_CHARS - len(_EDU_ANSWER_HINT) - 2)]
+    if not block:
+        return "", []
+    return f"{block}\n\n{_EDU_ANSWER_HINT}", sources
 
 
 async def _call_backend_chat(

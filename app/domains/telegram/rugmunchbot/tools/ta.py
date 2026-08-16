@@ -14,6 +14,12 @@ RugCharts engine):
      reachable the tool returns the REAL snapshot with
      ``indicators_available=false`` instead of fabricating RSI/EMA/MACD.
 
+The payload always carries a ``market`` block (price, 1h/6h/24h change,
+volume-24h, liquidity, market cap, FDV — real DexScreener values, plus
+candle-window change/high/low and distance from the window high/low when
+candles exist) so the chat LLM can answer TA/market asks with concrete
+numbers, not a one-liner.
+
 The indicator math is REUSED from
 ``app.domains.telegram.rugmunchbot.ta_indicators`` (``analyze_candles``:
 RSI-14, EMA-9/21, MACD 12/26/9, support/resistance, trend, volume) — pure
@@ -198,7 +204,49 @@ def _pair_snapshot(pair: dict[str, Any], address: str, symbol: str) -> dict[str,
         "change_24h": _to_float(price_change.get("h24")),
         "volume_24h": _to_float(volume.get("h24")),
         "liquidity_usd": _to_float(liquidity.get("usd")),
+        "market_cap": _to_float(pair.get("marketCap")),
+        "fdv": _to_float(pair.get("fdv")),
     }
+
+
+def _market_context(snapshot: dict[str, Any], analysis: dict[str, Any] | None) -> dict[str, Any]:
+    """Flat live-market read merged from the real DexScreener pair snapshot
+    and (when candles were available) the candle analysis.
+
+    Only real source values are included — ``None`` fields are omitted so the
+    LLM never sees fabricated numbers. ``distance_from_window_*`` is measured
+    against the candle WINDOW high/low, deliberately NOT an all-time high: no
+    live ATH feed exists for arbitrary DEX pairs, and the key stays honest so
+    the model phrases it as "recent range" rather than "ATH".
+    """
+    ctx: dict[str, Any] = {}
+    for key, value in (
+        ("price_usd", snapshot.get("price_usd")),
+        ("change_1h", snapshot.get("change_1h")),
+        ("change_6h", snapshot.get("change_6h")),
+        ("change_24h", snapshot.get("change_24h")),
+        ("volume_24h", snapshot.get("volume_24h")),
+        ("liquidity_usd", snapshot.get("liquidity_usd")),
+        ("market_cap", snapshot.get("market_cap")),
+        ("fdv", snapshot.get("fdv")),
+    ):
+        if value is not None:
+            ctx[key] = value
+    if analysis is not None:
+        if analysis.get("change_pct") is not None:
+            ctx["change_window_pct"] = analysis.get("change_pct")
+        if analysis.get("high") is not None:
+            ctx["window_high"] = analysis.get("high")
+        if analysis.get("low") is not None:
+            ctx["window_low"] = analysis.get("low")
+        price = analysis.get("price")
+        high = analysis.get("high")
+        low = analysis.get("low")
+        if price is not None and high and high > 0:
+            ctx["distance_from_window_high_pct"] = (high - price) / high * 100
+        if price is not None and low and low > 0:
+            ctx["distance_from_window_low_pct"] = (price - low) / low * 100
+    return ctx
 
 
 # ── OHLCV candles: own data first, GeckoTerminal direct fallback ───────────
@@ -431,6 +479,7 @@ async def technical_analysis(*, address: str = "", symbol: str = "", chain: str 
                 "timeframe": "1h",
                 "indicators_available": True,
                 "indicators": indicators,
+                "market": _market_context(snapshot, analysis),
                 "verdict": verdict,
                 "summary_text": _summary_text(analysis),
                 "updated_at": datetime.now(UTC).isoformat(),
@@ -464,6 +513,7 @@ async def technical_analysis(*, address: str = "", symbol: str = "", chain: str 
             "indicators_available": False,
             "indicators": None,
             "snapshot": snapshot,
+            "market": _market_context(snapshot, None),
             "verdict": {
                 "bias": "insufficient_data",
                 "score": 0.0,

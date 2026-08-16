@@ -370,7 +370,7 @@ async def cmd_admin_ban(update: Update, ctx) -> None:
     try:
         target = int(ctx.args[0])
     except (ValueError, TypeError):
-        await update.message.reply_text("Invalid user_id.")  # type: ignore[union-attr]  # PTB None-able fields
+        await update.message.reply_text("Invalid user_id. Use the numeric Telegram ID.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     if target in OWNER_IDS:
         await update.message.reply_text("\u274c Cannot ban the owner.")  # type: ignore[union-attr]  # PTB None-able fields
@@ -395,7 +395,7 @@ async def cmd_admin_unban(update: Update, ctx) -> None:
     try:
         target = int(ctx.args[0])
     except (ValueError, TypeError):
-        await update.message.reply_text("Invalid user_id.")  # type: ignore[union-attr]  # PTB None-able fields
+        await update.message.reply_text("Invalid user_id. Use the numeric Telegram ID.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     ok = db.set_banned(target, False)
     _log(uid, "admin_unban", str(target))

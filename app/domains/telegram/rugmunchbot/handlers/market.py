@@ -469,7 +469,7 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     text, trending_kb = await render_trending(chain, limit=20, window="24h")
     if text is None or trending_kb is None:
         await msg.edit_text(
-            "❌ <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
+            "❌ <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again in a moment.",
             parse_mode=ParseMode.HTML,
         )
         return

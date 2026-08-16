@@ -345,7 +345,7 @@ async def cmd_launches(update, ctx) -> None:
 
     if not data:
         await msg.reply_text(
-            "❌ Launch feed unavailable right now.\nTry again in a moment.",
+            "❌ Launch feed unavailable right now.\nPlease try again in a moment.",
             parse_mode="HTML",
         )
         return

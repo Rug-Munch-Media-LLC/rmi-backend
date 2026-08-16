@@ -333,7 +333,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             f"❌ <b>Holder Analysis Failed</b>\n\n"
             f"Could not fetch holder data for <code>{address}</code>.\n"
-            f"Error: {str(e)[:150]}",
+            f"Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

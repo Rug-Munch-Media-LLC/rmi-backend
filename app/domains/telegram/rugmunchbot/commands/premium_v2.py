@@ -80,7 +80,7 @@ async def cmd_honeypot(update, ctx) -> None:
     data = await _backend_get(f"/api/v1/honeypot-map/check/{address}", params={"chain": chain})
 
     if not data:
-        await msg.reply_text("❌ Honeypot check unavailable.", parse_mode="HTML")
+        await msg.reply_text("❌ Honeypot check unavailable.\n\nPlease try again in a moment.", parse_mode="HTML")
         return
 
     is_hp = data.get("is_honeypot", False)
@@ -145,7 +145,7 @@ async def cmd_lphealth(update, ctx) -> None:
     data = await _backend_get(f"/api/v1/lp-health/check/{address}", params={"chain": chain})
 
     if not data:
-        await msg.reply_text("❌ LP health check unavailable.", parse_mode="HTML")
+        await msg.reply_text("❌ LP health check unavailable.\n\nPlease try again in a moment.", parse_mode="HTML")
         return
 
     health = data.get("health_score", 0)
@@ -204,7 +204,7 @@ async def cmd_laundry(update, ctx) -> None:
     data = await _backend_post("/api/v1/laundry-matcher/scan", json={"address": address})
 
     if not data:
-        await msg.reply_text("❌ Laundry scan unavailable.", parse_mode="HTML")
+        await msg.reply_text("❌ Laundry scan unavailable.\n\nPlease try again in a moment.", parse_mode="HTML")
         return
 
     risk = data.get("risk_score", 0)

@@ -130,7 +130,9 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     args = context.args or []
     if not args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "Usage: /groupinfo <chat_id>\nShows group stats: member count, active voice chats, etc."
+            "Usage: /groupinfo <chat_id>\n"
+            "Example: /groupinfo -1001234567890\n"
+            "Shows group stats: member count, active voice chats, etc."
         )
         return
 
@@ -145,8 +147,8 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         client = await get_headless_client()
         info = await client._fetch_group_info(chat_id)
-    except (ImportError, RuntimeError, Exception) as e:
-        await update.message.reply_text(f"❌ Error: {e}")  # type: ignore[union-attr]  # PTB None-able fields
+    except (ImportError, RuntimeError, Exception):
+        await update.message.reply_text("❌ Could not fetch group info. Please try again in a moment.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     # Check voice chat status
@@ -205,7 +207,7 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         chat_id = int(args[1])
     except ValueError:
-        await update.message.reply_text("❌ Invalid chat_id.")  # type: ignore[union-attr]  # PTB None-able fields
+        await update.message.reply_text("❌ Invalid chat_id. Must be a number.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     title = " ".join(args[2:]) if len(args) > 2 else None
@@ -213,7 +215,7 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
 
     if not BOT_TOKEN:
-        await update.message.reply_text("❌ Bot not configured.")  # type: ignore[union-attr]  # PTB None-able fields
+        await update.message.reply_text("❌ Bot not configured. Please contact the operator.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     from telegram import Bot
@@ -233,16 +235,16 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 else f"✅ {'📹 Video' if is_video else '🎤 Voice'} chat started!",
                 parse_mode="Markdown",
             )
-        except RuntimeError as e:
-            await update.message.reply_text(f"❌ {e}")  # type: ignore[union-attr]  # PTB None-able fields
+        except RuntimeError:
+            await update.message.reply_text("❌ Could not start the voice chat. Please try again in a moment.")  # type: ignore[union-attr]  # PTB None-able fields
     elif action == "end":
         try:
             from app.domains.telegram.voice_chat import end_voice_chat
 
             await end_voice_chat(bot, chat_id)
             await update.message.reply_text("✅ Voice chat ended.")  # type: ignore[union-attr]  # PTB None-able fields
-        except RuntimeError as e:
-            await update.message.reply_text(f"❌ {e}")  # type: ignore[union-attr]  # PTB None-able fields
+        except RuntimeError:
+            await update.message.reply_text("❌ Could not end the voice chat. Please try again in a moment.")  # type: ignore[union-attr]  # PTB None-able fields
     else:
         await update.message.reply_text("❌ Unknown action. Use: start, start_video, or end.")  # type: ignore[union-attr]  # PTB None-able fields
 
@@ -264,7 +266,7 @@ async def cmd_banuser(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         chat_id = int(args[0])
         user_id = int(args[1])
     except ValueError:
-        await update.message.reply_text("❌ Invalid chat_id or user_id.")  # type: ignore[union-attr]  # PTB None-able fields
+        await update.message.reply_text("❌ Invalid chat_id or user_id. Must be numbers.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     reason = " ".join(args[2:]) if len(args) > 2 else None
@@ -280,6 +282,6 @@ async def cmd_banuser(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode="Markdown",
             )
         else:
-            await update.message.reply_text("❌ Failed to ban user.")  # type: ignore[union-attr]  # PTB None-able fields
-    except (ImportError, RuntimeError) as e:
-        await update.message.reply_text(f"❌ {e}")  # type: ignore[union-attr]  # PTB None-able fields
+            await update.message.reply_text("❌ Failed to ban user. Please try again in a moment.")  # type: ignore[union-attr]  # PTB None-able fields
+    except (ImportError, RuntimeError):
+        await update.message.reply_text("❌ Could not ban the user. Please try again in a moment.")  # type: ignore[union-attr]  # PTB None-able fields

@@ -95,7 +95,7 @@ def _error_text(target: str, exc: Exception) -> str:
     return (
         "\u274c <b>OSINT Lookup Failed</b>\n\n"
         f"<code>{html.escape(target)}</code>\n\n"
-        "Could not complete the lookup. Please try again later."
+        "Could not complete the lookup. Please try again in a moment."
     )
 
 

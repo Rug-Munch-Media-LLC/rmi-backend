@@ -403,7 +403,7 @@ async def cmd_rugmap(update, ctx) -> None:
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"RugMap failed: {e}")
-        await msg.reply_text("❌ Could not generate rug map. Try again later.", parse_mode="HTML")
+        await msg.reply_text("❌ Could not generate rug map.\n\nPlease try again in a moment.", parse_mode="HTML")
 
 
 def _guess_chain(address: str) -> str:

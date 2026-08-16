@@ -165,7 +165,7 @@ async def cmd_yield(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     pools = _yield_candidates(payload.get("data") or [], stable_only=stable_only)
     if not pools:
         await msg.edit_text(
-            "\u26a0\ufe0f <b>No Qualified Yields</b>\n\nNo pools cleared the risk filters right now.\nTry again later.",
+            "\u26a0\ufe0f <b>No Qualified Yields</b>\n\nNo pools cleared the risk filters right now.\nPlease try again in a moment.",
             parse_mode=ParseMode.HTML,
         )
         return

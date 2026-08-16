@@ -334,7 +334,9 @@ async def cmd_sentiment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_sentiment_error", exc_info=True)
         logger.error(f"Sentiment error: {e}")
         await msg.edit_text(
-            f"\u274c <b>Sentiment Unavailable</b>\n\nCould not fetch market sentiment right now.\nError: {str(e)[:100]}",
+            "\u274c <b>Sentiment Unavailable</b>\n\n"
+            "Could not fetch market sentiment right now.\n"
+            "Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")]]

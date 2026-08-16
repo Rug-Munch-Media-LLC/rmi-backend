@@ -97,7 +97,7 @@ async def cmd_osintall(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             "\u274c <b>OSINT Aggregate Failed</b>\n\n"
             f"<code>{html.escape(target)}</code>\n\n"
-            "Could not complete the aggregate lookup. Please try again later.",
+            "Could not complete the aggregate lookup. Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

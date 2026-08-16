@@ -46,13 +46,16 @@ async def cmd_simulate(update, ctx) -> None:
         client = get_shared_client(15)
         r = await client.get(f"{DEXSCREENER}/tokens/{address}")
         if r.status_code != 200:
-            await msg.reply_text("❌ Could not fetch token data.", parse_mode="HTML")
+            await msg.reply_text("❌ Could not fetch token data. Please try again in a moment.", parse_mode="HTML")
             return
 
         data = r.json()
         pairs = data.get("pairs", [])
         if not pairs:
-            await msg.reply_text("❌ No trading pairs found.", parse_mode="HTML")
+            await msg.reply_text(
+                "❌ No trading pairs found.\n\nEnsure the token has an active pair and try again.",
+                parse_mode="HTML",
+            )
             return
 
         p = pairs[0]
@@ -62,7 +65,10 @@ async def cmd_simulate(update, ctx) -> None:
         fdv = float(p.get("fdv", 0))
 
         if price == 0:
-            await msg.reply_text("❌ Token price data unavailable.", parse_mode="HTML")
+            await msg.reply_text(
+                "❌ Token price data unavailable.\n\nCheck the address and try again.",
+                parse_mode="HTML",
+            )
             return
 
         # Calculate simulated results
@@ -106,4 +112,4 @@ async def cmd_simulate(update, ctx) -> None:
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Simulate failed: {e}")
-        await msg.reply_text("❌ Simulation error. Try again later.", parse_mode="HTML")
+        await msg.reply_text("❌ Simulation failed. Please try again in a moment.", parse_mode="HTML")

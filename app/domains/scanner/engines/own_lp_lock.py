@@ -174,7 +174,10 @@ def _get_ch_client() -> Any | None:
         logger.info("Own LP lock ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
         _ch_local.client = candidate
         return candidate
-    except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError) as e:
+    except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError, CHDriverError) as e:
+        # CHDriverError covers ServerException (e.g. auth rejection) so
+        # get_cache_stats() / callers degrade gracefully instead of raising.
+        # Matches the canonical lite_chain_indexer._get_ch_client behaviour.
         logger.warning("Own LP lock ClickHouse unavailable: %s", e)
         return None
 
