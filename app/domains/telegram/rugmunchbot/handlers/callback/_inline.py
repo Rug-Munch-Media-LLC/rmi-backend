@@ -384,7 +384,7 @@ async def _inline_sentiment(update: Update, ctx) -> None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"inline sentiment failed: {e}")
         await query.edit_message_text(
-            "\u274c Sentiment unavailable. Please try again later.",
+            "\u274c Sentiment unavailable. Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

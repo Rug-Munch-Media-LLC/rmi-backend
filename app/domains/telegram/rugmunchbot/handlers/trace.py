@@ -261,9 +261,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 amt = conn.get("amount_usd", 0)
                 ts = conn.get("timestamp", "")
                 lines.append(
-                    f"  🌐 {src} → {dst}"
-                    f"{' ($' + fmt_number(amt) + ')' if amt else ''}"
-                    f"{' | ' + ts[:10] if ts else ''}"
+                    f"  🌐 {src} → {dst}{' ($' + fmt_number(amt) + ')' if amt else ''}{' | ' + ts[:10] if ts else ''}"
                 )
             if len(cross_chain) > 6:
                 lines.append(f"  ... and {len(cross_chain) - 6} more")
@@ -336,7 +334,8 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_trace_error", exc_info=True)
         logger.error(f"Trace error: {e}")
         await msg.edit_text(
-            f"❌ <b>Trace Failed</b>\n\nCould not trace funds for <code>{address}</code>.\nError: {str(e)[:150]}",
+            f"❌ <b>Trace Failed</b>\n\nCould not trace funds for <code>{address}</code>.\n"
+            "Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -526,7 +525,7 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_dumps_error", exc_info=True)
         logger.error(f"Dump scan error: {e}")
         await msg.edit_text(
-            f"❌ <b>Dump Scan Failed</b>\n\n{str(e)[:150]}",
+            "❌ <b>Dump Scan Failed</b>\n\nCould not run the dump-pattern scan.\nPlease try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -662,9 +661,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 method = conn.get("method", "")
                 conf_pct = f"{conf * 100:.0f}%" if isinstance(conf, (int, float)) else ""
                 method_tag = f" ({method})" if method and method != "Direct lookup" else ""
-                lines.append(
-                    f"  🔗 <code>{short_addr(addr)}</code>{method_tag}{' | ' + conf_pct if conf_pct else ''}"
-                )
+                lines.append(f"  🔗 <code>{short_addr(addr)}</code>{method_tag}{' | ' + conf_pct if conf_pct else ''}")
             if len(connected) > 8:
                 lines.append(f"  ... and {len(connected) - 8} more")
             lines.append("")
@@ -719,7 +716,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_flow_error", exc_info=True)
         logger.error(f"Flow error: {e}")
         await msg.edit_text(
-            f"❌ <b>Flow Trace Failed</b>\n\n{str(e)[:150]}",
+            "❌ <b>Flow Trace Failed</b>\n\nCould not trace the money flow.\nPlease try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

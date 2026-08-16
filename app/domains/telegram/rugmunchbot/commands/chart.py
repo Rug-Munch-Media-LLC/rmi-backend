@@ -388,7 +388,7 @@ async def cmd_chart(update, ctx) -> None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error("DexScreener fetch failed: %s", e)
         await msg.reply_text(
-            "❌ Error fetching token data. Try again later.",
+            "❌ Could not fetch token data.\n\nPlease try again in a moment.",
             parse_mode="HTML",
         )
         return

@@ -77,7 +77,7 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     ok = db.report_scam(user.id, address, chain, reason)
     if not ok:
         await update.message.reply_text(
-            "\u274c <b>Report failed</b>\n\nCould not store the report. Please try again shortly.",
+            "\u274c <b>Report failed</b>\n\nCould not store the report. Please try again in a moment.",
             parse_mode=ParseMode.HTML,
         )
         return

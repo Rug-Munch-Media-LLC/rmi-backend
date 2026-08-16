@@ -171,7 +171,7 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             f"❌ <b>Price Check Failed</b>\n\n"
             f"Could not fetch price for <code>{address}</code>.\n"
-            f"Please try again later.",
+            f"Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -261,7 +261,7 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             f"❌ <b>DEX Query Failed</b>\n\n"
             f"Could not fetch DEX data for <code>{address}</code>.\n"
-            f"Error: {str(e)[:100]}",
+            f"Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

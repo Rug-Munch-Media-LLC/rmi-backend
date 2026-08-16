@@ -379,7 +379,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
         logger.debug("webhook_add_error", exc_info=True)
         logger.error(f"webhook add error: {e}")
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "❌ Failed to register webhook. Please try again.",
+            "❌ Failed to register webhook. Please try again in a moment.",
             parse_mode=ParseMode.HTML,
         )
 
@@ -534,16 +534,16 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
         conn.commit()
         conn.close()
 
-    except httpx.HTTPError as e:
+    except httpx.HTTPError:
         await msg.edit_text(
             f"❌ <b>Test Failed</b>\n\n"
             f"URL: <code>{url[:80]}</code>\n\n"
             f"Could not reach your endpoint.\n"
-            f"Error: {str(e)[:150]}",
+            f"Please try again in a moment.",
             parse_mode=ParseMode.HTML,
         )
-    except (ConnectionError, TimeoutError, OSError) as e:
+    except (ConnectionError, TimeoutError, OSError):
         await msg.edit_text(
-            f"❌ <b>Connection Failed</b>\n\nURL: <code>{url[:80]}</code>\n\nError: {str(e)[:150]}",
+            f"❌ <b>Connection Failed</b>\n\nURL: <code>{url[:80]}</code>\n\nPlease try again in a moment.",
             parse_mode=ParseMode.HTML,
         )

@@ -151,7 +151,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
             except (TelegramError, ValueError, KeyError, TypeError) as e:
                 logger.error(f"Deep scan payment error: {e}")
                 await msg.edit_text(
-                    f"\u274c Deep scan failed: {str(e)[:200]}\n\nContact support for help.",
+                    "\u274c Deep scan failed.\n\nPlease try again in a moment. Contact support if it persists.",
                     parse_mode="HTML",
                 )
         else:

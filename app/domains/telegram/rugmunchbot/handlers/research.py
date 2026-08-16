@@ -314,8 +314,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Research error: {e}")
         await msg.edit_text(
             f"\u274c <b>Research Failed</b>\n\n"
-            f"Could not complete research for: <i>{html.escape(query[:100])}</i>\n"
-            f"Error: {str(e)[:200]}\n\n"
+            f"Could not complete research for: <i>{html.escape(query[:100])}</i>\n\n"
             f"Please try again or use simpler terms.",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(

@@ -68,7 +68,9 @@ async def cmd_watch(update: Update, ctx) -> None:
         return
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "\U0001f440 Usage: /watch <code>address</code> [chain]", parse_mode=ParseMode.HTML
+            "\U0001f440 Usage: /watch <code>address</code> [chain]\n\n"
+            "Example: /watch <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code> solana",
+            parse_mode=ParseMode.HTML,
         )
         return
     addr = ctx.args[0]
@@ -102,7 +104,11 @@ async def cmd_unwatch(update: Update, ctx) -> None:
     if user is None:
         return
     if not ctx.args:
-        await update.message.reply_text("Usage: /unwatch <code>address</code>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+            "Usage: /unwatch <code>address</code>\n\n"
+            "Example: /unwatch <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code>",
+            parse_mode=ParseMode.HTML,
+        )
         return
     addr = ctx.args[0]
     ok = db.remove_watchlist(user.id, addr)

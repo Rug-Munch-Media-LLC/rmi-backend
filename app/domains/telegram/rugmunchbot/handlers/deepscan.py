@@ -105,7 +105,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             "\u274c <b>Deep Scan Failed</b>\n\n"
             f"<code>{html.escape(address)}</code>\n\n"
-            "Could not complete the deep scan. Please try again later.",
+            "Could not complete the deep scan. Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

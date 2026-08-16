@@ -50,7 +50,9 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "\U0001f4ca <b>Technical Analysis</b>\n\nUsage: /ta <code>address_or_symbol</code>",
+            "\U0001f4ca <b>Technical Analysis</b>\n\n"
+            "Usage: /ta <code>address_or_symbol</code>\n\n"
+            "Example: /ta <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code>",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -69,11 +71,16 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         client = get_shared_client(20)
         r = await client.get(f"{DEXSCREENER}/tokens/{target}")
         if r.status_code != 200:
-            await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
+            await msg.edit_text(
+                "\u274c Token not found.\n\nCheck the address and try again.", parse_mode=ParseMode.HTML
+            )
             return
         pairs = _ds_pairs(r.json())
         if not pairs:
-            await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
+            await msg.edit_text(
+                "\u274c No trading pairs found.\n\nEnsure the token has an active pair and try again.",
+                parse_mode=ParseMode.HTML,
+            )
             return
         p = pairs[0]
         name = p.get("baseToken", {}).get("name", "???")
@@ -169,4 +176,8 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"TA error: {e}")
-        await msg.edit_text(f"\u274c TA failed: {str(e)[:200]}", parse_mode=ParseMode.HTML, reply_markup=back_kb())
+        await msg.edit_text(
+            "\u274c TA failed.\n\nPlease try again in a moment.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )

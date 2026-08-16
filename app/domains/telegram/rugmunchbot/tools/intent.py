@@ -539,8 +539,20 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
 # MODEL-FACING projection only — the tools' ToolResult.data keeps the raw
 # values untouched.
 
-_USD_FIELDS = frozenset({"price_usd", "market_cap", "mcap", "fdv", "liquidity_usd", "volume_24h"})
-_PCT_FIELDS = frozenset({"price_change_24h", "change_24h"})
+_USD_FIELDS = frozenset(
+    {"price_usd", "market_cap", "mcap", "fdv", "liquidity_usd", "volume_24h", "window_high", "window_low"}
+)
+_PCT_FIELDS = frozenset(
+    {
+        "price_change_24h",
+        "change_24h",
+        "change_1h",
+        "change_6h",
+        "change_window_pct",
+        "distance_from_window_high_pct",
+        "distance_from_window_low_pct",
+    }
+)
 
 
 def _fmt_scaled(v: float, unit: str) -> str:

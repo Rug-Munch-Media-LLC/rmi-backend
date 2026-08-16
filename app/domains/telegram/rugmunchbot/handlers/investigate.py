@@ -480,7 +480,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await msg.edit_text(
             f"❌ <b>Investigation Failed</b>\n\n"
             f"Could not complete investigation for <code>{address}</code>.\n"
-            f"Error: {str(e)[:200]}",
+            f"Please try again in a moment.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
