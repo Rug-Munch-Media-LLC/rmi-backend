@@ -27,6 +27,7 @@ from app.domains.news_ingest.ingest import (
     DEFAULT_DEDUP_COLLECTION,
     dedupe_articles,
     filter_seen_articles,
+    is_channel_cooldown,
     read_channel_messages,
 )
 from app.domains.news_ingest.normalize import channel_message_to_article, is_telegram_link
@@ -46,20 +47,27 @@ logger = get_logger("rmi_bot.channels.tg_news")
 #: listed in ``app/databus/tg_channels.json`` carry that registry's confidence
 #: notes (some are [REVIEW] — re-verify before production monitoring).
 #:
-#: Language note: ``PANewsOfficial`` and ``wublockchain`` post mostly in
-#: Korean / Chinese and are kept in the default list on purpose — the
-#: English-only language gate in ``normalize.channel_message_to_article``
-#: (Unicode-script detection, never translation) drops their non-English
-#: posts at runtime while a future English post on those channels still
-#: lands. Do not remove them unless the runtime filter is replaced.
+#: Language note: ``PANewsOfficial`` posts mostly in Korean / Chinese and is
+#: kept in the default list on purpose — the English-only language gate in
+#: ``normalize.channel_message_to_article`` (Unicode-script detection, never
+#: translation) drops its non-English posts at runtime while a future English
+#: post on that channel still lands. Do not remove it unless the runtime
+#: filter is replaced.
+#:
+#: Dead/renamed handles that repeatedly failed to resolve ("No user has X as
+#: username") are commented out below — they cost an MTProto round-trip on
+#: every tick. Auto-disable in ``app.domains.news_ingest.ingest`` additionally
+#: skips any channel (explicit or discovered) after 3 consecutive read
+#: failures for a 24h cooldown, so a stale handle can never burn the sweep
+#: indefinitely.
 _DEFAULT_CHANNELS: tuple[str, ...] = (
     "cointelegraph",  # official CoinTelegraph
-    "wublockchain",  # Wu Blockchain (Colin Wu) — mostly CN/KR → runtime language filter
+    # "wublockchain",  # DEAD handle (2026-08-16): "No user has wublockchain as username"
     "coindesk",  # official CoinDesk
-    "TheBlock__",  # The Block [REVIEW: exact handle, double underscore]
+    # "TheBlock__",  # DEAD handle (2026-08-16): "No user has TheBlock__ as username"
     "cryptoslate",  # CryptoSlate
-    "beincrypto",  # BeInCrypto
-    "cryptonews",  # Cryptonews.com [REVIEW: verify handle]
+    # "beincrypto",  # DEAD handle (2026-08-16): "No user has beincrypto as username"
+    # "cryptonews",  # DEAD handle (2026-08-16): "No user has cryptonews as username"
     "PANewsOfficial",  # PANews [REVIEW: verify casing] — mostly KR/CN → runtime language filter
     "WatcherGuru",  # Watcher Guru
     "bitcoinmagazine",  # Bitcoin Magazine [REVIEW: verify handle]
@@ -464,6 +472,9 @@ async def sweep_telegram_news(
     for source in sources:
         username = str(source.get("username") or "").strip().lstrip("@")
         if not username:
+            continue
+        if is_channel_cooldown(username):
+            logger.debug("tg_news:channel_cooldown_skip channel=%s", username)
             continue
         category = str(source.get("category") or "crypto_news")
         messages = await read_channel_messages(client, username, per_channel)
