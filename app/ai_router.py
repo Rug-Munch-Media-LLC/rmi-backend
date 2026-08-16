@@ -29,6 +29,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from app.core.ai_guardrails import ThinkStreamFilter, strip_think_tags
 from app.core.logging import get_logger
 from app.databus.proxy_rotator import get_proxy_rotator
 
@@ -68,11 +69,11 @@ logger = get_logger("ai_router")
 
 # Model tiers (compat shim for /ai/models — reflects the remote reality)
 MODEL_TIERS = {
-    "T0": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0},
-    "T1": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0},
-    "T2": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0},
-    "T3": {"name": "Long", "models": ["nvidia/nemotron-3-ultra-550b-a55b:free"], "max_cost_per_1k": 0.0},
-    "T4": {"name": "Long", "models": ["nvidia/nemotron-3-ultra-550b-a55b:free"], "max_cost_per_1k": 0.0},
+    **{f"T{i}": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0} for i in range(3)},
+    **{
+        f"T{i}": {"name": "Long", "models": ["nvidia/nemotron-3-ultra-550b-a55b:free"], "max_cost_per_1k": 0.0}
+        for i in (3, 4)
+    },
 }
 
 PROVIDERS = {
@@ -92,19 +93,6 @@ def _tier_config(tier: str) -> dict[str, Any]:
     if tier == "long":
         return llm_config.get_long_config()
     return llm_config.get_snappy_config()
-
-
-def _strip_think_tags(text: str) -> str:
-    """Strip <think> tags from model output (legacy Qwen3/DeepSeek R1 reasoning; kept defensively).
-
-    Handles both complete blocks (<think>...</think>) and unterminated blocks
-    that get cut off when max_tokens is reached mid-think (strip everything from
-    <think> onward in that case).
-    """
-    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    # Unterminated think block (truncated by max_tokens) — drop it entirely
-    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
-    return cleaned.strip()
 
 
 # Degenerate-output guard: a model can emit a bare markdown bullet ("- "),
@@ -130,69 +118,27 @@ def _is_degenerate(text: str) -> bool:
     return not any(c.isalnum() for c in stripped)
 
 
-def _resolve_model(model: str | None, task_type: str | None) -> str:
+def _resolve_model(model: str | None, task_type: str | None, tier: str | None = None) -> str:
     """Resolve to a TIER name (``snappy`` | ``long``).
 
     Explicit legacy aliases win (``qwen-chat`` → snappy, ``qwen-analysis`` →
     long); any other explicit model string is coerced to the task-type tier
-    (matching the old behavior of coercing unknown names to the default).
+    (matching the old behavior of coercing unknown names to the default). The
+    API ``tier`` code (T0-T4) is the last-resort fallback: T3/T4 → long, all
+    others → snappy.
     """
     if model and model in TIER_ALIASES:
         return TIER_ALIASES[model]
     if task_type and task_type in TASK_TIER_MAP:
         return TASK_TIER_MAP[task_type]
+    if tier:
+        return "long" if str(tier).upper() in ("T3", "T4") else "snappy"
     return DEFAULT_TIER
 
 
 def _provider_label(tier: str) -> str:
     """Stable provider label for the response ``_provider`` field."""
     return "zen-snappy" if tier == "snappy" else "kilo-long"
-
-
-class _ThinkStreamFilter:
-    """Incrementally strip <think>...</think> blocks from a token stream."""
-
-    OPEN = "<think>"
-    CLOSE = "</think>"
-
-    def __init__(self) -> None:
-        self._in_think = False
-        self._buf = ""
-
-    def feed(self, token: str) -> str:
-        self._buf += token
-        out: list[str] = []
-        while self._buf:
-            if self._in_think:
-                end = self._buf.find(self.CLOSE)
-                if end == -1:
-                    break
-                self._buf = self._buf[end + len(self.CLOSE) :]
-                self._in_think = False
-                continue
-            start = self._buf.find(self.OPEN)
-            if start == -1:
-                emit = self._buf
-                self._buf = ""
-                for i in range(1, len(self.OPEN)):
-                    if emit.endswith(self.OPEN[:i]):
-                        self._buf = emit[-i:]
-                        emit = emit[:-i]
-                        break
-                if emit:
-                    out.append(emit)
-                break
-            if start:
-                out.append(self._buf[:start])
-            self._buf = self._buf[start + len(self.OPEN) :]
-            self._in_think = True
-        return "".join(out)
-
-    def flush(self) -> str:
-        leftover = "" if self._in_think else self._buf
-        self._buf = ""
-        self._in_think = False
-        return leftover
 
 
 # ── Compat router endpoints (mounted by other routers) ──
@@ -356,7 +302,7 @@ async def _post_chat(
     choices = data.get("choices", [])
     content = ""
     if choices and "message" in choices[0]:
-        content = _strip_think_tags(choices[0]["message"].get("content", ""))
+        content = strip_think_tags(choices[0]["message"].get("content", ""))
     return {
         "id": data.get("id", "chat-unknown"),
         "content": content,
@@ -403,7 +349,7 @@ async def chat_completion(
     from app.core.ai_guardrails import sanitize_input as _guard_input, sanitize_output as _guard_output
     from app.core.errors import ExternalAPIError
 
-    resolved_tier = _resolve_model(model, task_type)
+    resolved_tier = _resolve_model(model, task_type, tier)
 
     # ── GUARDRAILS: Sanitize last user message before sending ──
     messages_safe = list(messages)
@@ -582,7 +528,7 @@ async def _stream_from(
                     model=model,
                 )
                 return
-            think_filter = _ThinkStreamFilter()
+            think_filter = ThinkStreamFilter()
             async for chunk in _parse_openai_sse(resp):
                 visible = think_filter.feed(chunk)
                 if visible:
@@ -613,7 +559,7 @@ async def stream_chat_completion(
 
     from app.core.ai_guardrails import sanitize_input as _guard_input
 
-    resolved_tier = _resolve_model(model, task_type)
+    resolved_tier = _resolve_model(model, task_type, tier)
 
     messages_safe = list(messages)
     for i in range(len(messages_safe) - 1, -1, -1):

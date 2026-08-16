@@ -191,7 +191,7 @@ def _last_sentence_boundary(text: str, limit: int) -> int:
     """Index just past the last sentence-ending punctuation before ``limit``.
 
     Returns -1 when no sentence boundary exists inside the window. Used by
-    :func:`_split_oversized` so hard splits land at sentence ends instead of
+    :func:`_beautify_answer` so answer caps land at sentence ends instead of
     mid-sentence ("split at natural section boundaries, not mid-sentence").
     """
     best = -1
@@ -202,61 +202,6 @@ def _last_sentence_boundary(text: str, limit: int) -> int:
     if best > limit:
         return limit  # boundary punctuation ends exactly at the window edge
     return best
-
-
-def _split_oversized(paragraph: str, max_len: int) -> list[str]:
-    """Hard-split a single oversized paragraph — prefer sentence boundaries.
-
-    Falls back to the last word boundary, then an exact cut, so a cut never
-    lands mid-word. Sentence-boundary preference keeps chunks readable.
-    """
-    if len(paragraph) <= max_len:
-        return [paragraph]
-    parts: list[str] = []
-    remaining = paragraph
-    while len(remaining) > max_len:
-        cut = _last_sentence_boundary(remaining, max_len)
-        if cut < max_len // 2:
-            cut = remaining.rfind(" ", 0, max_len)  # no sentence end — word boundary
-        if cut < max_len // 2:
-            cut = max_len  # no good boundary — cut exactly
-        parts.append(remaining[:cut].strip())
-        remaining = remaining[cut:].strip()
-    if remaining:
-        parts.append(remaining)
-    return parts
-
-
-def _chunk_text(text: str, max_len: int = CHUNK_MAX_CHARS) -> list[str]:
-    """Split ``text`` into Telegram-sized chunks on paragraph boundaries.
-
-    Operates on the RAW (pre-escape) text: paragraphs are the safest split
-    points and no chunk ever cuts through an HTML entity that escaping would
-    later introduce (e.g. ``&lt;``). New emoji section headers (v10) always
-    start a fresh chunk when the current one is non-empty, so headers never
-    dangle at the tail of a previous section.
-    """
-    if not text:
-        return []
-    if len(text) <= max_len:
-        return [text]
-
-    chunks: list[str] = []
-    current = ""
-    for paragraph in text.split("\n\n"):
-        for piece in _split_oversized(paragraph, max_len):
-            if current and _is_section_header(piece):
-                # v10: prefer section boundaries — a new emoji header leads a
-                # new chunk so it is never glued to the previous section.
-                chunks.append(current)
-                current = ""
-            elif current and len(current) + len(piece) + 2 > max_len:
-                chunks.append(current)
-                current = ""
-            current = f"{current}\n\n{piece}" if current else piece
-    if current:
-        chunks.append(current)
-    return chunks
 
 
 # ══════════════════════════════════════════════
@@ -736,13 +681,11 @@ __all__ = [
     "MAX_ANSWER_CHARS",
     "_beautify_answer",
     "_cap_answer",
-    "_chunk_text",
     "_format_scan_summary",
     "_is_section_header",
     "_markdown_bold_to_html",
     "_markdown_to_html",
     "_normalize_llm_markup",
-    "_split_oversized",
     "_tables_to_lists",
     "_unescape_llm_entities",
 ]

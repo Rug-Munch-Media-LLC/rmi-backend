@@ -31,7 +31,6 @@ from app.domains.telegram.rugmunchbot.admin_state import track_ai_query, track_t
 from app.domains.telegram.rugmunchbot.db._base import run_db
 from app.domains.telegram.rugmunchbot.formatters import paywall_text
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._classify import _is_meaningful_question
-from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import _append_source_lines
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     _CHAT_DISABLED,
     _DEGENERATE_MESSAGE,
@@ -384,7 +383,7 @@ async def _post_guardrail(
     # them. Strip here — the single funnel every provider's answer flows
     # through — so the user, the stored chat history, and the fabrication
     # guardrail never see the chain. Handles complete + unterminated blocks
-    # (exactly like ai_router._strip_think_tags).
+    # (single shared implementation — see app.core.ai_guardrails.strip_think_tags).
     answer = strip_think_blocks(answer)
 
     # ── DEGENERATE-OUTPUT GUARD (post-processing) ─────────────────────────
@@ -398,11 +397,9 @@ async def _post_guardrail(
         logger.warning("AI chat degenerate answer replaced (user=%s provider=%s)", user_id, provider)
         answer = _DEGENERATE_MESSAGE
 
-    # Fallback answers were grounded by the bridge blocks — append the real
-    # citation lines. Backend auto-RAG answers carry their own X-RAG-Context
-    # count; citing bridge sources there would be dishonest.
-    if provider == "local" and bridge_sources:
-        answer = _append_source_lines(answer, bridge_sources)
+    # (The old ``provider == "local"`` bridge-citation branch was removed —
+    # local models were decommissioned 2026-08-16 and no pipeline provider
+    # carries that value anymore.)
 
     # ── ZERO-FABRICATION GUARDRAIL (post-processing) ────────────────────
     # Strip/reject any token symbol or address the bot did NOT receive from

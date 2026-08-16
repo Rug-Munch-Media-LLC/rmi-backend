@@ -170,6 +170,69 @@ async def _knowledge_fallback_answer(query: str) -> str:
     return answer
 
 
+# Placeholder / junk titles that add no signal (SearXNG sometimes surfaces
+# engine stubs, error pages, and captcha walls). A result whose title matches
+# one of these (or is just the URL itself) is dropped as spam.
+_PLACEHOLDER_TITLES = frozenset(
+    {
+        "searxng",
+        "home",
+        "index",
+        "search",
+        "page not found",
+        "not found",
+        "404",
+        "error 404",
+        "error",
+        "just a moment...",
+        "attention required!",
+        "access denied",
+        "forbidden",
+        "503 service unavailable",
+        "blocked",
+        "captcha",
+        "verify you are human",
+        "pardon our interruption",
+        "enable javascript and cookies to continue",
+        "robot check",
+        "what are you looking for?",
+    }
+)
+
+
+def _normalize_web_url(url: str) -> str:
+    """Normalize a URL for de-duplication: scheme/www/fragment/query-stripped.
+
+    ``https://www.CoinTelegraph.com/news/x?utm=1#top`` →
+    ``cointelegraph.com/news/x`` — exact-page dedupe, lowercased host.
+    """
+    u = url.strip()
+    for prefix in ("https://", "http://", "//"):
+        if u.startswith(prefix):
+            u = u[len(prefix) :]
+    u = u.rstrip("/")
+    if u.startswith("www."):
+        u = u[4:]
+    # Drop query/fragment before path-level dedupe.
+    u = u.split("?")[0].split("#")[0]
+    return u.lower()
+
+
+def _is_placeholder_result(title: str, url: str) -> bool:
+    """True when the result is junk / non-informative (spam filter).
+
+    Skips empty or stub titles, titles that are just the URL (auto-generated
+    pages), and known placeholder/error/captcha titles.
+    """
+    t = title.strip().lower()
+    if not t or len(t) < 3:
+        return True
+    if t in _PLACEHOLDER_TITLES:
+        return True
+    u = url.strip().lower().rstrip("/")
+    return bool(u and (t == u or u.startswith(t)))
+
+
 async def _searxng_search(query: str, limit: int = 5) -> list[dict[str, str]]:
     body = await http_get_json(
         f"{SEARXNG_URL}/search",
@@ -180,14 +243,27 @@ async def _searxng_search(query: str, limit: int = 5) -> list[dict[str, str]]:
     if not isinstance(results, list):
         return []
     out: list[dict[str, str]] = []
-    for r in results[:limit]:
+    seen_urls: set[str] = set()
+    for r in results:
+        if len(out) >= limit:
+            break
         if not isinstance(r, dict):
             continue
         title = str(r.get("title") or "").strip()
         url = str(r.get("url") or "").strip()
         snippet = str(r.get("content") or "").strip()
-        if title and url:
-            out.append({"title": title, "url": url, "snippet": snippet[:300]})
+        # Quality filter: skip placeholder/empty titles and spam pages, and
+        # de-duplicate exact pages (same normalized URL) so the context block
+        # and sources footer never carry the same page twice.
+        if not title or not url:
+            continue
+        if _is_placeholder_result(title, url):
+            continue
+        norm = _normalize_web_url(url)
+        if not norm or norm in seen_urls:
+            continue
+        seen_urls.add(norm)
+        out.append({"title": title, "url": url, "snippet": snippet[:300]})
     return out
 
 

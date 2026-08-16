@@ -274,8 +274,8 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔍 <b>Cross-Chain Fund Trace</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
-            "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
-            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts\n"
+            "🔬 <b>Deep Scan (250★)</b> — full forensics on demand",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
@@ -580,8 +580,8 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🐋 <b>Dump Detector</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
-            "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
-            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts\n"
+            "🔬 <b>Deep Scan (250★)</b> — full forensics on demand",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
@@ -779,8 +779,8 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💰 <b>Fund Flow Tracer</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
-            "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
-            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts\n"
+            "🔬 <b>Deep Scan (250★)</b> — full forensics on demand",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )

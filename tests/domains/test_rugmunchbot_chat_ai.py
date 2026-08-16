@@ -4,7 +4,6 @@ Contract under test:
   _extract_addresses    — EVM/Solana address detection in free text (capped,
                           Solana false-positive filtering)
   _format_scan_summary  — compact risk summary line for address questions
-  _chunk_text           — Telegram-sized chunking on raw text (pre-escape)
   _is_meaningful_question — gibberish gate (no LLM tokens burned on noise)
   _call_backend_chat    — POST /api/v1/chat payload/headers + X-RAG-Context
                           header parsing; graceful None on failure
@@ -108,80 +107,6 @@ class TestFormatScanSummary:
         assert summary is not None
         assert "risk_score=0" in summary
         assert "honeypot=" not in summary
-
-
-class TestChunkText:
-    def test_short_text_unchunked(self) -> None:
-        text = "short answer"
-        assert chat_ai._chunk_text(text) == [text]
-
-    def test_empty(self) -> None:
-        assert chat_ai._chunk_text("") == []
-
-    def test_paragraph_boundaries(self) -> None:
-        text = "\n\n".join(f"paragraph {i} " + "x" * 1200 for i in range(4))
-        chunks = chat_ai._chunk_text(text, max_len=2500)
-        assert len(chunks) > 1
-        assert all(len(c) <= 2500 for c in chunks)
-        assert "".join(chunks).replace("\n\n", "") == text.replace("\n\n", "")
-
-    def test_oversized_single_paragraph_hard_split(self) -> None:
-        paragraph = "word " * 2000  # ~10k chars, one paragraph
-        chunks = chat_ai._chunk_text(paragraph, max_len=1000)
-        assert len(chunks) > 1
-        assert all(len(c) <= 1000 for c in chunks)
-
-    def test_section_headers_lead_chunks(self) -> None:
-        """v10: emoji section headers start a fresh chunk — never dangling at
-        the tail of the previous section."""
-        text = "\n\n".join(
-            f"**{emoji} {title}**\n{body}"
-            for emoji, title, body in [
-                ("\U0001f4ca", "Market Read", "content " * 200),
-                ("\U0001f50d", "On-Chain", "content " * 200),
-                ("\U0001f40b", "Whales", "content " * 200),
-            ]
-        )
-        chunks = chat_ai._chunk_text(text, max_len=2000)
-        assert len(chunks) > 1
-        assert all(len(c) <= 2000 for c in chunks)
-        # Every chunk that is not the first must open with a section header.
-        for chunk in chunks[1:]:
-            assert chunk.lstrip().startswith("**")
-        # Every section header must be present at the start of some chunk.
-        heads = [c.lstrip()[:12] for c in chunks]
-        assert any(h.startswith("**\U0001f4ca") for h in heads)
-        assert any(h.startswith("**\U0001f50d") for h in heads)
-        assert any(h.startswith("**\U0001f40b") for h in heads)
-
-    def test_chunks_join_back_to_original_content(self) -> None:
-        text = ("a " * 500) + "\n\n" + ("b " * 2000) + "\n\n" + ("c " * 700)
-        chunks = chat_ai._chunk_text(text, max_len=1000)
-
-        # The chunker rejoins hard-split pieces with paragraph separators, so
-        # whitespace is normalized; verify content (letters) is lossless.
-        def letters(s: str) -> list[str]:
-            return [ch for ch in s if ch.isalpha()]
-
-        assert letters("".join(chunks)) == letters(text)
-
-
-class TestSplitOversized:
-    def test_sentence_boundary_preferred(self) -> None:
-        """v10: hard splits land after sentence punctuation, not mid-sentence."""
-        paragraph = ("This is sentence one. " * 60) + "tail"
-        parts = chat_ai._split_oversized(paragraph, 1000)
-        assert len(parts) > 1
-        assert all(len(p) <= 1000 for p in parts)
-        # First part must end on a complete sentence.
-        assert parts[0].rstrip().endswith("one.")
-
-    def test_word_boundary_fallback(self) -> None:
-        paragraph = "word " * 3000  # no sentence punctuation, word boundaries only
-        parts = chat_ai._split_oversized(paragraph, 1000)
-        assert len(parts) > 1
-        assert all(len(p) <= 1000 for p in parts)
-        assert all(p.split() for p in parts)  # no mid-word cuts
 
 
 class TestBeautifyAnswer:

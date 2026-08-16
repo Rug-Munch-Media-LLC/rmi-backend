@@ -160,9 +160,11 @@ class TestRemoteFastMalformedPayloads:
             ["choices", "missing"],
             {"choices": []},  # empty choices
             {"choices": [{}]},  # choice without message
+            {"choices": ["garbage"]},  # non-dict choice
             {"choices": [{"message": {"content": 42}}]},  # non-str content
             {"choices": [{"message": {"content": None}}]},  # null content
             {"choices": [{"message": {"content": ""}}]},  # empty answer
+            {"choices": [{"message": "garbage"}]},  # non-dict message
             {"choices": [{"message": {"content": "   "}}]},  # whitespace answer
         ],
     )
@@ -179,6 +181,30 @@ class TestRemoteFastMalformedPayloads:
         assert result is not None
         assert result["message"] == "ok"
         assert result["tokens"] == 7
+
+    async def test_usage_null_is_non_fatal_answer_kept(self) -> None:
+        """``usage: null`` must NOT crash or drop a valid tier-1 answer."""
+        _FakeLLMClient._payload = {"choices": [{"message": {"content": "ok"}}], "usage": None}
+        result = await _llm._call_remote_fast("snappy", [{"role": "user", "content": "q"}], 1)
+        assert result is not None
+        assert result["message"] == "ok"
+        assert result["tokens"] == 0
+
+    async def test_non_dict_usage_is_non_fatal_answer_kept(self) -> None:
+        """A non-dict ``usage`` must NOT drop a valid tier-1 answer."""
+        _FakeLLMClient._payload = {"choices": [{"message": {"content": "ok"}}], "usage": "garbage"}
+        result = await _llm._call_remote_fast("snappy", [{"role": "user", "content": "q"}], 1)
+        assert result is not None
+        assert result["message"] == "ok"
+        assert result["tokens"] == 0
+
+    async def test_non_numeric_tokens_are_non_fatal_answer_kept(self) -> None:
+        """A bad token count defaults to 0 but keeps the valid answer."""
+        _FakeLLMClient._payload = {"choices": [{"message": {"content": "ok"}}], "usage": {"total_tokens": "seven"}}
+        result = await _llm._call_remote_fast("snappy", [{"role": "user", "content": "q"}], 1)
+        assert result is not None
+        assert result["message"] == "ok"
+        assert result["tokens"] == 0
 
     async def test_config_getter_raising_degrades_to_none(self) -> None:
         """A config provider that throws (bad env / import) must fail open."""
@@ -217,13 +243,12 @@ class TestRemoteLlmOrchestrator:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Regression: a provider returning ``usage: null`` (or a non-dict
-        usage / non-numeric token string) currently raises AttributeError /
-        ValueError inside ``_call_remote_fast``. The turn-level contract
-        that MUST hold is that the fallback orchestrator catches the crash
-        and degrades to a tools-only / None answer — never a traceback.
-
-        This asserts the graceful boundary; the client-level crash itself is
-        tracked in [REVIEW] (a future app fix should guard the parsing).
+        usage / non-numeric token string) used to raise AttributeError /
+        ValueError inside ``_call_remote_fast``; the parsing is now guarded
+        (isinstance + ``or 0``, see ``TestRemoteFastMalformedPayloads``).
+        The turn-level contract that MUST hold is that the fallback
+        orchestrator catches ANY residual crash and degrades to a
+        tools-only / None answer — never a traceback.
         """
         user = types.SimpleNamespace(id=1)
 

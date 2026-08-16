@@ -16,6 +16,7 @@ import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from app.core.ai_guardrails import strip_think_tags
 from app.core.logging import get_logger
 from app.llm_config import get_long_config
 
@@ -498,12 +499,6 @@ async def _call_remote_analysis(prompt: str) -> dict[str, Any] | None:
     if not cfg.get("api_key"):
         return None
 
-    def _strip_think(text: str) -> str:
-        import re
-
-        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-        return re.sub(r"<think>.*", "", text, flags=re.DOTALL).strip()
-
     try:
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
@@ -528,7 +523,7 @@ async def _call_remote_analysis(prompt: str) -> dict[str, Any] | None:
             if resp.status_code == 200:
                 data = resp.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                return _parse_ai_response(_strip_think(content))
+                return _parse_ai_response(strip_think_tags(content))
             logger.warning("long_analysis_non_200", status=resp.status_code, body=resp.text[:200])
     except Exception as e:
         logger.warning("long_analysis_failed", error=str(e)[:200])

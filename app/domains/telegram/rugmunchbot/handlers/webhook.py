@@ -170,7 +170,8 @@ async def cmd_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "• Whale movements\n"
             "• New token deployments\n"
             "• Liquidity events\n\n"
-            "👑 <b>Pro tier required</b> — $99.99/mo\n\n"
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts\n"
+            "🔬 <b>Deep Scan (250★)</b> — full forensics on demand\n\n"
             "Upgrade now to unlock custom webhooks!",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),

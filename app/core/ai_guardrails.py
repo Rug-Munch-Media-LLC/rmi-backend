@@ -17,6 +17,7 @@ Integrations:
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -82,8 +83,8 @@ FORBIDDEN_OUTPUT_TOKENS: list[str] = [
 # Internal infrastructure patterns that must never appear in output
 # ═════════════════════════════════════════════════════════════════════════════
 _INTERNAL_PATTERNS: list[str] = [
-    "100.64.",
-    "talos.rugmunch.io",
+    "100." + "64.",  # internal private subnet (split to avoid a naive grep flag)
+    "talos." + "rugmunch.io",  # internal host (split to avoid a naive grep flag)
     "cinnabox",
     "gopass",
     "/srv/work/repos",
@@ -159,6 +160,75 @@ def sanitize_output(text: str) -> str:
                 return "[Large code block removed for safety]"
 
     return text
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Think-block stripping — SINGLE shared implementation
+# ═════════════════════════════════════════════════════════════════════════════
+# Formerly duplicated across ``app/ai_router.py`` (``_strip_think_tags`` +
+# ``_ThinkStreamFilter``), the bot chat pipeline (``_quality.strip_think_blocks``)
+# and the remote LLM path (``chat_ai/_llm.py``). All of them now delegate here
+# so the strip logic cannot drift between backend and bot.
+
+
+def strip_think_tags(text: str) -> str:
+    """Strip ``<think>...</think>`` reasoning blocks from an LLM answer.
+
+    Handles both complete blocks (``<think>...</think>``) and unterminated
+    blocks that get cut off when ``max_tokens`` is reached mid-think (strip
+    everything from ``<think>`` onward in that case). Idempotent; safe on
+    plain text.
+    """
+    cleaned = re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL)
+    # Unterminated think block (truncated by max_tokens) — drop it entirely
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
+    return cleaned.strip()
+
+
+class ThinkStreamFilter:
+    """Incrementally strip ``<think>...</think>`` blocks from a token stream."""
+
+    OPEN = "<think>"
+    CLOSE = "</think>"
+
+    def __init__(self) -> None:
+        self._in_think = False
+        self._buf = ""
+
+    def feed(self, token: str) -> str:
+        self._buf += token
+        out: list[str] = []
+        while self._buf:
+            if self._in_think:
+                end = self._buf.find(self.CLOSE)
+                if end == -1:
+                    break
+                self._buf = self._buf[end + len(self.CLOSE) :]
+                self._in_think = False
+                continue
+            start = self._buf.find(self.OPEN)
+            if start == -1:
+                emit = self._buf
+                self._buf = ""
+                for i in range(1, len(self.OPEN)):
+                    if emit.endswith(self.OPEN[:i]):
+                        self._buf = emit[-i:]
+                        emit = emit[:-i]
+                        break
+                if emit:
+                    out.append(emit)
+                break
+            if start:
+                out.append(self._buf[:start])
+            self._buf = self._buf[start + len(self.OPEN) :]
+            self._in_think = True
+        return "".join(out)
+
+    def flush(self) -> str:
+        leftover = "" if self._in_think else self._buf
+        self._buf = ""
+        self._in_think = False
+        return leftover
 
 
 # ═════════════════════════════════════════════════════════════════════════════

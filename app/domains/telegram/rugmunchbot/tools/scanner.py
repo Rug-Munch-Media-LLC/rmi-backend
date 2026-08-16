@@ -822,10 +822,24 @@ def _flatten_dexscreener(address: str, chain: str) -> dict[str, Any]:
     }
 
 
-async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
+async def scan_token(
+    address: str,
+    chain: str | None = None,
+    *,
+    security_only: bool = False,
+) -> dict[str, Any]:
     """Legacy multi-source token scan (DexScreener + GoPlus + Honeypot.is +
     RMI databus). Used as the /scan fallback when the unified v2 scan
     (``scan_token_v2``) is unavailable, and by wallet/investigate/payments.
+
+    ``security_only=True`` is the CHEAP monitor-delta path (the
+    ``check_monitors`` background job): it skips market data (DexScreener),
+    the RMI databus, GMGN/risk-signal enrichment and RAG indexing, and only
+    re-fetches the EVM security chain (GoPlus → honeypot.is fallback) that
+    populates the fields a monitor baseline watches — buy/sell tax,
+    ownership-renounced, mint authority, LP lock and honeypot. One light
+    upstream call per token instead of a full scan; the same fail-open
+    guarantees (a slow/blocked provider degrades, never hangs).
     """
     result: dict[str, Any] = {
         "address": address,
@@ -870,6 +884,15 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     }
 
     client = get_shared_client(8.0)
+    if security_only:
+        # Security-only refresh: skip market data + RMI databus + enrichment,
+        # just re-check the on-chain security properties a monitor watches.
+        # Non-EVM tokens get the bare result (all security fields None) —
+        # identical to what the full legacy scan already produces for them.
+        await _scan_evm_security_provider(client, address, result)
+        result["risk_score"] = min(result["risk_score"], 100)
+        return result
+
     # DexScreener resolves market/identity AND the real pair chain first —
     # the EVM security provider needs the resolved chain to pick the GoPlus
     # chain id, so it stays the sequential lead-in (8s cap, fail-open).
