@@ -26,6 +26,7 @@ from app.domains.news_ingest.discovery import discover_followed_channels
 from app.domains.news_ingest.ingest import (
     DEFAULT_DEDUP_COLLECTION,
     dedupe_articles,
+    extract_canonical_url,
     filter_seen_articles,
     is_channel_cooldown,
     read_channel_messages,
@@ -114,6 +115,9 @@ TG_NEWS_PERSIST = _env_bool("RMI_TG_NEWS_PERSIST", True)
 TG_NEWS_RAG = _env_bool("RMI_TG_NEWS_RAG", True)
 TG_NEWS_AUTO_DISCOVER = _env_bool("RMI_TG_NEWS_AUTO_DISCOVER", True)
 TG_NEWS_CHANNELS = _env_list("RMI_TG_NEWS_CHANNELS", list(_DEFAULT_CHANNELS))
+#: Dereference t.me-only links to the real article URL during the sweep
+#: (fail-open; disabled via ``RMI_NEWS_TME_RESOLVE_ENABLED=0``).
+TME_RESOLVE_ENABLED = _env_bool("RMI_NEWS_TME_RESOLVE_ENABLED", True)
 
 
 # ── Followed-channel categorization (news / alpha / scam / other) ────────────
@@ -423,6 +427,156 @@ def _should_fetch_og_image(article: NewsArticle) -> bool:
     return not media or media.startswith("tg:")
 
 
+# ── t.me link dereference (best-effort, env-gated) ──────────────────────────
+
+#: Hard timeout for ONE t.me page fetch (fail-open → original URL).
+_TME_RESOLVE_TIMEOUT: float = 5.0
+
+#: t.me URL inside the message TEXT — the real signal that the message's only
+#: link is a Telegram page (the synthesized ``source_url`` fallback is not a
+#: link the channel posted; never dereference a bare fallback).
+_TME_IN_TEXT_RE: Final = re.compile(r"https?://(?:t\.me|telegram\.me)/", re.IGNORECASE)
+
+#: og:url / rel=canonical extraction (attribute-order tolerant, case-
+#: insensitive), then the first external http(s) href. Best-effort only — a
+#: t.me page without a usable real URL yields the original link.
+_TME_OG_URL_RES: Final = (
+    re.compile(r'<meta[^>]+property=["\']og:url["\'][^>]+content=["\']([^"\']+)["\']', re.IGNORECASE),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:url["\']', re.IGNORECASE),
+)
+_TME_CANONICAL_RES: Final = (
+    re.compile(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)["\']', re.IGNORECASE),
+    re.compile(r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']canonical["\']', re.IGNORECASE),
+)
+_TME_HREF_RES: Final = re.compile(r'href=["\'](https?://[^"\']+)["\']', re.IGNORECASE)
+
+
+def _message_has_tme_link(article: NewsArticle) -> bool:
+    """True when the message TEXT carries a t.me / telegram.me link.
+
+    Only messages whose own text links to a Telegram page are candidates for
+    dereferencing — a synthesized ``source_url`` fallback (created by
+    normalize when the message had no link at all) is never dereferenced.
+    """
+    return bool(_TME_IN_TEXT_RE.search(f"{article.title or ''} {article.body or ''}"))
+
+
+def _extract_tme_target(html: str, base_url: str) -> str | None:
+    """First usable real-article URL inside a t.me page (pure, fail-open).
+
+    Priority: og:url → rel=canonical → first external http(s) href. A
+    candidate that is still a Telegram link (the page's own share URL) is
+    skipped so the real article link wins.
+    """
+    for pattern in _TME_OG_URL_RES:
+        match = pattern.search(html)
+        if match:
+            candidate = _normalize_image_url(match.group(1), base_url)
+            if candidate and not is_telegram_link(candidate):
+                return candidate
+    for pattern in _TME_CANONICAL_RES:
+        match = pattern.search(html)
+        if match:
+            candidate = _normalize_image_url(match.group(1), base_url)
+            if candidate and not is_telegram_link(candidate):
+                return candidate
+    for match in _TME_HREF_RES.finditer(html):
+        candidate = _normalize_image_url(match.group(1), base_url)
+        if candidate and not is_telegram_link(candidate):
+            return candidate
+    return None
+
+
+async def resolve_tme_link(url: str) -> str:
+    """Dereference a t.me link to the real article URL (fail-open).
+
+    Fetches the t.me page (5s timeout, follow redirects, browser-ish UA) and
+    extracts the real article URL from ``og:url`` / ``rel=canonical`` / the
+    first external http(s) link. Returns the resolved URL, or the original
+    *url* unchanged on any failure (network error, timeout, non-200, page
+    without a real link). Never raises — a slow publisher never blocks the
+    sweep.
+    """
+    url = (url or "").strip()
+    if not is_telegram_link(url):
+        return url
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(
+            timeout=_TME_RESOLVE_TIMEOUT, follow_redirects=True, headers={"User-Agent": "rmi-news/1.0"}
+        ) as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                return url
+            html = response.text[:_OG_HTML_MAX_CHARS]
+        return _extract_tme_target(html, url) or url
+    except Exception:  # fail-open by contract
+        logger.debug("tg_news:tme_resolve_failed url=%s", url[:120], exc_info=True)
+        return url
+
+
+# ── Content enrichment (t.me deref + title rewrite, env-gated, fail-open) ──
+
+#: Max concurrent LLM title rewrites per sweep (backend chat is CPU-bound).
+_TITLE_REWRITE_CONCURRENCY: Final = 4
+#: Cap on articles whose titles are rewritten per sweep — the sweep does not
+#: know which stories the scheduler will post, so prewarm a bounded prefix
+#: (newest-first read order) instead of hammering the LLM for every article.
+_TITLE_REWRITE_MAX_ARTICLES: Final = 12
+
+
+async def _enrich_articles(articles: list[NewsArticle]) -> None:
+    """Best-effort content enrichment for the posted card (fail-open).
+
+    1. **t.me dereference** (``RMI_NEWS_TME_RESOLVE_ENABLED``, default on):
+       when a message's ONLY link is a t.me page, resolve the real article
+       URL onto ``article.resolved_url`` so the posted card links readers to
+       the original story instead of the channel page.
+    2. **LLM title rewrite** (``RMI_NEWS_TITLE_REWRITE_ENABLED``, default
+       off): humanize the headline onto ``article.post_title`` (bounded to
+       ``_TITLE_REWRITE_MAX_ARTICLES``). ``article.title`` keeps the
+       original headline so persistence is never changed.
+
+    Never raises and never blocks the sweep: every sub-step fails open.
+    """
+    if not articles:
+        return
+
+    if _tg.TME_RESOLVE_ENABLED:
+        tme_only = [
+            a
+            for a in articles
+            if is_telegram_link(a.source_url) and not extract_canonical_url(a) and _message_has_tme_link(a)
+        ]
+        if tme_only:
+            results = await asyncio.gather(
+                *(resolve_tme_link(a.source_url) for a in tme_only),
+                return_exceptions=True,
+            )
+            for article, resolved in zip(tme_only, results, strict=True):
+                if isinstance(resolved, str) and resolved and not is_telegram_link(resolved):
+                    article.resolved_url = resolved
+
+    if _tg.TITLE_REWRITE_ENABLED:
+        from app.domains.telegram.rugmunchbot.channels.rewrite_titles import rewrite_news_title
+
+        sem = asyncio.Semaphore(_TITLE_REWRITE_CONCURRENCY)
+
+        async def _rewrite_one(article: NewsArticle) -> None:
+            if not (article.title or "").strip():
+                return
+            async with sem:
+                rewritten = await rewrite_news_title(article.title)
+            if rewritten and rewritten != article.title:
+                article.post_title = rewritten
+
+        await asyncio.gather(
+            *(_rewrite_one(a) for a in articles[:_TITLE_REWRITE_MAX_ARTICLES]),
+            return_exceptions=True,
+        )
+
+
 # ── Sweep: read → normalize → time-filter → dedupe ──────────────────────────
 
 
@@ -499,4 +653,8 @@ async def sweep_telegram_news(
         for article, image in zip(missing_images, results, strict=True):
             if isinstance(image, str) and image.strip():
                 article.media = image.strip()
+    # Best-effort content enrichment for the posted card (env-gated,
+    # fail-open): t.me-only links → real article URL; optional LLM title
+    # rewrite. Never blocks the sweep.
+    await _enrich_articles(articles)
     return articles

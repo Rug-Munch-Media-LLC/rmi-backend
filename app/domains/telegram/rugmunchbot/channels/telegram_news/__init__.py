@@ -193,6 +193,10 @@ from app.domains.telegram.rugmunchbot.channels.importance import (
     top_headlines,  # noqa: F401
     trending_tokens,  # noqa: F401
 )
+from app.domains.telegram.rugmunchbot.channels.rewrite_titles import (
+    TITLE_REWRITE_ENABLED,
+    rewrite_news_title,  # noqa: F401
+)
 from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _MARKET_AWARENESS_HEADLINES,  # noqa: F401
     _MARKET_AWARENESS_KEY,  # noqa: F401
@@ -234,6 +238,7 @@ from app.domains.telegram.rugmunchbot.channels.telegram_news._sources import (
     TG_NEWS_POST_LIMIT,
     TG_NEWS_RAG,
     TG_NEWS_SWEEP_HOURS,
+    TME_RESOLVE_ENABLED,
     _as_utc,  # noqa: F401
     _build_headless_client,  # noqa: F401
     _env_bool,  # noqa: F401
@@ -260,6 +265,8 @@ __all__ = [
     "TG_NEWS_POST_LIMIT",
     "TG_NEWS_RAG",
     "TG_NEWS_SWEEP_HOURS",
+    "TITLE_REWRITE_ENABLED",
+    "TME_RESOLVE_ENABLED",
     "article_dedup_keys",
     "channel_sources",
     "classify_channel_category",
