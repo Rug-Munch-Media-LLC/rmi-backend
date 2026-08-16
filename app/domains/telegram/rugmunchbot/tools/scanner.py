@@ -41,6 +41,10 @@ ALWAYS render the token image — "no image available" when no source has one.
 
 from __future__ import annotations
 
+import asyncio
+import copy
+import html
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -78,6 +82,163 @@ except ImportError:
     enrich_scan = None
 
 logger = get_logger("rmi_bot.tools.scanner")
+
+
+# ── Short-TTL scan cache (in-process, keyed by chain:address) ─────────────
+# Repeat /scan of the same token is INSTANT: a 30s window lets the /scan
+# handler skip the whole provider chain (backend v2 POST + DexScreener
+# supplement + legacy fallback). Fail-open: the cache is purely in-memory and
+# never raises — a miss just rescans live. 30s is short enough that risk data
+# stays fresh while repeat scans of the same address (frequent in /scan +
+# /deepscan) stay instant. NOTE: deliberately NOT applied inside
+# scan_token_v2 / scan_token — engine seams are mocked by tests, and a
+# shared module-level cache there would mask mocked provider outcomes.
+_SCAN_CACHE_TTL = 30.0
+_scan_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _scan_cache_key(address: str, chain: str) -> str:
+    return f"{(chain or 'unknown').strip().lower()}:{(address or '').strip().lower()}"
+
+
+def _scan_cache_get(address: str, chain: str) -> dict[str, Any] | None:
+    """Return a deep copy of the cached scan for ``chain:address`` (or None).
+
+    Deep copy: callers (e.g. ``_merge_completed_scan`` on /deepscan) mutate
+    the returned payload; a copy guarantees the shared cache entry is never
+    poisoned by a caller's in-place edit.
+    """
+    key = _scan_cache_key(address, chain)
+    hit = _scan_cache.get(key)
+    if hit is None:
+        return None
+    ts, data = hit
+    if time.monotonic() - ts > _SCAN_CACHE_TTL:
+        _scan_cache.pop(key, None)
+        return None
+    return copy.deepcopy(data)
+
+
+def _scan_cache_set(address: str, chain: str, data: dict[str, Any]) -> None:
+    """Cache a deep copy of ``data`` so callers mutating their own result can
+    never poison the shared cache entry."""
+    key = _scan_cache_key(address, chain)
+    _scan_cache[key] = (time.monotonic(), copy.deepcopy(data))
+
+
+async def _scan_evm_security_provider(client: httpx.AsyncClient, address: str, result: dict[str, Any]) -> None:
+    """EVM security chain: GoPlus Security, then honeypot.is fallback.
+
+    Wrapped as ONE coroutine so the GoPlus → honeypot.is fallback ordering is
+    preserved exactly (honeypot.is only runs when GoPlus had no honeypot
+    answer) while the chain runs concurrently with the other independent
+    providers. Each request is capped at 8s and fails open into
+    ``result['errors']`` — a slow/blocked provider degrades, never hangs.
+    """
+    if not is_evm(address):
+        return
+    # GoPlus Security
+    try:
+        chain_id_map = {
+            "ethereum": "1",
+            "bsc": "56",
+            "polygon": "137",
+            "arbitrum": "42161",
+            "avalanche": "43114",
+            "base": "8453",
+            "optimism": "10",
+            "fantom": "250",
+        }
+        cid = chain_id_map.get(result["chain"].lower(), "1")
+        r = await client.get(f"{GOPLUS}/token_security/{cid}?contract_addresses={address}", timeout=8.0)
+        if r.status_code == 200:
+            sec = r.json().get("result", {}).get(address.lower(), {})
+            if sec:
+                result["contract_verified"] = sec.get("is_open_source") == "1"
+                result["honeypot"] = sec.get("is_honeypot") == "1"
+                result["buy_tax"] = _safe_float(sec.get("buy_tax"))
+                result["sell_tax"] = _safe_float(sec.get("sell_tax"))
+                result["mintable"] = sec.get("is_mintable") == "1"
+                result["can_blacklist"] = sec.get("is_blacklisted") == "1" or sec.get("can_take_back_ownership") == "1"
+                result["owner_renounced"] = sec.get("is_owner_renounced") != "0"
+                lp_locks = sec.get("lp_holders", [])
+                locked_pct = sum(_safe_float(h.get("percent")) for h in lp_locks if h.get("is_locked") == 1)
+                result["lp_locked"] = locked_pct
+                holders_data = sec.get("holders", [])
+                result["holders"] = len(holders_data) if holders_data else 0
+                for h in holders_data[:10]:
+                    result["top_holders"].append(
+                        {
+                            "address": h.get("address", ""),
+                            "pct": _safe_float(h.get("percent")) * 100,
+                            "is_contract": h.get("is_contract") == 1,
+                            "tag": h.get("tag", ""),
+                        }
+                    )
+                if result["honeypot"]:
+                    result["threats"].append("HONEYPOT DETECTED")
+                    result["risk_score"] += 40
+                if not result["contract_verified"]:
+                    result["threats"].append("Contract not verified")
+                    result["risk_score"] += 15
+                if result["mintable"]:
+                    result["threats"].append("Mintable supply")
+                    result["risk_score"] += 20
+                if result["can_blacklist"]:
+                    result["threats"].append("Owner can blacklist")
+                    result["risk_score"] += 15
+                if not result["owner_renounced"]:
+                    result["threats"].append("Ownership not renounced")
+                    result["risk_score"] += 10
+                if result["buy_tax"] and result["buy_tax"] > 0.1:
+                    result["threats"].append(f"High buy tax: {result['buy_tax'] * 100:.1f}%")
+                    result["risk_score"] += 10
+                if result["sell_tax"] and result["sell_tax"] > 0.1:
+                    result["threats"].append(f"High sell tax: {result['sell_tax'] * 100:.1f}%")
+                    result["risk_score"] += 15
+                if locked_pct < 0.5 and result["mcap"] > 10000:
+                    result["threats"].append(f"Low LP lock: {locked_pct * 100:.0f}%")
+                    result["risk_score"] += 15
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        result["errors"].append(f"GoPlus: {e}")
+
+    # Honeypot.is (EVM fallback)
+    if result["honeypot"] is None:
+        try:
+            r = await client.get(f"{HONEYPOT}/IsHoneypot?address={address}", timeout=8.0)
+            if r.status_code == 200:
+                hp = r.json()
+                result["honeypot"] = hp.get("isHoneypot", False)
+                if result["honeypot"]:
+                    result["threats"].append("HONEYPOT (honeypot.is)")
+                    result["risk_score"] += 40
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            result["errors"].append(f"Honeypot.is: {e}")
+
+
+async def _scan_rmi_provider(client: httpx.AsyncClient, address: str, result: dict[str, Any]) -> None:
+    """RMI databus provider: bundle detection + fresh-wallet ratio + dev wallet.
+
+    Fail-open into ``result['errors']``; 8s cap. Runs concurrently with the
+    EVM security chain inside ``scan_token``.
+    """
+    try:
+        r = await client.get(f"{BACKEND_URL}/api/v1/databus/token/{address}", headers=backend_headers(), timeout=8.0)
+        if r.status_code == 200:
+            rmi = r.json()
+            if rmi.get("bundle_detected"):
+                result["bundle_detected"] = True
+                result["threats"].append("Bundle activity detected")
+                result["risk_score"] += 20
+            if rmi.get("fresh_wallet_pct"):
+                result["fresh_wallet_pct"] = rmi["fresh_wallet_pct"]
+                if rmi["fresh_wallet_pct"] > 50:
+                    result["threats"].append(f"High fresh wallet ratio: {rmi['fresh_wallet_pct']:.0f}%")
+                    result["risk_score"] += 10
+            if rmi.get("dev_wallet"):
+                result["dev_wallet"] = rmi["dev_wallet"]
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        result["errors"].append(f"RMI Backend: {e}")
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -404,10 +565,12 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
         "news_sentiment": None,
     }
 
-    client = get_shared_client(15)
-    # DexScreener
+    client = get_shared_client(8.0)
+    # DexScreener resolves market/identity AND the real pair chain first —
+    # the EVM security provider needs the resolved chain to pick the GoPlus
+    # chain id, so it stays the sequential lead-in (8s cap, fail-open).
     try:
-        r = await client.get(f"{DEXSCREENER}/tokens/{address}")
+        r = await client.get(f"{DEXSCREENER}/tokens/{address}", timeout=8.0)
         if r.status_code == 200:
             data = r.json()
             pairs = data.get("pairs", [])
@@ -437,105 +600,16 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         result["errors"].append(f"DexScreener: {e}")
 
-    # GoPlus Security (EVM)
-    if is_evm(address):
-        try:
-            chain_id_map = {
-                "ethereum": "1",
-                "bsc": "56",
-                "polygon": "137",
-                "arbitrum": "42161",
-                "avalanche": "43114",
-                "base": "8453",
-                "optimism": "10",
-                "fantom": "250",
-            }
-            cid = chain_id_map.get(result["chain"].lower(), "1")
-            r = await client.get(f"{GOPLUS}/token_security/{cid}?contract_addresses={address}")
-            if r.status_code == 200:
-                sec = r.json().get("result", {}).get(address.lower(), {})
-                if sec:
-                    result["contract_verified"] = sec.get("is_open_source") == "1"
-                    result["honeypot"] = sec.get("is_honeypot") == "1"
-                    result["buy_tax"] = _safe_float(sec.get("buy_tax"))
-                    result["sell_tax"] = _safe_float(sec.get("sell_tax"))
-                    result["mintable"] = sec.get("is_mintable") == "1"
-                    result["can_blacklist"] = (
-                        sec.get("is_blacklisted") == "1" or sec.get("can_take_back_ownership") == "1"
-                    )
-                    result["owner_renounced"] = sec.get("is_owner_renounced") != "0"
-                    lp_locks = sec.get("lp_holders", [])
-                    locked_pct = sum(_safe_float(h.get("percent")) for h in lp_locks if h.get("is_locked") == 1)
-                    result["lp_locked"] = locked_pct
-                    holders_data = sec.get("holders", [])
-                    result["holders"] = len(holders_data) if holders_data else 0
-                    for h in holders_data[:10]:
-                        result["top_holders"].append(
-                            {
-                                "address": h.get("address", ""),
-                                "pct": _safe_float(h.get("percent")) * 100,
-                                "is_contract": h.get("is_contract") == 1,
-                                "tag": h.get("tag", ""),
-                            }
-                        )
-                    if result["honeypot"]:
-                        result["threats"].append("HONEYPOT DETECTED")
-                        result["risk_score"] += 40
-                    if not result["contract_verified"]:
-                        result["threats"].append("Contract not verified")
-                        result["risk_score"] += 15
-                    if result["mintable"]:
-                        result["threats"].append("Mintable supply")
-                        result["risk_score"] += 20
-                    if result["can_blacklist"]:
-                        result["threats"].append("Owner can blacklist")
-                        result["risk_score"] += 15
-                    if not result["owner_renounced"]:
-                        result["threats"].append("Ownership not renounced")
-                        result["risk_score"] += 10
-                    if result["buy_tax"] and result["buy_tax"] > 0.1:
-                        result["threats"].append(f"High buy tax: {result['buy_tax'] * 100:.1f}%")
-                        result["risk_score"] += 10
-                    if result["sell_tax"] and result["sell_tax"] > 0.1:
-                        result["threats"].append(f"High sell tax: {result['sell_tax'] * 100:.1f}%")
-                        result["risk_score"] += 15
-                    if locked_pct < 0.5 and result["mcap"] > 10000:
-                        result["threats"].append(f"Low LP lock: {locked_pct * 100:.0f}%")
-                        result["risk_score"] += 15
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            result["errors"].append(f"GoPlus: {e}")
-
-    # Honeypot.is (EVM fallback)
-    if is_evm(address) and result["honeypot"] is None:
-        try:
-            r = await client.get(f"{HONEYPOT}/IsHoneypot?address={address}")
-            if r.status_code == 200:
-                hp = r.json()
-                result["honeypot"] = hp.get("isHoneypot", False)
-                if result["honeypot"]:
-                    result["threats"].append("HONEYPOT (honeypot.is)")
-                    result["risk_score"] += 40
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            result["errors"].append(f"Honeypot.is: {e}")
-
-    # RMI Backend
-    try:
-        r = await client.get(f"{BACKEND_URL}/api/v1/databus/token/{address}", headers=backend_headers(), timeout=10)
-        if r.status_code == 200:
-            rmi = r.json()
-            if rmi.get("bundle_detected"):
-                result["bundle_detected"] = True
-                result["threats"].append("Bundle activity detected")
-                result["risk_score"] += 20
-            if rmi.get("fresh_wallet_pct"):
-                result["fresh_wallet_pct"] = rmi["fresh_wallet_pct"]
-                if rmi["fresh_wallet_pct"] > 50:
-                    result["threats"].append(f"High fresh wallet ratio: {rmi['fresh_wallet_pct']:.0f}%")
-                    result["risk_score"] += 10
-            if rmi.get("dev_wallet"):
-                result["dev_wallet"] = rmi["dev_wallet"]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        result["errors"].append(f"RMI Backend: {e}")
+    # Independent providers run CONCURRENTLY (8s per-provider cap, fail-open):
+    # the EVM security chain (GoPlus → honeypot.is fallback, kept sequential
+    # inside the coroutine so the fallback gate stays exact) + the RMI
+    # databus bundle/wallet check. A slow/blocked provider degrades to its
+    # own error line — it never hangs the scan.
+    await asyncio.gather(
+        _scan_evm_security_provider(client, address, result),
+        _scan_rmi_provider(client, address, result),
+        return_exceptions=True,
+    )
 
     # Volume authenticity
     if result["volume_24h"] > 0 and result["mcap"] > 0:
@@ -603,6 +677,150 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
     if should_index_scan(data, source="scan_v2"):
         schedule_scan_memory_index(data, source="scan_v2")
     return data
+
+
+# ── AI verdict (snappy-tier summary over the structured scan) ─────────────
+# After the structured scan completes, the snappy LLM (free OpenRouter via
+# ``app.llm_config.get_snappy_config`` — routed through
+# ``chat_with_fallback`` so a free-tier rate-limit degrades to the cheap
+# PAID model instead of dying) renders a 2-4 sentence plain-English verdict
+# + "what to watch" from the KEY facts only. Fail-open: ANY failure (timeout,
+# rate-limit, missing key, config error) returns "" so the caller keeps the
+# existing template verdict (``format_verdict_header`` inside
+# ``format_scan_report``) — never an exception, never a hang.
+_AI_VERDICT_TIMEOUT = 10.0  # hard cap — the verdict must never stall /scan
+_AI_VERDICT_FACTS_CHARS = 600
+_AI_VERDICT_MAX_CHARS = 1200
+
+_AI_VERDICT_SYSTEM = (
+    "You are the RugMunch scan analyst. Write a SHORT, plain-English risk "
+    "verdict for a token scan. Use ONLY the facts provided — never invent "
+    "numbers. 2-4 sentences, trader voice, no hype, no markdown, no emojis. "
+    "End with a one-line 'What to watch:' pointing at the riskiest signal or, "
+    "when the scan is clean, at liquidity/holder concentration."
+)
+
+
+def _verdict_facts(result: dict[str, Any]) -> dict[str, Any]:
+    """Project the structured scan result onto the small fact set the LLM
+    verdict is allowed to cite. Every value is optional (None when absent) so
+    the prompt never contains fabricated data. Reads both shapes: the legacy
+    top-level fields (``honeypot``/``mintable``/``buy_tax``…) and the v2
+    ``evidence`` security checks (HP01 honeypot, CR03 mintable, LP, holders).
+    """
+    risk = result.get("risk_score")
+    try:
+        risk_f = round(float(risk), 1) if risk is not None else None
+    except (TypeError, ValueError):
+        risk_f = None
+
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+    ev_sec = evidence.get("security")
+    if not isinstance(ev_sec, dict):
+        ev_sec = {}
+    ev_checks = ev_sec.get("checks")
+    if not isinstance(ev_checks, dict):
+        ev_checks = {}
+    ev_holders = evidence.get("holders")
+    if not isinstance(ev_holders, dict):
+        ev_holders = {}
+    ev_liq = evidence.get("liquidity")
+    if not isinstance(ev_liq, dict):
+        ev_liq = {}
+
+    checks = result.get("security_checks")
+    if not isinstance(checks, dict):
+        checks = {}
+    for code, detail in ev_checks.items():
+        if isinstance(detail, dict) and code not in checks:
+            checks[str(code)] = detail
+
+    def status(code: str) -> str | None:
+        c = checks.get(code)
+        return c.get("status") if isinstance(c, dict) else None
+
+    flags = [str(f) for f in (result.get("risk_flags") or result.get("threats") or []) if f]
+    total_holders = result.get("holders")
+    if not total_holders:
+        total_holders = ev_holders.get("holder_count")
+    top10 = (result.get("holder_analysis") or {}).get("top_10_pct") or ev_holders.get("top_10_pct")
+    lp_locked = result.get("lp_locked")
+    if lp_locked is None and ev_liq.get("locked_pct") is not None:
+        try:
+            lp_locked = float(ev_liq["locked_pct"]) / 100
+        except (TypeError, ValueError):
+            lp_locked = None
+
+    return {
+        "name": result.get("name"),
+        "symbol": result.get("symbol"),
+        "chain": result.get("chain"),
+        "risk_score": risk_f,
+        "risk_level": result.get("risk_level"),
+        "honeypot": result.get("honeypot") or status("HP01") or status("HP04"),
+        "mintable": result.get("mintable") or status("CR03"),
+        "can_blacklist": result.get("can_blacklist"),
+        "owner_renounced": result.get("owner_renounced"),
+        "contract_verified": result.get("contract_verified"),
+        "buy_tax": result.get("buy_tax"),
+        "sell_tax": result.get("sell_tax"),
+        "lp_locked": lp_locked,
+        "total_holders": total_holders,
+        "top_10_holder_pct": top10,
+        "bundle_detected": result.get("bundle_detected"),
+        "fresh_wallet_pct": result.get("fresh_wallet_pct"),
+        "exchange_funded_pct": result.get("exchange_funded_pct"),
+        "flagged_security_checks": {
+            str(k): (v.get("status") if isinstance(v, dict) else None)
+            for k, v in checks.items()
+            if isinstance(v, dict) and v.get("status") in ("fail", "pass")
+        },
+        "threats": flags[:6],
+    }
+
+
+async def _llm_verdict_text(result: dict[str, Any]) -> str:
+    """One bounded snappy-tier call. Returns the verdict text or "" (never raises)."""
+    import json
+
+    from app.llm_config import chat_with_fallback
+
+    facts = _verdict_facts(result)
+    prompt = (
+        "Structured token scan facts (JSON):\n"
+        f"{json.dumps(facts, default=str)[:_AI_VERDICT_FACTS_CHARS]}\n\n"
+        "Write the verdict now."
+    )
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": _AI_VERDICT_SYSTEM},
+        {"role": "user", "content": prompt},
+    ]
+    text = await asyncio.wait_for(chat_with_fallback(messages, "snappy"), timeout=_AI_VERDICT_TIMEOUT)
+    return (text or "").strip()
+
+
+async def render_ai_verdict(result: dict[str, Any]) -> str:
+    """Render an HTML-safe ``🤖 AI Verdict`` block over ``result``.
+
+    Passes the key scan facts (risk score, honeypot/rug flags, LP lock,
+    mint/freeze auth, taxes, holders) to the snappy LLM (via
+    ``app.llm_config.get_snappy_config()``) for a 2-4 sentence natural-language
+    verdict + "what to watch". Fail-open: any LLM failure returns "" so the
+    caller falls back to the existing template verdict that
+    ``format_scan_report`` already renders. The returned block is
+    HTML-escaped (LLM output is untrusted) and safe for ``ParseMode.HTML``.
+    """
+    try:
+        text = await _llm_verdict_text(result)
+    except Exception:
+        logger.debug("ai_verdict_failed", exc_info=True)
+        text = ""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    return f"\U0001f916 <b>AI Verdict</b>\n{html.escape(text)[:_AI_VERDICT_MAX_CHARS]}"
 
 
 async def sentinel_scan(address: str, chain: str | None = None) -> dict[str, Any] | None:

@@ -7,6 +7,7 @@ de-godding pass: the dedicated Deployer section and the GMGN
 from __future__ import annotations
 
 import contextlib
+import html
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.formatters._base import thin_sep
@@ -43,7 +44,7 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
 
     # Deployer address (always shown)
     if deployer_addr and deployer_addr != "unknown":
-        lines.append(f"  \U0001f464 Address: <code>{deployer_addr}</code>")
+        lines.append(f"  \U0001f464 Address: <code>{html.escape(str(deployer_addr))}</code>")
     else:
         lines.append("  \U0001f464 Address: <i>unknown</i>")
 
@@ -53,8 +54,8 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
 
         launchpad = detect_launchpad(deployer_addr, chain)
         if launchpad:
-            lp_name = launchpad.get("name", "unknown")
-            lp_type = launchpad.get("type", "")
+            lp_name = html.escape(str(launchpad.get("name", "unknown")))
+            lp_type = html.escape(str(launchpad.get("type", "")))
             lines.append(f"  \U0001f680 Launchpad: <b>{lp_name}</b> ({lp_type})")
     except (ConnectionError, OSError, ImportError):
         pass
@@ -62,7 +63,7 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
     # Reputation label
     if reputation_label and reputation_label != "UNKNOWN":
         emoji = "🔴" if reputation_label in ("CRITICAL", "HIGH") else "🟡" if reputation_label == "MEDIUM" else "🟢"
-        lines.append(f"  {emoji} Reputation: <b>{reputation_label}</b>")
+        lines.append(f"  {emoji} Reputation: <b>{html.escape(str(reputation_label))}</b>")
 
     # Reputation score (0-100, higher = more trusted)
     if reputation_score is not None:
@@ -105,9 +106,9 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
             except (TypeError, ValueError):
                 pass
         if chains_used:
-            lines.append(f"  \U0001f310 Chains: <b>{', '.join(chains_used)}</b>")
+            lines.append(f"  \U0001f310 Chains: <b>{html.escape(', '.join(str(c) for c in chains_used))}</b>")
         if label:
-            lines.append(f"  \U0001f3f7\ufe0f Label: <b>{label}</b>")
+            lines.append(f"  \U0001f3f7\ufe0f Label: <b>{html.escape(str(label))}</b>")
 
     # Deployment info
     deployed_at = r.get("deployed_at") or r.get("deployment_timestamp")
@@ -190,11 +191,11 @@ def _format_gmgn_section(r: dict[str, Any]) -> list[str]:
                 if not isinstance(w, dict):
                     continue
                 addr = str(w.get("address") or "")
-                direction = str(w.get("direction") or "MIXED")
+                direction = html.escape(str(w.get("direction") or "MIXED"))
                 if not addr:
                     continue
                 arrow = {"BUY": "\U0001f7e2", "SELL": "\U0001f534", "MIXED": "\U0001f7e1"}.get(direction, "\u26aa")
-                parts.append(f"{arrow} {_short_addr(addr)} {direction}")
+                parts.append(f"{arrow} {html.escape(_short_addr(addr))} {direction}")
             if parts:
                 lines.append(f"  \U0001f9e0 {' | '.join(parts)}")
 

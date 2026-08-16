@@ -34,6 +34,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     _risk_indicator,
     detect_chain,
     footer_links,
+    format_deep_scan_report,
     format_scan_report,
     format_sentinel_deepscan_section,
     format_wallet_composition_section,
@@ -74,6 +75,11 @@ from app.domains.telegram.rugmunchbot.scanner import (
 from app.domains.telegram.rugmunchbot.states import check_spam
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, http_get_json
+from app.domains.telegram.rugmunchbot.tools.scanner import (
+    _scan_cache_get,
+    _scan_cache_set,
+    render_ai_verdict,
+)
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -134,25 +140,35 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.HTML,
     )
     try:
-        result_v2 = await scan_token_v2(target, chain)
-        if result_v2 is not None:
-            result = v2_token_to_legacy(result_v2)
-            # Supplement with DexScreener data if v2 liquidity is 0
-            if not result.get("liquidity"):
-                body = await http_get_json(f"{DEXSCREENER}/tokens/{target}", timeout=10)
-                if body:
-                    pairs = body.get("pairs", [])
-                    if pairs:
-                        p = pairs[0]
-                        liq = p.get("liquidity", {})
-                        if liq.get("usd"):
-                            result["liquidity"] = float(liq["usd"])
-                        if not result.get("name") or result["name"] == "Unknown":
-                            result["name"] = p.get("baseToken", {}).get("name", "Unknown")
-                            result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
+        # Short-TTL scan cache: repeat /scan of the same token is instant —
+        # skip the whole provider chain (v2 POST + DexScreener supplement +
+        # legacy fallback) within the 30s window. Fail-open: a miss rescans.
+        chain_key = chain or detect_chain(target)
+        cached = _scan_cache_get(target, chain_key)
+        if cached is not None:
+            logger.debug("cmd_scan cache hit for %s", target)
+            result = cached
         else:
-            # v2 unavailable → fall back to legacy multi-source scanner
-            result = await scan_token(target, chain)
+            result_v2 = await scan_token_v2(target, chain)
+            if result_v2 is not None:
+                result = v2_token_to_legacy(result_v2)
+                # Supplement with DexScreener data if v2 liquidity is 0
+                if not result.get("liquidity"):
+                    body = await http_get_json(f"{DEXSCREENER}/tokens/{target}", timeout=10)
+                    if body:
+                        pairs = body.get("pairs", [])
+                        if pairs:
+                            p = pairs[0]
+                            liq = p.get("liquidity", {})
+                            if liq.get("usd"):
+                                result["liquidity"] = float(liq["usd"])
+                            if not result.get("name") or result["name"] == "Unknown":
+                                result["name"] = p.get("baseToken", {}).get("name", "Unknown")
+                                result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
+            else:
+                # v2 unavailable → fall back to legacy multi-source scanner
+                result = await scan_token(target, chain)
+            _scan_cache_set(target, chain_key, result)
         if result["name"] == "Unknown" and not result["errors"]:
             await msg.edit_text(
                 f"\u274c <b>Token Not Found</b>\n\n"
@@ -165,6 +181,13 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
         report = format_scan_report(result)
+        # AI verdict summary on top: the snappy LLM reads the structured scan
+        # facts into a 2-4 sentence plain-English verdict + "what to watch".
+        # Fail-open — when the LLM is unavailable the report's existing
+        # template verdict (format_verdict_header) stays as-is.
+        ai_verdict = await render_ai_verdict(result)
+        if ai_verdict:
+            report = f"{ai_verdict}\n\n{report}"
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, target, result["chain"], "basic", result["risk_score"])
         # Use richer keyboard for premium users
@@ -376,9 +399,11 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if wallet_section:
             enrichment_lines.append(wallet_section)
 
-        report = format_scan_report(result)
-        if enrichment_lines:
-            report += "\n\n" + "\n\n".join(enrichment_lines)
+        # Canonical deep-scan report: the /scan skeleton plus deep-only intel
+        # (LP lock, bundle, snipers/insiders) and the enrichment sections
+        # (RugMap cluster, market snapshot, wallet composition) rendered
+        # INSIDE the report — before the footer, never appended after it.
+        report = format_deep_scan_report(result, extra_sections=enrichment_lines)
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, target, result["chain"], "deep", result["risk_score"])
         user_tier = db.get_user_tier(user.id)
