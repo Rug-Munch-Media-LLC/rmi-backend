@@ -6,9 +6,9 @@ preparation logic lives in a focused module. ``_sanitize_history`` and
 only helper here that touches I/O (it reads the shared chat-history DB when
 no explicit ``history`` is passed).
 
-KV-cache prefix contract (llama.cpp ``cache_prompt``):
-  The system prompt assembled here is the byte-stable prefix the local
-  llama.cpp servers reuse across turns. It MUST stay per-day stable:
+Stable-prefix contract:
+  The system prompt assembled here is the byte-stable prefix shared by every
+  turn. It MUST stay per-day stable:
   - Day-granularity date ONLY (``%Y-%m-%d``) — never minutes.
   - The volatile market block (60s TTL, live prices/trending) is appended to
     the USER turn, NOT the system prompt, so the prefix stays cacheable.
@@ -127,9 +127,9 @@ async def _build_messages(
     # fabricates this block) but do NOT inject it into the system prompt.
     # The block content re-renders every MARKET_CONTEXT_TTL (60s) — live
     # prices/trending — so placing it in the system prompt would change the
-    # byte-stable prefix on every cache window and defeat llama.cpp
-    # ``cache_prompt`` KV reuse (see below: it is appended AFTER the user
-    # turn so the core system-prompt prefix stays cacheable).
+    # byte-stable prefix on every cache window and defeat stable-prefix
+    # reuse (see below: it is appended AFTER the user turn so the core
+    # system-prompt prefix stays cacheable).
     market_block = await build_market_context_block()
 
     if system_context:

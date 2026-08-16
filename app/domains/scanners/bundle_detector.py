@@ -36,7 +36,7 @@ import requests
 from app.chain_client import ChainClient
 from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 from app.core.logging import get_logger
-from app.domains.scanners._bundle_models import (  # noqa: F401  # re-exported for callers/tests
+from app.domains.scanners._bundle_models import (  # re-exported for callers/tests
     BUNDLER_PROGRAMS as BUNDLER_PROGRAMS,
     EVM_EXPLORER_KEY_ENVS as EVM_EXPLORER_KEY_ENVS,
     EVM_EXPLORER_URLS as EVM_EXPLORER_URLS,

@@ -378,8 +378,8 @@ async def _post_guardrail(
     footer and the structured answer trace.
     """
     # ── THINK-STRIPPING (post-processing) ─────────────────────────────────
-    # Local models (qwen-analysis) emit visible <think>...</think>
-    # reasoning chains; the backend / local providers can all surface
+    # Some providers emit visible <think>...</think>
+    # reasoning chains; the backend / remote providers can all surface
     # them. Strip here — the single funnel every provider's answer flows
     # through — so the user, the stored chat history, and the fabrication
     # guardrail never see the chain. Handles complete + unterminated blocks
@@ -387,7 +387,7 @@ async def _post_guardrail(
     answer = strip_think_blocks(answer)
 
     # ── DEGENERATE-OUTPUT GUARD (post-processing) ─────────────────────────
-    # A local model can degenerate into a bare "-", punctuation-only output,
+    # A model can degenerate into a bare "-", punctuation-only output,
     # or a token-repetition loop ("ioneerioneerioneer..."). Never surface
     # that — replace it with the helpful fallback message. Runs BEFORE the
     # fabrication guardrail: garbage carries no symbols worth verifying.

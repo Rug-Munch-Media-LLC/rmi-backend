@@ -1,14 +1,13 @@
 """
-RugMaps AI Analysis — LiteLLM qwen-analysis (local llama.cpp) + DeepSeek-chat paid fallback.
+RugMaps AI Analysis — remote LLM tiers (snappy/long) + DeepSeek fallback.
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
-Routing order: LiteLLM qwen-analysis → DeepSeek-chat → rule-based.
+Routing order: remote long/snappy tier → DeepSeek-direct → rule-based.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import time
 from typing import Any
 
@@ -18,20 +17,10 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
-# Backend runs in Docker on the rmi_network bridge (172.22.0.0/16); llama.cpp
-# runs on the HOST, so the container reaches it via the docker bridge gateway
-# 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
-LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
-QWEN_ANALYSIS_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
-AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "qwen-analysis")
-
-# LiteLLM proxy + DeepSeek direct fallback (legacy callers; env-gated, empty = disabled)
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
-LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
-QWEN_ANALYSIS_URL = f"http://{LLAMA_HOST}:{QWEN_ANALYSIS_PORT}/v1/chat/completions"
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "")
+# Remote provider config comes from app.llm_config at call time:
+#   analysis → get_long_config()  (Nemotron Ultra 550B via Kilo — deep reasoning)
+#   chat     → get_snappy_config() (DeepSeek V4 Flash Free via Zen — fast)
+#   fallback → get_fast_config()  (direct DeepSeek API)
 
 # Analysis cache (in-memory + Redis if available)
 _analysis_cache: dict[str, dict[str, Any]] = {}
@@ -172,31 +161,36 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict[str,
     return unique[:10]
 
 
-# ── Core LiteLLM caller for RugMaps AI ─────────────────────────
+# ── Core remote-LLM caller for RugMaps AI ─────────────────────────
 
 
-async def _call_litellm_for_rugmaps(prompt: str, task_type: str = "analysis", max_tokens: int = 800) -> str | None:
-    """Call LiteLLM proxy for RugMaps AI analysis.
+async def _call_remote_rugmaps(prompt: str, task_type: str = "analysis", max_tokens: int = 800) -> str | None:
+    """Call the remote LLM tier for RugMaps AI analysis.
 
     Args:
         prompt: The full analysis prompt with token data.
-        task_type: "analysis" → qwen-analysis (deep reasoning), "chat" → qwen-chat (fast).
+        task_type: "analysis" → long tier (deep reasoning), "chat" → snappy tier (fast).
         max_tokens: Max response tokens.
 
     Returns:
         Raw response text, or None on failure.
     """
-    model = AI_MODEL if task_type == "analysis" else "qwen-chat"
+    from app import llm_config
+
+    cfg = llm_config.get_long_config() if task_type == "analysis" else llm_config.get_snappy_config()
+    if not cfg.get("api_key"):
+        logger.warning("rugmaps_remote_missing_key", tier=task_type)
+        return None
     try:
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
-                f"{LITELLM_BASE_URL}/chat/completions",
+                cfg["base_url"],
                 headers={
-                    "Authorization": f"Bearer {LITELLM_API_KEY}",
+                    "Authorization": f"Bearer {cfg['api_key']}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": model,
+                    "model": cfg["model"],
                     "messages": [
                         {
                             "role": "system",
@@ -212,26 +206,29 @@ async def _call_litellm_for_rugmaps(prompt: str, task_type: str = "analysis", ma
                 data = resp.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 return content.strip()
-            logger.warning("litellm_non_200", status=resp.status_code, body=resp.text[:200])
+            logger.warning("rugmaps_remote_non_200", status=resp.status_code, body=resp.text[:200])
     except Exception as e:
-        logger.warning("litellm_rugmaps_call_failed", error=str(e))
+        logger.warning("rugmaps_remote_call_failed", error=str(e))
     return None
 
 
 async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | None:
-    """Fallback: call DeepSeek API directly if LiteLLM is unreachable."""
-    if not DEEPSEEK_KEY:
+    """Fallback: call the direct DeepSeek API if the remote tier is unreachable."""
+    from app import llm_config
+
+    cfg = llm_config.get_fast_config()
+    if not cfg.get("api_key") or not cfg.get("base_url"):
         return None
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                QWEN_ANALYSIS_URL,
+                cfg["base_url"],
                 headers={
-                    "Authorization": f"Bearer {DEEPSEEK_KEY}",
+                    "Authorization": f"Bearer {cfg['api_key']}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "deepseek-chat",
+                    "model": cfg["model"],
                     "messages": [
                         {
                             "role": "system",
@@ -253,19 +250,23 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
 
 
 async def _call_ai_priority(prompt: str, task_type: str = "analysis", max_tokens: int = 800) -> tuple[str | None, str]:
-    """Route RugMaps AI: LiteLLM → direct DeepSeek.
+    """Route RugMaps AI: remote tier → direct DeepSeek.
 
     Returns ``(content, model_id)`` where ``model_id`` is one of
-    ``"litellm/<model>"``, ``"deepseek/deepseek-chat"`` or ``"none"`` — the
+    ``"remote/<model>"``, ``"deepseek/<model>"`` or ``"none"`` — the
     caller logs it so we can track what served each response.
     """
-    content = await _call_litellm_for_rugmaps(prompt, task_type=task_type, max_tokens=max_tokens)
+    from app import llm_config
+
+    cfg = llm_config.get_long_config() if task_type == "analysis" else llm_config.get_snappy_config()
+    content = await _call_remote_rugmaps(prompt, task_type=task_type, max_tokens=max_tokens)
     if content:
-        return content, f"litellm/{AI_MODEL}"
+        return content, f"remote/{cfg['model']}"
 
     content = await _call_deepseek_fallback(prompt, max_tokens=max_tokens)
     if content:
-        return content, "deepseek/deepseek-chat"
+        cfg_fast = llm_config.get_fast_config()
+        return content, f"deepseek/{cfg_fast['model']}"
 
     return None, "none"
 
@@ -296,7 +297,7 @@ def _parse_ai_json(content: str) -> dict[str, Any] | None:
     return None
 
 
-# ── Holder Cluster Analysis (NEW — wired to LiteLLM) ──────────
+# ── Holder Cluster Analysis (NEW — wired to remote tiers) ──────
 
 
 async def analyze_holder_clusters(
@@ -429,7 +430,7 @@ def _fallback_cluster_analysis(holders: list[dict[str, Any]], labels: dict[str, 
     }
 
 
-# ── Contract Anomaly Detection (NEW — wired to LiteLLM) ───────
+# ── Contract Anomaly Detection (NEW — wired to remote tiers) ───
 
 
 async def detect_contract_anomalies(
@@ -603,7 +604,7 @@ def _fallback_anomaly_detection(holder_data: dict[str, Any], scanner_data: dict[
     }
 
 
-# ── Unified Token Graph Analysis (existing — rewired to LiteLLM) ─
+# ── Unified Token Graph Analysis (existing — rewired to remote) ─
 
 
 async def generate_ai_analysis(
@@ -614,7 +615,7 @@ async def generate_ai_analysis(
     labels: dict[str, dict[str, Any]],
     similar_scams: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Generate AI analysis via local Ollama first, then paid fallback, then rule-based engine."""
+    """Generate AI analysis via remote tiers, then DeepSeek fallback, then rule-based engine."""
     holder_summary = []
     for h in holders[:10]:
         addr = h.get("address", "")[:12]
@@ -668,7 +669,7 @@ Based on our data, provide a JSON analysis with these fields:
 
 Return ONLY valid JSON, no markdown, no code blocks."""
 
-    # Try LiteLLM first, then direct DeepSeek
+    # Try the remote tier first, then direct DeepSeek
     content, ai_model = await _call_ai_priority(prompt, task_type="analysis", max_tokens=800)
 
     if content:

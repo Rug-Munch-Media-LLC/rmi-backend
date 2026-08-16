@@ -12,9 +12,9 @@ Layers (free stack, per AGENTS.md):
      produces a usable answer:
        * conceptual / educational questions ("what is X", "explain Y") get
          a knowledge answer synthesized by the EXISTING model chain
-         (``ai_router.chat_completion``: local qwen-chat →
-         qwen-analysis → DeepSeek Flash API fallback — no new external
-         calls), clearly labeled as knowledge-based so it is never passed
+         (``ai_router.chat_completion``: remote snappy tier →
+         deep-reasoning fallback — no new external
+         calls; the bridge + SearXNG stay the primary path), clearly labeled as knowledge-based so it is never passed
          off as live web;
        * time-sensitive / market / news questions ("current price",
          "latest news") get an honest "no live data" message instead of
@@ -44,7 +44,7 @@ SEARXNG_TIMEOUT = 8.0
 # KNOWLEDGE FALLBACK CONSTANTS
 # ══════════════════════════════════════════════════════════════════════════
 # Budget for the synthesized knowledge answer. The existing model chain is
-# local-first (CPU llama.cpp qwen-chat can take 30-60s per answer) with a
+# remote-first (the free snappy tier answers in seconds), bounded by the
 # DeepSeek Flash API fallback, so this must be generous. The tool's total
 # runtime is still bounded: the registry timeout (tools/__init__.py: 75s)
 # and the chat pipeline's LIVE_TOOLS_WAIT bound on the fallback path.
@@ -125,10 +125,10 @@ _KNOWLEDGE_SYSTEM_PROMPT = (
 async def _knowledge_fallback_answer(query: str) -> str:
     """Synthesize a knowledge answer through the EXISTING model chain.
 
-    Uses ``ai_router.chat_completion`` (local qwen-chat → qwen-analysis
-    → DeepSeek Flash API fallback) — the same chain the rest of the app
+    Uses ``ai_router.chat_completion`` (remote snappy tier → deep tier →
+    DeepSeek Flash API fallback) — the same chain the rest of the app
     uses. No new external calls. Bounded by
-    ``KNOWLEDGE_FALLBACK_TIMEOUT`` so a slow CPU model can never stall the
+    ``KNOWLEDGE_FALLBACK_TIMEOUT`` so a slow model can never stall the
     caller indefinitely.
 
     Returns "" when the whole LLM chain is down / times out / produces no
@@ -144,7 +144,7 @@ async def _knowledge_fallback_answer(query: str) -> str:
         result = await asyncio.wait_for(
             _chat_completion(
                 messages=messages,
-                model="qwen-chat",
+                model=None,
                 task_type="chat",
                 temperature=0.5,
                 max_tokens=400,

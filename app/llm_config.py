@@ -9,10 +9,13 @@ Provider chain:
   CONTENT:   NVIDIA Nemotron 3 Super (free) - reports, briefings, writeups
   ANALYSIS:  DeepSeek v4 Pro (promo pricing) - agentic investigation
   FALLBACK:  OpenRouter (auto-routes to best available free model)
+  SNAPPY:    Poolside Laguna S 2.1 (free) via OpenRouter - fast short chat answers
+  LONG:      NVIDIA Nemotron 3 Ultra 550B (free) via OpenRouter - longer/reasoning answers
 """
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import contextlib
 import os
@@ -32,6 +35,9 @@ if os.getenv("LLM_API_KEY_B64"):
 
 LLM_API_KEY = os.getenv("LLM_API_KEY", OPENROUTER_KEY)
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")  # optional, for direct NVIDIA access
+# OpenRouter backup account (free tier for community chat) — falls back to the
+# primary OPENROUTER_KEY if the backup key is not provisioned.
+OPENROUTER_BACKUP_API_KEY = os.getenv("OPENROUTER_BACKUP_API_KEY", OPENROUTER_KEY)
 
 # ── Base URLs ──────────────────────────────────────────────────────
 DEEPSEEK_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
@@ -92,6 +98,128 @@ def get_analysis_config() -> dict[str, Any]:
             "temperature": 0.5,
         }
     return get_content_config()
+
+
+def get_snappy_config() -> dict[str, Any]:
+    """Config for fast short chat answers (Poolside Laguna S 2.1, FREE via OpenRouter)."""
+    return {
+        "model": "poolside/laguna-s-2.1:free",
+        "base_url": f"{OPENROUTER_BASE}/chat/completions",
+        "api_key": OPENROUTER_BACKUP_API_KEY,
+        "max_tokens": 256,
+        "temperature": 0.4,
+    }
+
+
+def get_long_config() -> dict[str, Any]:
+    """Config for longer/deep answers (NVIDIA Nemotron 3 Ultra 550B, FREE via OpenRouter)."""
+    return {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "base_url": f"{OPENROUTER_BASE}/chat/completions",
+        "api_key": OPENROUTER_BACKUP_API_KEY,
+        "max_tokens": 1024,
+        "temperature": 0.7,
+    }
+
+
+def get_cheap_fallback_config() -> dict[str, Any]:
+    """Bottom-of-the-barrel PAID fallback when the free tiers rate-limit.
+
+    Uses the ``:lowest`` modifier so OpenRouter routes to the cheapest host.
+    ~$0.05-0.07 / 1M tokens. Ordered cheapest-first; swap the model here to
+    change the fallback (qwen-2.5-7b, mistral-7b, llama-3-8b are all viable).
+    """
+    return {
+        "model": "qwen/qwen-2.5-7b-instruct:lowest",
+        "base_url": f"{OPENROUTER_BASE}/chat/completions",
+        "api_key": OPENROUTER_BACKUP_API_KEY,
+        "max_tokens": 512,
+        "temperature": 0.5,
+    }
+
+
+async def chat_with_fallback(
+    messages: list[dict[str, str]],
+    tier: str,
+    max_tokens: int | None = None,
+) -> str:
+    """Chat via the free OpenRouter tier, degrading to the cheap PAID model.
+
+    ``tier`` selects the free provider: ``"snappy"`` (poolside/laguna-s-2.1:free)
+    or ``"long"`` (nvidia/nemotron-3-ultra-550b-a55b:free). On ANY failure —
+    429 rate-limit, endpoint-not-found, timeout, other non-200, empty answer —
+    the call is retried ONCE with the paid ``:lowest`` fallback
+    (``get_cheap_fallback_config()``, qwen-2.5-7b), so chat never dies on a
+    free-tier rate-limit. Returns ``""`` when both attempts fail — callers
+    fail open. NEVER raises and never logs the API key.
+    """
+    if tier == "snappy":
+        config = get_snappy_config()
+    elif tier == "long":
+        config = get_long_config()
+    else:
+        return ""  # unknown tier — fail open, no request
+
+    answer = await _chat_once(config, messages, max_tokens)
+    if answer:
+        return answer
+    answer = await _chat_once(get_cheap_fallback_config(), messages, max_tokens)
+    if answer:
+        logger.warning("free tier failed (%s) — answered via paid fallback", tier)
+    return answer if answer else ""
+
+
+async def _chat_once(
+    config: dict[str, Any],
+    messages: list[dict[str, str]],
+    max_tokens: int | None,
+) -> str:
+    """One OpenAI-compatible chat POST to ``config``. Returns stripped content
+    or ``""``. Never raises."""
+    import httpx
+
+    api_key = str(config.get("api_key") or "")
+    base_url = str(config.get("base_url") or "")
+    model = str(config.get("model") or "")
+    if not api_key or not base_url or not model or not messages:
+        return ""
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://rugmunch.io",
+        "X-Title": "RMI Chat Fallback",
+    }
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens if max_tokens is not None else int(config.get("max_tokens") or 512),
+        "temperature": float(config.get("temperature") or 0.5),
+    }
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=5.0, read=20.0, write=10.0)) as client:
+            resp = await asyncio.wait_for(
+                client.post(base_url, headers=headers, json=payload),
+                timeout=20.0,
+            )
+    except (httpx.HTTPError, OSError, ConnectionError, TimeoutError, ValueError):
+        return ""
+    if resp.status_code != 200:
+        return ""
+    try:
+        raw = resp.json()
+    except ValueError:
+        return ""
+    if not isinstance(raw, dict):
+        return ""
+    try:
+        content = raw["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        return ""
+    if not isinstance(content, str):
+        return ""
+    content = content.strip()
+    return content if content else ""
 
 
 async def generate_content(

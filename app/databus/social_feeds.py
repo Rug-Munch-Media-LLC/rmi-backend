@@ -11,9 +11,9 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from defusedxml import ElementTree as SafeET  # protects RSS parsing against XML entity-expansion attacks
 
 import httpx
+from defusedxml import ElementTree as SafeET  # protects RSS parsing against XML entity-expansion attacks
 
 from app.core.logging import get_logger
 

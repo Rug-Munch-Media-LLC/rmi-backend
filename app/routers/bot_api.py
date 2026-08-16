@@ -6,7 +6,7 @@ All endpoints are optimized for fast responses with Redis caching.
 
 Endpoints:
   POST /api/v1/bot/scan   — Fast token scan (reads Redis cache, fallback to DexScreener)
-  POST /api/v1/bot/ask    — AI Q&A (local Qwen3.5-4B llama.cpp, fast answers)
+  POST /api/v1/bot/ask    — AI Q&A (free remote snappy model, fast answers)
   GET  /api/v1/bot/pulse  — Market pulse (BTC, ETH, SOL price + Greed/Fear + top movers)
   GET  /api/v1/bot/health — Health check
 """
@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,17 +24,12 @@ from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis_async
+from app.llm_config import get_cheap_fallback_config, get_long_config, get_snappy_config
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/bot", tags=["bot"])
 
 BOT_CACHE_TTL = 60  # 1 minute for bot requests
-
-# Local Qwen3.5-4B via llama.cpp :8085 ("qwen-chat" alias — Qwen3.5-4B-Abliterated).
-# Backend runs in Docker; llama.cpp runs on the host → docker bridge gateway, not 127.0.0.1.
-LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
-QWEN_CHAT_MODEL = "qwen-chat"
 
 
 # ── Models ──
@@ -96,6 +90,54 @@ async def _quick_scan_fallback(chain: str, address: str) -> dict[str, Any]:
     return {"risk_score": 0, "error": "No data available for this token"}
 
 
+async def _ask_llm_once(config: dict[str, Any], query: str) -> str:
+    """One OpenAI-compatible chat POST to ``config`` (free or cheap tier).
+
+    Returns the stripped answer, or ``""`` on ANY failure (missing key, non-200,
+    rate-limit, timeout, empty content). Never raises, never hangs (30s timeout).
+    """
+    api_key = config.get("api_key")
+    base_url = config.get("base_url")
+    model = config.get("model")
+    if not api_key or not base_url or not model:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                base_url,
+                json={
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are the RMI Terminal, a crypto intelligence AI. Answer concisely in 2-4 sentences."
+                            ),
+                        },
+                        {"role": "user", "content": query},
+                    ],
+                    "max_tokens": config.get("max_tokens", 256),
+                    "temperature": config.get("temperature", 0.4),
+                },
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://rugmunch.io",
+                    "X-Title": "RMI Bot Ask",
+                },
+            )
+            if resp.status_code != 200:
+                return ""
+            data = resp.json()
+            choices = data.get("choices") or []
+            if not choices:
+                return ""
+            content = (choices[0].get("message") or {}).get("content", "")
+            return content.strip() if isinstance(content, str) else ""
+    except Exception:  # intentional fail-open
+        return ""
+
+
 # ── Routes ──
 
 
@@ -145,7 +187,7 @@ async def bot_scan(req: BotScanRequest) -> dict[str, Any]:
 
 @router.post("/ask")
 async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
-    """AI Q&A — uses local llama.cpp Qwen3.5-4B for fast, free answers."""
+    """AI Q&A — uses the free remote snappy model for fast, free answers."""
     query = req.query.strip()
 
     # Check Redis cache for common questions
@@ -161,96 +203,42 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
     except Exception:  # noqa: S110 — best-effort cache
         pass
 
-    # Try local llama.cpp Qwen3.5-4B first (fastest, free)
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                QWEN_CHAT_URL,
-                json={
-                    "model": QWEN_CHAT_MODEL,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are the RMI Terminal, a crypto intelligence AI. Answer concisely in 2-4 sentences."
-                            ),
-                        },
-                        {"role": "user", "content": query},
-                    ],
-                    "max_tokens": 256,
-                    "temperature": 0.7,
-                    # llama.cpp latency levers (same as ai_router + bot
-                    # _call_local_llm): prefix-cache the stable system prompt
-                    # and skip the Qwen3.5 reasoning preamble.
-                    "cache_prompt": True,
-                    "chat_template_kwargs": {"enable_thinking": False},
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                choices = data.get("choices") or []
-                answer = ""
-                if choices:
-                    answer = (choices[0].get("message") or {}).get("content", "").strip()
-                if answer:
-                    result = {
-                        "answer": answer,
-                        "query_type": "general",
-                        "sources": [],
-                        "verified": True,
-                        "provider": "llama-qwen-chat",
-                    }
-                    # Cache for 5 minutes
-                    try:
-                        r2 = get_redis_async()
-                        if r2:
-                            await r2.setex(cache_key, 300, json.dumps(result))
-                    except Exception:  # noqa: S110 — best-effort cache
-                        pass
-                    return result
-    except Exception as e:
-        logger.warning("ollama_ask_failed", error=str(e)[:100])
+    # Free-first chain: free laguna (snappy) → free nemotron (long) → paid
+    # qwen :lowest (get_cheap_fallback_config) only on rate-limit/failure.
+    chain: list[tuple[str, dict[str, Any]]] = [
+        ("snappy", get_snappy_config()),
+        ("long", get_long_config()),
+        ("fallback", get_cheap_fallback_config()),
+    ]
+    for provider, config in chain:
+        answer = await _ask_llm_once(config, query)
+        if not answer:
+            logger.warning("bot_ask_tier_failed", provider=provider)
+            continue
+        result = {
+            "answer": answer,
+            "query_type": "general",
+            "sources": [],
+            "verified": True,
+            "provider": f"{provider}-{config.get('model', '')}",
+        }
+        # Cache for 5 minutes
+        try:
+            r2 = get_redis_async()
+            if r2:
+                await r2.setex(cache_key, 300, json.dumps(result))
+        except Exception:  # noqa: S110 — best-effort cache
+            pass
+        return result
 
-    # Fallback to OpenRouter if available
-    try:
-        or_key = os.getenv("OPENROUTER_API_KEY", "")
-        if or_key:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    json={
-                        "model": "deepseek/deepseek-v4-flash",
-                        "messages": [
-                            {"role": "system", "content": "You are RMI Terminal. Answer concisely in 2-4 sentences."},
-                            {"role": "user", "content": query},
-                        ],
-                        "temperature": 0.7,
-                        "max_tokens": 256,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {or_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    return {
-                        "answer": content or "I couldn't find information on that topic.",
-                        "query_type": "general",
-                        "sources": [],
-                        "verified": True,
-                        "provider": "openrouter-deepseek",
-                    }
-    except Exception as e:
-        logger.warning("openrouter_ask_failed", error=str(e)[:100])
-
+    # Fail open: every free/cheap tier failed (rate-limited / unavailable).
     return {
-        "answer": "I couldn't process that question right now. Please try again.",
+        "answer": "I couldn't process that question right now. Please try again in a moment.",
         "query_type": "error",
         "sources": [],
         "verified": False,
         "provider": "none",
+        "detail": "all_llm_tiers_failed",
     }
 
 

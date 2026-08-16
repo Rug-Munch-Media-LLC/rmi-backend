@@ -471,7 +471,7 @@ async def _own_price_argmax(token: str, chain: str) -> dict[str, Any] | None:
                       AND type = 'swap'
                       AND {where_extra}
                       AND block_timestamp >= now() - INTERVAL 24 HOUR
-                    """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+                    """,
                     {"token": token, "chain": chain},
                 )
             )
