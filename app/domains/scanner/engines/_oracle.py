@@ -159,7 +159,17 @@ async def get_token_price(
             "confidence": float(result.get("confidence", 0.5) or 0.5),
         }
         # Optional enrichment when the tier provided it
-        for extra in ("volume_24h_usd", "market_cap_usd", "price_change_24h_pct", "symbol", "name", "decimals"):
+        for extra in (
+            "volume_24h_usd",
+            "market_cap_usd",
+            "price_change_24h_pct",
+            "liquidity_usd",
+            "volume",
+            "price_change",
+            "symbol",
+            "name",
+            "decimals",
+        ):
             if result.get(extra) is not None:
                 payload[extra] = result[extra]
 

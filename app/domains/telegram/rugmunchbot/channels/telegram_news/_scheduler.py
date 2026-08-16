@@ -22,11 +22,13 @@ from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
 from app.domains.telegram.rugmunchbot.channels.formatters import (
     NewsPost,
     format_breaking_post,
+    format_feature_post,
     format_news_post,
 )
 from app.domains.telegram.rugmunchbot.channels.importance import select_important
 from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _article_to_post_dict,
+    _news_post_for,
 )
 from app.domains.telegram.rugmunchbot.channels.telegram_news._sources import TG_NEWS_POST_LIMIT
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -77,13 +79,24 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     ``RMI_NEWS_IMPORTANCE_THRESHOLD``, or the top-N under the heuristic
     fallback when Infinity /rerank is down) are posted — per category.
 
-    Post variety on the news channel: when the top selected story carries a
-    breaking marker (🚨/BREAKING/URGENT/JUST IN/FLASH in its title,
-    ``is_breaking_article``) it is posted **solo immediately** with its
-    official link (``format_breaking_post``); otherwise the top 3-5 stories
-    form a numbered digest (``format_news_post``). The selection is sorted
-    by rerank importance, secondarily by the deterministic
+    Post variety on the news channel (deterministic, by story count / shared
+    topic / batch parity — see ``_digest._news_post_for``): a breaking top
+    story (🚨/BREAKING/URGENT/JUST IN/FLASH in its title,
+    ``is_breaking_article``) is posted **solo immediately** with its official
+    link (``format_breaking_post``); a single story is posted as a **solo
+    top-story card** (image + one-line hook + lede, ``format_feature_post``);
+    stories sharing a ``$TOKEN`` form a **themed roundup**
+    (``format_themed_post``); otherwise the batch alternates between the
+    **top-3 hybrid** (lead card + image + short list, ``format_hybrid_post``)
+    and the full **numbered digest** (``format_news_post``) via a stable
+    batch-parity signal, so readers don't see the same digest every tick. The
+    selection is sorted by rerank importance, secondarily by the deterministic
     ``lightweight_importance`` score.
+
+    Main-channel solo (importance ≥ 0.7): the top story is posted solo; a
+    breaking marker keeps the 🚨 ``format_breaking_post`` shape, otherwise the
+    compelling ⭐ ``format_feature_post`` card (rewritten title + one-line
+    hook) is used with the story's image attached when one exists.
 
     Additive side-effects (all fail-open):
     * freshly-persisted TG items are merged into the website full-feed Redis
@@ -154,9 +167,12 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
         # scores tie (e.g. heuristic fallback or stub tests).
         selected = sorted(selected, key=lambda s: s.importance, reverse=True)
 
-        # Post variety: a top story carrying a breaking marker (🚨/BREAKING/
-        # URGENT/JUST IN/FLASH in its title) is posted SOLO immediately with
-        # its official link; otherwise the top 3-5 form a numbered digest.
+        # Post variety: deterministic format rotation (see _digest._news_post_for):
+        # a top story carrying a breaking marker (🚨/BREAKING/URGENT/JUST IN/
+        # FLASH in its title) is posted SOLO immediately with its official
+        # link; otherwise the fresh batch is shaped by story count / shared
+        # topic / parity into a feature card, themed roundup, hybrid, or
+        # numbered digest so the channel isn't the same digest every tick.
         if selected and _tg.is_breaking_article(selected[0].article):
             top = selected[0].article
             post = _article_to_post_dict(top)
@@ -175,7 +191,7 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
                 ok = await _post_formatted(
                     ctx.bot,
                     news_chat_id,
-                    format_news_post([_article_to_post_dict(a) for a in fresh[:TG_NEWS_POST_LIMIT]]),
+                    _news_post_for(fresh[:TG_NEWS_POST_LIMIT]),
                     _safe_send,
                 )
                 if ok:
@@ -183,6 +199,10 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
                     posted += 1
 
     # Route: main (importance ≥ 0.7) → @cryptorugmuncher channel, solo.
+    # The high-importance solo path: breaking markers keep the 🚨 shape,
+    # otherwise the compelling ⭐ feature card (rewritten title + one-line
+    # hook) — never a bare link; the story's image rides the NewsPost so
+    # _post_formatted attaches it as a photo.
     if main_chat_id and main_scored:
         selected_main = select_important(main_scored, top_n=TG_NEWS_POST_LIMIT)
         selected_main = sorted(selected_main, key=lambda s: s.importance, reverse=True)
@@ -190,7 +210,8 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             top = selected_main[0].article
             post = _article_to_post_dict(top)
             if _remember("tgmain", _dedupe_key("tgmain", post)):
-                ok = await _post_formatted(ctx.bot, main_chat_id, format_breaking_post(post), _safe_send)
+                formatted = format_breaking_post(post) if _tg.is_breaking_article(top) else format_feature_post(post)
+                ok = await _post_formatted(ctx.bot, main_chat_id, formatted, _safe_send)
                 if ok:
                     logger.info("tg_news:posted_main title=%s", top.title[:80])
                     posted += 1

@@ -29,6 +29,7 @@ from app.domains.telegram.rugmunchbot.formatters._base import footer_links, sep,
 from app.domains.telegram.rugmunchbot.formatters._scan_report_common import (
     _clip,
     _collapse_blank_lines,
+    _fmt_market_value,
     _key_metrics_rows,
     _launch_intel_rows,
     _what_to_watch_line,
@@ -42,7 +43,6 @@ from app.domains.telegram.rugmunchbot.formatters._scan_report_wallet import (
 )
 from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import (
     _bundle_alert_line,
-    _fmt_usd_amount,
     _wallet_freshness_line,
 )
 
@@ -174,21 +174,46 @@ def _format_scan_report(
         lines.extend(risk_lines)
 
     # ── 3. Market Data ──
-    price = r.get("price", 0)
-    mcap = r.get("mcap", 0)
-    liquidity = r.get("liquidity_usd") or r.get("liquidity", 0)
-    vol_24h = r.get("volume_24h", 0)
+    # Real live market figures from the scan's best-pair DexScreener snapshot
+    # (see tools/scanner._ds_market_snapshot). Missing fields render "—",
+    # never a fabricated 0 — a provider that did not report a value is shown
+    # as unknown (keep-it-honest rule, fix 2026-08-16).
+    def _pct_market(v: Any) -> str:
+        """Percent string for the Market Data block — "—" when absent."""
+        return "\u2014" if v is None else fmt_pct(v)
+
+    price = r.get("price")
+    mcap = r.get("mcap")
+    liquidity = r.get("liquidity_usd") if r.get("liquidity_usd") is not None else r.get("liquidity")
+    vol_24h = r.get("volume_24h")
+    vol_1h = r.get("volume_1h")
+    vol_6h = r.get("volume_6h")
+    pc_1h = r.get("price_change_1h")
+    pc_6h = r.get("price_change_6h")
+    pc_24h = r.get("price_change_24h")
+    pc_7d = r.get("price_change_7d")
+    vol_tf_line = ""
+    if vol_1h is not None or vol_6h is not None:
+        vol_tf_line = (
+            f"  \U0001f4ca Vol 1h: <b>{_fmt_market_value(vol_1h)}</b>"
+            f" | 6h: <b>{_fmt_market_value(vol_6h)}</b>"
+            f" | 24h: <b>{_fmt_market_value(vol_24h)}</b>"
+        )
     lines.extend(
         [
             "",
             "\U0001f4ca <b>Market Data</b>",
             d,
-            f"  \U0001f4b0 Price: <b>{_fmt_usd_amount(price)}</b>",
-            f"  \U0001f4c8 Market Cap: <b>{_fmt_usd_amount(mcap)}</b>",
-            f"  \U0001f4a7 Liquidity: <b>{_fmt_usd_amount(liquidity)}</b>",
-            f"  \U0001f4ca 24h Volume: <b>{_fmt_usd_amount(vol_24h)}</b>",
-            f"  \U0001f504 1h: {fmt_pct(r.get('price_change_1h'))} | 24h: {fmt_pct(r.get('price_change_24h'))} | 7d: {fmt_pct(r.get('price_change_7d'))}",
+            f"  \U0001f4b0 Price: <b>{_fmt_market_value(price)}</b>",
+            f"  \U0001f4c8 Market Cap: <b>{_fmt_market_value(mcap)}</b>",
+            f"  \U0001f4a7 Liquidity: <b>{_fmt_market_value(liquidity)}</b>",
+            f"  \U0001f4ca 24h Volume: <b>{_fmt_market_value(vol_24h)}</b>",
         ]
+    )
+    if vol_tf_line:
+        lines.append(vol_tf_line)
+    lines.append(
+        f"  \U0001f504 1h: {_pct_market(pc_1h)} | 6h: {_pct_market(pc_6h)} | 24h: {_pct_market(pc_24h)} | 7d: {_pct_market(pc_7d)}"
     )
 
     # ── 4. SENTINEL Forensics ──

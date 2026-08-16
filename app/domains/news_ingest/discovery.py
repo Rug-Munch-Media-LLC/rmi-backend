@@ -56,6 +56,18 @@ async def discover_followed_channels(client: Any, limit: int = 500) -> list[tupl
         results: list[tuple[str, str]] = []
         seen: set[str] = set()
 
+        # Best-effort account identity for the log — confirms the sweep is
+        # reading the operator's session (cryptorugmunch) and not a stale one.
+        # Fail-open: absent ``get_me``/errors only skip the identity field.
+        account = ""
+        get_me = getattr(raw, "get_me", None)
+        if callable(get_me):
+            try:
+                me = await get_me()
+                account = getattr(me, "username", None) or getattr(me, "first_name", None) or ""
+            except Exception:
+                account = ""
+
         # get_dialogs() returns a Dialogs container; iterate over its
         # ``dialogs`` attribute (each item is a Telethon Dialog).
         dialog_items = getattr(dialogs, "dialogs", None) or []
@@ -73,7 +85,11 @@ async def discover_followed_channels(client: Any, limit: int = 500) -> list[tupl
             seen.add(handle)
             results.append((handle, str(title or handle)))
 
-        logger.info("news_ingest:discovered_channels count=%s", len(results))
+        logger.info(
+            "news_ingest:discovered_channels account=%s count=%s",
+            account or "unknown",
+            len(results),
+        )
         return results
     except Exception as exc:  # fail-open by contract
         logger.warning("news_ingest:discovery_failed err=%s", str(exc)[:200])

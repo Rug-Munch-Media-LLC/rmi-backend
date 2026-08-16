@@ -105,12 +105,30 @@ async def _dexscreener_price(token: str, chain: str, *, _depth: int = 0) -> dict
         if price_usd <= 0:
             return None
 
+        # Surface the best-pair market snapshot. ``best_liquidity`` is already
+        # computed above for pair selection — it MUST also flow through the
+        # oracle payload, else the report's Liquidity row reads 0 even though
+        # the pair data carried it (fix 2026-08-16). Timeframe volume/price
+        # change (DexScreener ``volume.h1/h6/h24`` + ``priceChange.*``) are
+        # carried verbatim so downstream consumers can render real
+        # multi-timeframe figures instead of zeros.
         result: dict[str, Any] = {
             "price_usd": price_usd,
             "confidence": 0.7,
             "volume_24h_usd": float(best_pair.get("volume", {}).get("h24", 0) or 0),
             "market_cap_usd": float(best_pair.get("fdv", 0) or 0) or None,
             "price_change_24h_pct": float(best_pair.get("priceChange", {}).get("h24", 0) or 0),
+            "liquidity_usd": best_liquidity if best_liquidity > 0 else None,
+            "volume": {
+                tf: (float(v) if isinstance(v, (int, float)) else None)
+                for tf, v in (best_pair.get("volume") or {}).items()
+                if tf in ("m5", "h1", "h6", "h24")
+            },
+            "price_change": {
+                tf: (float(v) if isinstance(v, (int, float)) else None)
+                for tf, v in (best_pair.get("priceChange") or {}).items()
+                if tf in ("m1", "m5", "h1", "h6", "h24")
+            },
         }
         decimals = _pair_decimals_for_token(best_pair, token)
         if decimals is not None:

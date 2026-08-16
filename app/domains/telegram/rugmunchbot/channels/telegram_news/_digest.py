@@ -13,7 +13,10 @@ market-awareness snapshot (``publish_market_awareness``).
 from __future__ import annotations
 
 import json
+import re
 import sys
+import zlib
+from collections import Counter
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +24,14 @@ from app.domains.news_ingest.ingest import (
     extract_canonical_url,
     extract_image_url,
     lightweight_importance,
+)
+from app.domains.telegram.rugmunchbot.channels.formatters import (
+    NewsPost,
+    format_breaking_post,
+    format_feature_post,
+    format_hybrid_post,
+    format_news_post,
+    format_themed_post,
 )
 from app.domains.telegram.rugmunchbot.channels.importance import top_headlines, trending_tokens
 from app.domains.telegram.rugmunchbot.channels.telegram_news._persist import _news_id_for
@@ -70,6 +81,71 @@ def _article_to_post_dict(article: NewsArticle) -> dict[str, Any]:
 def _category_is_news(category: str) -> bool:
     """True when a swept article belongs on the news channel (not alpha)."""
     return category != "alpha"
+
+
+# ── Post format variety (deterministic rotation) ─────────────────────────────
+
+#: ``$TOKEN`` matcher used for theme detection across headlines/bodies.
+_TOKEN_RE = re.compile(r"\$([A-Za-z0-9]{2,10})")
+
+
+def _shared_topic(items: list[dict[str, Any]]) -> str:
+    """Theme label when ≥2 items mention the same ``$TOKEN`` in text, else ``""``.
+
+    Pure + deterministic: counts distinct ``$TOKEN`` mentions per item's
+    title+summary and returns the first token present in ≥2 items (most
+    common first, alphabetical tiebreak). No entity extraction dependency —
+    the token must actually appear in the headline/lede text.
+    """
+    mentions: Counter[str] = Counter()
+    for item in items:
+        text = f"{item.get('title') or ''} {item.get('summary') or ''}"
+        seen = {m.group(1).upper() for m in _TOKEN_RE.finditer(text)}
+        for tok in seen:
+            mentions[tok] += 1
+    for tok, count in mentions.most_common():
+        if count >= 2:
+            return tok
+    return ""
+
+
+def _batch_parity(items: list[dict[str, Any]]) -> int:
+    """Deterministic 0/1 parity of a story batch (no global counter state).
+
+    Derived from the canonical URLs so the same story set always picks the
+    same format while different sets rotate digest ↔ hybrid — a stable,
+    stateless "tick" signal.
+    """
+    seed = "|".join(str(it.get("canonical_url") or it.get("url") or "") for it in items)
+    return zlib.crc32(seed.encode("utf-8")) & 1
+
+
+def _news_post_for(articles: list[NewsArticle]) -> NewsPost:
+    """Pick the news-channel post format deterministically for *articles*.
+
+    Priority (breaking first, then story count / shared topic / parity):
+      1. Breaking top story              → solo 🚨 post (``format_breaking_post``)
+      2. Single story                    → solo ⭐ card (image + hook + lede)
+      3. ≥2 stories share a ``$TOKEN``   → themed 🧵 roundup
+      4. 4+ stories with even batch parity → numbered 📰 digest
+      5. otherwise (≤3 stories, or 4+ with odd parity) → top-3 ⭐ hybrid
+
+    Every format carries the RAG linkage (``image_url`` + ``canonical_url`` +
+    rewritten title) through the post dicts built by ``_article_to_post_dict``.
+    """
+    items = [_article_to_post_dict(a) for a in articles]
+    if not items:
+        return NewsPost("")
+    if _tg.is_breaking_article(articles[0]):
+        return format_breaking_post(items[0])
+    if len(items) == 1:
+        return format_feature_post(items[0])
+    theme = _shared_topic(items)
+    if theme:
+        return format_themed_post(items, theme)
+    if len(items) >= 4 and _batch_parity(items) == 0:
+        return format_news_post(items)
+    return format_hybrid_post(items)
 
 
 # ── Website feed injection (additive, fail-open) ────────────────────────────

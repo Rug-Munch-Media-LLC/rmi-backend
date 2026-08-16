@@ -15,8 +15,16 @@ Cadence (env-overridable, defaults):
             the routed tg_news path now owns the news channel (see below).
 * alpha    → every 2h  (``RMI_CHANNEL_ALPHA_INTERVAL_HOURS``) — whale moves
             are collected on the same cadence so whale events surface in the
-            digest within one interval (plus the existing event-driven rails)
-* alerts   → every 30m (``RMI_CHANNEL_ALERTS_INTERVAL_MINUTES``)
+            digest within one interval (plus the existing event-driven rails).
+            The digest is reranker-gated (only items ≥ the news floor post;
+            heuristic fallback keeps the channel flowing during a reranker
+            outage) and any item ≥ the main gate (0.7) ALSO posts solo to
+            @cryptorugmuncher (``format_main_escalation``) — see
+            :func:`_score_and_partition`.
+* alerts   → every 30m (``RMI_CHANNEL_ALERTS_INTERVAL_MINUTES``) — the
+            scanner risk digest is curated (alert type, condition met vs
+            current, why-it-matters, scan/chart links), reranker-gated, and
+            ≥0.7 items ALSO post solo to @cryptorugmuncher.
 * tg_news  → every 20m (``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``; default
             tuned UP from 30m so stories post "often") — ingests public
             crypto-news Telegram channels via the headless client, persists
@@ -80,24 +88,33 @@ from typing import TYPE_CHECKING, Any
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
+from app.domains.news_ingest.models import NewsArticle
 from app.domains.telegram.rugmunchbot.channels import scheduler_state
+from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
 from app.domains.telegram.rugmunchbot.channels.content import (
     fetch_alpha_content,
     fetch_risk_alerts,
     fetch_trending_news,
 )
 from app.domains.telegram.rugmunchbot.channels.formatters import (
+    NewsPost,
     format_alerts_post,
     format_alpha_post,
+    format_main_escalation,
     format_news_post,
 )
+from app.domains.telegram.rugmunchbot.channels.importance import score_importance
 from app.domains.telegram.rugmunchbot.channels.personal_channel import (
     PERSONAL_CHANNEL_ENABLED,
     PERSONAL_CHANNEL_INTERVAL_MINUTES,
     post_personal_channel,
     resolve_personal_chat_id,
 )
-from app.domains.telegram.rugmunchbot.channels.router import route_news
+from app.domains.telegram.rugmunchbot.channels.router import (
+    ROUTE_ALPHA_CATEGORY,
+    ROUTE_NEWS_MIN_IMPORTANCE,
+    route_news,
+)
 from app.domains.telegram.rugmunchbot.channels.scam_watch import (
     SCAM_WATCH_ENABLED,
     SCAM_WATCH_INTERVAL_MINUTES,
@@ -263,6 +280,96 @@ def _elapsed_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 1)
 
 
+# ── Reranker-gated channel routing (shared by the alerts/alpha jobs) ───────
+
+
+def _item_to_article(item: dict[str, Any], *, category: str, source: str) -> NewsArticle:
+    """Adapt a normalized channel item dict into a ``NewsArticle`` for reranking.
+
+    The title is the token/signal name and the body folds in every scrap of
+    text the cross-encoder can match an importance query against (verdict,
+    summary/body, risk flags, name/symbol). ``source_url`` is the scanner
+    deep link when the item is a token; otherwise a stable placeholder so the
+    reranker never sees an empty URL. Pure — never raises.
+    """
+    name = str(item.get("name") or item.get("title") or item.get("symbol") or "Untitled").strip()
+    title = str(item.get("title") or name)[:200]
+    body_parts = [
+        str(item.get("verdict") or "").strip(),
+        str(item.get("summary") or item.get("body") or "").strip(),
+        str(item.get("condition") or "").strip(),
+        " ".join(str(f) for f in (item.get("risk_flags") or []) if f),
+        str(item.get("name") or "").strip(),
+        str(item.get("symbol") or "").strip(),
+    ]
+    body = " ".join(p for p in body_parts if p)
+    addr = str(item.get("address") or item.get("token_address") or "").strip()
+    url = str(item.get("scanner_url") or "").strip() or (
+        f"https://rugmunch.io/scanner?token={addr}&chain={item.get('chain') or ''}" if addr else ""
+    )
+    return NewsArticle(
+        title=title,
+        body=body,
+        source_channel=source,
+        source_url=url or "https://rugmunch.io",
+        category=category,
+    )
+
+
+async def _post_photo_aware(bot: Any, chat_id: str, post: NewsPost, safe_send: Any) -> bool:
+    """Post a ``NewsPost``, attaching its image when one is available.
+
+    Reuses the existing photo primitive (``channels._media.send_news_photo``)
+    so digest and escalated posts get the same photo-or-text fail-open
+    behavior as the tg_news lane. Without an image the caller's ``safe_send``
+    (retry + ``disable_web_page_preview=True``) is used.
+    """
+    image_url = getattr(post, "image_url", "") or ""
+    if image_url:
+        return await send_news_photo(bot, chat_id, caption=post, photo_url=image_url)
+    return await safe_send(bot, chat_id, post)
+
+
+async def _score_and_partition(
+    items: list[dict[str, Any]],
+    *,
+    category: str,
+    source: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
+    """Rerank *items* and partition into (main_items, channel_items, reranker_down).
+
+    Reuses ``channels/importance.py::score_importance`` (the same Infinity
+    cross-encoder the tg_news lane uses) and ``channels/router.py::route_news``
+    for the main-channel gate:
+
+    * ``main_items`` — importance ≥ the main gate (0.7, ``route_news`` returns
+      ``"main"``) → escalate solo to @cryptorugmuncher. Escalation is
+      ADDITIVE: a ≥0.7 item also stays on its native channel digest.
+    * ``channel_items`` — importance ≥ the news floor (0.4) → the native
+      channel digest. Items below the floor are dropped (rerank mode only).
+    * ``reranker_down`` — True when the reranker was unavailable and the
+      heuristic fallback scored the batch; the native channel then keeps its
+      full window (mirrors ``select_important``'s fail-open fallback) while
+      the ≥0.7 main gate still applies.
+
+    Every kept item gains an ``"importance"`` float. Pure routing — the caller
+    still owns dedupe and posting.
+    """
+    articles = [_item_to_article(item, category=category, source=source) for item in items]
+    scored = await score_importance(articles)
+    main_items: list[dict[str, Any]] = []
+    channel_items: list[dict[str, Any]] = []
+    reranker_down = bool(scored and scored[0].fallback)
+    for item, s in zip(items, scored, strict=True):
+        item["importance"] = round(s.importance, 4)
+        is_main = route_news(s.importance, category) == "main"
+        if is_main:
+            main_items.append(item)
+        if is_main or reranker_down or s.importance >= ROUTE_NEWS_MIN_IMPORTANCE:
+            channel_items.append(item)
+    return main_items, channel_items, reranker_down
+
+
 def _tick_wrapper(
     job_name: str,
     callback: Callable[[Any], Coroutine[Any, Any, Any]],
@@ -383,7 +490,17 @@ async def post_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def post_alert_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    """Post the scanner risk digest to the alerts channel. Returns 0-1."""
+    """Post the curated scanner risk digest; escalate ≥0.7 items to the main channel.
+
+    Returns the number of messages posted (0-1 native digest + 0..N main
+    escalations). Every fresh alert is reranked (``channels/importance.py``)
+    and routed through ``route_news`` (category "news"): below the news floor
+    it is dropped, 0.4-0.7 it posts on the alerts channel (rich card: alert
+    type, condition met vs current, why-it-matters, scan/chart links), and
+    ≥0.7 it ALSO posts solo to @cryptorugmuncher. Fail-open: a reranker
+    outage keeps the digest flowing (heuristic fallback) and never blocks
+    the JobQueue.
+    """
     started = time.perf_counter()
     chat_id = _chat_id("alerts")
     if not chat_id:
@@ -412,26 +529,54 @@ async def post_alert_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             reason="no_fresh",
         )
         return 0
-    ok = await _safe_send(ctx.bot, chat_id, format_alerts_post(fresh))
-    if ok:
-        logger.info("channels:alerts posted %s risk alert(s)", len(fresh))
+    main_items, channel_items, reranker_down = await _score_and_partition(fresh, category="news", source="scanner")
+    posted = 0
+    if channel_items:
+        ok = await _post_photo_aware(ctx.bot, chat_id, format_alerts_post(channel_items), _safe_send)
+        if ok:
+            posted += 1
+    main_chat_id = _chat_id("main")
+    if main_chat_id and main_items:
+        for item in sorted(main_items, key=lambda i: i.get("importance", 0.0), reverse=True):
+            if not _remember("alertsmain", _dedupe_key("alertsmain", item)):
+                continue
+            ok = await _post_photo_aware(ctx.bot, main_chat_id, format_main_escalation(item), _safe_send)
+            if ok:
+                posted += 1
+    if posted:
+        logger.info(
+            "channels:alerts posted=%s main=%s",
+            posted,
+            len(main_items),
+        )
     logger.info(
         "channels:tick",
         job="channel_alerts",
         items_swept=len(alerts),
         items_scored=len(fresh),
-        items_posted=len(fresh) if ok else 0,
-        items_failed=0 if ok else 1,
+        items_posted=posted,
+        items_failed=0,
         latency_ms=_elapsed_ms(started),
+        reason=("reranker_fallback" if reranker_down else "below_floor" if not posted else None),
     )
-    return 1 if ok else 0
+    return posted
 
 
 # ── Alpha job ─────────────────────────────────────────────────────────────
 
 
 async def post_alpha_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    """Post the alpha digest (whale moves + smart money + launches). Returns 0-1."""
+    """Post the curated alpha digest (whale/smart/launch); escalate ≥0.7 to main.
+
+    Returns the number of messages posted (0-1 native digest + 0..N main
+    escalations). Whale/smart/launch items are deduped per section, reranked
+    (``channels/importance.py``), and routed through ``route_news`` (category
+    "alpha"): below the news floor they are dropped (rerank mode only), the
+    rest form the alpha digest (verdict + links, photo when available), and
+    items ≥0.7 ALSO post solo to @cryptorugmuncher. Fail-open: a reranker
+    outage keeps the digest flowing (heuristic fallback) and never blocks
+    the JobQueue.
+    """
     started = time.perf_counter()
     chat_id = _chat_id("alpha")
     if not chat_id:
@@ -469,28 +614,59 @@ async def post_alpha_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             reason="no_fresh",
         )
         return 0
-    ok = await _safe_send(
-        ctx.bot,
-        chat_id,
-        format_alpha_post(whale_fresh, smart_fresh, launch_fresh),
+    whale_main, whale_keep, whale_down = await _score_and_partition(
+        whale_fresh, category=ROUTE_ALPHA_CATEGORY, source="WhaleWatcher"
     )
-    if ok:
+    smart_main, smart_keep, smart_down = await _score_and_partition(
+        smart_fresh, category=ROUTE_ALPHA_CATEGORY, source="smart_money_feed"
+    )
+    launch_main, launch_keep, launch_down = await _score_and_partition(
+        launch_fresh, category=ROUTE_ALPHA_CATEGORY, source="launch_feed"
+    )
+    reranker_down = whale_down or smart_down or launch_down
+    posted = 0
+    if whale_keep or smart_keep or launch_keep:
+        ok = await _post_photo_aware(
+            ctx.bot,
+            chat_id,
+            format_alpha_post(whale_keep, smart_keep, launch_keep),
+            _safe_send,
+        )
+        if ok:
+            posted += 1
+    main_chat_id = _chat_id("main")
+    if main_chat_id:
+        escalated = sorted(
+            [*whale_main, *smart_main, *launch_main],
+            key=lambda i: i.get("importance", 0.0),
+            reverse=True,
+        )
+        for item in escalated:
+            if not _remember("alphamain", _dedupe_key("alphamain", item)):
+                continue
+            ok = await _post_photo_aware(ctx.bot, main_chat_id, format_main_escalation(item), _safe_send)
+            if ok:
+                posted += 1
+    if posted:
         logger.info(
-            "channels:alpha posted whales=%s smart=%s launches=%s",
-            len(whale_fresh),
-            len(smart_fresh),
-            len(launch_fresh),
+            "channels:alpha posted=%s whales=%s smart=%s launches=%s main=%s",
+            posted,
+            len(whale_keep),
+            len(smart_keep),
+            len(launch_keep),
+            len(escalated) if main_chat_id else 0,
         )
     logger.info(
         "channels:tick",
         job="channel_alpha",
         items_swept=swept,
         items_scored=scored,
-        items_posted=scored if ok else 0,
-        items_failed=0 if ok else 1,
+        items_posted=posted,
+        items_failed=0,
         latency_ms=_elapsed_ms(started),
+        reason=("reranker_fallback" if reranker_down else "below_floor" if not posted else None),
     )
-    return 1 if ok else 0
+    return posted
 
 
 # ── Registration ──────────────────────────────────────────────────────────

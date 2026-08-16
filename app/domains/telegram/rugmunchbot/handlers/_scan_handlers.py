@@ -84,6 +84,7 @@ from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, ht
 from app.domains.telegram.rugmunchbot.tools.scanner import (
     _scan_cache_get,
     _scan_cache_set,
+    _supplement_deployer_socials,
     render_ai_verdict,
 )
 
@@ -158,19 +159,12 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             result_v2 = await scan_token_v2(target, chain)
             if result_v2 is not None:
                 result = v2_token_to_legacy(result_v2)
-                # Supplement with DexScreener data if v2 liquidity is 0
-                if not result.get("liquidity"):
-                    body = await http_get_json(f"{DEXSCREENER}/tokens/{target}", timeout=10)
-                    if body:
-                        pairs = body.get("pairs", [])
-                        if pairs:
-                            p = pairs[0]
-                            liq = p.get("liquidity", {})
-                            if liq.get("usd"):
-                                result["liquidity"] = float(liq["usd"])
-                            if not result.get("name") or result["name"] == "Unknown":
-                                result["name"] = p.get("baseToken", {}).get("name", "Unknown")
-                                result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
+                # Supplement with DexScreener data when the v2 payload left
+                # liquidity / deployer / socials unresolved (free-tier scans
+                # skip the backend deployer module, so this is what fills the
+                # report's Deployer + Socials blocks). One fetch, fail-open,
+                # real data only.
+                result = await _supplement_deployer_socials(result, target, chain or str(result.get("chain") or ""))
             else:
                 # v2 unavailable → fall back to legacy multi-source scanner
                 result = await scan_token(target, chain)
@@ -329,6 +323,9 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             logger.debug("deepscan phase-2 progress edit failed", exc_info=True)
         if result_v2 is not None:
             result = v2_token_to_legacy(result_v2)
+            # Fill deployer + socials (and backfill liquidity) from
+            # DexScreener when the v2 payload left them unresolved.
+            result = await _supplement_deployer_socials(result, target, chain or str(result.get("chain") or ""))
         else:
             result = await scan_token(target, chain)
         if result["name"] == "Unknown" and not result["errors"]:

@@ -44,9 +44,14 @@ logger = get_logger("rmi_bot.channels.tg_news")
 
 # ── Channel list (env-overridable, no secrets) ──────────────────────────────
 
-#: Default public crypto-news channels. All real, public handles; the ones also
-#: listed in ``app/databus/tg_channels.json`` carry that registry's confidence
-#: notes (some are [REVIEW] — re-verify before production monitoring).
+#: Default public crypto-news channels — a curated high-signal set spanning
+#: news outlets, security/exploit alerts, and on-chain/alpha feeds. All
+#: handles were probed against the t.me public preview (2026-08-16) and exist;
+#: ``View @`` = public channel (MTProto-readable by any account), ``Contact @``
+#: = channel exists but preview is disabled (needs the sweep account to be a
+#: member — flagged [REVIEW] below; auto-disable prunes it if not reachable).
+#: The ones also listed in ``app/databus/tg_channels.json`` carry that
+#: registry's confidence notes.
 #:
 #: Language note: ``PANewsOfficial`` posts mostly in Korean / Chinese and is
 #: kept in the default list on purpose — the English-only language gate in
@@ -55,6 +60,15 @@ logger = get_logger("rmi_bot.channels.tg_news")
 #: post on that channel still lands. Do not remove it unless the runtime
 #: filter is replaced.
 #:
+#: Growth path to hundreds of sources (no code change needed):
+#:   1. ``RMI_TG_NEWS_CHANNELS`` env — comma/pipe-separated @handles, appended
+#:      by the deployment without touching this file;
+#:   2. ``app/databus/tg_channels.json`` — the reusable channel registry
+#:      (``upsert_channel()`` / ``tg_channel_verify`` probe);
+#:   3. auto-discovery — the operator account's own followed/member public
+#:      channels (``RMI_TG_NEWS_AUTO_DISCOVER``, default on) already add every
+#:      channel that account is in, bounded by ``RMI_TG_NEWS_MAX_CHANNELS``.
+#:
 #: Dead/renamed handles that repeatedly failed to resolve ("No user has X as
 #: username") are commented out below — they cost an MTProto round-trip on
 #: every tick. Auto-disable in ``app.domains.news_ingest.ingest`` additionally
@@ -62,16 +76,47 @@ logger = get_logger("rmi_bot.channels.tg_news")
 #: failures for a 24h cooldown, so a stale handle can never burn the sweep
 #: indefinitely.
 _DEFAULT_CHANNELS: tuple[str, ...] = (
-    "cointelegraph",  # official CoinTelegraph
-    # "wublockchain",  # DEAD handle (2026-08-16): "No user has wublockchain as username"
-    "coindesk",  # official CoinDesk
-    # "TheBlock__",  # DEAD handle (2026-08-16): "No user has TheBlock__ as username"
-    "cryptoslate",  # CryptoSlate
-    # "beincrypto",  # DEAD handle (2026-08-16): "No user has beincrypto as username"
-    # "cryptonews",  # DEAD handle (2026-08-16): "No user has cryptonews as username"
+    # ── News outlets ──────────────────────────────────────────────────────
+    "cointelegraph",  # official CoinTelegraph (View)
+    "coindesk",  # official CoinDesk (View)
+    "cryptoslate",  # CryptoSlate (Contact — preview disabled)
+    "WatcherGuru",  # Watcher Guru (View)
+    "bitcoinmagazine",  # Bitcoin Magazine [REVIEW: Contact preview, needs membership]
     "PANewsOfficial",  # PANews [REVIEW: verify casing] — mostly KR/CN → runtime language filter
-    "WatcherGuru",  # Watcher Guru
-    "bitcoinmagazine",  # Bitcoin Magazine [REVIEW: verify handle]
+    "cryptopotato",  # CryptoPotato (View)
+    "coingape",  # CoinGape (View)
+    "U_Today",  # U.Today (View)
+    "newsbtc",  # NewsBTC (View)
+    "dailyhodl",  # The Daily Hodl (View)
+    "zycrypto",  # ZyCrypto (View)
+    "coinpedia",  # Coinpedia (View)
+    "blockworks",  # Blockworks (View)
+    "cryptobriefing",  # Crypto Briefing (View)
+    "coinjournal",  # CoinJournal (View)
+    "thedefiant",  # The Defiant [REVIEW: Contact preview, needs membership]
+    "decryptmedia",  # Decrypt [REVIEW: Contact preview, needs membership]
+    "ambcrypto",  # AMBCrypto [REVIEW: Contact preview, needs membership]
+    "bitcoinist",  # Bitcoinist [REVIEW: Contact preview, needs membership]
+    "trustnodes",  # Trustnodes [REVIEW: Contact preview, needs membership]
+    # ── Security / exploit alerts ─────────────────────────────────────────
+    "CertiKAlert",  # CertiK Alert (View)
+    "PeckShieldAlert",  # PeckShield Alert (View)
+    "rektnews",  # REKT News — exploit/incident intel (View)
+    "ScamSniffer",  # ScamSniffer — phishing alerts (View)
+    "zachxbt",  # ZachXBT — on-chain sleuth (View)
+    "SlowMist",  # SlowMist — security team [REVIEW: Contact preview, needs membership]
+    # ── On-chain / alpha ──────────────────────────────────────────────────
+    "lookonchain",  # Lookonchain — on-chain analytics (View)
+    "spotonchain",  # Spot On Chain — on-chain alerts (View)
+    "whale_alert",  # Whale Alert — large-transaction alerts (View)
+    "ArkhamIntel",  # Arkham — entity/alert intel [REVIEW: Contact preview, needs membership]
+    "OnChainWizard",  # OnChain Wizard — alpha/on-chain [REVIEW: Contact preview, needs membership]
+    "AltcoinDaily",  # Altcoin Daily — alpha/community [REVIEW: Contact preview, needs membership]
+    # ── Known-dead handles (2026-08-16 MTProto probe: "No user has X as username") ──
+    # "wublockchain",  # Wu Blockchain — DEAD handle
+    # "TheBlock__",  # The Block — DEAD handle
+    # "beincrypto",  # BeInCrypto — DEAD handle
+    # "cryptonews",  # Cryptonews.com — DEAD handle
 )
 
 
@@ -367,6 +412,126 @@ _OG_IMAGE_RES: Final = (
 )
 
 
+# ── Outbound fetch with proxy escalation (best available egress) ─────────────
+
+#: FlareSolverr /v1 endpoint (env-overridable). The fleet's live instance is
+#: the ``pry-flaresolverr`` container mapped to host ``127.0.0.1:8192``; the
+#: old ``:8191`` mapping is dead (verified 2026-08-16 — 8191 unreachable,
+#: 8192 answers ``sessions.list`` on FlareSolverr 3.5.0). Default matches
+#: ``app.databus.proxy_scraper``.
+FLARESOLVERR_URL: Final[str] = os.getenv("FLARESOLVERR_URL", "http://127.0.0.1:8192/v1").rstrip("/")
+#: Hard timeout for one FlareSolverr request.get call.
+_FLARE_TIMEOUT: float = 15.0
+
+#: WAF-challenge markers on 200 responses (same heuristic as proxy_scraper).
+_WAF_MARKERS: Final[tuple[str, ...]] = (
+    "cf-chl-",
+    "challenge-platform",
+    "just a moment",
+    "attention required",
+    "enable javascript and cookies",
+    "verify you are human",
+    "checking your browser",
+)
+#: Status codes that trigger proxy escalation.
+_ESCALATE_STATUS: Final[frozenset[int]] = frozenset({403, 429, 401, 503})
+
+
+def _is_waf_block(status: int | None, body: str) -> bool:
+    """True when the response looks like a WAF/challenge block (not real HTML)."""
+    if status in _ESCALATE_STATUS:
+        return True
+    if status != 200:
+        return False
+    if len(body) > 50_000:
+        return False  # a real page, not a challenge stub
+    lowered = body.lower()
+    return any(marker in lowered for marker in _WAF_MARKERS)
+
+
+async def _fetch_via_flaresolverr(url: str) -> str | None:
+    """Best-effort FlareSolverr fetch (fail-open → ``None``).
+
+    POSTs the standard ``{"cmd": "request.get", ...}`` payload to
+    ``FLARESOLVERR_URL`` and returns the solved HTML body capped at
+    ``_OG_HTML_MAX_CHARS``. Never raises.
+    """
+    try:
+        import httpx
+
+        payload = {"cmd": "request.get", "url": url, "maxTimeout": int(_FLARE_TIMEOUT * 1000)}
+        async with httpx.AsyncClient(
+            timeout=_FLARE_TIMEOUT, follow_redirects=False, headers={"User-Agent": "rmi-news/1.0"}
+        ) as client:
+            response = await client.post(FLARESOLVERR_URL, json=payload)
+            if not response.is_success:
+                return None
+            data = response.json()
+        solution = data.get("solution") or {}
+        body = solution.get("response")
+        if isinstance(body, str) and body.strip():
+            return body[:_OG_HTML_MAX_CHARS]
+        return None
+    except Exception:  # fail-open by contract
+        logger.debug("tg_news:flare_fetch_failed url=%s", url[:120], exc_info=True)
+        return None
+
+
+async def _fetch_page(url: str, timeout: float) -> str | None:
+    """Fetch *url*'s HTML, escalating to the best available egress.
+
+    Ladder (fail-open, never raises):
+      1. **Direct** httpx GET with a browser-ish UA, bounded by *timeout*.
+      2. **Rotating residential pool** (``app.databus.proxy_rotator``) when
+         ``WEBSHARE_PROXY_LIST`` is configured — NOT configured today, so this
+         tier is a no-op until the deployment provides the env (see [REVIEW]).
+      3. **FlareSolverr** at ``FLARESOLVERR_URL`` for WAF-blocked fetches —
+         the live fleet instance on ``127.0.0.1:8192``.
+
+    Returns the HTML body (capped at ``_OG_HTML_MAX_CHARS``) or ``None``.
+    Used by both og:image extraction and t.me dereference so a
+    Cloudflare-blocked publisher page still resolves without stalling the
+    sweep.
+    """
+    body: str | None = None
+    status: int | None = None
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(
+            timeout=timeout, follow_redirects=True, headers={"User-Agent": "rmi-news/1.0"}
+        ) as client:
+            response = await client.get(url)
+            status = int(response.status_code)
+            if status == 200:
+                body = response.text[:_OG_HTML_MAX_CHARS]
+    except Exception:
+        logger.debug("tg_news:direct_fetch_failed url=%s", url[:120], exc_info=True)
+
+    if body is not None and not _is_waf_block(status, body):
+        return body
+
+    # 2) Rotating residential pool — only active when the deployment sets
+    # WEBSHARE_PROXY_LIST (empty today → skipped, matches "no pool exists").
+    try:
+        from app.databus.proxy_rotator import get_proxy_rotator
+
+        rotator = get_proxy_rotator()
+        if rotator.enabled:
+            proxy = rotator.get_rotating_proxy()
+            client = rotator.get_client(proxy=proxy)
+            response = await client.get(url, headers={"User-Agent": "rmi-news/1.0"})
+            if response.is_success and not _is_waf_block(response.status_code, response.text[:_OG_HTML_MAX_CHARS]):
+                return response.text[:_OG_HTML_MAX_CHARS]
+            if proxy is not None:
+                rotator.mark_failed(proxy)
+    except Exception:
+        logger.debug("tg_news:proxy_pool_fetch_failed url=%s", url[:120], exc_info=True)
+
+    # 3) FlareSolverr for WAF-blocked fetches.
+    return await _fetch_via_flaresolverr(url)
+
+
 def _normalize_image_url(raw: str, base_url: str) -> str | None:
     """Resolve protocol-relative / root-relative og:image URLs to absolute."""
     raw = (raw or "").strip()
@@ -387,29 +552,20 @@ async def _fetch_og_image(url: str, timeout: float = _OG_IMAGE_TIMEOUT) -> str |
 
     Skips Telegram links (t.me pages have no meaningful story image) and
     never raises: network errors, timeouts, non-200s, and pages without an
-    image meta tag all yield ``None``. Bound to *timeout* seconds so a slow
-    publisher never blocks the sweep.
+    image meta tag all yield ``None``. Bound to *timeout* seconds for the
+    direct attempt so a slow publisher never blocks the sweep; blocked pages
+    escalate to the proxy ladder (FlareSolverr when needed).
     """
     if is_telegram_link(url):
         return None
-    try:
-        import httpx
-
-        async with httpx.AsyncClient(
-            timeout=timeout, follow_redirects=True, headers={"User-Agent": "rmi-news/1.0"}
-        ) as client:
-            response = await client.get(url)
-            if response.status_code != 200:
-                return None
-            html = response.text[:_OG_HTML_MAX_CHARS]
-        for pattern in _OG_IMAGE_RES:
-            match = pattern.search(html)
-            if match:
-                return _normalize_image_url(match.group(1), url)
+    html = await _fetch_page(url, timeout)
+    if not html:
         return None
-    except Exception:  # fail-open by contract
-        logger.debug("tg_news:og_image_fetch_failed url=%s", url[:120], exc_info=True)
-        return None
+    for pattern in _OG_IMAGE_RES:
+        match = pattern.search(html)
+        if match:
+            return _normalize_image_url(match.group(1), url)
+    return None
 
 
 def _should_fetch_og_image(article: NewsArticle) -> bool:
@@ -490,7 +646,8 @@ def _extract_tme_target(html: str, base_url: str) -> str | None:
 async def resolve_tme_link(url: str) -> str:
     """Dereference a t.me link to the real article URL (fail-open).
 
-    Fetches the t.me page (5s timeout, follow redirects, browser-ish UA) and
+    Fetches the t.me page (direct, 5s timeout; WAF-blocked pages escalate to
+    the proxy ladder — FlareSolverr / rotating pool when configured) and
     extracts the real article URL from ``og:url`` / ``rel=canonical`` / the
     first external http(s) link. Returns the resolved URL, or the original
     *url* unchanged on any failure (network error, timeout, non-200, page
@@ -500,20 +657,10 @@ async def resolve_tme_link(url: str) -> str:
     url = (url or "").strip()
     if not is_telegram_link(url):
         return url
-    try:
-        import httpx
-
-        async with httpx.AsyncClient(
-            timeout=_TME_RESOLVE_TIMEOUT, follow_redirects=True, headers={"User-Agent": "rmi-news/1.0"}
-        ) as client:
-            response = await client.get(url)
-            if response.status_code != 200:
-                return url
-            html = response.text[:_OG_HTML_MAX_CHARS]
-        return _extract_tme_target(html, url) or url
-    except Exception:  # fail-open by contract
-        logger.debug("tg_news:tme_resolve_failed url=%s", url[:120], exc_info=True)
+    html = await _fetch_page(url, _TME_RESOLVE_TIMEOUT)
+    if not html:
         return url
+    return _extract_tme_target(html, url) or url
 
 
 # ── Content enrichment (t.me deref + title rewrite, env-gated, fail-open) ──

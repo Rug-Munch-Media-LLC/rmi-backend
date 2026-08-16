@@ -91,10 +91,14 @@ def _reset_dedupe() -> None:
 
 
 class TestSources:
-    def test_defaults_have_six_handles(self) -> None:
-        assert len(tg_news._DEFAULT_CHANNELS) == 6
+    def test_defaults_have_curated_handles(self) -> None:
+        assert len(tg_news._DEFAULT_CHANNELS) == 33
         assert "cointelegraph" in tg_news._DEFAULT_CHANNELS
         assert "WatcherGuru" in tg_news._DEFAULT_CHANNELS
+        # Curated set spans news / security / on-chain — spot-check each tier.
+        assert "coindesk" in tg_news._DEFAULT_CHANNELS
+        assert "CertiKAlert" in tg_news._DEFAULT_CHANNELS
+        assert "lookonchain" in tg_news._DEFAULT_CHANNELS
         # Dead/renamed handles that logged "No user has X as username" are
         # excluded from the default list (auto-disable covers discovered ones).
         for dead in ("wublockchain", "TheBlock__", "beincrypto", "cryptonews"):
@@ -407,6 +411,126 @@ class TestPostVariety:
         assert "RugMunch News" in text  # digest header
         assert "ETF record inflows continue" in text
         assert "Solana upgrade ships on schedule" in text
+
+    async def test_single_fresh_story_posts_feature_card(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """One fresh story → solo ⭐ feature card (hook + lede), not a digest."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        solo = _article(
+            "Bitcoin crosses $120k",
+            body="Bitcoin crossed $120k for the first time. Institutions piled in all week. Image: https://img.example.com/btc.jpg",
+            message_id=20,
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[solo])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        # The card carries an image → posted via send_photo with the caption.
+        bot.send_photo.assert_awaited_once()
+        caption = bot.send_photo.await_args.kwargs["caption"]
+        assert "Top Story" in caption
+        assert "Bitcoin crosses $120k" in caption
+        assert "Bitcoin crossed $120k for the first time." in caption  # one-line hook
+        assert "Institutions piled in all week." in caption  # longer lede
+        assert bot.send_photo.await_args.kwargs["photo"] == "https://img.example.com/btc.jpg"
+
+    async def test_shared_token_posts_themed_roundup(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """≥2 stories mentioning the same $TOKEN → themed 🧵 roundup."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        first = _article("$BTC ETF inflows hit a record", body="$BTC funds saw record inflows today.", message_id=30)
+        second = _article(
+            "Whale moves 5k $BTC",
+            body="A whale shifted 5,000 $BTC to cold storage.",
+            username="whale_news",
+            message_id=31,
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[first, second])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 2, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        text = bot.send_message.await_args.kwargs["text"]
+        assert "BTC Roundup" in text
+        # Headlines are link-wrapped → assert titles (not contiguous "1. ...").
+        assert "$BTC ETF inflows hit a record" in text
+        assert "Whale moves 5k $BTC" in text
+        assert "1." in text
+        assert "2." in text
+
+    async def test_four_plus_stories_rotate_digest_vs_hybrid_by_parity(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """4+ stories alternate digest ↔ hybrid deterministically (batch parity)."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+
+        async def _run(articles: list[NewsArticle]) -> str:
+            with (
+                patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=articles)),
+                patch.object(
+                    tg_news,
+                    "persist_articles",
+                    new=AsyncMock(return_value={"ingested": len(articles), "duplicate": 0, "errors": 0}),
+                ),
+            ):
+                assert await tg_news.post_tg_news_update(ctx) == 1
+            return bot.send_message.await_args.kwargs["text"]
+
+        def _batch(prefix: str) -> list[NewsArticle]:
+            return [
+                _article(
+                    f"Story {i} {prefix}", body=f"Details at https://news.example/{prefix}{i}.", message_id=100 + i
+                )
+                for i in range(5)
+            ]
+
+        even_batch = _batch("e")  # crc32 parity 0 → digest
+        odd_batch = _batch("d")  # crc32 parity 1 → hybrid
+        # Sanity: the parity signal really differs for the two batches.
+        assert tg_news._batch_parity([tg_news._article_to_post_dict(a) for a in even_batch]) == 0
+        assert tg_news._batch_parity([tg_news._article_to_post_dict(a) for a in odd_batch]) == 1
+
+        digest_text = await _run(even_batch)
+        assert "RugMunch News" in digest_text
+        assert "More:" not in digest_text  # full numbered digest, no hybrid lead
+
+        hybrid_text = await _run(odd_batch)
+        assert "More:" in hybrid_text  # top-3 hybrid lead card
+        assert "⭐" in hybrid_text
+
+    async def test_high_importance_non_breaking_posts_feature_card_to_main(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Importance ≥0.7 solo path fires with a compelling card, not a bare link."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch, importance=0.9)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100main")
+        big = _article(
+            "SEC greenlights spot Bitcoin ETF",
+            body="The SEC approved the product in a surprise move. Traders cheered the decision. Image: https://img.example.com/sec.jpg",
+            message_id=40,
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[big])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        bot.send_photo.assert_awaited_once()
+        caption = bot.send_photo.await_args.kwargs["caption"]
+        assert "Top Story" in caption
+        assert "SEC greenlights spot Bitcoin ETF" in caption
+        assert "The SEC approved the product in a surprise move." in caption  # one-line hook
+        assert "BREAKING" not in caption  # no misleading 🚨 for a non-breaking story
+        assert bot.send_photo.await_args.kwargs["photo"] == "https://img.example.com/sec.jpg"
 
 
 # ── Channel categorization (news / alpha / scam / other) ─────────────────────

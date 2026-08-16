@@ -897,6 +897,9 @@ RISK_COLORS = {
 
 def risk_bar(score: float, length: int = 10) -> str:
     """Generate a visual risk bar (0-100 scale)."""
+    if score is None:
+        score = 0.0
+    score = float(score)
     filled = int((score / 100) * length)
     if score >= 80:
         return "🔴" * filled + "⬜" * (length - filled) + f" {score}% DANGER"
@@ -912,6 +915,8 @@ def risk_bar(score: float, length: int = 10) -> str:
 
 def _risk_gauge(score: float) -> str:
     """Compact emoji risk gauge for scan results."""
+    if score is None:
+        score = 0.0
     if score >= 80:
         return "🔴🔴🔴🔴🔴 EXTREME RISK"
     elif score >= 60:
