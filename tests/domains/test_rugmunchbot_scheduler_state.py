@@ -281,7 +281,6 @@ class TestObservability:
 class TestRegistrationWiring:
     def test_registers_state_load_one_shot_when_queue_supports_run_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
-        monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", False)

@@ -276,8 +276,13 @@ class TestPersist:
 # ── Scheduled job ────────────────────────────────────────────────────────────
 
 
-def _stub_importance(monkeypatch: pytest.MonkeyPatch, importance: float = 0.95) -> None:
+def _stub_importance(monkeypatch: pytest.MonkeyPatch, importance: float = 0.5) -> None:
     """Stub the rerank importance gate: every article scores *importance*.
+
+    Defaults to a news-band score (0.5 → routes to the news channel) so the
+    post-job tests stay on the news lane; pass ``importance=0.7``+ for
+    main-band stories and rely on the alpha-category override for alpha
+    routing (alpha articles route to alpha below the main gate).
 
     Keeps the post-job tests deterministic (no live Infinity /rerank call)
     while exercising the wiring through ``score_importance`` →
@@ -719,7 +724,6 @@ class FakeJobQueue:
 class TestRegistration:
     def test_registers_tg_news_job(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
-        monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
@@ -730,7 +734,9 @@ class TestRegistration:
         names = {j["name"] for j in fake_jq.jobs}
         assert "channel_tg_news" in names
         tg_job = next(j for j in fake_jq.jobs if j["name"] == "channel_tg_news")
-        assert tg_job["interval"] == tg_news.TG_NEWS_INTERVAL_MINUTES * 60
+        # The scheduler owns the tg_news cadence (tuned default 20 min) — not
+        # the telegram_news source module's 30-min ``TG_NEWS_INTERVAL_MINUTES``.
+        assert tg_job["interval"] == channels_scheduler._TG_NEWS_INTERVAL_MINUTES * 60
 
     def test_tg_news_job_skipped_when_disabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
