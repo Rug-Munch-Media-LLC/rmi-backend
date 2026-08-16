@@ -180,13 +180,16 @@ _NEWS_THIN_THRESHOLD = 2
 # always fits the router budget even when the live data block is large.
 _TA_ANSWER_HINT = (
     "TA/MARKET ANSWER FORMAT (follow this structure when the question asks "
-    "for technical or market analysis): 1) open with the current price and "
-    "the recent trend (bullish/bearish/neutral from the indicators above); "
+    "for technical or market analysis): 1) open with a one-line takeaway — "
+    '"Here\'s the market read:" — the current price and the recent trend '
+    "(bullish/bearish/neutral from the indicators above); "
     "2) give key levels — support and resistance from the data above, and "
     "where price sits relative to them; 3) add a volume/liquidity read — "
     "24h change, volume trend and liquidity (real numbers only); 4) cite "
     "only numbers present in the LIVE MARKET DATA block above — never "
-    "invent values; 5) close with a neutral not-financial-advice line, e.g. "
+    "invent values; say what the data shows with confidence — no blanket "
+    "'no live data' disclaimers; 5) close with a neutral "
+    "not-financial-advice line, e.g. "
     '"not financial advice — always DYOR".'
 )
 
@@ -199,13 +202,38 @@ _TA_ANSWER_HINT = (
 # why-it-matters. Compact so it always fits the router budget.
 _EDU_ANSWER_HINT = (
     "EDUCATION/LORE ANSWER FORMAT (follow this structure for definition / "
-    "how-it-works / use-case questions): 1) open with a plain-language "
-    "explanation of the concept — what it is and how it actually works; "
+    "how-it-works / use-case questions): 1) open with a one-line takeaway — "
+    "a plain-language explanation of the concept — what it is and how it "
+    "actually works; "
     "2) then give one concrete example (use a real one from the RAG/web "
     "data above when present); 3) close with a short risk / why-it-matters "
     "note — how this affects real users or what to watch out for. Cite the "
     "RAG/web sources above when you use their facts; never invent "
     "definitions, numbers or examples."
+)
+# MARKET-TODAY / market-analysis questions (broad market asks) get their own
+# answer-structure hint appended to the RETRIEVED CONTEXT block (same pattern
+# as _TA_ANSWER_HINT / _EDU_ANSWER_HINT): sentiment + macro read -> movers
+# with drivers -> narrative -> what to watch, lead with a one-sentence thesis,
+# cite only real figures, and NEVER hedge with a blanket "no live data" — name
+# the specific missing field instead.
+_MARKET_ANSWER_HINT = (
+    "MARKET-TODAY ANSWER FORMAT (follow this structure for 'market today / "
+    "market analysis' questions): 1) OPEN with a ONE-SENTENCE THESIS — the "
+    "day's macro read in plain words (risk-on / risk-off / neutral, from the "
+    "verdict + Fear & Greed above); 2) SENTIMENT + MACRO READ — Fear & Greed "
+    "value + classification, the market-condition verdict and its reasons, "
+    "BTC/ETH/SOL price + 24h change; 3) MOVERS WITH DRIVERS — the top "
+    "gainers and top losers above, each with its % move and a one-line "
+    "driver/why when the data or narrative supports it; 4) DOMINANT "
+    "NARRATIVE — the theme(s) the market is trading (from the NARRATIVE "
+    "block, cite-or-omit); 5) WHAT TO WATCH — 1-3 concrete things to watch "
+    "today seeded from the data above (levels, events, tokens). Cite ONLY "
+    "numbers present in the blocks above — never invent values; if a "
+    "specific field is missing from the context, say that field is "
+    "unavailable rather than hedging with a blanket 'no live data'. Close "
+    "with a neutral not-financial-advice line, e.g. 'not financial advice — "
+    "always DYOR'."
 )
 # An education/lore RAG gather with FEWER deduped hits than this (or a
 # context block shorter than this many chars) is "thin" — the router then
@@ -220,6 +248,7 @@ _CTX_MARKET_RE = re.compile(
     r"rsi|macd|ema|candlestick|technical analysis|support)\b",
     re.IGNORECASE,
 )
+
 _CTX_TA_RE = re.compile(
     r"\b(technical analysis|rsi|macd|ema|candlestick|support and resistance|support/resistance|"
     r"pump or dump|will (it|this|that|\$?[a-z0-9]+) (pump|dump|go up|go down|moon|crash)|"
@@ -228,6 +257,21 @@ _CTX_TA_RE = re.compile(
     re.IGNORECASE,
 )
 _CTX_TRENDING_RE = re.compile(r"\b(trending|hot|pump|pumping|gainers|movers|top tokens)\b", re.IGNORECASE)
+
+# Broad MARKET-TODAY / market-analysis asks ("how's the market today", "market
+# analysis", "market sentiment", "top gainers and losers", "what to watch")
+# get the RICH market context block (majors + Fear&Greed/verdict + movers +
+# narrative + what-to-watch) instead of the lean single-token price path.
+# The negative lookahead keeps "how is the market CAP of X" on the lean
+# price_lookup path (a single-asset price ask, not a market-wide read).
+_CTX_MARKET_BROAD_RE = re.compile(
+    r"\bhow('s| is| are)? (the )?(crypto )?market(s)?\b(?! ?(cap|mcap|fdv))|"
+    r"\bmarket (today|now|update|analysis|overview|condition|sentiment|read|status|context|wrap|mood|recap)|"
+    r"\bmarket (bullish|bearish)|\b(bullish|bearish) market|"
+    r"\btop (gainers|losers|movers)|gainers (and|&) losers|biggest (gainers|losers|movers)|"
+    r"\bwhat to watch|risk[- ]on|risk[- ]off|\bcrypto market|\bdaily market",
+    re.IGNORECASE,
+)
 _CTX_SCAM_RE = re.compile(
     r"\b(scam|honeypot|rug|safe|risky|risk|audit|malicious|ponzi|red flags?|"
     r"warning signs?|is it a|token check)\b",

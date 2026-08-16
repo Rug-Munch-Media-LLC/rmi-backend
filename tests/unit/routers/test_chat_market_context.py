@@ -49,9 +49,16 @@ TRENDING_FIXTURE = {
 
 
 @pytest.fixture(autouse=True)
-def _clear_market_cache() -> None:
-    """Isolate the shared market-intel TTL cache between tests."""
+def _clear_market_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate the shared market-intel TTL cache between tests.
+
+    Also pins the own-data enrichment seam to a no-op: the enrichment helper
+    (``_trending_enrichment``) talks to ClickHouse + the shared CoinGecko
+    provider, which unit tests must never touch. Dedicated enrichment
+    coverage lives in ``test_chat_trending_enrichment.py``.
+    """
     market_cache._cache.clear()
+    monkeypatch.setattr(mc, "_fetch_enrichment_lines", AsyncMock(return_value=[]))
     yield
     market_cache._cache.clear()
 

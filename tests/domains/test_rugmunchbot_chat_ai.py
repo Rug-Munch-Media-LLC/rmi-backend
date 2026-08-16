@@ -1268,8 +1268,9 @@ class TestChatAiResponse:
         assert msg.chat.actions == ["typing"]
         answer_reply = msg.replies[-1][0][0]
         assert "grounded answer" in answer_reply
-        # v10 footer: "⚡ Grounded in {N} intelligence sources | RugMunch Bot"
-        assert "Grounded in 2 intelligence sources | Rug Munch Bot" in answer_reply
+        # v10 footer: "⚡ Grounded in {N} sources: <names> | Rug Munch Bot" — the
+        # backend reports 2 real RAG hits and the generic label names OUR intel.
+        assert "Grounded in 2 sources: our RAG knowledge base | Rug Munch Bot" in answer_reply
         # Bug fix: the "Thinking..." placeholder is DELETED once the real
         # answer is sent — never edited to a bare ✅ (that reads as a glitch
         # and doubles as a stray message).
@@ -1455,7 +1456,7 @@ class TestChatAiResponseQuality:
         assert len(parts) == 2  # capped to MAX_ANSWER_CHARS → at most two bounded parts
         # honest truncation marker just before the grounding footer — the
         # cap trimmed the raw answer, never a mid-sentence hard cut
-        assert "\u2026\n\n<i>\u26a1 Grounded in 3 intelligence sources" in parts[-1]
+        assert "\u2026\n\n<i>\u26a1 Grounded in 3 sources: our RAG knowledge base" in parts[-1]
 
     def test_footer_counts_live_tools_not_just_rag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bug 2 regression: the "Grounded in N" footer must count the live
@@ -1479,8 +1480,9 @@ class TestChatAiResponseQuality:
         upd = _FakeUpdate(12345, "tester", msg)
         _run(chat_ai.chat_ai_response(upd, None, "what's the price of $BONK?", upd.effective_user))
         sent = "".join(r[0][0] for r in msg.replies)
-        # 2 RAG hits + 2 live tools = 4 distinct intelligence sources.
-        assert "Grounded in 4 intelligence sources | Rug Munch Bot" in sent
+        # Distinct NAMED sources: the RAG KB counts once + dexscreener +
+        # rugcheck = 3 (2 raw RAG hits never inflate the footer).
+        assert "Grounded in 3 sources: dexscreener, rugcheck, our RAG knowledge base | Rug Munch Bot" in sent
 
     def test_footer_does_not_count_failed_tools(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
@@ -1498,7 +1500,7 @@ class TestChatAiResponseQuality:
         _run(chat_ai.chat_ai_response(upd, None, "what's the price of $BONK?", upd.effective_user))
         sent = "".join(r[0][0] for r in msg.replies)
         # Failed tools never inflate the count — stays at the RAG hits.
-        assert "Grounded in 2 intelligence sources | Rug Munch Bot" in sent
+        assert "Grounded in 2 sources: our RAG knowledge base | Rug Munch Bot" in sent
 
 
 class TestAiChatHandler:

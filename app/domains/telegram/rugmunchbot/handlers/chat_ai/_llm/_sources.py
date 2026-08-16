@@ -95,6 +95,78 @@ def _source_is_primary(url: str) -> bool:
     return bool(host and any(m in host for m in _PRIMARY_SOURCE_MARKERS))
 
 
+# ── Source identity: dedupe + display name + ours-vs-external classification ──
+# Shared by the message-level "Sources:" block (:func:`_append_source_block`)
+# and the "⚡ Grounded in N sources" footer (``_delivery._send_answer``) so
+# both surfaces agree on what a "distinct source" is: URL-bearing sources are
+# de-duplicated by normalized domain (3 hits from coingecko.com == ONE source),
+# and a source with no title/query renders by its bare domain — a real name,
+# never a fabricated label.
+_SOURCE_TYPE_LABELS = {
+    "rag": "our RAG knowledge base",
+    "scanner": "our scanner",
+    "market": "our market digest",
+    "backend": "our backend",
+    "web": "web search",
+}
+# Source types that are OUR OWN intel (ClickHouse-backed indexer data, the
+# scanner, the RAG knowledge base, the daily market digest, the backend tier-1
+# RAG) — everything else is an external provider (DexScreener, CoinGecko, …).
+_OUR_SOURCE_TYPES = ("rag", "scanner", "market", "backend")
+
+
+def _dedupe_sources(sources: list[dict[str, str]]) -> list[dict[str, str]]:
+    """De-duplicate sources by normalized domain (URL-bearing only — a source
+    without a URL is never deduped). First occurrence per domain wins."""
+    seen_domains: set[str] = set()
+    deduped: list[dict[str, str]] = []
+    for s in sources:
+        if not isinstance(s, dict):
+            continue
+        url = str(s.get("url") or "").strip()
+        domain = _normalize_source_domain(url) if url else ""
+        if domain and domain in seen_domains:
+            continue
+        if domain:
+            seen_domains.add(domain)
+        deduped.append(s)
+    return deduped
+
+
+def _source_display_name(s: dict[str, str]) -> str:
+    """Best real display name for a source: title, else query, else bare domain.
+
+    A URL-only source (no title/query) renders as its normalized bare domain —
+    real, never fabricated, never a dead-link label. Markdown/link syntax is
+    stripped so the escape → ``_markdown_to_html`` pipeline never mis-renders.
+    """
+    raw = str(s.get("title") or s.get("query") or "").strip()
+    if raw:
+        name = _MD_LINK_RE.sub(r"\1", raw)
+        name = re.sub(r"[*_`\[\]]", "", name).strip()
+        return name[:80]
+    url = str(s.get("url") or "").strip()
+    if url:
+        domain = _normalize_source_domain(url)
+        if domain:
+            return domain[:60]
+    return ""
+
+
+def _source_is_ours(s: dict[str, str]) -> bool:
+    """True when the source is OUR OWN intel (RAG KB, scanner, market digest,
+    backend RAG) rather than an external provider (DexScreener, CoinGecko, web)."""
+    stype = str(s.get("type") or "").strip().lower()
+    return stype in _OUR_SOURCE_TYPES
+
+
+def _source_type_label(stype: str) -> str:
+    """Friendly label for a bare source type (``rag`` → "our RAG knowledge
+    base"). Only OUR source types and ``web`` have dedicated labels; unknown
+    types render as "our data" so internal buckets never go unnamed."""
+    return _SOURCE_TYPE_LABELS.get(stype, "our data")
+
+
 def _links_to_plain_text(text: str) -> str:
     """Convert markdown ``[label](url)`` links to plain ``label — url``.
 
@@ -140,33 +212,16 @@ def _append_source_block(
         return answer
     # De-duplicate by normalized domain (URL-bearing sources only — a source
     # without a URL renders as a plain title and is never deduped). The first
-    # occurrence per domain wins.
-    seen_domains: set[str] = set()
-    deduped: list[dict[str, str]] = []
-    for s in sources:
-        if not isinstance(s, dict):
-            continue
-        url = str(s.get("url") or "").strip()
-        domain = _normalize_source_domain(url) if url else ""
-        if domain and domain in seen_domains:
-            continue
-        if domain:
-            seen_domains.add(domain)
-        deduped.append(s)
+    # occurrence per domain wins — shared with the grounding footer so both
+    # surfaces count the same DISTINCT sources.
+    deduped = _dedupe_sources(sources)
     # Rank: primary/high-signal domains first, stable within each group.
     deduped.sort(key=lambda s: 0 if _source_is_primary(str(s.get("url") or "")) else 1)
     rendered: list[str] = []
     for s in deduped:
         if len(rendered) >= limit:
             break
-        title = str(s.get("title") or s.get("query") or "").strip()[:80]
-        if not title:
-            continue
-        # Plain-text titles: markdown links → inner text, then drop the
-        # remaining markdown/link syntax so the escape → _markdown_to_html
-        # pipeline never mis-renders them.
-        title = _MD_LINK_RE.sub(r"\1", title)
-        title = re.sub(r"[*_`\[\]]", "", title).strip()
+        title = _source_display_name(s)
         if not title:
             continue
         url = str(s.get("url") or "").strip()[:200]
