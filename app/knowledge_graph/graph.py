@@ -16,7 +16,7 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 
@@ -25,17 +25,22 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _to_str(value: bytes | str) -> str:
+    """Decode Redis bytes values (client is created with decode_responses=True)."""
+    return value.decode() if isinstance(value, bytes) else value
+
+
 class KnowledgeGraph:
     """
     Redis-backed knowledge graph for crypto entity relationships.
     Stores nodes and edges in Redis for fast graph traversal.
     """
 
-    def __init__(self, redis: aioredis.Redis[Any] | None = None) -> None:
+    def __init__(self, redis: aioredis.Redis | None = None) -> None:
         self._redis = redis
         self._node_cache: dict[str, dict[str, Any]] = {}
 
-    async def _get_redis(self) -> aioredis.Redis[Any]:
+    async def _get_redis(self) -> aioredis.Redis:
         if self._redis:
             return self._redis
         from app.knowledge_graph.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
@@ -78,7 +83,7 @@ class KnowledgeGraph:
         data = await r.hgetall(key)
         if not data:
             return None
-        result = dict(data)
+        result: dict[str, Any] = {_to_str(k): _to_str(v) for k, v in data.items()}
         if "metadata" in result and isinstance(result["metadata"], str):
             with contextlib.suppress(json.JSONDecodeError):
                 result["metadata"] = json.loads(result["metadata"])
@@ -93,16 +98,16 @@ class KnowledgeGraph:
             return False
 
         out_idx_key = f"kg:edges:{node_type}:{node_id}"
-        out_edge_keys = await r.zrange(out_idx_key, 0, -1)
+        out_edge_keys = cast("list[str]", await r.zrange(out_idx_key, 0, -1))
 
         in_idx_key = f"kg:edges_in:{node_type}:{node_id}"
-        in_edge_keys = await r.zrange(in_idx_key, 0, -1)
+        in_edge_keys = cast("list[str]", await r.zrange(in_idx_key, 0, -1))
 
         all_edge_keys = set(out_edge_keys) | set(in_edge_keys)
 
         pipe = r.pipeline()
         for ek in all_edge_keys:
-            edge_data = await r.hgetall(ek)
+            edge_data = {_to_str(k): _to_str(v) for k, v in (await r.hgetall(ek)).items()}
             if edge_data:
                 from_type = edge_data.get("from_type", "")
                 from_id = edge_data.get("from_id", "")
@@ -183,9 +188,9 @@ class KnowledgeGraph:
 
         for prefix, dir_label in dirs:
             idx_key = f"{prefix}{node_type}:{node_id}"
-            edge_keys = await r.zrevrangebyscore(idx_key, "+inf", min_weight)
+            edge_keys = cast("list[str]", await r.zrevrangebyscore(idx_key, "+inf", min_weight))
             for ek in edge_keys[:limit]:
-                edge_data = await r.hgetall(ek)
+                edge_data = {_to_str(k): _to_str(v) for k, v in (await r.hgetall(ek)).items()}
                 if not edge_data:
                     continue
                 if relation and edge_data.get("relation") != relation:
@@ -242,10 +247,10 @@ class KnowledgeGraph:
                 continue
 
             idx_key = f"kg:edges:{curr_type}:{curr_id}"
-            edge_keys = await r.zrevrangebyscore(idx_key, "+inf", "0")
+            edge_keys = cast("list[str]", await r.zrevrangebyscore(idx_key, "+inf", "0"))
 
             for ek in edge_keys:
-                edge_data = await r.hgetall(ek)
+                edge_data = {_to_str(k): _to_str(v) for k, v in (await r.hgetall(ek)).items()}
                 if not edge_data:
                     continue
 
@@ -379,7 +384,7 @@ class KnowledgeGraph:
 
         async for edge_key in r.scan_iter(match="kg:edge:*", count=500):
             processed += 1
-            edge_data = await r.hgetall(edge_key)
+            edge_data = {_to_str(k): _to_str(v) for k, v in (await r.hgetall(edge_key)).items()}
             if not edge_data:
                 continue
             from_type = edge_data.get("from_type", "")

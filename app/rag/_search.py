@@ -382,7 +382,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     # doc_freq[t] = number of documents containing term t
     doc_freq: dict[str, int] = {}
 
-    for doc_id, blob in raw.items():
+    for doc_id_raw, blob in raw.items():
         try:
             entry = json.loads(blob)
         except (json.JSONDecodeError, TypeError, ValueError):
@@ -393,6 +393,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
         tokens = _tokenize(text)
         if not tokens:
             continue
+        doc_id = doc_id_raw.decode() if isinstance(doc_id_raw, bytes) else doc_id_raw
         doc_list.append((doc_id, text, entry.get("metadata", {})))
         doc_lengths.append(len(tokens))
         # Unique terms per doc for IDF

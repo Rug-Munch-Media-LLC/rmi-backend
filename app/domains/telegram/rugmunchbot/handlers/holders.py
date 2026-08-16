@@ -183,13 +183,15 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Get backend holder data
         backend_holders = []
-        backend_data = {}
+        backend_data: dict[str, Any] = {}
         try:
-            backend_data = await http_get_json(
+            fetched = await http_get_json(
                 f"{BACKEND_URL}/api/v1/databus/token/{address}",
                 headers=backend_headers(),
                 timeout=10,
             )
+            if fetched:
+                backend_data = fetched
             if backend_data:
                 backend_holders = backend_data.get("top_holders", [])
         except (httpx.HTTPError, ConnectionError, TimeoutError):
