@@ -103,10 +103,25 @@ class HeadlessTelegramClient:
         )
 
     async def stop(self) -> None:
-        """Disconnect the client gracefully."""
-        if self._client and self._client.is_connected():
-            await self._client.disconnect()
+        """Disconnect the client gracefully (idempotent, bounded).
+
+        Telethon's ``disconnect()`` is safe to call repeatedly and also closes
+        the underlying MTProto connection + session. It is bounded with a
+        timeout so a wedged socket can never block process shutdown.
+        """
+        client = self._client
+        if client is None:
+            return
+        try:
+            await asyncio.wait_for(client.disconnect(), timeout=5)
             logger.info("headless_client_stopped")
+        except TimeoutError:
+            logger.warning("headless_client_stop_timeout (force-closing connection)")
+        except Exception:
+            logger.warning("headless_client_stop_error", exc_info=True)
+        finally:
+            self._client = None
+            self._me = None
 
     async def _rate_limit(self) -> None:
         """Ensure we don't exceed Telegram's rate limits."""

@@ -12,6 +12,8 @@ This is the public facade. Implementation is split across:
 
 from __future__ import annotations
 
+import asyncio
+
 from app.core.logging import get_logger
 from app.domains.telegram.headless_client import HeadlessTelegramClient
 from app.domains.telegram.headless_models import GroupConfig, GroupInfo, GroupType
@@ -53,13 +55,24 @@ async def get_headless_client() -> HeadlessTelegramClient:
 
 
 async def shutdown_headless_client() -> None:
-    """Gracefully shut down the headless client.
+    """Gracefully shut down the headless client (idempotent, bounded).
 
-    Should be called during application shutdown.
+    Should be called during application shutdown. Safe to call multiple times
+    and from either the FastAPI lifespan or the bot process. The singleton is
+    reset before stopping so concurrent callers never double-stop the client.
     """
     global _client_instance
 
-    if _client_instance and _client_instance.is_connected:
-        await _client_instance.stop()
-        _client_instance = None
+    client = _client_instance
+    _client_instance = None
+
+    if client is None:
+        return
+
+    try:
+        await asyncio.wait_for(client.stop(), timeout=7)
         logger.info("Headless client shut down")
+    except TimeoutError:
+        logger.warning("Headless client shutdown timed out")
+    except Exception:
+        logger.exception("Headless client shutdown failed")

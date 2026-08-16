@@ -14,7 +14,9 @@ Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 
 from __future__ import annotations
 
+import asyncio
 import random
+import signal
 import sys
 from datetime import time as dtime  # noqa: F401 — used by daily_scam_tip if re-enabled
 from functools import wraps
@@ -149,6 +151,9 @@ from app.domains.telegram.rugmunchbot.states import is_owner
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot")
+
+# Strong refs to in-flight graceful-shutdown tasks (see install_sigterm_shutdown).
+_shutdown_tasks: set[asyncio.Task[Any]] = set()
 
 # ══════════════════════════════════════════════
 # COMMAND MENU (BotFather) — clean core set, v10
@@ -354,6 +359,67 @@ async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Daily tip failed: {e}", exc_info=True)
 
 
+# ══════════════════════════════════════════════
+# GRACEFUL SHUTDOWN — systemd SIGTERM handling
+# ══════════════════════════════════════════════
+# PTB's Application.stop() (telegram.ext._application.Application.stop) waits
+# *indefinitely* for running jobs and in-flight tasks. The headless Telethon
+# MTProto client (app.domains.telegram.headless) is opened by the news / alpha /
+# scam-watch sweeps and is never closed by the bot process on its own — a sweep
+# awaiting an MTProto call on a wedged socket keeps stop(wait=True) blocked, the
+# loop never closes, and systemd kills the cgroup after TimeoutStopSec=10
+# (`Failed with result 'timeout'`; `Failed to kill control group ... Invalid
+# argument` when the stuck socket read can't even be SIGKILLed).
+#
+# We therefore replace PTB's default SIGTERM/SIGINT handlers (registered in
+# post_init, on the same loop, in the same signal slot) with one that first
+# closes the Telethon client (bounded), making in-flight sweeps fail fast, and
+# then drives PTB's own graceful stop via stop_running().
+# ══════════════════════════════════════════════
+
+
+async def close_headless_on_shutdown(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
+    """Close the singleton Telethon MTProto client (idempotent, bounded).
+
+    Runs before Application.stop() waits on jobs, so in-flight Telethon sweeps
+    fail fast instead of blocking shutdown indefinitely.
+    """
+    from app.domains.telegram.headless import shutdown_headless_client
+
+    try:
+        await shutdown_headless_client()
+    except Exception:
+        logger.warning("headless_client_shutdown_error", exc_info=True)
+
+
+async def _graceful_shutdown(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
+    """Close clients first, then hand control back to PTB's normal stop path."""
+    try:
+        await close_headless_on_shutdown(app)
+    finally:
+        app.stop_running()
+
+
+def install_sigterm_shutdown(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
+    """Replace PTB's default stop-signal handlers with shutdown-aware ones.
+
+    Must run on the app's event loop (post_init). add_signal_handler replaces
+    the handler PTB registered in run_polling() for the same signal.
+    """
+    loop = asyncio.get_running_loop()
+
+    def _on_signal() -> None:
+        logger.info("shutdown_signal_received — closing clients, stopping app")
+        # Keep a strong reference so the task is never GC'd mid-shutdown.
+        _shutdown_tasks.add(loop.create_task(_graceful_shutdown(app)))
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, _on_signal)
+        except (NotImplementedError, RuntimeError):
+            logger.debug("signal_handler_not_available sig=%s", sig, exc_info=True)
+
+
 def main() -> None:
     if not BOT_TOKEN:
         logger.error("RUGMUNCH_BOT_TOKEN not set!")
@@ -531,8 +597,16 @@ def main() -> None:
     async def startup(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
         await check_backend_health()
         await setup_bot_profile(app)
+        # Override PTB's default stop-signal handlers (must run on the loop).
+        install_sigterm_shutdown(app)
 
     app.post_init = startup
+
+    # Belt-and-suspenders: if the app stops via ANY path (signal, stop_running()
+    # from a handler, fatal error), close the Telethon client before the loop
+    # closes. post_stop runs after Application.stop() returns; it is a no-op
+    # when the signal path already closed the client.
+    app.post_stop = close_headless_on_shutdown
 
     logger.info("\U0001f6e1\ufe0f CryptoRugMunch Bot v6 starting...")
     app.run_polling(drop_pending_updates=True)
