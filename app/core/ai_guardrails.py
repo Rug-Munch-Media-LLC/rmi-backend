@@ -251,18 +251,28 @@ class ThinkStreamFilter:
 # ═════════════════════════════════════════════════════════════════════════════
 # Optional guardrails-ai validators (requires guardrails-ai packages)
 # ═════════════════════════════════════════════════════════════════════════════
+# Each validator is constructed independently: a failure in one (missing
+# package, missing required arg — e.g. CompetitorCheck needs an explicit
+# `competitors` list that ops has not configured) must degrade that one
+# validator, not disable the whole layer.
+_toxic_guard = None
+_competitor_guard = None
+GUARDRAILS_AI_LOADED = False
 try:
     from guardrails import Guard
-    from guardrails.hub import CompetitorCheck, ToxicLanguage
+    from guardrails.hub import ToxicLanguage
 
     _toxic_guard = Guard().use(ToxicLanguage(on_fail="fix"))
-    _competitor_guard = Guard().use(CompetitorCheck(on_fail="fix"))
     GUARDRAILS_AI_LOADED = True
-except ImportError:
+except Exception:
     _toxic_guard = None
-    _competitor_guard = None
-    GUARDRAILS_AI_LOADED = False
 
+# CompetitorCheck: ops has not configured the competitor list yet — keep the
+# validator disabled (passthrough) until a curated list exists. Any
+# competitor list would otherwise filter legitimate data-source mentions
+# (DexScreener, CoinGecko, Birdeye) from scan answers.
+# _competitor_guard = Guard().use(CompetitorCheck(competitors=[...], on_fail="fix"))
+if not GUARDRAILS_AI_LOADED:
     # Log once at module load so ops can see if the packages are truly installed.
     logger.info("guardrails_ai: guardrails-ai packages not available; using regex-only mode")
 
@@ -278,9 +288,19 @@ def validate_toxic(text: str) -> dict[str, Any]:
 
     try:
         result = _toxic_guard.validate(text)
-        if result.validation_passed:
+        # guardrails-ai 0.11 hub validators report validation_passed=True
+        # even when on_fail="fix" rewrote/emptied the output — the reliable
+        # signal is the OUTPUT CHANGED (toxic text comes back emptied or
+        # rewritten). Treat any change as "filtered".
+        cleaned = result.validated_output
+        if result.validation_passed and cleaned in (None, ""):
+            # toxic text "fixed" to nothing — flagged; return original text
+            # so callers can decide (block or rephrase) instead of blank.
+            return {"safe": False, "cleaned": text}
+        if cleaned is None or cleaned == text:
+            # unchanged -> nothing was flagged
             return {"safe": True, "cleaned": text}
-        return {"safe": False, "cleaned": result.validated_output or text}
+        return {"safe": False, "cleaned": cleaned or text}
     except Exception as exc:
         logger.warning("guardrails_ai: ToxicLanguage validation error: %s", exc)
         return {"safe": True, "cleaned": text}
