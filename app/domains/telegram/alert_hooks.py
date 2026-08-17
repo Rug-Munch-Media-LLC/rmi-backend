@@ -124,7 +124,7 @@ def _default_scanner_chat_id() -> str | None:
     if _ALERT_TARGETS_ENV:
         return None
     try:
-        from app.domains.telegram.rugmunchbot.config import CHANNELS
+        from rugmunchbot.config import CHANNELS  # Phase 3: own repo
 
         return CHANNELS.get("alerts") or CHANNELS.get("scans")
     except Exception:

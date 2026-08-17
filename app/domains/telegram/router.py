@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from rugmunchbot.config import BOT_TOKEN  # Phase 3: own repo
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
 
 logger = get_logger("telegram.router")
 

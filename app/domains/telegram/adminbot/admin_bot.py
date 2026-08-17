@@ -25,8 +25,8 @@ logger = logging.getLogger("admin_bot.admin_bot")
 # Mirror of the backend bot_admin router's DB resolution, so the admin
 # process reads exactly the database the running bot writes to.
 _BOT_DB_CANDIDATES: tuple[str, ...] = (
-    "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/bot_users.db",
-    "/tmp/rmi/telegram/bot_users.db",  # nosec B108 — known bot DB mirror path, stable inter-process lookup  # noqa: S108
+    "/srv/work/repos/rugmunchbot/src/rugmunchbot/data/bot_users.db"  # Phase 3: own repo,
+    "/tmp/rmi/telegram/bot_users.db",  # nosec B108 — known bot DB mirror path, stable inter-process lookup
 )
 
 # How many users to list in /admin_bot_users.
@@ -103,7 +103,7 @@ async def bot_stats() -> dict[str, Any]:
     t0 = time.time()
     state: dict[str, Any] = {"enabled": True, "chat_enabled": True}
     try:
-        from app.domains.telegram.rugmunchbot import admin_state
+        from rugmunchbot import admin_state  # Phase 3: own repo
 
         state = await admin_state.get_bot_state()
     except Exception as exc:  # fail open — Redis may be down
@@ -115,7 +115,7 @@ async def bot_stats() -> dict[str, Any]:
     # fall back to the SQLite daily_stats counter.
     messages_today = counts["messages_today"]
     try:
-        from app.domains.telegram.rugmunchbot import admin_state
+        from rugmunchbot import admin_state  # Phase 3: own repo
 
         days = await admin_state.get_daily_analytics(1)
         if days:
@@ -166,7 +166,7 @@ async def bot_toggle(enabled: bool) -> dict[str, Any]:
     """Enable or disable the RugMunchBot (Redis state + SQLite fallback)."""
     t0 = time.time()
     try:
-        from app.domains.telegram.rugmunchbot import admin_state, db as bot_db
+        from rugmunchbot import admin_state, db as bot_db  # Phase 3: own repo
 
         state = await admin_state.set_bot_state(enabled=enabled)
         bot_db.set_bot_state("bot_enabled", "on" if enabled else "off")
@@ -182,7 +182,7 @@ async def bot_toggle_chat(enabled: bool) -> dict[str, Any]:
     """Enable or disable AI chat on the RugMunchBot."""
     t0 = time.time()
     try:
-        from app.domains.telegram.rugmunchbot import admin_state, db as bot_db
+        from rugmunchbot import admin_state, db as bot_db  # Phase 3: own repo
 
         state = await admin_state.set_bot_state(chat_enabled=enabled)
         bot_db.set_bot_state("chat_enabled", "on" if enabled else "off")
@@ -205,7 +205,7 @@ async def bot_broadcast(message: str) -> dict[str, Any]:
     if not message or not message.strip():
         return _err("Message cannot be empty")
     try:
-        from app.domains.telegram.rugmunchbot import admin_state
+        from rugmunchbot import admin_state  # Phase 3: own repo
 
         bcast = await admin_state.enqueue_broadcast(message.strip(), sender="adminbot")
         if bcast.get("status") == "queued":
@@ -222,7 +222,7 @@ async def bot_broadcasts(limit: int = 10) -> dict[str, Any]:
     """Recent broadcast history with delivery status."""
     t0 = time.time()
     try:
-        from app.domains.telegram.rugmunchbot import admin_state
+        from rugmunchbot import admin_state  # Phase 3: own repo
 
         records = await admin_state.list_broadcasts(limit)
         if not records:

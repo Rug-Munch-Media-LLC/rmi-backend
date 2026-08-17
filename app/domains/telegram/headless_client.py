@@ -570,7 +570,8 @@ class HeadlessTelegramClient:
         if not self._client:
             raise RuntimeError("Client not started")
 
-        from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
+        from rugmunchbot.config import BOT_TOKEN  # Phase 3: own repo
+
         from app.domains.telegram.voice_chat import create_voice_chat
 
         if not BOT_TOKEN:
@@ -590,7 +591,8 @@ class HeadlessTelegramClient:
 
     async def end_voice_chat(self, chat_id: int) -> bool:
         """End an active voice/video chat."""
-        from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
+        from rugmunchbot.config import BOT_TOKEN  # Phase 3: own repo
+
         from app.domains.telegram.voice_chat import end_voice_chat
 
         if not BOT_TOKEN:

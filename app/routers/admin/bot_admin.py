@@ -11,7 +11,7 @@ Powers the Telegram admin panel. All endpoints require:
      ADMIN_CHAT_ID / TELEGRAM_ALLOWED_USERS). Non-owners get 403.
 
 State, bans, analytics and the broadcast queue live in Redis via
-``app.domains.telegram.rugmunchbot.admin_state`` so the bot runtime and the
+``rugmunchbot.admin_state`` so the bot runtime and the
 backend see identical values. User records are queried from the bot's
 SQLite database (same schema as app/domains/telegram/rugmunchbot/db.py).
 """
@@ -26,8 +26,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-
-from app.domains.telegram.rugmunchbot.admin_state import (
+from rugmunchbot.admin_state import (  # Phase 3: own repo
     ban_user,
     banned_user_ids,
     enqueue_broadcast,
@@ -83,7 +82,7 @@ def _owner_ids() -> set[int]:
             if part.isdigit():
                 ids.add(int(part))
     try:
-        from app.domains.telegram.rugmunchbot.config import OWNER_IDS
+        from rugmunchbot.config import OWNER_IDS
 
         ids |= {int(x) for x in OWNER_IDS if str(x).isdigit()}
     except Exception:
@@ -128,7 +127,7 @@ def _resolve_bot_db_path() -> str:
       3. /tmp fallback (used by the bot in read-only containers).
     """
     try:
-        from app.domains.telegram.rugmunchbot import db as bot_db
+        from rugmunchbot import db as bot_db
 
         if os.path.exists(bot_db.DB_PATH):
             return bot_db.DB_PATH
@@ -148,7 +147,7 @@ def _resolve_bot_db_path() -> str:
             return path
     # Last resort: let the bot db module resolve (may create an empty file).
     try:
-        from app.domains.telegram.rugmunchbot import db as bot_db
+        from rugmunchbot import db as bot_db
 
         return bot_db.DB_PATH
     except Exception:
@@ -191,7 +190,7 @@ def _sync_bot_state(key: str, enabled: bool) -> None:
     """
     value = "on" if enabled else "off"
     try:
-        from app.domains.telegram.rugmunchbot import db as bot_db
+        from rugmunchbot import db as bot_db
 
         bot_db.set_bot_state(key, value)
     except Exception as exc:
@@ -382,7 +381,7 @@ async def bot_user_set_tier(user_id: int, req: TierRequest, _: bool = Depends(ve
     if _get_user_row(user_id) is None:
         raise HTTPException(status_code=404, detail="User not found")
     try:
-        from app.domains.telegram.rugmunchbot import db as bot_db
+        from rugmunchbot import db as bot_db
 
         bot_db.set_user_tier(user_id, tier, days=30)
     except Exception as exc:

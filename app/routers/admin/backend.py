@@ -71,22 +71,18 @@ async def require_admin_session(request: Request) -> dict[str, Any]:
 def _resolve_bot_db_path() -> str:
     candidates = [
         os.getenv("BOT_DB_PATH", ""),
-        os.path.join(
-            os.path.dirname(__file__), "..", "..", "domains", "telegram", "rugmunchbot", "data", "bot_users.db"
-        ),
+        "/app/bot-src/rugmunchbot/data/bot_users.db",  # Phase 3: bot repo mounted in container
         "/tmp/rmi/telegram/bot_users.db",  # noqa: S108  # nosec B108 — known bot DB mirror path, stable inter-process lookup
     ]
     for path in candidates:
         if path and os.path.exists(path):
             return path
     try:
-        from app.domains.telegram.rugmunchbot import db as bot_db
+        from rugmunchbot import db as bot_db  # Phase 3: bot code lives in its own repo (mounted at /srv/bot-src)
 
         return bot_db.DB_PATH
     except Exception:
-        return os.path.join(
-            os.path.dirname(__file__), "..", "..", "domains", "telegram", "rugmunchbot", "data", "bot_users.db"
-        )
+        return "/app/bot-src/rugmunchbot/data/bot_users.db"
 
 
 def _open_bot_db() -> sqlite3.Connection | None:

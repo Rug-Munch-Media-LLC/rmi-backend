@@ -458,7 +458,7 @@ async def route_webhook_alert(service: str, payload: dict[str, Any], event_id: s
         to_label, _ = _wallet_label(parsed["counterparty"])
         importance = _assess_importance(parsed, from_type)
 
-        from app.domains.telegram.rugmunchbot.channels.router import route_news
+        from rugmunchbot.channels.router import route_news  # Phase 3: own repo
 
         decision = route_news(importance, "webhook")
         if decision == "skip":
