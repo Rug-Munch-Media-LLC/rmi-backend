@@ -1,14 +1,16 @@
-# LLM Model Selection — DECOMMISSIONED (local llama.cpp / GGUF)
+# LLM Model Selection — CANONICAL
 
-> **Status: DECOMMISSIONED — 2026-08.** The local CPU-only llama.cpp serving stack
-> (`qwen-chat` on :8085, `qwen-analysis` on :8086) has been **torched**. There is no
-> local model serving anymore — chat/analysis is **remote-only**.
+> **Status: CANONICAL — 2026-08.** All production chat/analysis runs **remote via
+> OpenRouter** (`OPENROUTER_BACKUP_API_KEY`, from gopass):
+> - **snappy** = `poolside/laguna-s-2.1:free` (fast chat)
+> - **deep/long** = `nvidia/nemotron-3-ultra-550b-a55b:free` (reasoning analysis)
+> - **paid fallback** = `qwen/qwen-2.5-7b-instruct:lowest` (last resort when free
+>   tiers are rate-limited)
 >
-> **Current model setup:** see [`docs/MODEL-ROUTING.md`](MODEL-ROUTING.md).
-> All routing is via OpenRouter free tier (`OPENROUTER_BACKUP_API_KEY`, from gopass):
-> snappy = `poolside/laguna-s-2.1:free`, deep = `nvidia/nemotron-3-ultra-550b-a55b:free`,
-> paid fallback = `qwen/qwen-2.5-7b-instruct:lowest`.
+> **Local llama.cpp is DEV/PLAY ONLY.** The old Qwen3.5-9B weights, ports
+> (:8085/:8086) and the local serving stack were removed from the production
+> chat path. A local **Qwen 3.5 4B quant** may be kept on llama.cpp purely to
+> play with and test — it is never part of the chat stack and has no production
+> endpoint contract.
 >
-> The previous GGUF research record (2026-08-14 deployment of
-> `Huihui-Qwen3.5-4B/9B-Abliterated.Q6_K.gguf`) is superseded and intentionally not
-> retained — local weights, ports and GGUFs are gone.
+> Model routing details: see [`docs/MODEL-ROUTING.md`](MODEL-ROUTING.md).

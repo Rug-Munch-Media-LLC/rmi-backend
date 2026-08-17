@@ -166,9 +166,17 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
                 if _r.status_code == 200:
                     _d = _r.json()
                     _msg = _d["choices"][0]["message"]
-                    _content = _msg.get("content") or _msg.get("reasoning_content", "")
+                    # NEVER substitute reasoning_content: DeepSeek's chain of
+                    # thought lives there and must not reach users. content is
+                    # the final answer; empty content = degenerate completion.
+                    _content = (_msg.get("content") or "").strip()
+                    if not _content:
+                        return None
+                    from app.core.ai_guardrails import strip_think_tags
+
+                    _content = strip_think_tags(_content)
                     return {
-                        "response": _content.strip(),
+                        "response": _content,
                         "model": _d.get("model", cfg["model"]),
                         "provider": "deepseek-direct",
                     }
