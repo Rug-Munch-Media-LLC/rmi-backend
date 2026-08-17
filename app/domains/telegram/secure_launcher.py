@@ -14,7 +14,7 @@ This ensures the token:
 Usage (systemd ExecStart):
   /path/to/venv/bin/python -m app.domains.telegram.secure_launcher <bot_name>
 
-Where <bot_name> is 'rugmunchbot', 'adminbot', or 'rmiadminbot'.
+Where <bot_name> is 'adminbot' or 'rmiadminbot' (rugmunchbot runs standalone from its own repo).
 """
 
 from __future__ import annotations
@@ -32,8 +32,10 @@ suppress_httpx_urls()
 # Canonical gopass paths. `adminbot` and `rmiadminbot` launch the SAME module
 # (app.domains.telegram.adminbot.bot) and MUST point at the same secret —
 # adminbot/config.py reads rmi/rmiadminbot/bot_token (adminbot/config.py:15).
+# Phase 3: rugmunchbot runs standalone from its own repo (its secure_launcher
+# lives at /srv/work/repos/rugmunchbot/secure_launcher.py). This launcher
+# only serves the admin bots.
 GOPASS_PATHS = {
-    "rugmunchbot": "rmi/rugmunchbot/bot_token",
     "adminbot": "rmi/rmiadminbot/bot_token",
     "rmiadminbot": "rmi/rmiadminbot/bot_token",
 }
@@ -42,13 +44,11 @@ GOPASS_PATHS = {
 # list is set to the same token so any consumer (config module, alert_hooks,
 # routers) sees the value regardless of which name it reads.
 ENV_KEYS = {
-    "rugmunchbot": ["RUGMUNCH_BOT_TOKEN", "TELEGRAM_RUGMUNCH_BOT_TOKEN", "TELEGRAM_BOT_TOKEN"],
     "adminbot": ["ADMIN_BOT_TOKEN"],
     "rmiadminbot": ["ADMIN_BOT_TOKEN"],
 }
 
 MODULES = {
-    "rugmunchbot": "app.domains.telegram.rugmunchbot.bot",
     "adminbot": "app.domains.telegram.adminbot.bot",
     "rmiadminbot": "app.domains.telegram.adminbot.bot",
 }
@@ -69,7 +69,7 @@ def _fetch_from_gopass(gopass_path: str) -> str:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: secure_launcher.py <rugmunchbot|adminbot|rmiadminbot>", file=sys.stderr)
+        print("Usage: secure_launcher.py <adminbot|rmiadminbot>", file=sys.stderr)
         sys.exit(1)
 
     bot_name = sys.argv[1]
