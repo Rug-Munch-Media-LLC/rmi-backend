@@ -376,7 +376,8 @@ def extract_wallet_summary(result: dict[str, Any]) -> dict[str, Any]:
     fields default to neutral values so the doc builder is always safe.
     """
     result = result or {}
-    trust = result.get("trust") if isinstance(result.get("trust"), dict) else {}
+    _raw_trust = result.get("trust")
+    trust = _raw_trust if isinstance(_raw_trust, dict) else {}
     ts = str(result.get("scanned_at") or result.get("timestamp") or datetime.now(UTC).isoformat())
     chain = str(result.get("chain") or "unknown")
     address = str(result.get("address") or result.get("wallet") or "")
@@ -405,7 +406,8 @@ def extract_wallet_summary(result: dict[str, Any]) -> dict[str, Any]:
 def should_index_wallet(result: dict[str, Any]) -> bool:
     """Gate: only index wallets that actually have an address (and trust or risk)."""
     result = result or {}
-    trust = result.get("trust") if isinstance(result.get("trust"), dict) else {}
+    _raw_trust = result.get("trust")
+    trust = _raw_trust if isinstance(_raw_trust, dict) else {}
     address = str(result.get("address") or result.get("wallet") or "")
     return bool(address) and (trust.get("trust_score") is not None or result.get("risk_score") is not None)
 

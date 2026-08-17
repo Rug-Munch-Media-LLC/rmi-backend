@@ -81,7 +81,8 @@ def format_wallet_report(r: dict[str, Any]) -> str:
     ]
     if r["is_fresh"]:
         lines.append("\U0001f195 <b>FRESH WALLET</b> (<7 days) - \u26a0\ufe0f Higher risk")
-    trust = r.get("trust") if isinstance(r.get("trust"), dict) else {}
+    _raw_trust = r.get("trust")
+    trust = _raw_trust if isinstance(_raw_trust, dict) else {}
     trust_line = trust.get("trust_line") if trust.get("trust_line") not in (None, "\u2014") else None
     if trust_line:
         lines.append(f"\U0001f511 <b>Trust:</b> {trust_line}")
