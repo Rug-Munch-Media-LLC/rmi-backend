@@ -1,6 +1,6 @@
 """Canonical Telegram push-channel registry — single source of truth.
 
-Both the RugMunchBot (``app.domains.telegram.rugmunchbot.config``) and the
+Both the RugMunchBot (``rugmunchbot.config``, its own repo) and the
 backend alert transport (``app.domains.alerts.telegram_transport``) resolve
 their Telegram push channels from THIS module, so the two sides can never
 drift on which channel a role maps to.

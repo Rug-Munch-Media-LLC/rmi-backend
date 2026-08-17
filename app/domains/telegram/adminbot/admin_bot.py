@@ -4,7 +4,7 @@ admin_bot — RugMunchBot management operations.
 Stats, toggles, broadcasts, and user listing for the RugMunchBot
 (``@rugmunchbot``) driven from the admin bot. Reads the bot's SQLite
 database and Redis state directly (same host, same schema as
-``app.domains.telegram.rugmunchbot``), so no backend HTTP round-trip
+the rugmunchbot repo), so no backend HTTP round-trip
 is required and every function fails open when the DB/Redis is down.
 
 Pattern follows admin_ops / admin_server: allowlist-safe subprocesses
