@@ -172,16 +172,33 @@ def sanitize_output(text: str) -> str:
 
 
 def strip_think_tags(text: str) -> str:
-    """Strip ``<think>...</think>`` reasoning blocks from an LLM answer.
+    """Strip reasoning blocks from an LLM answer.
 
-    Handles both complete blocks (``<think>...</think>``) and unterminated
-    blocks that get cut off when ``max_tokens`` is reached mid-think (strip
-    everything from ``<think>`` onward in that case). Idempotent; safe on
-    plain text.
+    Handles ``<think>``, ``<reasoning>`` and ``<thought>`` blocks (complete
+    and unterminated when ``max_tokens`` cuts them off mid-reasoning), plus
+    DeepSeek-style unwrapped chain-of-thought preambles ("The user is
+    asking…", "I need to…", "Let me think…") that leak as plain text from
+    reasoning models. Idempotent; safe on plain text.
     """
-    cleaned = re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL)
-    # Unterminated think block (truncated by max_tokens) — drop it entirely
-    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
+    cleaned = text or ""
+    for tag in ("think", "reasoning", "thought"):
+        cleaned = re.sub(rf"<{tag}>.*?</{tag}>", "", cleaned, flags=re.DOTALL)
+        cleaned = re.sub(rf"<{tag}>.*", "", cleaned, flags=re.DOTALL)
+    # Unwrapped CoT preamble: reasoning models sometimes emit their chain of
+    # thought as plain prose before the answer. Strip the leading run of
+    # self-referential "I need to / The user is asking / Let me think"
+    # sentences (multi-sentence, at the very start of the output).
+    preamble = re.match(
+        r"^\s*(?:(?:The|This) user (?:is|was|asked|wants).*?\n?|"
+        r"(?:I|We) (?:need|want|should|must|have|can|will).*?\n?|"
+        r"Let me (?:think|check|look|start|begin|consider).*?\n?|"
+        r"Okay,? so .*?\n?|Alright,? so .*?\n?|"
+        r"As (?:an AI|a (?:crypto|security|market) analyst).*?\n?){1,4}",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    if preamble and len(preamble.group(0)) < len(cleaned) // 2:
+        cleaned = cleaned[preamble.end() :]
     return cleaned.strip()
 
 

@@ -1,9 +1,10 @@
-# Model Routing — OpenRouter (remote-only, no local LLMs)
+# Model Routing — OpenRouter (remote-only for chat)
 
-> **Status: CANONICAL — 2026-08.** Local model serving (llama.cpp `qwen-chat` :8085 /
-> `qwen-analysis` :8086, Ollama) is **decommissioned**. Chat and analysis are
-> **remote-only** through the OpenRouter free tier. This doc replaces the old
-> `docs/LLM_MODEL_SELECTION.md` (kept as a decommissioned stub).
+> **Status: CANONICAL — 2026-08.** All production chat/analysis runs **remote via
+> the OpenRouter free tier** — no local model in the chat path. Local llama.cpp is
+> **dev/play only** (a Qwen 3.5 4B quant may be kept to play/test; it is never part
+> of the chat stack). This doc replaces the old local-serving docs; see
+> `docs/LLM_MODEL_SELECTION.md`.
 
 ## Model assignments (all via OpenRouter)
 
