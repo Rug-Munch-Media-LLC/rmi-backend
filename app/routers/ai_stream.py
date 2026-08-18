@@ -141,6 +141,7 @@ async def ai_route(req: StreamRequest) -> dict[str, Any]:
             tier="long" if tool_result else _tier_for(req.task),
         )
 
+    result["model"] = _model_for(_tier_for(req.task))
     return result
 
 
