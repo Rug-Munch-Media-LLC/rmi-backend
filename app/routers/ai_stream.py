@@ -45,7 +45,8 @@ def _tier_for(task: str) -> str:
 
 
 def _model_for(tier: str) -> str:
-    return str(llm_config.get_long_config() if tier == "long" else llm_config.get_snappy_config()).get("model") or tier
+    config = llm_config.get_long_config() if tier == "long" else llm_config.get_snappy_config()
+    return config.get("model") or tier
 
 
 def _key_missing() -> bool:
