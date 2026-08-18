@@ -31,11 +31,8 @@ logger = get_logger("rag_chat")
 
 # ── RAG collections to search (in priority order) ──
 CHAT_RAG_COLLECTIONS = [
-    "news_v2",  # Our ingested Telegram news sweep — the freshest content
-    "scam_intel",  # Security patterns, scam knowledge
-    "wallet_labels",  # Wallet labeling, entity resolution
-    "scanned_tokens",  # Past token scan results
-    "stablecoin_market",  # Market liquidity signals
+    "scam_intel",  # Security patterns, scam knowledge — HIGHEST VALUE
+    "news_v2",  # Our ingested Telegram news sweep
 ]
 
 MAX_RAG_RESULTS_PER_COLLECTION = 3
@@ -88,38 +85,34 @@ async def search_rag(query: str) -> list[dict[str, Any]]:
     """
     from app.rag._search import three_pillar_search
 
-    all_hits: list[dict[str, Any]] = []
-    seen_docs: set[str] = set()
-
-    # Search each collection with the query
-    tasks = []
-    for collection in CHAT_RAG_COLLECTIONS:
-        tasks.append(
-            three_pillar_search(
-                query=query,
-                collection=collection,
-                top_k=MAX_RAG_RESULTS_PER_COLLECTION,
-                min_similarity=0.35,
+    async def _search_one(collection: str) -> list[dict[str, Any]]:
+        try:
+            return await asyncio.wait_for(
+                three_pillar_search(
+                    query=query,
+                    collection=collection,
+                    top_k=MAX_RAG_RESULTS_PER_COLLECTION,
+                    min_similarity=0.3,
+                ),
+                timeout=60.0,
             )
-        )
+        except (asyncio.TimeoutError, Exception) as exc:
+            logger.warning("rag_collection_timeout collection=%s err=%s", collection, exc)
+            return []
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    collection_results = await asyncio.gather(*[_search_one(c) for c in CHAT_RAG_COLLECTIONS])
 
-    for idx, hits in enumerate(results):
-        collection = CHAT_RAG_COLLECTIONS[idx]
-        if isinstance(hits, Exception):
-            logger.debug("rag_chat_search_failed collection=%s err=%s", collection, hits)
-            continue
-        for hit in hits:
+    # Flatten and deduplicate results
+    from collections import OrderedDict
+
+    seen = OrderedDict()
+    for results in collection_results:
+        for hit in results:
             doc_id = hit.get("doc_id", "")
-            if doc_id and doc_id not in seen_docs:
-                seen_docs.add(doc_id)
-                hit["collection"] = collection
-                all_hits.append(hit)
-
-    # Sort by score descending, limit total
-    all_hits.sort(key=lambda x: -x.get("score", 0))
-    return all_hits[:MAX_RAG_TOTAL_RESULTS]
+            if doc_id not in seen:
+                seen[doc_id] = hit
+    hits = list(seen.values())[:MAX_RAG_TOTAL_RESULTS]
+    return hits
 
 
 async def search_web(query: str) -> str:

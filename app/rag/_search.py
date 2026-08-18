@@ -13,6 +13,7 @@ original ``engine.py`` did.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from typing import Any
@@ -344,12 +345,11 @@ async def three_pillar_search(
         else:
             variants = [query]
 
-        # ── Search each variant ────────────────────────────────────────
-        all_variant_hits: list[list[Hit]] = []
-        for variant in variants:
+        # ── Search each variant (PARALLEL) ─────────────────────────────
+        async def _search_one(variant: str) -> list[Hit] | None:
+            """Embed + search a single variant."""
             try:
                 qvec = await get_embedding(variant)
-
                 if _DEFAULT_STORE == "qdrant":
                     fused, backend = await _qdrant_primary_search(
                         variant, qvec, collection, top_k, min_similarity, filters
@@ -358,12 +358,16 @@ async def three_pillar_search(
                         fused = await _legacy_pillar_search(variant, qvec, collection, top_k, min_similarity, filters)
                 else:
                     fused = await _legacy_pillar_search(variant, qvec, collection, top_k, min_similarity, filters)
-
-                if fused:
-                    all_variant_hits.append(fused)
+                return fused
             except Exception as exc:
                 log.debug("rag_variant_search_failed variant=%r err=%s", variant, exc)
-                continue
+                return None
+
+        variant_results = await asyncio.gather(
+            *[_search_one(v) for v in variants],
+            return_exceptions=True,
+        )
+        all_variant_hits = [r for r in variant_results if r]
 
         # If all variant searches failed, try a single-query fallback.
         if not all_variant_hits:
@@ -435,6 +439,7 @@ def _generate_query_variants(query: str) -> list[str]:
     if not query or not query.strip():
         return [query]
 
+    MAX_VARIANTS = int(os.getenv("RAG_EXPAND_MAX_VARIANTS", "2"))
     original = query.strip()
     lower = original.lower()
     variants: list[str] = []
@@ -473,6 +478,10 @@ def _generate_query_variants(query: str) -> list[str]:
         expanded = " ".join(expanded_words)
         if expanded.lower() != lower:
             variants.append(expanded)
+
+    # Cap variants
+    if len(variants) > MAX_VARIANTS:
+        variants = variants[:MAX_VARIANTS]
 
     # Deduplicate while preserving order.
     seen: set[str] = set()
