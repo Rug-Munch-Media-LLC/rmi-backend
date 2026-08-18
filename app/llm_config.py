@@ -37,7 +37,7 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", OPENROUTER_KEY)
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")  # optional, for direct NVIDIA access
 # OpenRouter backup account (free tier for community chat) — falls back to the
 # primary OPENROUTER_KEY if the backup key is not provisioned.
-OPENROUTER_BACKUP_API_KEY = os.getenv("OPENROUTER_BACKUP_API_KEY", OPENROUTER_KEY)
+OPENROUTER_BACKUP_API_KEY = os.getenv("OPENROUTER_BACKUP_API_KEY") or OPENROUTER_KEY
 
 # Hugging Face Inference API (free hosted tier — community chat fallback).
 # Reads HUGGINGFACE_API_KEY first, then HUGGINGFACE_TOKEN (legacy name used by

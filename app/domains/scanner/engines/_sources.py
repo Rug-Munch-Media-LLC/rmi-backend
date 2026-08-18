@@ -448,11 +448,11 @@ async def _own_price_argmax(token: str, chain: str) -> dict[str, Any] | None:
         # side == "0": our token is token0, ratio = amount1_out/amount0_in
         # side == "1": our token is token1, ratio = amount0_out/amount1_in
         if side == "0":
-            ratio_expr = "amount1_out / amount0_in"
+            ratio_expr = "toFloat64(amount1_out) / toFloat64(amount0_in)"
             paired_col = "token1"
             where_extra = "token0 = %(token)s AND amount0_in > 0 AND amount1_out > 0"
         else:
-            ratio_expr = "amount0_out / amount1_in"
+            ratio_expr = "toFloat64(amount0_out) / toFloat64(amount1_in)"
             paired_col = "token0"
             where_extra = "token1 = %(token)s AND amount1_in > 0 AND amount0_out > 0"
         try:
