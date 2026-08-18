@@ -107,79 +107,113 @@ async def scan_token(
     scanner: UnifiedTokenScanner = Depends(get_token_scanner),
 ) -> dict[str, Any]:
     tier = _get_tier(request)
+    return await _run_scan(scanner, body, tier, request)
+
+
+@router.post(
+    "/token/deepscan",
+    summary="Deep Scan Token",
+    description="Full deep scan — runs ALL modules including premium/SENTINEL (bundle detect, cluster map, dev finder, wash trade, MEV, sniper, insider, bot farm, holder analysis, LP verification, contract authority, proxy detection). Not gated — free to use.",
+)
+async def deepscan_token(
+    request: Request,
+    body: TokenScanRequest,
+    scanner: UnifiedTokenScanner = Depends(get_token_scanner),
+) -> dict[str, Any]:
+    """Deep scan: forces elite tier to unlock all premium + SENTINEL modules.
+
+    The regular /token/scan runs CORE + DEEP + INTEL phases (~20 modules).
+    Deepscan turns on PREMIUM chains (bundle, cluster, dev-finder, sniper,
+    bot-farm, copy-trade, insider, wash-trade, MEV, fresh-wallets) and
+    SENTINEL free modules (holder analysis, LP verification, dev reputation,
+    metadata fingerprint, contract authority, proxy detection).
+    """
+    admin_key = _get_admin_key(request)
+    try:
+        result = await scanner.scan(address=body.address, chain=body.chain, tier="elite", admin_key=admin_key)
+        return _format_scan_response(result)
+    except Exception as e:
+        raise HTTPException(500, f"Deep scan failed: {str(e)[:200]}") from e
+
+
+async def _run_scan(
+    scanner: UnifiedTokenScanner,
+    body: TokenScanRequest,
+    tier: str,
+    request: Request,
+) -> dict[str, Any]:
+    """Run a token scan and format the response."""
     admin_key = _get_admin_key(request)
     try:
         result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
-        # Track which sources were own data vs external API fallback
-        # enrichment_sources has entries like "price:own", "price:coingecko",
-        # "security:own_clickhouse", "security:goplus"
-        own_data_modules = sum(1 for s in result.enrichment_sources if "own" in s.split(":")[-1].lower())
-        fallback_modules = sum(
-            1
-            for s in result.enrichment_sources
-            if "own" not in s.split(":")[-1].lower() and s.split(":")[-1] not in ("", "unknown")
-        )
-        total_with_source = len(result.enrichment_sources)
-        fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
-
-        return {
-            "status": "ok",
-            "token": result.token_address,
-            "chain": result.chain,
-            "name": result.name,
-            "symbol": result.symbol,
-            "price_usd": result.price_usd,
-            "market_cap_usd": result.market_cap_usd,
-            "liquidity_usd": result.liquidity_usd,
-            "volume_24h_usd": result.volume_24h_usd,
-            "age_hours": result.age_hours,
-            "safety_score": result.safety_score,
-            "confidence": result.confidence,
-            "risk_level": result.risk_level,
-            "risk_flags": result.risk_flags,
-            "green_flags": result.green_flags,
-            "breakdown": result.breakdown,
-            "evidence": result.evidence,
-            "modules_run": result.modules_run,
-            "scan_duration_ms": result.scan_duration_ms,
-            "tier": result.tier,
-            "scanned_at": result.scanned_at,
-            "background_status": result.background_status,
-            "cached": result.cached,
-            "stability": result.stability,
-            "data_source": "databus",
-            "freshness": result.scanned_at,
-            "fallback_used": fallback_used,
-            "data_sources": {
-                "own_data_modules": own_data_modules,
-                "external_fallback_modules": fallback_modules,
-                "total_modules": len(result.modules_run),
-            },
-            "rag_context": _serialize_rag_context(result.rag_context),
-            "news_sentiment": result.news_sentiment,
-            "news_card": result.news_card,
-            "sentinel": result.sentinel,
-            # Own-engine intel blocks — the Telegram bot maps these top-level
-            # keys (scanner.v2_token_to_legacy). wallet_metrics drives the
-            # deepscan wallet-composition section (fresh / CEX-funded /
-            # first-tx %); previously computed but never serialized.
-            # deployer_profile nests under deep_profile on the result model.
-            "wallet_metrics": result.wallet_metrics,
-            "bundle_analysis": result.bundle_analysis,
-            "deployer_profile": (
-                asdict(result.deep_profile.deployer_profile)
-                if result.deep_profile
-                and is_dataclass(result.deep_profile.deployer_profile)
-                and not isinstance(result.deep_profile.deployer_profile, type)
-                else (
-                    result.deep_profile.deployer_profile
-                    if result.deep_profile and result.deep_profile.deployer_profile
-                    else None
-                )
-            ),
-        }
+        return _format_scan_response(result)
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
+
+
+def _format_scan_response(result: Any) -> dict[str, Any]:
+    """Format a ScanResult into the API response dict."""
+    # Track which sources were own data vs external API fallback
+    own_data_modules = sum(1 for s in result.enrichment_sources if "own" in s.split(":")[-1].lower())
+    fallback_modules = sum(
+        1
+        for s in result.enrichment_sources
+        if "own" not in s.split(":")[-1].lower() and s.split(":")[-1] not in ("", "unknown")
+    )
+    total_with_source = len(result.enrichment_sources)
+    fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
+
+    return {
+        "status": "ok",
+        "token": result.token_address,
+        "chain": result.chain,
+        "name": result.name,
+        "symbol": result.symbol,
+        "price_usd": result.price_usd,
+        "market_cap_usd": result.market_cap_usd,
+        "liquidity_usd": result.liquidity_usd,
+        "volume_24h_usd": result.volume_24h_usd,
+        "age_hours": result.age_hours,
+        "safety_score": result.safety_score,
+        "confidence": result.confidence,
+        "risk_level": result.risk_level,
+        "risk_flags": result.risk_flags,
+        "green_flags": result.green_flags,
+        "breakdown": result.breakdown,
+        "evidence": result.evidence,
+        "modules_run": result.modules_run,
+        "scan_duration_ms": result.scan_duration_ms,
+        "tier": result.tier,
+        "scanned_at": result.scanned_at,
+        "background_status": result.background_status,
+        "cached": result.cached,
+        "stability": result.stability,
+        "data_source": "databus",
+        "freshness": result.scanned_at,
+        "fallback_used": fallback_used,
+        "data_sources": {
+            "own_data_modules": own_data_modules,
+            "external_fallback_modules": fallback_modules,
+            "total_modules": len(result.modules_run),
+        },
+        "rag_context": _serialize_rag_context(result.rag_context),
+        "news_sentiment": result.news_sentiment,
+        "news_card": result.news_card,
+        "sentinel": result.sentinel,
+        "wallet_metrics": result.wallet_metrics,
+        "bundle_analysis": result.bundle_analysis,
+        "deployer_profile": (
+            asdict(result.deep_profile.deployer_profile)
+            if result.deep_profile
+            and is_dataclass(result.deep_profile.deployer_profile)
+            and not isinstance(result.deep_profile.deployer_profile, type)
+            else (
+                result.deep_profile.deployer_profile
+                if result.deep_profile and result.deep_profile.deployer_profile
+                else None
+            )
+        ),
+    }
 
 
 @router.get(
