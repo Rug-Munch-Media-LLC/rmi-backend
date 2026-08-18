@@ -1,9 +1,18 @@
-"""SSE Response Streaming - real-time token streaming for AI endpoints."""
+"""
+SSE Response Streaming — RAG-powered AI endpoints.
+
+Replaces the old basic LLM pass-through with a full RAG-augmented chat:
+tool detection → RAG search → web search → context assembly → LLM → citations.
+
+All endpoints use the backup OpenRouter account (OPENROUTER_BACKUP_API_KEY)
+as configured in app/llm_config.py.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter
@@ -11,173 +20,144 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app import llm_config
+from app.core.logging import get_logger
+from app.rag.chat_integration import chat_with_context, direct_chat
 
+logger = get_logger("ai_stream")
 router = APIRouter(prefix="/api/v1/ai", tags=["ai-streaming"])
 
 
 class StreamRequest(BaseModel):
     prompt: str
-    task: str = "fast"  # fast|cheap|complex|bulk|code
-    prefer: str = "fast"  # fast|cheap
+    task: str = "fast"  # fast|simple|complex|chat
+    prefer: str = "fast"
+    disable_rag: bool = False  # Set true to skip RAG/web search for speed
 
 
 def _tier_for(task: str) -> str:
-    """Map a request to a free OpenRouter tier.
+    """Map task type to OpenRouter tier.
 
-    - "snappy" (poolside/laguna-s-2.1:free) — fast/cheap short answers
-    - "long" (nvidia/nemotron-3-ultra-550b-a55b:free) — deep reasoning
+    - "fast"/"simple" → "snappy" (Laguna S 2.1, sub-300ms)
+    - "complex" → "long" (Nemotron Ultra 550B, deep reasoning)
+    - "chat" → "long" (general chat with context, quality matters)
     """
-    return "long" if task == "complex" else "snappy"
-
-
-def _config_for(tier: str) -> dict[str, Any]:
-    """Return the llm_config for a free OpenRouter tier."""
-    return llm_config.get_long_config() if tier == "long" else llm_config.get_snappy_config()
+    return "long" if task in ("complex", "chat") else "snappy"
 
 
 def _model_for(tier: str) -> str:
-    return str(_config_for(tier).get("model") or tier)
+    return str(llm_config.get_long_config() if tier == "long" else llm_config.get_snappy_config()).get("model") or tier
 
 
-def _key_missing(tier: str) -> bool:
-    """True when the OpenRouter key backing this tier is not configured."""
-    return not str(_config_for(tier).get("api_key") or "")
+def _key_missing() -> bool:
+    return not (llm_config.get_snappy_config().get("api_key") or "")
 
 
-async def _stream_openrouter(prompt: str, task: str) -> Any:
-    """Stream a chat completion from the free OpenRouter tier.
+async def _stream_response(prompt: str, task: str, disable_rag: bool = False) -> Any:
+    """Stream a RAG-augmented chat response.
 
-    Emits the standard SSE shape: ``data: {"token": ...}`` chunks followed by
-    ``data: {"done": true, "model": ...}``. Fails open with a clear message
-    when the key is missing or both chat providers fail.
+    Emits SSE chunks: ``data: {"token": ...}`` → ``data: {"sources": [...]}``
+    → ``data: {"done": true, "model": ...}``. Fails open on errors.
     """
     tier = _tier_for(task)
     model = _model_for(tier)
 
-    if _key_missing(tier):
-        yield f"data: {json.dumps({'error': 'OpenRouter key missing — set OPENROUTER_BACKUP_API_KEY'})}\n\n"
+    if _key_missing():
+        yield f"data: {json.dumps({'error': 'OpenRouter key missing'})}\n\n"
         yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
         return
 
-    answer = await llm_config.chat_with_fallback(
-        messages=[{"role": "user", "content": prompt}],
-        tier=tier,
-    )
+    # Detect tool intent (price/scan/news/market etc.)
+    from app.domains.chat_tools._intent import _detect_tool_intent
+    from app.domains.chat_tools.dispatcher import _run_tool_for_intent
+
+    intent = _detect_tool_intent(prompt) if not disable_rag else None
+    tool_result = await _run_tool_for_intent(prompt, intent) if intent else None
+
+    if disable_rag and not tool_result:
+        # Fast path: no context, no tools
+        result = await direct_chat(prompt, tier=tier)
+    else:
+        # Full RAG path
+        result = await chat_with_context(
+            prompt,
+            tool_result=tool_result,
+            intent=intent,
+            tier="long" if tool_result else tier,  # Use long tier for tool results
+        )
+
+    answer = result.get("answer", "")
+    sources = result.get("sources", [])
+
     if not answer:
-        yield f"data: {json.dumps({'error': f'All providers failed (tier={tier})'})}\n\n"
+        yield f"data: {json.dumps({'error': 'All providers failed'})}\n\n"
         yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
         return
 
+    # Stream tokens
     for word in answer.split():
         yield f"data: {json.dumps({'token': word + ' '})}\n\n"
         await asyncio.sleep(0.02)
+
+    # Stream sources after the answer
+    if sources:
+        yield f"data: {json.dumps({'sources': sources})}\n\n"
+
     yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
 
 
 @router.post("/stream")
 async def stream_ai(req: StreamRequest) -> Any:
-    """Stream AI response in real-time. Tokens appear as generated."""
+    """Stream AI response with RAG context, tool results, and web search."""
     tier = _tier_for(req.task)
     model = _model_for(tier)
     return StreamingResponse(
-        _stream_openrouter(req.prompt, req.task),
+        _stream_response(req.prompt, req.task, req.disable_rag),
         media_type="text/event-stream",
         headers={
             "X-Model": model,
             "X-Provider": "openrouter",
+            "X-RAG": "enabled" if not req.disable_rag else "disabled",
             "X-Latency-Ms": "300" if tier == "snappy" else "500",
         },
     )
 
 
 @router.post("/route")
-async def ai_route(req: StreamRequest) -> Any:
-    """Non-streaming: auto-route to the free OpenRouter tier, return complete response."""
-    tier = _tier_for(req.task)
-    model = _model_for(tier)
-    if _key_missing(tier):
-        return {
-            "error": "OpenRouter key missing — set OPENROUTER_BACKUP_API_KEY",
-            "tier": tier,
-            "model": model,
-        }
-    answer = await llm_config.chat_with_fallback(
-        messages=[{"role": "user", "content": req.prompt}],
-        tier=tier,
-    )
-    if not answer:
-        return {"error": "All providers failed", "tier": tier, "model": model}
-    return {"response": answer, "model": model, "provider": "openrouter", "tier": tier}
+async def ai_route(req: StreamRequest) -> dict[str, Any]:
+    """Non-streaming RAG-augmented chat. Returns complete response with sources."""
+    if _key_missing():
+        return {"error": "OpenRouter key missing", "tier": _tier_for(req.task)}
+
+    intent = _detect_tool_intent(req.prompt) if not req.disable_rag else None
+    tool_result = await _run_tool_for_intent(req.prompt, intent) if intent else None
+
+    if req.disable_rag and not tool_result:
+        result = await direct_chat(req.prompt, tier=_tier_for(req.task))
+    else:
+        result = await chat_with_context(
+            req.prompt,
+            tool_result=tool_result,
+            intent=intent,
+            tier="long" if tool_result else _tier_for(req.task),
+        )
+
+    return result
+
+
+# ── Health / Info ──
 
 
 @router.get("/providers")
 async def list_providers() -> dict[str, Any]:
-    """List all available AI providers with capabilities (free OpenRouter tiers)."""
+    """List available AI providers with capabilities."""
     snappy = llm_config.get_snappy_config()
     long = llm_config.get_long_config()
-    snappy_entry = {
-        "model": snappy["model"],
-        "provider": "openrouter",
-        "latency_ms": 300,
-        "cost_per_1M_input": 0.0,
-    }
-    long_entry = {
-        "model": long["model"],
-        "provider": "openrouter",
-        "latency_ms": 500,
-        "cost_per_1M_input": 0.0,
-    }
-    hf_cfg = llm_config.get_hf_config()
-    hf_entry = {
-        "model": hf_cfg["model"],
-        "provider": "huggingface",
-        "latency_ms": 2000,
-        "cost_per_1M_input": 0.0,
-    }
     return {
         "providers": {
-            "fast": [snappy_entry],
-            "cheap": [snappy_entry],
-            "complex": [long_entry],
-            "bulk": [snappy_entry],
-            "vision": [snappy_entry],
-            "embed": [snappy_entry],
-            "code": [snappy_entry],
-            "huggingface": [hf_entry],
+            "fast": [{"model": snappy["model"], "provider": "openrouter", "latency_ms": 300, "cost": 0}],
+            "complex": [{"model": long["model"], "provider": "openrouter", "latency_ms": 500, "cost": 0}],
+            "chat": [
+                {"model": long["model"], "provider": "openrouter", "rag": True, "web_search": True, "tools": True}
+            ],
         }
     }
-
-
-@router.post("/hf")
-async def hf_analysis(req: StreamRequest) -> dict[str, Any]:
-    """Community-chat ANALYSIS via the FREE Hugging Face Inference tier.
-
-    The main chat stays on OpenRouter; this endpoint answers detailed/analysis
-    questions with the hosted HF model (deepseek-r1-distill). Bounded (60s,
-    ``max_tokens`` capped) + fail-open: on ANY provider failure it returns an
-    explicit error payload instead of raising. Frontend integration point for
-    rugmaps/rugcharts "detailed analysis" — POST the intel brief / cluster data
-    as ``prompt``.
-    """
-    from app import llm_config as _cfg
-
-    if not _cfg.HUGGINGFACE_API_KEY:
-        return {
-            "response": "",
-            "error": "HUGGINGFACE_API_KEY not set — set it (secrets manager (HF token)) or rely on the anonymous tier",
-            "model": _cfg.HF_MODEL,
-            "provider": "huggingface",
-        }
-    answer = await _cfg.chat_with_hf_fallback(
-        messages=[{"role": "user", "content": req.prompt}],
-        max_tokens=1024,
-        timeout=60.0,
-    )
-    if not answer:
-        return {
-            "response": "",
-            "error": "HF Inference tier failed (401 anonymous/402 credits-exhausted/429/5xx) — check HUGGINGFACE_API_KEY",
-            "model": _cfg.HF_MODEL,
-            "provider": "huggingface",
-        }
-    return {"response": answer, "model": _cfg.HF_MODEL, "provider": "huggingface", "tier": "huggingface"}

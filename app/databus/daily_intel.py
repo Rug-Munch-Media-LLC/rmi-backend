@@ -38,9 +38,9 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Free models for each phase
 RESEARCH_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 WRITING_MODEL = "google/gemma-4-26b-a4b-it:free"
-# Fallback if primary unavailable
-FALLBACK_RESEARCH = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-FALLBACK_WRITING = "moonshotai/kimi-k2.6:free"
+# Fallbacks (all verified live 2026-08-18)
+FALLBACK_RESEARCH = "nvidia/nemotron-3-nano-30b-a3b:free"
+FALLBACK_WRITING = "google/gemma-4-31b-it:free"
 
 # Publishing targets
 X_ACCOUNT = "CryptoRugMunch"
@@ -84,7 +84,7 @@ async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int =
 
 
 async def _gather_all_data() -> dict[str, Any]:
-    """Gather comprehensive data from ALL DataBus sources."""
+    """Gather comprehensive data from ALL DataBus sources + RAG knowledge base."""
     data: dict[str, Any] = {
         "market": {},
         "fear_greed": {},
@@ -92,6 +92,7 @@ async def _gather_all_data() -> dict[str, Any]:
         "ct": {},
         "social": {},
         "prediction_markets": {},
+        "rag_top_stories": [],
     }
 
     # Market data
@@ -142,7 +143,35 @@ async def _gather_all_data() -> dict[str, Any]:
     except (AttributeError, ImportError):
         pass
 
-    return data
+    # ── RAG-powered top stories from our knowledge base ──
+    try:
+        from app.rag._search import three_pillar_search
+
+        # Query our ingested news_v2 for the most impactful stories right now
+        rag_stories = await three_pillar_search(
+            query="most important crypto news today market moving events",
+            collection="news_v2",
+            top_k=10,
+            min_similarity=0.4,
+        )
+        if rag_stories:
+            data["rag_top_stories"] = rag_stories
+            logger.info("Daily Rug: pulled %d top stories from RAG news_v2", len(rag_stories))
+
+        # Also search scam_intel for any active threats to include
+        rag_scams = await three_pillar_search(
+            query="active scams exploits hacks rug pulls this week",
+            collection="scam_intel",
+            top_k=5,
+            min_similarity=0.4,
+        )
+        if rag_scams:
+            data["rag_scam_intel"] = rag_scams
+            logger.info("Daily Rug: pulled %d scam intel hits from RAG", len(rag_scams))
+    except (ImportError, AttributeError, Exception) as e:
+        logger.debug("Daily Rug: RAG top stories unavailable: %s", e)
+
+
 
 
 def _build_research_context(data: dict[str, Any]) -> str:
@@ -167,6 +196,28 @@ def _build_research_context(data: dict[str, Any]) -> str:
             f"- [{a.get('sentiment', {}).get('sentiment', '➖')}] {a.get('title', '')}" for a in articles[:15]
         )
         parts.append(f"## TOP HEADLINES\n{headlines}")
+
+    # RAG top stories (reranker-scored from our news_v2 ingestion)
+    rag_stories = data.get("rag_top_stories", [])
+    if rag_stories:
+        rag_lines = []
+        for s in rag_stories[:8]:
+            text = s.get("text", "")
+            score = s.get("score", 0)
+            coll = s.get("collection", "news_v2")
+            title = text[:120] if text else "(no text)"
+            rag_lines.append(f"- [score={score:.2f}] {title}  |  source={coll}")
+        parts.append(f"## RAG-IMPORTANT STORIES (reranker-scored)\n" + "\n".join(rag_lines))
+
+    # RAG scam intel
+    rag_scams = data.get("rag_scam_intel", [])
+    if rag_scams:
+        scam_lines = []
+        for s in rag_scams[:5]:
+            text = s.get("text", "")
+            score = s.get("score", 0)
+            scam_lines.append(f"- [activeness={score:.2f}] {text[:150]}")
+        parts.append(f"## ACTIVE SCAMS / HACKS / EXPLOITS (from RAG)\n" + "\n".join(scam_lines))
 
     # CT Pulse
     ct = data.get("ct", {})
