@@ -62,7 +62,7 @@ FLEET_CONTAINERS: tuple[tuple[str, str], ...] = (
     ("rmi-postgres", "Postgres"),
     ("rmi-clickhouse", "ClickHouse"),
     ("rmi-redis", "Redis"),
-    ("rmi-rag-api", "RAG"),
+    ("rmi-qdrant", "Qdrant"),
     ("degenfeed-meilisearch", "Meilisearch"),
     ("infinity-rag", "Infinity"),
 )
