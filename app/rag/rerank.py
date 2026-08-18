@@ -1,14 +1,15 @@
-"""Infinity cross-encoder reranking for the RAG pipeline.
+"""Cross-encoder reranking for the RAG pipeline (Qwen3 Reranker 8B).
 
-Reranks retrieved candidates with Infinity's ``/rerank`` endpoint
-(model ``BAAI/bge-reranker-v2-m3``) before they are handed to the LLM.
+Reranks retrieved candidates with Qwen3 Reranker 8B Q4_K_M via llama.cpp
+``/rerank`` endpoint (host systemd service, bound to 172.22.0.1:8003).
 
-Fail-open: if Infinity is unreachable, callers keep the pre-rerank order
+Fail-open: if the reranker is unreachable, callers keep the pre-rerank order
 so search never breaks because the reranker is unavailable.
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
@@ -19,11 +20,12 @@ from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 
-INFINITY_RERANK_MODEL: str = "BAAI/bge-reranker-v2-m3"
+# Qwen3 Reranker 8B Q4_K_M via llama.cpp on Talos (systemd qwen-reranker.service)
+RERANK_URL: str = os.getenv("RERANK_URL", "http://172.22.0.1:8003")
 
 
 async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> list[dict[str, Any]]:
-    """Rerank *documents* against *query* via Infinity's cross-encoder.
+    """Rerank *documents* against *query* via Qwen3 Reranker 8B.
 
     Args:
         query: The user query string.
@@ -39,20 +41,19 @@ async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> li
     if not query or not documents:
         return []
     with trace_span(
-        "rag.rerank.infinity",
+        "rag.rerank.qwen3",
         {
             "openinference.span.kind": "RERANKER",
-            "openinference.embedding.model": INFINITY_RERANK_MODEL,
+            "openinference.embedding.model": "Qwen3-Reranker-8B-Q4_K_M",
             "rerank.input_count": len(documents),
             "rerank.top_n": top_n,
         },
     ) as span:
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"{settings.infinity_url.rstrip('/')}/rerank",
+                    f"{RERANK_URL.rstrip('/')}/rerank",
                     json={
-                        "model": INFINITY_RERANK_MODEL,
                         "query": query,
                         "documents": documents,
                         "top_n": min(top_n, len(documents)),
@@ -70,7 +71,7 @@ async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> li
 
 
 def reorder_by_relevance(items: list[Any], reranked: list[dict[str, Any]], top_n: int) -> list[Any]:
-    """Reorder *items* (index-aligned with the rerank request) by Infinity
+    """Reorder *items* (index-aligned with the rerank request) by Qwen3
     relevance, mutating each item's ``final_score`` and
     ``metadata["rerank_score"]``.
 
@@ -96,7 +97,7 @@ def reorder_by_relevance(items: list[Any], reranked: list[dict[str, Any]], top_n
 
 
 __all__ = [
-    "INFINITY_RERANK_MODEL",
+    "RERANK_URL",
     "reorder_by_relevance",
     "rerank_results",
 ]
