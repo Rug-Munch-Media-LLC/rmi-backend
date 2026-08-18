@@ -43,7 +43,7 @@ MAX_RAG_TOTAL_RESULTS = 12
 RAG_CONTEXT_MAX_CHARS = 6000
 
 # SearXNG (self-hosted, free, no rate limits)
-SEARXNG_URL = os.getenv("SEARXNG_URL", "http://172.26.0.2:8089")  # SearXNG on fleet-infra_searxng-net
+SEARXNG_URL = os.getenv("SEARXNG_URL", "http://172.26.0.2:8080")  # SearXNG on fleet-infra_searxng-net
 SEARXNG_AUTO = os.getenv("SEARXNG_AUTO", "true").lower() == "true"
 
 # LLM config — uses backup account by default
