@@ -171,6 +171,36 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("news_cache_start_failed err=%s", exc)
 
+    # 11. Background RAG news ingestion — runs every 30 minutes.
+    #    Pulls from 200+ RSS feeds through aggregate_all_news into Qdrant news_v2.
+    #    This keeps the chatbot's RAG context fresh with the latest crypto news.
+    rag_ingest_task = None
+    try:
+        import asyncio as _asyncio
+
+        from app.databus.rag_news_realtime import rag_news_realtime
+
+        async def _rag_ingest_loop() -> None:
+            """Ingest news into Qdrant every 30 minutes on a staggered schedule."""
+            await _asyncio.sleep(30)  # Let app settle before first ingest
+            while True:
+                try:
+                    result = await rag_news_realtime()
+                    ingested = result.get("ingested", 0)
+                    errors = result.get("errors", [])
+                    if errors:
+                        log.warning("rag_news_ingest_partial ingested=%d errors=%d", ingested, len(errors))
+                    else:
+                        log.info("rag_news_ingest_complete ingested=%d", ingested)
+                except Exception as exc:
+                    log.warning("rag_news_ingest_failed err=%s", exc)
+                await _asyncio.sleep(1800)  # 30 minutes
+
+        rag_ingest_task = _asyncio.create_task(_rag_ingest_loop())
+        log.info("rag_news_background_started")
+    except Exception as exc:
+        log.warning("rag_news_background_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -197,6 +227,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await stop_listener(certstream_task)
     except (AttributeError, ImportError):
         pass
+
+    # RAG news ingestion background task shutdown
+    if rag_ingest_task is not None:
+        try:
+            rag_ingest_task.cancel()
+            log.info("rag_news_ingest_background_cancelled")
+        except Exception as exc:
+            log.debug("rag_news_ingest_cancel_failed err=%s", exc)
 
     # Webhook engine shutdown (only if it was started)
     if webhook_engine is not None:

@@ -3,11 +3,13 @@ Continuous RAG News Ingestion
 ==============================
 Ingests ALL 200+ DataBus news sources into Qdrant news_v2 in real-time.
 
-Runs every 30 minutes via the DataBus scheduler chain.
+Runs every 30 minutes via the app lifespan background loop.
 Feeds: aggregate_all_news (RSS × 200+), CryptoPanic, domains news service,
-X/Crypto Twitter, Telegram news sweep — all already consolidated.
+X/Crypto Twitter, Telegram news sweep — all already consolidated into a
+single news_intel pipeline.
 
-Uses the Qdrant hybrid store (bge-m3 dense + sparse, Infinity rerank).
+Uses story clustering (MinHash+DBSCAN) for cross-source dedup before
+embedding into Qdrant via upsert_rag_document (bge-m3 dense + sparse).
 """
 
 from __future__ import annotations
@@ -26,23 +28,21 @@ logger = get_logger("rag_news_realtime")
 # How many recent articles to pull per cycle
 REALTIME_LIMIT = int(os.getenv("RAG_REALTIME_NEWS_LIMIT", "50"))
 
-# Minutes between runs — DataBus scheduler uses this
-REALTIME_INTERVAL = int(os.getenv("RAG_REALTIME_INTERVAL", "30"))
-
 # Qdrant collection target
 QDRANT_COLLECTION = "news_v2"
 
 
 async def rag_news_realtime(**kw) -> dict[str, Any]:
-    """Continuous RAG news ingestion — runs every 30m via DataBus scheduler.
+    """Continuous RAG news ingestion — runs every 30m from lifespan loop.
 
     Pipeline:
-      aggregate_all_news (200+ RSS feeds) → story clusterer → Qdrant news_v2
+      aggregate_all_news (200+ RSS feeds + CT + CryptoPanic)
+      → story clusterer (MinHash+DBSCAN dedup)
+      → upsert_rag_document (bge-m3 embed → Qdrant news_v2)
 
     Returns ingestion stats for monitoring.
     """
     from app.databus.news_intel import aggregate_all_news
-    from app.rag.qdrant_store import get_qdrant_store
 
     now = datetime.now(UTC)
     logger.info("rag_news_realtime: starting ingestion cycle")
@@ -58,121 +58,86 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
         logger.info("rag_news_realtime: no new articles to ingest")
         return {"status": "ok", "fetched": 0, "ingested": 0, "collection": QDRANT_COLLECTION}
 
-    # Get Qdrant upsert function
-    try:
-        from app.rag.qdrant_store import upsert_rag_document
+    # ── Phase 1: Cluster articles into stories for cross-source dedup ──
+    # Use the same story clusterer that the nightly indexer uses.
+    # The clusterer produces ONE story doc per unique story, with multiple
+    # sources attached. This prevents 20 RSS feeds from creating 20 Qdrant
+    # points for the same news event.
+    from app.domains.news.clusterer import NewsItem as ClusterNewsItem, build_story_rag_docs
+    from app.rag.qdrant_store import upsert_rag_document
 
-        use_qdrant = True
-    except Exception:
-        use_qdrant = False
-
-    ingested = 0
-    skipped = 0
-    errors: list[str] = []
+    cluster_input: list[ClusterNewsItem] = []
+    article_map: dict[str, dict[str, Any]] = {}
 
     for article in articles:
         title = str(article.get("title", "") or "").strip()
         if not title:
-            skipped += 1
             continue
-
         url = str(article.get("url", "") or article.get("link", "") or "").strip()
-        summary = str(article.get("summary") or article.get("description") or "")[:800]
+        summary = str(article.get("summary") or article.get("description") or "")[:500]
         source = str(article.get("source", "") or "")[:100]
-        published = str(
+        published_str = str(
             article.get("published_at") or article.get("published") or article.get("created_at") or now.isoformat()
         )[:50]
-
-        # Stable doc_id for dedup
-        content_key = url or title
-        doc_id = f"news:{hashlib.sha256(content_key.encode()).hexdigest()[:16]}"
-
-        # Build content for embedding
-        content = f"# {title}\n\n{summary}\n\nSource: {source}" if summary else title
-
-        # Build payload
-        payload = {
-            "source": source,
-            "source_type": article.get("source_type", ""),
-            "published_at": published,
-            "url": url,
-            "title": title,
-            "indexed_at": now.isoformat(),
-            "ingestion": "realtime",
-            "categories": article.get("categories", []),
-            "sentiment_label": article.get("sentiment", {}).get("sentiment", ""),
-            "sentiment_score": article.get("sentiment", {}).get("score", 0),
-            "text": content[:2000],
-        }
-
         try:
-            if use_qdrant:
-                ok = await upsert_rag_document(
-                    doc_id=doc_id,
-                    text=content[:2000],
-                    payload=payload,
-                    collection=QDRANT_COLLECTION,
-                )
-                if ok:
-                    ingested += 1
-                else:
-                    errors.append(f"{doc_id}: qdrant_upsert_failed")
-            else:
-                # Fallback to old path
-                errors.append(f"{doc_id}: qdrant_unavailable")
-        except Exception as e:
-            errors.append(f"{doc_id}: {e!s}")
+            pub_dt = datetime.fromisoformat(published_str.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            pub_dt = now
+        key = url or f"hash:{hashlib.sha256(title.encode()).hexdigest()[:12]}"
+        sent_raw = article.get("sentiment")
+        sent_val = (
+            float(sent_raw.get("score") or 0.0)
+            if isinstance(sent_raw, dict)
+            else (float(sent_raw or 0.0) if sent_raw else 0.0)
+        )
+        cluster_input.append(
+            ClusterNewsItem(
+                id=key,
+                title=title,
+                body=summary,
+                source=source,
+                url=url,
+                published_at=pub_dt,
+                sentiment=sent_val,
+            )
+        )
+        article_map[key] = article
 
-    return {
-        "status": "ok",
-        "collection": QDRANT_COLLECTION,
-        "fetched": len(articles),
-        "ingested": ingested,
-        "skipped": skipped,
-        "errors": errors[:5],
-        "indexed_at": now.isoformat(),
-    }
+    if not cluster_input:
+        return {"status": "ok", "fetched": len(articles), "ingested": 0, "collection": QDRANT_COLLECTION}
 
+    story_docs = build_story_rag_docs(cluster_input)
+    dedup_ratio = len(cluster_input) / max(len(story_docs), 1)
+    logger.info(
+        "rag_news_realtime: %d articles → %d stories (%.1f:1 dedup)",
+        len(cluster_input),
+        len(story_docs),
+        dedup_ratio,
+    )
 
-async def _fallback_ingest_via_batch_ingestor(articles: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
-    """Fallback: use the existing BatchIngestor path when Qdrant is unavailable."""
-    from app.rag.ingestion import BatchIngestor
-
-    ingestor = BatchIngestor()
+    # ── Phase 2: Ingest each story doc into Qdrant ──
     ingested = 0
     errors: list[str] = []
 
-    for article in articles:
-        title = str(article.get("title", "") or "").strip()
-        if not title:
-            continue
-        url = str(article.get("url", "") or article.get("link", "") or "").strip()
-        summary = str(article.get("summary") or article.get("description") or "")[:800]
-        source = str(article.get("source", "") or "")[:100]
-
-        content = f"# {title}\n\n{summary}\n\nSource: {source}" if summary else title
-        content_key = url or title
-        doc_id = f"news:{hashlib.sha256(content_key.encode()).hexdigest()[:16]}"
-
-        meta = {
-            "source": source,
-            "source_type": article.get("source_type", ""),
-            "published_at": str(article.get("published_at") or article.get("published") or now.isoformat()),
-            "url": url,
-            "title": title,
-            "indexed_at": now.isoformat(),
-        }
+    for doc in story_docs:
+        doc_id = doc.get("doc_id", "")
+        content = doc.get("content", "")[:2000]
+        metadata = dict(doc.get("metadata", {}))
+        metadata.setdefault("indexed_at", now.isoformat())
+        metadata.setdefault("ingestion", "realtime_clustered")
+        metadata.setdefault("text", content)
 
         try:
-            report = await ingestor.ingest(
-                content=content,
-                collection=QDRANT_COLLECTION,
+            ok = await upsert_rag_document(
                 doc_id=doc_id,
-                metadata=meta,
-                source_type="news",
+                text=content,
+                payload=metadata,
+                collection=QDRANT_COLLECTION,
             )
-            if report.accepted:
+            if ok:
                 ingested += 1
+            else:
+                errors.append(f"{doc_id}: upsert_failed")
         except Exception as e:
             errors.append(f"{doc_id}: {e!s}")
 
@@ -181,7 +146,7 @@ async def _fallback_ingest_via_batch_ingestor(articles: list[dict[str, Any]], no
         "collection": QDRANT_COLLECTION,
         "fetched": len(articles),
         "ingested": ingested,
+        "stories": len(story_docs),
         "errors": errors[:5],
         "indexed_at": now.isoformat(),
-        "fallback": True,
     }
