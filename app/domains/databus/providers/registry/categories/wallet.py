@@ -129,20 +129,27 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
 
     chains["token_metadata"] = ProviderChain(
         data_type="token_metadata",
-        description="Token metadata lookup (DexScreener free → Alchemy freemium)",
+        description="Token metadata lookup (local price oracle → DexScreener free → Alchemy freemium)",
         providers=[
+            Provider(
+                "token_meta_local",
+                ProviderTier.LOCAL,
+                _g["token_meta_local"],
+                weight=10.0,
+                rate_limit_rps=30.0,
+            ),
             Provider(
                 "dexscreener_meta",
                 ProviderTier.FREE_API,
                 _g["_dexscreener_token_metadata"],
-                weight=10.0,
+                weight=5.0,
                 rate_limit_rps=3.0,
             ),
             Provider(
                 "alchemy_metadata",
                 ProviderTier.FREEMIUM,
                 _g["_alchemy_token_metadata"],
-                weight=5.0,
+                weight=3.0,
                 rate_limit_rps=10.0,
                 requires_key=True,
                 key_env="ALCHEMY_API_KEY",

@@ -538,7 +538,6 @@ class DataBus:
                 in (
                     "scanner",
                     "token_price",
-                    "token_metadata",
                     "holder_data",
                 )
                 and address
