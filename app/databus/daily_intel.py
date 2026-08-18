@@ -190,43 +190,66 @@ def _build_research_context(data: dict[str, Any]) -> str:
 
 
 WRITING_STANDARDS = """You are a senior financial writer for RugCharts Daily Intelligence.
+You write the kind of daily briefing that professionals pay for: sharp,
+conversational, data-rich, and worth forwarding. Every sentence earns its place.
 
 WRITING STANDARDS:
-- Human, conversational tone. Like a sharp newsletter, not a robot.
-- No AI-isms: never use "delve", "tapestry", "landscape", "robust", "moreover", "furthermore"
-- Lead with the most important story. Hook the reader.
-- Be specific: use numbers, names, percentages. No vague statements.
-- Include market sentiment, social mood, and what traders are actually talking about
-- One section on MEMES/CULTURE - what's trending on CT
-- One section on RISK RADAR - scams, hacks, regulatory threats to watch
-- End with BOTTOM LINE - actionable takeaway in 2 sentences
+- Voice: Like a well-informed friend who actually trades. Direct, confident,
+  occasionally wry. Never stiff. Never hype. Just sharp analysis.
+- No AI-isms: never use "delve", "tapestry", "landscape", "robust", "moreover",
+  "furthermore", "in the realm of", "it is worth noting". Write like a human.
+- Lead with the hook. First 2 sentences must grab the reader: what happened,
+  why it matters, and where the market stands RIGHT NOW.
+- Be specific: every claim gets a number, name, or percentage. "Bitcoin is up"
+  is weak — "BTC ripped 4.2% to $67,800, blowing through resistance" is sharp.
+- Paragraph structure: short paragraphs with proper line breaks. Every
+  paragraph is 2-4 sentences max. No wall of text. No bullet lists in the
+  body — bullets only for the TOP STORIES section.
+- Sections: each section has a brief intro paragraph THEN the detail. Not
+  just a list of facts. Tell the story, don't dump data.
 
-FORMAT EXACTLY LIKE THIS:
+FORMAT — Follow this EXACT structure with proper paragraph spacing:
 
 # RUGCHARTS DAILY INTELLIGENCE
 ## {Date}
 
 ### MARKET SNAPSHOT
-{2-3 sentences on overall market}
+[2-3 sentences. Opening hook that sets the scene: what moved, by how much,
+the key driver. Then context: why it happened, what it means for today.]
+
+[1-2 sentences on what to watch next — levels, events, or key data points
+that will determine the next move.]
 
 ### TOP STORIES
-{3-5 bullet points of most important news with brief context}
+[3-5 bullet points. Each bullet: the story in bold, then a brief why-it-matters
+in plain text. Use numbers, names, percentages.]
+
+• **Story headline** — Why it matters in one or two sentences with specific data.
+• **Next story** — Context and significance.
+• **Third story** — What happened and what comes next.
 
 ### SENTIMENT CHECK
-{Market mood: fear/greed, social sentiment, what CT is feeling}
+[1-2 paragraphs on market mood. Fear & Greed index number, social sentiment,
+what Crypto Twitter is arguing about today. Include specific tweets or takes
+when notable. End with whether the crowd is right or wrong.]
 
 ### MEMES & CULTURE
-{What's trending on CT, notable memes, cultural moments}
+[The fun section. What's trending on CT right now — the memes, the narratives,
+the cultural moments. One paragraph of sharp observation. This is where your
+voice shines.]
 
 ### RISK RADAR
-{Scams, hacks, regulatory actions, things to avoid today}
+[1-2 paragraphs on what to watch out for today: active hacks, regulatory
+moves, scam channels shilling something dangerous, smart money de-risking.
+Be specific: name the token, the hack, the regulator action.]
 
 ### BOTTOM LINE
-{1-2 sentence actionable takeaway}
+[ONE short paragraph. 2-3 sentences max. The actionable takeaway. What the
+reader should DO with this information today.]
 
 ---
 Published by RugCharts Daily Intelligence
-Subscribe: https://rugmunch.io/news"""
+📊 rugmunch.io/news  |  🤖 @RugMunchBot  |  🐦 @CryptoRugMunch"""
 
 
 async def generate_daily_intel(publish: bool = False, **kw) -> dict[str, Any] | None:
@@ -446,47 +469,116 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict[str, Any]:
 
 
 async def _publish_to_telegram(report: str, date_str: str) -> dict[str, Any]:
-    """Send briefing to Telegram channel."""
+    """Send briefing to Telegram channel with clean HTML formatting."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     channel = os.getenv("CHANNEL_NEWS", "") or os.getenv("CHANNEL_ALERTS", "")
 
     if not bot_token or not channel:
         return {"status": "skipped", "reason": "Telegram not configured"}
 
-    # Create a shorter version for Telegram
     lines = report.split("\n")
-    tg_text = f"📊 *RugCharts Daily Intelligence*\n{date_str}\n\n"
+    tg_parts: list[str] = []
+    current_section = ""
+    in_bullets = False
 
-    # Extract key sections
-    for i, line in enumerate(lines):
-        if line.startswith("### "):
-            tg_text += f"\n*{line.strip('# ')}*\n"
-        elif line.startswith("- ") and len(tg_text) < 3500:
-            tg_text += f"{line}\n"
-        elif "BOTTOM LINE" in line and i + 1 < len(lines):
-            next_line = lines[i + 1]
-            tg_text += f"\n💡 *Bottom Line:* {next_line}\n"
-            break
+    for line in lines:
+        stripped = line.strip()
 
-    tg_text += "\n🔗 Full report: https://rugmunch.io/news"
+        # Title
+        if stripped.startswith("# ") and not stripped.startswith("##"):
+            title = stripped.lstrip("# ")
+            tg_parts.append(f"<b>{title}</b>")
+            continue
 
-    try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.post(
-                f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                json={
-                    "chat_id": channel,
-                    "text": tg_text[:4000],
-                    "parse_mode": "Markdown",
-                    "disable_web_page_preview": False,
-                },
-            )
-            if r.status_code == 200:
-                return {"status": "sent", "platform": "telegram"}
+        # Date subtitle
+        if stripped.startswith("## ") and "date" not in stripped.lower() and "intelligence" not in stripped.lower():
+            tg_parts.append(f"<i>{stripped.lstrip('## ').strip()}</i>\n")
+            continue
+
+        # Section headers
+        if stripped.startswith("### "):
+            if in_bullets:
+                tg_parts.append("")
+                in_bullets = False
+            current_section = stripped.lstrip("### ").strip()
+            tg_parts.append(f"\n<b>{current_section}</b>\n")
+            continue
+
+        # Bullet points
+        if stripped.startswith("- ") or stripped.startswith("• "):
+            in_bullets = True
+            bullet_text = stripped.lstrip("- •").strip()
+            # Handle **bold** markers in bullets
+            bullet_text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", bullet_text)
+            if " — " in bullet_text:
+                parts = bullet_text.split(" — ", 1)
+                tg_parts.append(f"  • <b>{parts[0]}</b> — {parts[1]}")
             else:
-                return {"status": "failed", "platform": "telegram", "error": r.text[:200]}
-    except (httpx.HTTPError, httpx.TimeoutException, TelegramError) as e:
-        return {"status": "error", "platform": "telegram", "error": str(e)[:200]}
+                tg_parts.append(f"  • {bullet_text}")
+            continue
+        else:
+            if in_bullets:
+                tg_parts.append("")
+                in_bullets = False
+
+        # Empty line = paragraph break
+        if not stripped:
+            tg_parts.append("")
+            continue
+
+        # Regular paragraph text
+        paragraph = stripped
+        paragraph = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", paragraph)
+        paragraph = re.sub(r"\*(.+?)\*", r"<i>\1</i>", paragraph)
+        tg_parts.append(paragraph)
+
+    # Now build the final Telegram message
+    tg_text = "\n".join(tg_parts)
+
+    # Split into multiple messages if too long (4096 char limit)
+    max_len = 4000
+    messages = []
+    if len(tg_text) > max_len:
+        # Try to split on section boundaries
+        sections = tg_text.split("\n<b>")
+        current = ""
+        for section in sections:
+            if section.startswith("RUGCHARTS"):
+                current = f"<b>{section}" if not current else section
+                continue
+            section_tag = f"<b>{section}" if not section.startswith("<b>") else section
+            if len(current) + len(section_tag) < max_len:
+                current += section_tag
+            else:
+                if current:
+                    messages.append(current[:max_len])
+                current = section_tag
+        if current:
+            messages.append(current[:max_len])
+    else:
+        messages = [tg_text]
+
+    results = []
+    for msg in messages[:4]:  # Max 4 messages per briefing
+        try:
+            async with httpx.AsyncClient(timeout=15) as c:
+                r = await c.post(
+                    f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                    json={
+                        "chat_id": channel,
+                        "text": msg.strip(),
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": False,
+                    },
+                )
+                if r.status_code == 200:
+                    results.append({"status": "sent", "length": len(msg)})
+                else:
+                    results.append({"status": "failed", "error": r.text[:200]})
+        except (httpx.HTTPError, httpx.TimeoutException, TelegramError) as e:
+            results.append({"status": "error", "error": str(e)[:200]})
+
+    return {"status": "sent" if any(r["status"] == "sent" for r in results) else "failed", "messages": results}
 
 
 def _markdown_to_html(md: str) -> str:
