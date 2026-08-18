@@ -25,10 +25,10 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
     try:
         from app.databus.rag_ingestion import (
             check_news_staleness,
-            index_databus_news,
             nightly_rag_index,
             rag_health_check,
         )
+        from app.databus.rag_news_realtime import rag_news_realtime as index_databus_news
     except ImportError:
         check_news_staleness = index_databus_news = None  # type: ignore[assignment]  # optional module fallback
         nightly_rag_index = rag_health_check = None  # type: ignore[assignment]  # optional module fallback
@@ -162,7 +162,7 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
 
     chains["rag_news_realtime"] = ProviderChain(
         "rag_news_realtime",
-        description="Realtime DataBus news → RAG news_v2 ingestion (freshest wired source; normalized published_at timestamps)",
+        description="Realtime DataBus news → RAG news_v2 ingestion via Qdrant hybrid store (200+ sources, Infinity rerank)",
         providers=[
             Provider(
                 "databus_news_ingest",
@@ -170,6 +170,7 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 index_databus_news,
                 weight=10.0,
                 rate_limit_rps=1.0,
+                interval_minutes=30,
             )
         ],
     )
