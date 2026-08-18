@@ -21,6 +21,8 @@ from pydantic import BaseModel
 
 from app import llm_config
 from app.core.logging import get_logger
+from app.domains.chat_tools._intent import _detect_tool_intent
+from app.domains.chat_tools.dispatcher import _run_tool_for_intent
 from app.rag.chat_integration import chat_with_context, direct_chat
 
 logger = get_logger("ai_stream")
@@ -68,9 +70,6 @@ async def _stream_response(prompt: str, task: str, disable_rag: bool = False) ->
         return
 
     # Detect tool intent (price/scan/news/market etc.)
-    from app.domains.chat_tools._intent import _detect_tool_intent
-    from app.domains.chat_tools.dispatcher import _run_tool_for_intent
-
     intent = _detect_tool_intent(prompt) if not disable_rag else None
     tool_result = await _run_tool_for_intent(prompt, intent) if intent else None
 

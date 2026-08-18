@@ -58,12 +58,13 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
         logger.info("rag_news_realtime: no new articles to ingest")
         return {"status": "ok", "fetched": 0, "ingested": 0, "collection": QDRANT_COLLECTION}
 
-    # Get Qdrant store
+    # Get Qdrant upsert function
     try:
-        store = get_qdrant_store(QDRANT_COLLECTION)
-    except Exception as e:
-        logger.warning("rag_news_realtime: Qdrant unavailable, trying BatchIngestor path: %s", e)
-        return await _fallback_ingest_via_batch_ingestor(articles, now)
+        from app.rag.qdrant_store import upsert_rag_document
+
+        use_qdrant = True
+    except Exception:
+        use_qdrant = False
 
     ingested = 0
     skipped = 0
@@ -86,8 +87,11 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
         content_key = url or title
         doc_id = f"news:{hashlib.sha256(content_key.encode()).hexdigest()[:16]}"
 
-        # Build metadata
-        meta = {
+        # Build content for embedding
+        content = f"# {title}\n\n{summary}\n\nSource: {source}" if summary else title
+
+        # Build payload
+        payload = {
             "source": source,
             "source_type": article.get("source_type", ""),
             "published_at": published,
@@ -98,25 +102,24 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
             "categories": article.get("categories", []),
             "sentiment_label": article.get("sentiment", {}).get("sentiment", ""),
             "sentiment_score": article.get("sentiment", {}).get("score", 0),
+            "text": content[:2000],
         }
 
-        # Build content for embedding
-        content = f"# {title}\n\n{summary}\n\nSource: {source}" if summary else title
-
         try:
-            # Upsert into Qdrant — stable doc_id = idempotent
-            store.upsert(
-                vectors=[],  # store handles embedding internally
-                payloads=[
-                    {
-                        **meta,
-                        "text": content[:2000],
-                        "doc_id": doc_id,
-                    }
-                ],
-                ids=[doc_id],
-            )
-            ingested += 1
+            if use_qdrant:
+                ok = await upsert_rag_document(
+                    doc_id=doc_id,
+                    text=content[:2000],
+                    payload=payload,
+                    collection=QDRANT_COLLECTION,
+                )
+                if ok:
+                    ingested += 1
+                else:
+                    errors.append(f"{doc_id}: qdrant_upsert_failed")
+            else:
+                # Fallback to old path
+                errors.append(f"{doc_id}: qdrant_unavailable")
         except Exception as e:
             errors.append(f"{doc_id}: {e!s}")
 
