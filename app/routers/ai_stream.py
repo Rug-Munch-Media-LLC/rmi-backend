@@ -60,6 +60,9 @@ async def _stream_response(prompt: str, task: str, disable_rag: bool = False) ->
 
     Emits SSE chunks: ``data: {"token": ...}`` → ``data: {"sources": [...]}``
     → ``data: {"done": true, "model": ...}``. Fails open on errors.
+
+    Sends an immediate ``thinking`` event so the client never sees a silent
+    connection while RAG + LLM work (can take 15-50s first query).
     """
     tier = _tier_for(task)
     model = _model_for(tier)
@@ -69,6 +72,9 @@ async def _stream_response(prompt: str, task: str, disable_rag: bool = False) ->
         yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
         return
 
+    # Send immediate heartbeat so client knows connection is alive
+    yield f"data: {json.dumps({'event': 'thinking', 'message': 'Analyzing...'})}\n\n"
+
     # Detect tool intent (price/scan/news/market etc.)
     intent = _detect_tool_intent(prompt) if not disable_rag else None
     tool_result = await _run_tool_for_intent(prompt, intent) if intent else None
@@ -77,13 +83,18 @@ async def _stream_response(prompt: str, task: str, disable_rag: bool = False) ->
         # Fast path: no context, no tools
         result = await direct_chat(prompt, tier=tier)
     else:
-        # Full RAG path
-        result = await chat_with_context(
-            prompt,
-            tool_result=tool_result,
-            intent=intent,
-            tier="long" if tool_result else tier,  # Use long tier for tool results
-        )
+        # Full RAG path — wrap with timeout so we never hang forever
+        rag_tier = "long" if tool_result else tier
+        try:
+            result = await asyncio.wait_for(
+                chat_with_context(prompt, tool_result=tool_result, intent=intent, tier=rag_tier),
+                timeout=120.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("rag_stream_timeout prompt=%r", prompt[:60])
+            yield f"data: {json.dumps({'error': 'Analysis timed out. Please try a simpler question.'})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
+            return
 
     answer = result.get("answer", "")
     sources = result.get("sources", [])
@@ -93,10 +104,8 @@ async def _stream_response(prompt: str, task: str, disable_rag: bool = False) ->
         yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
         return
 
-    # Stream tokens
-    for word in answer.split():
-        yield f"data: {json.dumps({'token': word + ' '})}\n\n"
-        await asyncio.sleep(0.02)
+    # Send full answer as single chunk (pre-computed by LLM, no need to fake word-by-word)
+    yield f"data: {json.dumps({'token': answer})}\n\n"
 
     # Stream sources after the answer
     if sources:
