@@ -1,14 +1,16 @@
 """
-RugCharts Daily Intelligence Briefing
-======================================
-THE daily market briefing. AI-researched, AI-written, human-quality.
-Published 6:30 AM ET to X (@CryptoRugMunch), Telegram, Ghost CMS.
+The Daily Rug — Premium Crypto Intelligence Briefing
+=====================================================
+THE daily market briefing people would pay for.
+AI-researched, human-written quality, no hype, no filler.
+Published 6:30 AM ET to Ghost CMS, Telegram (@rmicryptonews),
+X (@CryptoRugMunch), and Farcaster.
 
 Pipeline:
   1. Gather - all DataBus sources (prices, news, CT, sentiment, fear/greed, memes)
   2. Research - OpenRouter free model analyzes everything
   3. Write - OpenRouter free model produces the final report
-  4. Publish - X/Twitter, Telegram, Ghost CMS
+  4. Publish - Ghost CMS → syndicate to X, Telegram, Farcaster
 
 Free models used (zero cost):
   Research: nvidia/nemotron-3-super-120b-a12b:free (1M ctx, 120B MoE)
@@ -59,7 +61,7 @@ async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int =
                     "Authorization": f"Bearer {OPENROUTER_KEY}",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://rugmunch.io",
-                    "X-Title": "RugCharts Daily Intel",
+                    "X-Title": "The Daily Rug",
                 },
                 json={
                     "model": model,
@@ -189,71 +191,81 @@ def _build_research_context(data: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
-WRITING_STANDARDS = """You are a senior financial writer for RugCharts Daily Intelligence.
-You write the kind of daily briefing that professionals pay for: sharp,
-conversational, data-rich, and worth forwarding. Every sentence earns its place.
+WRITING_STANDARDS = """You are the senior writer for The Daily Rug — a premium
+crypto intelligence briefing that people would actually pay to read.
 
-WRITING STANDARDS:
-- Voice: Like a well-informed friend who actually trades. Direct, confident,
-  occasionally wry. Never stiff. Never hype. Just sharp analysis.
-- No AI-isms: never use "delve", "tapestry", "landscape", "robust", "moreover",
-  "furthermore", "in the realm of", "it is worth noting". Write like a human.
-- Lead with the hook. First 2 sentences must grab the reader: what happened,
-  why it matters, and where the market stands RIGHT NOW.
-- Be specific: every claim gets a number, name, or percentage. "Bitcoin is up"
-  is weak — "BTC ripped 4.2% to $67,800, blowing through resistance" is sharp.
-- Paragraph structure: short paragraphs with proper line breaks. Every
-  paragraph is 2-4 sentences max. No wall of text. No bullet lists in the
-  body — bullets only for the TOP STORIES section.
-- Sections: each section has a brief intro paragraph THEN the detail. Not
-  just a list of facts. Tell the story, don't dump data.
+You write at the level of Axios Pro, Sherwood News, or Blockworks Research.
+Every issue must deliver signal the reader cannot get elsewhere.
 
-FORMAT — Follow this EXACT structure with proper paragraph spacing:
+VOICE & TONE:
+- Sharp, editorial, confident. Write like Matt Levine crossed with a crypto
+  trader who has seen it all. Dry humor is welcome. Cynicism is earned.
+- Every sentence earns its place. If it's obvious, cut it. If it's vague,
+  make it specific. If it's boring, kill it.
+- Lead with the hook. First paragraph must reward the reader for opening:
+  what happened, why it matters, and what comes next — all in 3-4 sentences.
 
-# RUGCHARTS DAILY INTELLIGENCE
+WRITING STANDARDS (these are hard rules):
+- No AI-isms ever: "delve", "tapestry", "landscape", "robust", "moreover",
+  "furthermore", "in the realm of", "it is worth noting", "a myriad of",
+  "a plethora of" — all banned. Write like a human.
+- Be specific: every claim gets a number, name, or percentage. "Bitcoin is
+  up" is weak — "BTC ripped 4.2% to $67,800, blowing through resistance on
+  2.3x average volume" is what we pay for.
+- Paragraph structure: 2-4 sentences max per paragraph. Short, punchy,
+  authoritative. No wall of text. Never. A paragraph is one idea, well said.
+- BOLD in TOP STORIES: each bullet starts with the story headline in bold,
+  then a plain-text why-it-matters sentence. Like: "• **BTC reclaims $68K** —
+  The move came on $347M in spot ETF inflows, the largest single day since May."
+- Narrative arc: each section tells a story, not a list of facts. Market
+  Snapshot opens the scene. Sentiment Check tells you what traders feel and
+  whether they're right. Risk Radar names specific tokens, wallets, or
+  protocols. Bottom Line gives ONE actionable takeaway.
+
+FORMAT — Follow this structure exactly:
+
+# THE DAILY RUG
 ## {Date}
 
 ### MARKET SNAPSHOT
-[2-3 sentences. Opening hook that sets the scene: what moved, by how much,
-the key driver. Then context: why it happened, what it means for today.]
+[Opening hook — 3-4 sentences. What moved, by how much, the key driver.
+Then context: why it happened, what it means for today's session.]
 
-[1-2 sentences on what to watch next — levels, events, or key data points
-that will determine the next move.]
+[1-2 sentences on the key level or event to watch.]
 
 ### TOP STORIES
-[3-5 bullet points. Each bullet: the story in bold, then a brief why-it-matters
-in plain text. Use numbers, names, percentages.]
+[3-5 bullet points. Each: bold headline + context with data.]
 
-• **Story headline** — Why it matters in one or two sentences with specific data.
-• **Next story** — Context and significance.
-• **Third story** — What happened and what comes next.
+• **{Story}** — Why it matters in 1-2 sentences with specific numbers.
+• **{Story}** — Context and significance. Never vague.
+• **{Story}** — What happened and what the market should watch next.
 
 ### SENTIMENT CHECK
-[1-2 paragraphs on market mood. Fear & Greed index number, social sentiment,
-what Crypto Twitter is arguing about today. Include specific tweets or takes
-when notable. End with whether the crowd is right or wrong.]
+[1-2 paragraphs. Fear & Greed, social sentiment, what CT is arguing about.
+Quote a notable tweet if it captures the mood. End with whether the crowd
+is positioned correctly or about to get wrecked.]
 
 ### MEMES & CULTURE
-[The fun section. What's trending on CT right now — the memes, the narratives,
-the cultural moments. One paragraph of sharp observation. This is where your
-voice shines.]
+[1 paragraph. What's actually funny, interesting, or culturally notable in
+crypto right now. The memes, the narratives, the moments that define the
+vibe. This is where your voice gets to have fun.]
 
 ### RISK RADAR
-[1-2 paragraphs on what to watch out for today: active hacks, regulatory
-moves, scam channels shilling something dangerous, smart money de-risking.
-Be specific: name the token, the hack, the regulator action.]
+[1-2 paragraphs on real threats: active exploits, regulatory moves, scam
+channels shilling obvious rugs, smart money rotation that reveals fear.
+Name names. Specific protocols, tokens, wallets, or actors.]
 
 ### BOTTOM LINE
-[ONE short paragraph. 2-3 sentences max. The actionable takeaway. What the
-reader should DO with this information today.]
+[ONE short paragraph. 2-3 sentences. The actionable takeaway. What the
+reader should DO or WATCH today. Nothing vague — be direct.]
 
 ---
-Published by RugCharts Daily Intelligence
-📊 rugmunch.io/news  |  🤖 @RugMunchBot  |  🐦 @CryptoRugMunch"""
+The Daily Rug — Premium Crypto Intelligence
+📊 feed.rugmunch.io  |  🤖 @RugMunchBot  |  🐦 @CryptoRugMunch"""
 
 
 async def generate_daily_intel(publish: bool = False, **kw) -> dict[str, Any] | None:
-    """Generate the complete Daily Intelligence Briefing with quality review.
+    """Generate The Daily Rug with quality review.
 
     Pipeline: Gather → Research → Write → Review → Fix → Publish
     All AI calls through model_registry (free models only).
@@ -289,7 +301,7 @@ async def generate_daily_intel(publish: bool = False, **kw) -> dict[str, Any] | 
     now = datetime.now(UTC)
     date_str = now.strftime("%A, %B %d, %Y")
 
-    writing_prompt = f"""Write today's RugCharts Daily Intelligence.
+    writing_prompt = f"""Write today's The Daily Rug — the premium crypto briefing
 
 Today: {date_str}
 
@@ -300,7 +312,7 @@ Raw context:
 {context[:2500]}
 
 FORMAT:
-# RUGCHARTS DAILY INTELLIGENCE
+# THE DAILY RUG
 ## {date_str}
 
 ### MARKET SNAPSHOT
@@ -326,7 +338,7 @@ Scams, hacks, regulatory actions. What to avoid today.
 
     if not final_report or len(final_report) < 200:
         headlines = data.get("news", {}).get("articles", [])
-        final_report = f"""# RUGCHARTS DAILY INTELLIGENCE
+        final_report = f"""# THE DAILY RUG
 ## {date_str}
 
 ### MARKET SNAPSHOT
@@ -361,7 +373,7 @@ Stay sharp. Data-driven decisions only."""
         "data_sources": sum(1 for v in data.values() if v),
         "generated_at": datetime.now(UTC).isoformat(),
         "published": False,
-        "source": "daily_intel_briefing",
+        "source": "the_daily_rug",
     }
 
     # ── PHASE 4: Publish (Ghost first, then syndicate) ──
@@ -385,11 +397,78 @@ async def _publish_briefing(report: str, date_str: str) -> dict[str, Any]:
     ghost_result = await _publish_to_ghost(report, date_str)
     results["ghost"] = ghost_result
 
-    # ── Telegram (via send_message or bot) ──
+    # ── Telegram ──
     tg_result = await _publish_to_telegram(report, date_str)
     results["telegram"] = tg_result
 
+    # ── Farcaster via Neynar API ──
+    fc_result = await _publish_to_farcaster(report, date_str)
+    results["farcaster"] = fc_result
+
     return results
+
+
+async def _publish_to_farcaster(report: str, date_str: str) -> dict[str, Any]:
+    """Post The Daily Rug to Farcaster via Neynar API."""
+    api_key = os.getenv("NEYNAR_API_KEY", "")
+    signer_uuid = os.getenv("FARCASTER_SIGNER_UUID", "")
+    if not api_key or not signer_uuid:
+        return {"status": "skipped", "reason": "Farcaster not configured"}
+
+    # Extract a concise cast from the report
+    lines = report.split("\n")
+    cast_lines = []
+    cast_lines.append(f"📊 The Daily Rug — {date_str}\n")
+
+    for line in lines:
+        s = line.strip()
+        if s.startswith("### MARKET SNAPSHOT"):
+            # Grab the next 2 non-empty, non-header lines
+            idx = lines.index(line)
+            grabbed = 0
+            for l in lines[idx + 1 :]:
+                ls = l.strip()
+                if ls and not ls.startswith("#"):
+                    cast_lines.append(ls[:240])
+                    grabbed += 1
+                    if grabbed >= 3:
+                        break
+        if s.startswith("### TOP STORIES"):
+            idx = lines.index(line)
+            for l in lines[idx + 1 : idx + 6]:
+                ls = l.strip()
+                if ls and ls.startswith(("- ", "• ")):
+                    cast_lines.append(ls[:200])
+
+        if s.startswith("### BOTTOM LINE"):
+            idx = lines.index(line)
+            for l in lines[idx + 1 : idx + 3]:
+                ls = l.strip()
+                if ls and not ls.startswith("#") and not ls.startswith("---"):
+                    cast_lines.append(f"\n{ls[:240]}")
+
+    cast_text = "\n".join(cast_lines)[:1024]  # Farcaster 1024 char limit
+    cast_text += "\n\n🔗 feed.rugmunch.io"
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.post(
+                "https://api.neynar.com/v2/farcaster/cast",
+                headers={
+                    "api_key": api_key,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "signer_uuid": signer_uuid,
+                    "text": cast_text,
+                },
+            )
+            if r.status_code in (200, 201):
+                return {"status": "posted", "platform": "farcaster", "hash": r.json().get("hash", "")}
+            else:
+                return {"status": "failed", "platform": "farcaster", "error": r.text[:200]}
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
+        return {"status": "error", "platform": "farcaster", "error": str(e)[:200]}
 
 
 async def _publish_to_x(report: str, date_str: str) -> dict[str, Any]:
@@ -411,9 +490,9 @@ async def _publish_to_x(report: str, date_str: str) -> dict[str, Any]:
                 tldr = lines[idx + 1].strip().lstrip("- ")[:240]
 
     if not headline:
-        headline = f"RugCharts Daily Intelligence - {date_str}"
+        headline = f"The Daily Rug - {date_str}"
 
-    tweet_text = f"📊 {headline}\n\n{tldr}\n\nFull report: https://rugmunch.io/news"
+    tweet_text = f"📊 The Daily Rug — {date_str}\n\n{headline}\n\n{tldr}\n\nFull issue: https://feed.rugmunch.io"
 
     try:
         result = subprocess.run(
@@ -435,7 +514,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict[str, Any]:
     try:
         # Extract title from report
         report.split("\n")
-        title = f"Daily Intelligence - {date_str}"
+        title = f"The Daily Rug - {date_str}"
 
         # Convert markdown to Ghost HTML
         html = _markdown_to_html(report)
@@ -454,7 +533,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict[str, Any]:
                             "title": title,
                             "html": html,
                             "status": "published",
-                            "tags": ["daily", "intelligence", "briefing"],
+                            "tags": ["the-daily-rug", "market-intel", "crypto-briefing"],
                             "feature_image": "",
                         }
                     ]
@@ -543,7 +622,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict[str, Any]:
         sections = tg_text.split("\n<b>")
         current = ""
         for section in sections:
-            if section.startswith("RUGCHARTS"):
+            if section.startswith("THE DAILY RUG"):
                 current = f"<b>{section}" if not current else section
                 continue
             section_tag = f"<b>{section}" if not section.startswith("<b>") else section
