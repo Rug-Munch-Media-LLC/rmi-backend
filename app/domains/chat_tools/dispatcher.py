@@ -24,6 +24,8 @@ from .trace import _exec_trace
 logger = get_logger(__name__)
 
 TOOL_TIMEOUT_SECONDS = 8.0
+TOOL_MAX_RETRIES = 2
+TOOL_RETRY_DELAYS = (1.0, 2.0)
 
 _EXECUTORS: dict[str, Any] = {
     "price": _exec_price,
@@ -38,8 +40,48 @@ _EXECUTORS: dict[str, Any] = {
 }
 
 
+async def _run_with_retry(
+    coro: Any,
+    max_retries: int = TOOL_MAX_RETRIES,
+    timeout: float = TOOL_TIMEOUT_SECONDS,
+) -> str | None:
+    """Run *coro* with up to *max_retries* retries and a per-attempt timeout.
+
+    Retry schedule:
+        Try 1: direct call (timeout=*timeout*)
+        Retry 1: wait 1 s, retry
+        Retry 2: wait 2 s, retry
+
+    Logs each retry attempt. Fail-open — returns ``None`` when all attempts
+    have been exhausted. Never raises.
+    """
+    for attempt in range(1 + max_retries):
+        try:
+            result = await asyncio.wait_for(
+                asyncio.gather(coro),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("chat_tool_retry_timeout attempt=%d/%d", attempt + 1, 1 + max_retries)
+        except Exception:
+            logger.warning("chat_tool_retry_error attempt=%d/%d", attempt + 1, 1 + max_retries)
+        else:
+            val = result[0] if result else None
+            if val is not None and isinstance(val, str) and val.strip():
+                return val
+            logger.info("chat_tool_retry_empty attempt=%d/%d", attempt + 1, 1 + max_retries)
+
+        # All attempts exhausted — do not sleep after the final failure.
+        if attempt < max_retries:
+            delay = TOOL_RETRY_DELAYS[attempt] if attempt < len(TOOL_RETRY_DELAYS) else 2.0
+            logger.info("chat_tool_retry_sleep duration=%.1fs attempt=%d/%d", delay, attempt + 1, 1 + max_retries)
+            await asyncio.sleep(delay)
+
+    return None
+
+
 async def _run_tool_for_intent(message: str, intent: str) -> str | None:
-    """Run the executor for a detected intent with a hard timeout. Fail-open.
+    """Run the executor for a detected intent with retry + timeout. Fail-open.
 
     Returns None on unknown intent, executor error, or timeout — callers
     fall through to normal RAG/LLM. Never raises.
@@ -47,13 +89,4 @@ async def _run_tool_for_intent(message: str, intent: str) -> str | None:
     executor = _EXECUTORS.get(intent)
     if executor is None:
         return None
-    try:
-        results = await asyncio.wait_for(
-            asyncio.gather(executor(message)),
-            timeout=TOOL_TIMEOUT_SECONDS,
-        )
-    except Exception:
-        logger.debug("chat_tool_executor_failed", intent=intent)
-        return None
-    result = results[0] if results else None
-    return result if isinstance(result, str) and result.strip() else None
+    return await _run_with_retry(executor(message))

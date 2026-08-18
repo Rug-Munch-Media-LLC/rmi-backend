@@ -17,8 +17,13 @@ logger = get_logger("databus.providers.dexscreener")
 
 
 async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
-    """DexScreener — free, no key."""
-    token = kwargs.get("mint", "") or kwargs.get("token", "")
+    """DexScreener — free, no key. Accepts address/token/mint keys."""
+    token = (
+        kwargs.get("mint", "")
+        or kwargs.get("token", "")
+        or kwargs.get("address", "")
+        or kwargs.get("token_address", "")
+    )
     if not token:
         return None
     try:
@@ -32,7 +37,8 @@ async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
 
 
 async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict[str, Any] | None:
-    """Token metadata from DexScreener (free)."""
+    """Token metadata from DexScreener (free). Accepts address/token keys too."""
+    mint = mint or kw.get("address", "") or kw.get("token", "") or kw.get("mint", "")
     if not mint:
         return None
     try:

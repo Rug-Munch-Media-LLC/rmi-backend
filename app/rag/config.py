@@ -40,6 +40,27 @@ RAG_CHUNK_OVERLAP: int = 50
 # likely noise (headers, fragments, boilerplate).
 RAG_MIN_CHUNK_CHARS: int = 32
 
+# Adaptive chunking thresholds (character counts).
+# Text below SHORT_THRESHOLD → single chunk (no split).
+# Text between SHORT and MEDIUM → 2 chunks with 50% overlap.
+# Text above MEDIUM_THRESHOLD → chunked at FULL_CHUNK_SIZE tokens.
+RAG_CHUNK_SHORT_THRESHOLD: int = 300
+RAG_CHUNK_MEDIUM_THRESHOLD: int = 1000
+
+# Token-based chunk sizes for the "full" adaptive tier.
+# Default: 256 tokens per chunk with 32 token overlap.
+# Tokens are converted to chars at ~4 chars/token for the char-based splitter.
+RAG_CHUNK_FULL_TOKENS: int = 256
+RAG_CHUNK_FULL_OVERLAP_TOKENS: int = 32
+
+# News-specific token-based chunking.
+# 256 tokens per chunk (≈1024 chars), 32 tokens overlap (≈128 chars).
+RAG_NEWS_CHUNK_TOKENS: int = 256
+RAG_NEWS_CHUNK_OVERLAP_TOKENS: int = 32
+
+# Word count threshold for "long article" summary-first strategy.
+RAG_NEWS_LONG_ARTICLE_WORDS: int = 1000
+
 # ── Collections ───────────────────────────────────────────────────────
 
 # All active RAG collections. Each is a separate vector index + keyword
