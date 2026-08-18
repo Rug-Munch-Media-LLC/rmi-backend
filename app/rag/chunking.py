@@ -31,6 +31,12 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+from app.rag.config import (
+    RAG_CHUNK_FULL_OVERLAP_TOKENS,
+    RAG_CHUNK_FULL_TOKENS,
+    RAG_CHUNK_MEDIUM_THRESHOLD,
+    RAG_CHUNK_SHORT_THRESHOLD,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -41,6 +47,11 @@ DEFAULT_MAX_CHUNK = 512
 DEFAULT_OVERLAP = 64
 DEFAULT_MIN_CHARS = 32
 DEFAULT_MAX_TOKENS = 512
+
+# Conversion factor: rough heuristic for token → char mapping.
+# Used by the adaptive chunker to convert token-based config to
+# char-based splitting (the internal splitter works in chars).
+_TOKENS_TO_CHARS = 4.0
 
 _redis = None
 
@@ -66,6 +77,30 @@ class Chunk:
     source_url: str = ""
     timestamp: str = ""
     token_count: int = 0
+
+
+@dataclass
+class ChunkConfig:
+    """Chunking configuration — per-content-type or adaptive.
+
+    Fields are in tokens (converted to chars internally by the splitter).
+    When ``adaptive`` is True, the chunker selects the strategy based on
+    text length rather than using fixed sizes.
+    """
+
+    chunk_tokens: int = DEFAULT_MAX_TOKENS
+    overlap_tokens: int = DEFAULT_OVERLAP
+    min_chars: int = DEFAULT_MIN_CHARS
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    adaptive: bool = False
+
+    @property
+    def chunk_chars(self) -> int:
+        return max(64, int(self.chunk_tokens * _TOKENS_TO_CHARS))
+
+    @property
+    def overlap_chars(self) -> int:
+        return max(8, int(self.overlap_tokens * _TOKENS_TO_CHARS))
 
 
 def content_hash(text: str) -> str:
@@ -395,18 +430,76 @@ def _first_sentence(text: str) -> str:
     return m.group(1).strip() if m else text.strip()
 
 
-def _chunk_news(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
-    """Paragraph-level chunking; never split mid-sentence.
+def _split_sentences(text: str) -> list[str]:
+    """Split text into sentences using regex boundaries.
 
-    Preserve: the first sentence as a standalone lead chunk.
+    Handles common abbreviations (e.g., ``Dr.``, ``U.S.``, ``St.``) by
+    requiring the sentence-ending punctuation to be followed by whitespace
+    and a capital letter (or end-of-string).  This prevents splitting on
+    periods inside abbreviations or decimal numbers.
+    """
+    parts = re.split(r"(?<=[.!?])\s+(?=[A-Z\"'({\[\\<])", text)
+    # Clean up any trailing whitespace from each sentence
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _chunk_news(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
+    """Sentence-boundary-aware news chunking with summary-first strategy.
+
+    Preserve:
+      - The first sentence as a standalone lead chunk.
+      - Never split mid-sentence — sentence boundary (``. ! ?``) is the
+        finest granularity we split at.
+      - For long articles (>1000 words): first chunk is a summary (lead
+        sentence + next few sentences), then detailed chunks from the
+        remaining body.
+
+    The ``. `` separator in the recursive split ensures we only break at
+    sentence boundaries, not mid-word (the fallback ``" "`` only triggers
+    for pathological single-sentence oversize chunks).
     """
     lead = _first_sentence(text)
     if not lead:
         return []
     body = text[len(lead) :].strip()
-    chunks = [lead]
+    chunks: list[str] = [lead]
+
+    if not body:
+        return chunks
+
+    # Long-article summar y-first strategy: pack the lead + the next few
+    # sentences so the first chunk is a meaningful overview.
+    word_count = len(body.split())
+    if word_count > 1000:
+        # First chunk: lead + up to ``chunk_size`` chars of following text.
+        summary_body = body[:chunk_size].strip()
+        # Trim the summary to the last complete sentence boundary.
+        last_sentence_end = max(
+            summary_body.rfind(". "),
+            summary_body.rfind("! "),
+            summary_body.rfind("? "),
+            summary_body.rfind(".\n"),
+            summary_body.rfind("!\n"),
+            summary_body.rfind("?\n"),
+        )
+        if last_sentence_end > chunk_size // 2:
+            summary_body = body[: last_sentence_end + 1]
+        chunks.append(summary_body)
+        body = body[len(summary_body) :].strip()
+
     if body:
-        chunks.extend(_recursive_split(body, ["\n\n", "\n", ". ", " ", ""], chunk_size, chunk_overlap))
+        # Sentence-boundary-aware: prefer ``. `` over all other separators.
+        # The word-level fallback only triggers when a single sentence is
+        # longer than chunk_size (pathological case).
+        chunks.extend(
+            _recursive_split(
+                body,
+                ["\n\n", "\n", ". ", "! ", "? ", ".\n", "!\n", "?\n", " ", ""],
+                chunk_size,
+                chunk_overlap,
+            )
+        )
+
     return chunks
 
 
@@ -492,6 +585,8 @@ def chunk_text(
     max_tokens: int = DEFAULT_MAX_TOKENS,
     source_url: str = "",
     timestamp: str = "",
+    adaptive: bool = False,
+    config: ChunkConfig | None = None,
 ) -> list[Chunk]:
     """Chunk text based on content type for optimal embedding.
 
@@ -499,13 +594,40 @@ def chunk_text(
     ``chunk_index`` (as ``index``), ``timestamp`` and ``token_count``. Every
     chunk is hard-capped at ``max_tokens`` (default 512) tokens before being
     handed to the embedding backend.
+
+    Args:
+        adaptive: When True, selects chunking strategy based on text length:
+            - < 300 chars: single chunk (no split)
+            - 300–1000 chars: 2 chunks with 50% overlap
+            - > 1000 chars: chunk at 256 tokens, 32 overlap, sentence-aware
+        config: Optional ``ChunkConfig`` that overrides chunk_size/overlap
+            when provided. Takes precedence over *chunk_size* and *chunk_overlap*.
     """
     if not text or not text.strip():
         return []
 
     text = text.strip()
 
-    # Short documents: single chunk (matches legacy behaviour, keeps metadata).
+    # Resolve effective chunk_size/chunk_overlap from config or params.
+    if config is not None:
+        chunk_size = config.chunk_chars
+        chunk_overlap = config.overlap_chars
+        min_chars = config.min_chars
+        max_tokens = config.max_tokens
+        adaptive = config.adaptive or adaptive
+
+    # ── Adaptive mode ──────────────────────────────────────────────
+    if adaptive:
+        return _chunk_adaptive(
+            text=text,
+            content_type=content_type,
+            source_url=source_url,
+            timestamp=timestamp,
+            max_tokens=max_tokens,
+            min_chars=min_chars,
+        )
+
+    # ── Short documents: single chunk (keeps metadata) ───────────
     if len(text) <= chunk_size:
         h = content_hash(text)
         ts = timestamp or datetime.now(UTC).isoformat()
@@ -537,6 +659,91 @@ def chunk_text(
                 content_hash=content_hash(enforced),
                 index=i,
                 quality=_quality(enforced, chunk_size),
+                content_type=content_type,
+                source_url=source_url,
+                timestamp=ts,
+                token_count=estimate_tokens(enforced),
+            )
+        )
+    return out
+
+
+def _chunk_adaptive(
+    text: str,
+    content_type: str = "general",
+    source_url: str = "",
+    timestamp: str = "",
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    min_chars: int = DEFAULT_MIN_CHARS,
+) -> list[Chunk]:
+    """Adaptive chunking based on text length.
+
+    Tiers:
+        < 300 chars       → single chunk (no split).
+        300–1000 chars    → 2 chunks with 50% overlap.
+        > 1000 chars      → sentence-boundary-aware, 256 tokens/32 overlap.
+    """
+    n = len(text)
+    ts = timestamp or datetime.now(UTC).isoformat()
+
+    # Tier 1: very short — single chunk.
+    if n < RAG_CHUNK_SHORT_THRESHOLD:
+        return [
+            Chunk(
+                text=text,
+                content_hash=content_hash(text),
+                index=0,
+                quality=_quality(text, DEFAULT_MAX_CHUNK),
+                content_type=content_type,
+                source_url=source_url,
+                timestamp=ts,
+                token_count=estimate_tokens(text),
+            )
+        ]
+
+    # Tier 2: medium — 2 chunks with 50% overlap.
+    if n < RAG_CHUNK_MEDIUM_THRESHOLD:
+        mid = n // 2
+        overlap = n // 4  # 50% of half = 25% of total, giving ~50% chunk overlap
+        c1 = text[:mid].strip()
+        c2 = text[mid - overlap :].strip()
+        out: list[Chunk] = []
+        for i, c in enumerate([c1, c2]):
+            if not c or len(c) < min_chars:
+                continue
+            enforced = _enforce_token_limit(c, max_tokens).strip()
+            if not enforced or len(enforced) < min_chars:
+                continue
+            out.append(
+                Chunk(
+                    text=enforced,
+                    content_hash=content_hash(enforced),
+                    index=i,
+                    quality=_quality(enforced, DEFAULT_MAX_CHUNK),
+                    content_type=content_type,
+                    source_url=source_url,
+                    timestamp=ts,
+                    token_count=estimate_tokens(enforced),
+                )
+            )
+        return out
+
+    # Tier 3: long — sentence-boundary-aware at 256 tokens / 32 overlap.
+    chunk_size_chars = int(RAG_CHUNK_FULL_TOKENS * _TOKENS_TO_CHARS)
+    overlap_chars = int(RAG_CHUNK_FULL_OVERLAP_TOKENS * _TOKENS_TO_CHARS)
+    strategy = STRATEGIES.get(content_type, _chunk_semantic)
+    raw = [c.strip() for c in strategy(text, chunk_size_chars, overlap_chars) if c.strip()]
+    out = []
+    for i, c in enumerate(raw):
+        enforced = _enforce_token_limit(c, max_tokens).strip()
+        if not enforced or len(enforced) < min_chars:
+            continue
+        out.append(
+            Chunk(
+                text=enforced,
+                content_hash=content_hash(enforced),
+                index=i,
+                quality=_quality(enforced, chunk_size_chars),
                 content_type=content_type,
                 source_url=source_url,
                 timestamp=ts,

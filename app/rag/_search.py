@@ -34,6 +34,84 @@ log = get_logger(__name__)
 # RRF constant
 _RRF_K = 60
 
+# ── Query expansion constants ──────────────────────────────────────────
+
+# Stopwords removed during query expansion variant generation.
+# These are common English words that add little signal in crypto/RAG search.
+_EXPANSION_STOPWORDS: set[str] = {
+    "the",
+    "a",
+    "an",
+    "of",
+    "in",
+    "on",
+    "at",
+    "for",
+    "to",
+    "is",
+    "was",
+    "and",
+    "or",
+    "with",
+    "by",
+    "from",
+    "as",
+    "be",
+    "are",
+    "were",
+    "been",
+    "has",
+    "have",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "shall",
+    "can",
+    "its",
+    "it",
+    "this",
+    "that",
+    "these",
+    "those",
+}
+
+# Crypto-domain synonyms for query expansion.
+# Each entry maps a canonical term → list of equivalent terms.
+# Transformations are case-insensitive (lowercased before lookup).
+_EXPANSION_SYNONYMS: dict[str, list[str]] = {
+    "bitcoin": ["btc", "bitcoin"],
+    "btc": ["bitcoin", "btc"],
+    "ethereum": ["eth", "ethereum"],
+    "eth": ["ethereum", "eth"],
+    "solana": ["sol", "solana"],
+    "sol": ["solana", "sol"],
+    "price": ["value", "rate", "cost", "price"],
+    "hack": ["exploit", "attack", "breach", "hack"],
+    "exploit": ["hack", "attack", "breach", "exploit"],
+    "attack": ["hack", "exploit", "breach", "attack"],
+    "token": ["coin", "asset", "token"],
+    "scam": ["fraud", "rug", "scam"],
+    "fraud": ["scam", "rug", "fraud"],
+    "liquidate": ["liquidation", "liquidated"],
+    "liquidation": ["liquidate", "liquidated"],
+    "buy": ["purchase", "acquire", "buy"],
+    "sell": ["dump", "dispose", "sell"],
+    "dump": ["sell", "dispose", "dump"],
+    "pump": ["surge", "rally", "moon"],
+    "wallet": ["address", "wallet"],
+    "safe": ["secure", "protected", "safe"],
+    "risk": ["danger", "exposure", "risk"],
+    "high risk": ["dangerous", "unsafe", "risky"],
+    "trust": ["reliable", "legitimate", "trustworthy"],
+}
+
 # Hard context-token budget applied AFTER rerank on the primary search
 # facade (env override wins, e.g. ``RAG_CONTEXT_MAX_TOKENS=2048``).
 _CONTEXT_MAX_TOKENS = int(os.getenv("RAG_CONTEXT_MAX_TOKENS", RAG_CONTEXT_MAX_TOKENS))
@@ -219,10 +297,17 @@ async def three_pillar_search(
     top_k: int = 5,
     min_similarity: float = 0.0,
     filters: dict[str, Any] | None = None,
+    expand_queries: bool = True,
 ) -> list[dict[str, Any]]:
     """Run the three-pillar search and return RRF-fused, reranked hits.
 
     Each returned hit: {doc_id, score, text, metadata}
+
+    When ``expand_queries=True`` (default), the query is expanded into 2–3
+    variants using cheap text transformations (stopword removal + crypto
+    synonym substitution) *before* the search pipeline. Variants are searched
+    independently and the results are merged via Reciprocal Rank Fusion (RRF)
+    with k=60. This improves recall with zero additional cost.
 
     Primary path (``RAG_STORE=qdrant``, default): the unified Qdrant hybrid
     store (dense + lexical-sparse prefetches, server-side RRF k=60) replaces
@@ -246,21 +331,60 @@ async def three_pillar_search(
             "retrieval.top_k": top_k,
         },
     ) as span:
-        # Embed once — shared by the Qdrant primary path and the legacy path.
-        qvec = await get_embedding(query)
+        span.set_attribute("retrieval.expand_queries", expand_queries)
 
-        if _DEFAULT_STORE == "qdrant":
-            fused, backend = await _qdrant_primary_search(query, qvec, collection, top_k, min_similarity, filters)
-            if backend == "legacy":
-                # Qdrant unavailable or returned nothing → legacy pillars.
-                fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
+        # ── Query expansion ────────────────────────────────────────────
+        if expand_queries:
+            try:
+                variants = _generate_query_variants(query)
+                span.set_attribute("retrieval.query_variants", len(variants))
+            except Exception as exc:
+                log.debug("rag_query_expansion_failed err=%s fallback=single", exc)
+                variants = [query]
         else:
-            backend = "legacy"
-            fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
+            variants = [query]
+
+        # ── Search each variant ────────────────────────────────────────
+        all_variant_hits: list[list[Hit]] = []
+        for variant in variants:
+            try:
+                qvec = await get_embedding(variant)
+
+                if _DEFAULT_STORE == "qdrant":
+                    fused, backend = await _qdrant_primary_search(
+                        variant, qvec, collection, top_k, min_similarity, filters
+                    )
+                    if backend == "legacy":
+                        fused = await _legacy_pillar_search(variant, qvec, collection, top_k, min_similarity, filters)
+                else:
+                    fused = await _legacy_pillar_search(variant, qvec, collection, top_k, min_similarity, filters)
+
+                if fused:
+                    all_variant_hits.append(fused)
+            except Exception as exc:
+                log.debug("rag_variant_search_failed variant=%r err=%s", variant, exc)
+                continue
+
+        # If all variant searches failed, try a single-query fallback.
+        if not all_variant_hits:
+            log.info("rag_expansion_all_empty fallback=single_query")
+            qvec = await get_embedding(query)
+            if _DEFAULT_STORE == "qdrant":
+                fused, backend = await _qdrant_primary_search(query, qvec, collection, top_k, min_similarity, filters)
+                if backend == "legacy":
+                    fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
+            else:
+                backend = "legacy"
+                fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
+            pre_rerank = len(fused)
+        else:
+            # RRF-merge across all variant result sets.
+            fused = _reciprocal_rank_fusion(all_variant_hits, top_k=top_k, k=_RRF_K)
+            backend = "qdrant" if _DEFAULT_STORE == "qdrant" else "legacy"
+            pre_rerank = len(fused)
 
         # G2: mandatory cross-encoder rerank (fail-open) + hard context-token
         # budget before the LLM call. No skip path.
-        pre_rerank = len(fused)
         fused = await _rerank_hits(query, fused)
         rerank_applied = bool(fused and fused[0].metadata.get("rerank_score") is not None)
         span.set_attribute("retrieval.rerank_input", pre_rerank)
@@ -290,6 +414,99 @@ async def three_pillar_search(
         }
         for h in fused
     ]
+
+
+def _generate_query_variants(query: str) -> list[str]:
+    """Generate 2–3 query variants using cheap text transformations.
+
+    Produces:
+      1. The original query (unchanged).
+      2. A stopword-stripped version.
+      3. A synonym-expanded version where key crypto-domain terms are
+         replaced with equivalents for broader recall. Only the first
+         expandable term is replaced to avoid cascading redundancy
+         (e.g., ``"hack"`` and ``"attack"`` both mapping to ``"exploit"``).
+
+    All variants are lowercased and deduplicated. If fewer than 2 unique
+    variants exist, the original query is returned alone.
+
+    No LLM calls — pure string operations.
+    """
+    if not query or not query.strip():
+        return [query]
+
+    original = query.strip()
+    lower = original.lower()
+    variants: list[str] = []
+    words = lower.split()
+
+    if not words:
+        return [original]
+
+    # Variant 1: original unchanged.
+    variants.append(original)
+
+    # Variant 2: stopword removal.
+    stripped_words = [w for w in words if w not in _EXPANSION_STOPWORDS]
+    if stripped_words and len(stripped_words) < len(words):
+        variants.append(" ".join(stripped_words))
+
+    # Variant 3: synonym expansion — replace only the FIRST expandable term
+    # to avoid cascading redundancy (e.g., "hack attack" → "exploit attack"
+    # rather than "exploit exploit").
+    first_syn_index = -1
+    first_syn_replacement = None
+    for i, w in enumerate(words):
+        if w in _EXPANSION_SYNONYMS:
+            syns = _EXPANSION_SYNONYMS[w]
+            # Pick the longest distinct synonym (avoids trivial identity).
+            candidates = [s for s in syns if s != w and len(s) >= 2]
+            if candidates:
+                best = max(candidates, key=len)
+                first_syn_index = i
+                first_syn_replacement = best
+                break
+
+    if first_syn_index >= 0 and first_syn_replacement:
+        expanded_words = list(words)
+        expanded_words[first_syn_index] = first_syn_replacement
+        expanded = " ".join(expanded_words)
+        if expanded.lower() != lower:
+            variants.append(expanded)
+
+    # Deduplicate while preserving order.
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for v in variants:
+        key = v.strip().lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(v)
+
+    return deduped
+
+
+async def expand_and_search(
+    query: str,
+    collection: str = "scam_intel",
+    top_k: int = 5,
+    min_similarity: float = 0.0,
+    filters: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Multi-query expansion search alias.
+
+    Convenience wrapper around ``three_pillar_search(expand_queries=True)``.
+    Exists for callers who explicitly want to invoke the expansion path
+    without modifying the default.
+    """
+    return await three_pillar_search(
+        query=query,
+        collection=collection,
+        top_k=top_k,
+        min_similarity=min_similarity,
+        filters=filters,
+        expand_queries=True,
+    )
 
 
 async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
@@ -495,15 +712,19 @@ def _reciprocal_rank_fusion(pillar_hits: list[list[Hit]], top_k: int, k: int = _
 __all__ = [
     "_CONTEXT_MAX_TOKENS",
     "_DEFAULT_STORE",
+    "_EXPANSION_STOPWORDS",
+    "_EXPANSION_SYNONYMS",
     "_RERANK_MAX_CHARS",
     "_RRF_K",
     "_apply_context_budget",
     "_apply_filters",
+    "_generate_query_variants",
     "_keyword_search",
     "_legacy_pillar_search",
     "_matches_filters",
     "_qdrant_primary_search",
     "_reciprocal_rank_fusion",
     "_rerank_hits",
+    "expand_and_search",
     "three_pillar_search",
 ]

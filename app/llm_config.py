@@ -175,6 +175,7 @@ async def chat_with_fallback(
     messages: list[dict[str, str]],
     tier: str,
     max_tokens: int | None = None,
+    model_override: str | None = None,
 ) -> str:
     """Chat via the free OpenRouter tier, degrading to the cheap PAID model.
 
@@ -185,6 +186,9 @@ async def chat_with_fallback(
     (``get_cheap_fallback_config()``, qwen-2.5-7b), so chat never dies on a
     free-tier rate-limit. Returns ``""`` when both attempts fail — callers
     fail open. NEVER raises and never logs the API key.
+
+    If *model_override* is provided the selected config's ``model`` key is
+    replaced with it, enabling A/B model comparisons without changing tiers.
     """
     if tier == "snappy":
         config = get_snappy_config()
@@ -192,6 +196,9 @@ async def chat_with_fallback(
         config = get_long_config()
     else:
         return ""  # unknown tier — fail open, no request
+
+    if model_override is not None:
+        config = {**config, "model": model_override}
 
     answer = await _chat_once(config, messages, max_tokens)
     if answer:

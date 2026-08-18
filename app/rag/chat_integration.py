@@ -52,6 +52,33 @@ OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 # Use a capable free model for chat with context
 CHAT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 CHAT_FALLBACK_MODEL = "deepseek/deepseek-v4-flash"  # paid, but the backup account has it
+# A/B testing: second model option for quality comparison
+CHAT_MODEL_B = "deepseek/deepseek-v4-flash"
+
+# A/B test counter for "auto" alternation
+_ab_counter: int = 0
+
+
+def _get_chat_model() -> str:
+    """Select the chat model based on the ``CHAT_MODEL_AB`` env var.
+
+    Values:
+        ``"nemotron"`` (default) — use the current Nemotron Ultra model.
+        ``"deepseek"``         — use DeepSeek V4 Flash (paid but fast).
+        ``"auto"``             — alternate between both on every call.
+
+    Returns the model string (e.g. ``"nvidia/nemotron-3-ultra-550b-a55b:free"``).
+    """
+    global _ab_counter  # noqa: PLW0603
+    choice = os.getenv("CHAT_MODEL_AB", "nemotron").strip().lower()
+
+    if choice == "deepseek":
+        return CHAT_MODEL_B
+    if choice == "auto":
+        _ab_counter += 1
+        return CHAT_MODEL if (_ab_counter % 2 == 1) else CHAT_MODEL_B
+    # nemotron (default)
+    return CHAT_MODEL
 
 
 async def search_rag(query: str) -> list[dict[str, Any]]:
@@ -205,8 +232,12 @@ async def chat_with_context(
     {combined_context}
     """)
 
-    # ── Step 4: Call LLM ──
+    # ── Step 4: Call LLM with optional A/B model override ──
     from app.llm_config import chat_with_fallback
+
+    chat_model = _get_chat_model()
+    ab_group = "deepseek" if chat_model == CHAT_MODEL_B else "nemotron"
+    logger.info("chat_model_selected model=%s ab_group=%s", chat_model, ab_group)
 
     answer = await chat_with_fallback(
         messages=[
@@ -214,6 +245,7 @@ async def chat_with_context(
             {"role": "user", "content": query},
         ],
         tier=tier,
+        model_override=chat_model,
     )
 
     # ── Step 5: Format response ──
@@ -234,8 +266,13 @@ async def direct_chat(query: str, *, tier: str = "snappy") -> dict[str, Any]:
     """
     from app.llm_config import chat_with_fallback
 
+    chat_model = _get_chat_model()
+    ab_group = "deepseek" if chat_model == CHAT_MODEL_B else "nemotron"
+    logger.info("chat_model_selected model=%s ab_group=%s", chat_model, ab_group)
+
     answer = await chat_with_fallback(
         messages=[{"role": "user", "content": query}],
         tier=tier,
+        model_override=chat_model,
     )
     return {"answer": answer, "sources": [], "rag_hits": 0, "has_web_results": False, "has_tool_result": False}
