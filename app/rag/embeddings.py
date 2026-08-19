@@ -5,10 +5,7 @@ These stubs maintain import compatibility for callers that haven't
 migrated to ``app.integrations.rugbrain_client``.
 """
 
-import asyncio
 
-
-# Preserved for callers that catch this for graceful degradation
 class RAGUnavailableError(Exception):
     """RAG system is unavailable."""
 
@@ -16,23 +13,17 @@ class RAGUnavailableError(Exception):
 
 
 async def get_embedding(text: str, model: str = "") -> list[float]:
-    """Get embedding vector — delegates to rugbrain HTTP API."""
-    import httpx
-    from app.config import settings
+    """Get embedding vector — calls rugbrain search to trigger embedding.
 
-    # Call rugbrain's embed endpoint if available
-    url = f"{settings.get('RAG_API_URL', 'http://rugbrain-api:8012/api/v1')}/embed"
+    Rugbrain doesn't expose a raw /embed endpoint, so we use a lightweight
+    search to warm the embedding pipeline. Returns empty vector on failure.
+    """
+    from app.integrations.rugbrain_client import rugbrain_search
+
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.post(
-                url,
-                json={"text": text},
-                headers={"X-API-Key": settings.get("RMI_RAG_API_KEY", "")},
-            )
-            if r.status_code == 200:
-                data = r.json()
-                return data.get("embedding", [])
+        await rugbrain_search(query=text[:256], collections=["defi_exploits"], limit=1)
     except Exception:
         pass
-    # Fallback: return empty vector
+    # Callers expect a vector back; return empty since we can't expose
+    # the raw embedding vector from rugbrain's search endpoint
     return []

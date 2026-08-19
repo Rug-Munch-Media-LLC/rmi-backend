@@ -17,10 +17,9 @@ Flow:
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import textwrap
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -66,7 +65,7 @@ def _get_chat_model() -> str:
 
     Returns the model string (e.g. ``"nvidia/nemotron-3-ultra-550b-a55b:free"``).
     """
-    global _ab_counter  # noqa: PLW0603
+    global _ab_counter
     choice = os.getenv("CHAT_MODEL_AB", "nemotron").strip().lower()
 
     if choice == "deepseek":
@@ -95,7 +94,7 @@ async def search_rag(query: str) -> list[dict[str, Any]]:
                 ),
                 timeout=60.0,
             )
-        except (asyncio.TimeoutError, Exception) as exc:
+        except (TimeoutError, Exception) as exc:
             logger.warning("rag_collection_timeout collection=%s err=%s", collection, exc)
             return []
 
@@ -201,7 +200,7 @@ async def chat_with_context(
         combined_context = combined_context[:RAG_CONTEXT_MAX_CHARS] + "\n[...truncated]"
 
     # ── Step 3: Build system prompt with enterprise voice ──
-    today = datetime.now(timezone.utc).strftime("%A, %B %d, %Y")
+    today = datetime.now(UTC).strftime("%A, %B %d, %Y")
     has_web = bool(web_text)
     system_prompt = textwrap.dedent(f"""\
     You are the RugMunch crypto intelligence assistant — an institutional-grade Web3 analyst.

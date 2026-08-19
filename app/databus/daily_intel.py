@@ -203,7 +203,7 @@ def _build_research_context(data: dict[str, Any]) -> str:
             coll = s.get("collection", "news_v2")
             title = text[:120] if text else "(no text)"
             rag_lines.append(f"- [score={score:.2f}] {title}  |  source={coll}")
-        parts.append(f"## RAG-IMPORTANT STORIES (reranker-scored)\n" + "\n".join(rag_lines))
+        parts.append("## RAG-IMPORTANT STORIES (reranker-scored)\n" + "\n".join(rag_lines))
 
     # RAG scam intel
     rag_scams = data.get("rag_scam_intel", [])
@@ -213,7 +213,7 @@ def _build_research_context(data: dict[str, Any]) -> str:
             text = s.get("text", "")
             score = s.get("score", 0)
             scam_lines.append(f"- [activeness={score:.2f}] {text[:150]}")
-        parts.append(f"## ACTIVE SCAMS / HACKS / EXPLOITS (from RAG)\n" + "\n".join(scam_lines))
+        parts.append("## ACTIVE SCAMS / HACKS / EXPLOITS (from RAG)\n" + "\n".join(scam_lines))
 
     # CT Pulse
     ct = data.get("ct", {})
