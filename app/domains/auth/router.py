@@ -4,4 +4,4 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
