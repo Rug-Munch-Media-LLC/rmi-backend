@@ -145,33 +145,29 @@ async def _gather_all_data() -> dict[str, Any]:
 
     # ── RAG-powered top stories from our knowledge base ──
     try:
-        from app.rag._search import three_pillar_search
+        from app.integrations.rugbrain_client import rugbrain_search
 
         # Query our ingested news_v2 for the most impactful stories right now
-        rag_stories = await three_pillar_search(
+        rag_stories = await rugbrain_search(
             query="most important crypto news today market moving events",
-            collection="news_v2",
-            top_k=10,
-            min_similarity=0.4,
+            collections=["news_v2"],
+            limit=10,
         )
         if rag_stories:
             data["rag_top_stories"] = rag_stories
             logger.info("Daily Rug: pulled %d top stories from RAG news_v2", len(rag_stories))
 
         # Also search scam_intel for any active threats to include
-        rag_scams = await three_pillar_search(
+        rag_scams = await rugbrain_search(
             query="active scams exploits hacks rug pulls this week",
-            collection="scam_intel",
-            top_k=5,
-            min_similarity=0.4,
+            collections=["threat_intel_v2"],
+            limit=5,
         )
         if rag_scams:
             data["rag_scam_intel"] = rag_scams
             logger.info("Daily Rug: pulled %d scam intel hits from RAG", len(rag_scams))
     except (ImportError, AttributeError, Exception) as e:
         logger.debug("Daily Rug: RAG top stories unavailable: %s", e)
-
-
 
 
 def _build_research_context(data: dict[str, Any]) -> str:

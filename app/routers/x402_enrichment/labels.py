@@ -136,11 +136,7 @@ async def search_similar_patterns(
     patterns = []
 
     try:
-        from app.rag.compat import get_embedder, search_multi_collection
-
-        embedder = await get_embedder()
-        if not embedder:
-            return [], 0
+        from app.integrations.rugbrain_client import rugbrain_search
 
         for addr in addresses[:10]:
             cache_key = f"x402:enrich:rag:{addr}"
@@ -151,15 +147,10 @@ async def search_similar_patterns(
                     continue
 
             try:
-                emb = await embedder.embed_wallet(addr)
-                if not emb or not emb.vector:
-                    continue
-
-                hits = await search_multi_collection(
-                    emb.vector,  # type: ignore[arg-type]  # compat layer types query as str but accepts vectors at runtime
+                hits = await rugbrain_search(
+                    query=f"wallet address {addr}",
                     collections=["wallet_profiles", "known_scams"],
                     limit=3,
-                    min_similarity=SIMILARITY_THRESHOLD,
                 )
                 if hits:
                     pattern = {

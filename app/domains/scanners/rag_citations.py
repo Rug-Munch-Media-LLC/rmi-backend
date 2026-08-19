@@ -96,7 +96,7 @@ async def query_rag_citations(
             source, title, collection, similarity, snippet, reference
     """
     try:
-        from app.rag.compat import search_multi_collection
+        from app.integrations.rugbrain_client import rugbrain_search
     except ImportError:
         logger.debug("RAG service not available, skipping citations")
         return []
@@ -120,11 +120,10 @@ async def query_rag_citations(
         # Query primary collections first (higher min_similarity)
         # Timeout: 30s max on first call (model loading), then 10s
         primary_results = await asyncio.wait_for(
-            search_multi_collection(
+            rugbrain_search(
                 query=enriched_query,
                 collections=primary,
                 limit=max_citations,
-                min_similarity=min_similarity,
             ),
             timeout=30.0,
         )
@@ -138,11 +137,10 @@ async def query_rag_citations(
         if len(citations) < max_citations and secondary:
             remaining = max_citations - len(citations)
             secondary_results = await asyncio.wait_for(
-                search_multi_collection(
+                rugbrain_search(
                     query=enriched_query,
                     collections=secondary,
                     limit=remaining,
-                    min_similarity=min_similarity - 0.1,  # slightly lower threshold
                 ),
                 timeout=8.0,
             )

@@ -91,9 +91,9 @@ async def classify_scam_risk(text: str) -> dict[str, Any]:
             scores[label] = min(score / len(keywords), 1.0)
 
     try:
-        from app.rag.compat import search_documents
+        from app.integrations.rugbrain_client import rugbrain_search
 
-        rag_results = await search_documents("known_scams", text, limit=3)
+        rag_results = await rugbrain_search(query=text, collections=["known_scams"], limit=3)
         for r in rag_results:
             content = r.get("content", "").lower()
             for label, keywords in SCAM_KEYWORDS.items():

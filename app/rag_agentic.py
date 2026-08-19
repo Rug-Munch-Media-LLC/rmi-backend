@@ -365,25 +365,25 @@ Return as JSON. Be precise and evidence-based."""
         embedder,
     ) -> dict[str, Any]:
         """Execute a single investigation hop."""
-        from app.rag.compat import search_multi_collection, search_similar
+        from app.integrations.rugbrain_client import rugbrain_search
 
         action = step["action"]
         query = step["query"]
 
         try:
             if action == "scam_pattern":
-                results = await search_multi_collection(query, collections=["known_scams", "scam_patterns"], limit=10)
+                results = await rugbrain_search(query=query, collections=["known_scams", "scam_patterns"], limit=10)
             elif action == "code_audit":
-                results = await search_similar(query, "contract_audits", limit=10)
+                results = await rugbrain_search(query=query, collections=["contract_audits"], limit=10)
             elif action == "deployer_check":
-                results = await search_similar(query, "wallet_profiles", limit=10)
+                results = await rugbrain_search(query=query, collections=["wallet_profiles"], limit=10)
             elif action == "related_tokens":
-                results = await search_similar(query, "token_analysis", limit=10)
+                results = await rugbrain_search(query=query, collections=["token_analysis"], limit=10)
             elif action == "transaction_analysis":
-                results = await search_similar(query, "transaction_patterns", limit=10)
+                results = await rugbrain_search(query=query, collections=["transaction_patterns"], limit=10)
             else:
                 # Generic search across all collections
-                results = await search_multi_collection(query, limit=10)
+                results = await rugbrain_search(query=query, limit=10)
 
             return {
                 "action": action,
@@ -479,7 +479,7 @@ async def stream_rag_search(
     Streaming RAG search - yields results as they're discovered.
     Pattern: "thinking..." → "found N matches..." → "reranking..." → results
     """
-    from app.rag.compat import search_multi_collection, search_similar
+    from app.integrations.rugbrain_client import rugbrain_search
 
     # Phase 1: Quick keyword pre-filter (instant)
     yield json.dumps({"phase": "quick_scan", "status": "searching"}) + "\n"
@@ -488,9 +488,9 @@ async def stream_rag_search(
     yield json.dumps({"phase": "vector_search", "status": "embedding_query"}) + "\n"
 
     if collection == "all":
-        results = await search_multi_collection(query, limit=limit * 4)
+        results = await rugbrain_search(query=query, limit=limit * 4)
     else:
-        results = await search_similar(query, collection, limit=limit * 4)
+        results = await rugbrain_search(query=query, collections=[collection], limit=limit * 4)
 
     yield (
         json.dumps(

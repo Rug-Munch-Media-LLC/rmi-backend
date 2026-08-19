@@ -64,7 +64,7 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
     # sources attached. This prevents 20 RSS feeds from creating 20 Qdrant
     # points for the same news event.
     from app.domains.news.clusterer import NewsItem as ClusterNewsItem, build_story_rag_docs
-    from app.rag.qdrant_store import upsert_rag_document
+    from app.integrations.rugbrain_client import rugbrain_ingest
 
     cluster_input: list[ClusterNewsItem] = []
     article_map: dict[str, dict[str, Any]] = {}
@@ -128,16 +128,16 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
         metadata.setdefault("text", content)
 
         try:
-            ok = await upsert_rag_document(
-                doc_id=doc_id,
-                text=content,
-                payload=metadata,
+            ok = await rugbrain_ingest(
+                content=content,
                 collection=QDRANT_COLLECTION,
+                doc_id=doc_id,
+                metadata=metadata,
             )
             if ok:
                 ingested += 1
             else:
-                errors.append(f"{doc_id}: upsert_failed")
+                errors.append(f"{doc_id}: ingest_failed")
         except Exception as e:
             errors.append(f"{doc_id}: {e!s}")
 

@@ -190,20 +190,24 @@ async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
 async def ingest_post_to_rag(post: Post) -> dict[str, Any]:
     """Ingest a published bulletin board post into the RAG research collection."""
     try:
-        from app.rag.ingestion import ingest_research_post as _ingest_research
+        from app.integrations.rugbrain_client import rugbrain_ingest
 
-        report = await _ingest_research(
-            post_id=post.post_id,
-            title=post.title,
-            content=post.content,
-            category=post.category,
-            tags=post.tags,
-            author=post.author_name,
+        content = f"Title: {post.title}\n{post.content}"
+        ok = await rugbrain_ingest(
+            content=content,
+            collection="research_posts",
+            doc_id=post.post_id,
+            metadata={
+                "title": post.title,
+                "category": post.category,
+                "tags": post.tags or [],
+                "author": post.author_name or "",
+            },
         )
         return {
-            "success": report.status in ("completed", "partial"),
-            "status": report.status,
-            "chunks": report.chunks_total,
+            "success": ok,
+            "status": "completed" if ok else "failed",
+            "chunks": 1 if ok else 0,
         }
     except Exception as exc:
         return {"success": False, "status": "failed", "error": str(exc)[:300]}

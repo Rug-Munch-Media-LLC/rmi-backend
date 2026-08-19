@@ -305,12 +305,12 @@ class AddressLabeler:
         """Query internal RAG service for known scam and wallet profile data."""
         entries = []
         try:
-            from app.rag.compat import search_similar
+            from app.integrations.rugbrain_client import rugbrain_search
 
             # Query known_scams collection
-            results = await search_similar(
-                f"address:{address} chain:{chain}",
-                collection="known_scams",
+            results = await rugbrain_search(
+                query=f"address:{address} chain:{chain}",
+                collections=["known_scams"],
                 limit=5,
             )
             if results:

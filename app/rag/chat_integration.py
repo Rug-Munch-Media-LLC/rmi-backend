@@ -79,20 +79,19 @@ def _get_chat_model() -> str:
 
 
 async def search_rag(query: str) -> list[dict[str, Any]]:
-    """Search our RAG knowledge base across all relevant collections.
+    """Search our RAG knowledge base across all relevant collections via rugbrain.
 
     Returns unified, reranked results with source info for citations.
     """
-    from app.rag._search import three_pillar_search
+    from app.integrations.rugbrain_client import rugbrain_search
 
     async def _search_one(collection: str) -> list[dict[str, Any]]:
         try:
             return await asyncio.wait_for(
-                three_pillar_search(
+                rugbrain_search(
                     query=query,
-                    collection=collection,
-                    top_k=MAX_RAG_RESULTS_PER_COLLECTION,
-                    min_similarity=0.3,
+                    collections=[collection],
+                    limit=MAX_RAG_RESULTS_PER_COLLECTION,
                 ),
                 timeout=60.0,
             )
