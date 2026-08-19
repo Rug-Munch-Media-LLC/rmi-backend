@@ -186,7 +186,7 @@ async def crawl_and_ingest(
         ``{"doc_id", "chunks", "status", "duplicate_level", "group_id"}``.
         ``duplicate_level`` is one of url|title|content|entity (or None).
     """
-    from app.rag.engine import ingest_document
+    from app.rag.compat import ingest_document
 
     if content is None:
         page = await crawl_crypto_page(url)

@@ -909,3 +909,15 @@ def build_context(
 ) -> ContextWindow:
     """Quick context assembly (uses default builder)."""
     return _default_builder.build(hits, max_tokens=max_tokens)
+
+
+async def _qdrant_search(
+    vector: list[float],
+    collection: str,
+    limit: int = 10,
+    score_threshold: float = 0.0,
+) -> list[dict[str, Any]]:
+    """Minimal Qdrant search — delegates to rugbrain HTTP API."""
+    from app.integrations.rugbrain_client import rugbrain_search
+
+    return await rugbrain_search(query="", collections=[collection], limit=limit)

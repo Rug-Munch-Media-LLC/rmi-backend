@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
-from app.routers.x402_enrichment.models import MAX_BATCH_SIZE, SIMILARITY_THRESHOLD, WalletLabel
+from app.routers.x402_enrichment.models import MAX_BATCH_SIZE, WalletLabel
 
 logger = get_logger("x402.enrich")
 

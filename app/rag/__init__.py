@@ -10,24 +10,26 @@ from __future__ import annotations
 
 from app.core import health as health_mod
 from app.core.health import DomainHealth
-from app.integrations.rugbrain_client import rugbrain_search
 
 
 async def _health_check() -> DomainHealth:
     """RAG health: rugbrain HTTP API reachable."""
     try:
+        import os
+
         import httpx
 
+        api_key = os.getenv("RMI_RAG_API_KEY", "")
         async with httpx.AsyncClient(timeout=5) as c:
             r = await c.get(
-                f"{'http://rugbrain-api:8012/api/v1'}/search/multi",
-                headers={"X-API-Key": ""},
+                "http://rugbrain-api:8012/api/v1/health",
+                headers={"X-API-Key": api_key} if api_key else {},
             )
-            healthy = r.status_code in (200, 422)  # 422 = valid request with missing API key
+            healthy = r.status_code == 200
         return DomainHealth(
             name="rag",
             healthy=healthy,
-            details={"backend": "rugbrain-http", "status_code": r.status_code if healthy else "unreachable"},
+            details={"backend": "rugbrain-http", "status_code": r.status_code},
         )
     except Exception as e:
         return DomainHealth(name="rag", healthy=False, error=str(e))
@@ -50,7 +52,6 @@ from app.rag.models import (  # noqa: E402
     SearchResponse,
 )
 from app.rag.service import RAGService, init_rag  # noqa: E402
-
 
 __all__ = [
     "COLLECTIONS",

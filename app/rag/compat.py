@@ -9,6 +9,7 @@ REMOVAL 2026-08-15: delete this file after all callers migrate to
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from app.core.logging import get_logger
@@ -142,7 +143,7 @@ async def detect_scam_patterns(token_data: dict[str, Any], threshold: float = 0.
         for h in hits:
             score = float(h.get("rrf_score", 0) or 0)
             meta = h.get("metadata", {}) or {}
-            if score >= threshold / 10:  # Adjust threshold for RRF score scale (0-1)
+            if score >= 0.005:  # RRF scores are ~0.01-0.02, so 0.005 catches anything meaningful
                 deep_matches.append(
                     {
                         "pattern": meta.get("pattern_name", meta.get("name", "")),

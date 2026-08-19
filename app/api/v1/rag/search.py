@@ -7,9 +7,9 @@ ingest operations now route through rugbrain's HTTP API (rmi-rag).
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.integrations.rugbrain_client import rugbrain_ingest, rugbrain_search
