@@ -103,7 +103,7 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
     """
     from app.databus.news_intel import aggregate_all_news
     from app.domains.news.clusterer import NewsItem as ClusterNewsItem, build_story_rag_docs
-    from app.rag.ingestion import BatchIngestor
+    from app.integrations.rugbrain_client import rugbrain_ingest
 
     try:
         feed = await aggregate_all_news(limit=limit)
@@ -113,7 +113,6 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
 
     articles = feed.get("articles", []) or []
     now_iso = datetime.now(UTC).isoformat()
-    ingestor = BatchIngestor()
     ingested = 0
     duplicates = 0
     errors: list[str] = []
@@ -178,19 +177,16 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
         cats = sorted(categories_by_cluster.get(cid, set()))[:8]
         metadata["categories"] = cats
         try:
-            report = await ingestor.ingest(
+            ok = await rugbrain_ingest(
                 content=doc["content"],
                 collection="news_v2",
                 doc_id=doc["doc_id"],
                 metadata=metadata,
-                source_type="news",
             )
-            if report.accepted:
+            if ok:
                 ingested += 1
-            elif report.duplicate:
-                duplicates += 1
             else:
-                errors.extend(report.errors or [])
+                errors.append(f"{doc['doc_id']}: ingest_failed")
         except Exception as e:  # pragma: no cover - defensive
             errors.append(f"{doc['doc_id']}: {e!s}")
 

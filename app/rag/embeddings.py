@@ -1,9 +1,4 @@
-"""Embedding utilities — minimal stub preserved for backward compatibility.
-
-The primary embedding pipeline now lives in rugbrain (rmi-rag).
-These stubs maintain import compatibility for callers that haven't
-migrated to ``app.integrations.rugbrain_client``.
-"""
+"""Embedding utilities — delegates to rugbrain HTTP API."""
 
 
 class RAGUnavailableError(Exception):
@@ -13,17 +8,22 @@ class RAGUnavailableError(Exception):
 
 
 async def get_embedding(text: str, model: str = "") -> list[float]:
-    """Get embedding vector — calls rugbrain search to trigger embedding.
+    """Get embedding vector via rugbrain POST /api/v1/embed (Qwen3-4B)."""
+    import os
 
-    Rugbrain doesn't expose a raw /embed endpoint, so we use a lightweight
-    search to warm the embedding pipeline. Returns empty vector on failure.
-    """
-    from app.integrations.rugbrain_client import rugbrain_search
+    import httpx
 
+    api_url = os.getenv("RAG_API_URL", "http://rugbrain-api:8012/api/v1")
+    api_key = os.getenv("RMI_RAG_API_KEY", "")
     try:
-        await rugbrain_search(query=text[:256], collections=["defi_exploits"], limit=1)
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(
+                f"{api_url}/embed",
+                json={"text": text[:512]},
+                headers={"X-API-Key": api_key},
+            )
+            if r.status_code == 200:
+                return r.json().get("embedding", [])
     except Exception:
         pass
-    # Callers expect a vector back; return empty since we can't expose
-    # the raw embedding vector from rugbrain's search endpoint
     return []
