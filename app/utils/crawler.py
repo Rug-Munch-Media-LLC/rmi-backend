@@ -38,7 +38,7 @@ from urllib.parse import urlparse
 
 from app.config import settings
 from app.core.logging import get_logger
-from app.rag._crawler_constants import (
+from app.utils._crawler_constants import (
     _SOURCES_FILE,
     DEFAULT_COLLECTION,
     DEFAULT_MAX_URLS_PER_SWEEP,
@@ -48,7 +48,7 @@ from app.rag._crawler_constants import (
     MAX_ARTICLES_PER_SOURCE,
     MIN_ARTICLE_QUALITY,
 )
-from app.rag._crawler_helpers import (  # noqa: F401  (re-exported for callers)
+from app.utils._crawler_helpers import (  # noqa: F401  (re-exported for callers)
     _article_domain,
     _BoilerplateStripper,
     _doc_id as _doc_id,
@@ -69,7 +69,7 @@ from app.rag._crawler_helpers import (  # noqa: F401  (re-exported for callers)
     prioritize_by_freshness,
     score_article_quality,
 )
-from app.rag.dedup import (
+from app.utils.dedup import (
     check_duplicates,
     content_fingerprint,
     lookup_group_by_url,
@@ -186,7 +186,7 @@ async def crawl_and_ingest(
         ``{"doc_id", "chunks", "status", "duplicate_level", "group_id"}``.
         ``duplicate_level`` is one of url|title|content|entity (or None).
     """
-    from app.rag.compat import ingest_document
+    from app.utils.compat import ingest_document
 
     if content is None:
         page = await crawl_crypto_page(url)

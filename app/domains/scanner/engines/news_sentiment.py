@@ -41,7 +41,7 @@ from app.core.logging import get_logger
 from app.rag.embeddings import RAGUnavailableError
 
 if TYPE_CHECKING:
-    from app.rag.retrieval import ScoredHit
+    from app.utils.retrieval import ScoredHit, hybrid_retrieve
 
 logger = get_logger(__name__)
 
@@ -267,14 +267,12 @@ async def _retrieve_news_hits(token_symbol: str, token_name: str) -> list[Scored
     """
     query = f"{token_name} {token_symbol} news".strip()
     try:
-        from app.rag.retrieval import HybridRetriever
+        from app.utils.retrieval import hybrid_retrieve
 
-        retriever = HybridRetriever()
-        hits: list[ScoredHit] = await retriever.retrieve(
+        hits = await hybrid_retrieve(
             query=query,
             collection=NEWS_COLLECTION,
             top_k=MAX_ARTICLES,
-            rerank=False,
         )
         return hits
     except (

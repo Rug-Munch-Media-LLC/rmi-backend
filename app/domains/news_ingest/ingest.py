@@ -32,7 +32,7 @@ from typing import Any, Final
 from app.core.logging import get_logger
 from app.domains.news_ingest.models import ChannelMessage, NewsArticle
 from app.domains.news_ingest.normalize import channel_message_to_article
-from app.rag.dedup import content_hash, url_hash
+from app.utils.dedup import content_hash, url_hash
 
 logger = get_logger(__name__)
 
@@ -208,7 +208,7 @@ def filter_seen_articles(
 
     Returns ``(fresh, skipped)``; ``fresh`` preserves input order.
     """
-    from app.rag.dedup import is_duplicate_content
+    from app.utils.dedup import is_duplicate_content
 
     fresh: list[NewsArticle] = []
     skipped = 0
@@ -245,7 +245,7 @@ def mark_articles_ingested(articles: list[NewsArticle], collection: str = DEFAUL
     later rephrase of the same story is caught by the cross-run check.
     Returns the number of articles marked.
     """
-    from app.rag.dedup import mark_content_ingested
+    from app.utils.dedup import mark_content_ingested
 
     marked = 0
     for article in articles or []:

@@ -24,7 +24,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.core.logging import get_logger
-from app.rag._crawler_constants import (
+from app.utils._crawler_constants import (
     _AGENCY_RE,
     _BLOCK_TAGS,
     _BOILERPLATE_FRAGMENTS,

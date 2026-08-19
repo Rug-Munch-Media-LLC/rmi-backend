@@ -59,7 +59,7 @@ from typing import Any, Final
 from urllib.parse import urljoin, urlparse
 
 from app.core.logging import get_logger
-from app.rag._crawler_helpers import _article_domain, _parse_published, clean_title, generate_summary
+from app.utils._crawler_helpers import _article_domain, _parse_published, clean_title, generate_summary
 
 log = get_logger(__name__)
 
@@ -394,7 +394,7 @@ async def _render_js(url: str) -> str:
     Playwright browser can still render JS pages. Raises ``RuntimeError`` with
     a clean message when no browser path works.
     """
-    from app.rag.crawler import crawl_crypto_page
+    from app.utils.crawler import crawl_crypto_page
 
     try:
         page = await crawl_crypto_page(url)
