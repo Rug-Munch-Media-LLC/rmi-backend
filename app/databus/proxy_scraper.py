@@ -266,7 +266,7 @@ class ProxyScraper:
     async def _fetch_crawl4ai(self, url: str) -> str | None:
         """Last resort: headless browser extraction (lazy import, may be absent)."""
         try:
-            from app.rag.crawler import crawl_crypto_page
+            from app.utils.crawler import crawl_crypto_page
 
             page = await crawl_crypto_page(url)
             content = str(page.get("content") or "")

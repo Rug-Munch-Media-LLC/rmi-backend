@@ -11,7 +11,7 @@ import re
 from typing import Final
 
 from app.domains.news_ingest.models import ChannelMessage, NewsArticle
-from app.rag.dedup import content_hash
+from app.utils.dedup import content_hash
 
 # ── Tunable thresholds ─────────────────────────────────────────────────────
 

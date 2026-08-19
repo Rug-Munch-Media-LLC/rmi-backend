@@ -412,11 +412,9 @@ async def _title_search(title: str, collection: str, limit: int = 5) -> list[Any
     """
     if not title or not title.strip():
         return []
-    from app.rag.embeddings import get_embedding
-    from app.rag.retrieval import _qdrant_search
+    from app.integrations.rugbrain_client import rugbrain_search
 
-    vec = await get_embedding(title)
-    return await _qdrant_search(vec, collection, limit=limit, score_threshold=0.0)
+    return await rugbrain_search(query="", collections=[collection], limit=limit)
 
 
 # ── Level 4: entity overlap ─────────────────────────────────────────────

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import os
 import time
 import uuid
@@ -408,9 +409,25 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
     # embedder down → searches fail the same way they would have anyway.
     try:
         from app.rag.embeddings import get_embedding
-        from app.rag.retrieval import QueryExpander
 
-        await asyncio.wait_for(get_embedding(QueryExpander().expand(query)), timeout=1.5)
+        # Lightweight inline query expansion (synonyms + variants) so the
+        # embedder warms the cache for the upcoming concurrent searches.
+        _q = query.strip()
+        _synonyms = {
+            "hack": "exploit attack breach",
+            "rug": "exit scam pull",
+            "honeypot": "can't sell trapped buy",
+            "phish": "fake scam",
+            "dump": "sell drop crash",
+            "pump": "buy surge",
+        }
+        _extra = []
+        for t in re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", _q.lower()):
+            if t in _synonyms:
+                _extra.append(_synonyms[t])
+        if _extra:
+            _q = f"{_q} {' '.join(_extra)}"
+        await asyncio.wait_for(get_embedding(_q), timeout=1.5)
     except Exception as e:  # RAG is best-effort — warm failure never breaks chat
         logger.debug("RAG query embed warm skipped: %s", e)
 
