@@ -76,15 +76,14 @@ async def fetch_crypto_panic_news() -> list[dict[str, Any]]:
 
 
 async def fetch_rmi_alerts(svc: NewsService) -> list[dict[str, Any]]:
-    """Fetch scam alerts from our own Qdrant knowledge base (bypasses rmi-rag-api)."""
+    """Fetch scam alerts from our own Qdrant knowledge base via rugbrain."""
     try:
-        from app.rag._search import three_pillar_search
+        from app.integrations.rugbrain_client import rugbrain_search
 
-        hits = await three_pillar_search(
+        hits = await rugbrain_search(
             query="scam exploit hack rug drain alert",
-            collection="scam_intel",
-            top_k=5,
-            min_similarity=0.3,
+            collections=["threat_intel_v2"],
+            limit=5,
         )
         if not hits:
             return []

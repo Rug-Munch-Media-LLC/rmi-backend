@@ -65,22 +65,22 @@ async def auto_label_deployer(
 
     # (a) Ingest wallet profile to RAG
     try:
-        from app.rag.ingestion import ingest_wallet_profile as _ingest_wallet
+        from app.integrations.rugbrain_client import rugbrain_ingest
 
-        await _ingest_wallet(
-            wallet_address=deployer_address,
-            chain=chain,
-            labels=labels,
-            risk_score=risk_score,
-            entities=[f"deployer_of:{token_address[:16]}"],
-            extra={
-                "token_name": token_name,
-                "token_symbol": token_symbol,
-                "safety_score": safety_score,
-                "source": source,
-                "risk_flags": risk_flags[:10],
-            },
-        )
+        content = f"Wallet: {deployer_address} on {chain}. Labels: {', '.join(labels)}. Risk: {risk_score}"
+        metadata = {
+            "wallet_address": deployer_address,
+            "chain": chain,
+            "labels": labels,
+            "risk_score": risk_score,
+            "entities": [f"deployer_of:{token_address[:16]}"],
+            "token_name": token_name,
+            "token_symbol": token_symbol,
+            "safety_score": safety_score,
+            "source": source,
+            "risk_flags": risk_flags[:10],
+        }
+        await rugbrain_ingest(content=content, collection="wallet_profiles", metadata=metadata)
     except ImportError:
         logger.debug("wallet_rag_ingest_skipped")
     except Exception as exc:

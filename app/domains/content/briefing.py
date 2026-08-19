@@ -259,17 +259,16 @@ async def _fetch_market_data() -> dict[str, Any]:
 
 
 async def _fetch_rag_block(query: str, collections: list[str], limit: int) -> list[dict[str, Any]]:
-    """One RAG block via ``three_pillar_search``; returns [] on any failure."""
+    """One RAG block via rugbrain HTTP search; returns [] on any failure."""
     try:
-        from app.rag.compat import three_pillar_search
+        from app.integrations.rugbrain_client import rugbrain_search
 
-        result = await three_pillar_search(
+        results = await rugbrain_search(
             query=query,
             collections=collections,
             limit=limit,
-            min_similarity=0.3,
         )
-        return [_hit_to_item(h, collections[0]) for h in result.get("results", [])[:limit]]
+        return [_hit_to_item(h, collections[0]) for h in results[:limit]]
     except Exception as e:  # fail-open — RAG is an enhancement, never a gate
         logger.debug("briefing_rag_block_failed colls=%s err=%s", collections, str(e)[:120])
         return []

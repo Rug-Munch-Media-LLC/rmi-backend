@@ -366,20 +366,21 @@ class ScamIngestionPipeline:
             try:
                 docs = await ingest_fn(embedder)
                 if docs:
-                    # Ingest via Redis + FAISS (pgvector removed)
-                    from app.rag.compat import ingest_document
+                    # Ingest via rugbrain HTTP API
+                    from app.integrations.rugbrain_client import rugbrain_ingest
 
                     count = 0
                     for doc in docs:
                         try:
                             meta = doc.get("metadata", {})
                             meta["source"] = doc.get("source", source_name)
-                            await ingest_document(
-                                collection=doc.get("collection", "known_scams"),
+                            ok = await rugbrain_ingest(
                                 content=doc.get("content", ""),
+                                collection=doc.get("collection", "known_scams"),
                                 metadata=meta,
                             )
-                            count += 1
+                            if ok:
+                                count += 1
                         except (AttributeError, ImportError):
                             pass
                     stats["sources"][source_name] = count

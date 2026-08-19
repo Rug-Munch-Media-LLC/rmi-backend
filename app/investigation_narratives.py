@@ -172,14 +172,12 @@ async def _execute_hop(
     hop_name = hop.get("hop", "unknown")
 
     try:
-        from app.rag.compat import three_pillar_search
+        from app.integrations.rugbrain_client import rugbrain_search
 
-        results = await three_pillar_search(
+        results = await rugbrain_search(
             query=hop_query,
             collections=[collection],
             limit=10,
-            use_mmr=True,
-            use_kg=True,
         )
 
         return {

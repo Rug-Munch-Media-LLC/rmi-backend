@@ -124,25 +124,25 @@ async def _ingest_scan_to_rag(scan_result: Any) -> None:
     Falls back gracefully if the RAG system is unavailable.
     """
     try:
-        from app.rag.ingestion import ingest_scan_result as _ingest
+        from app.integrations.rugbrain_client import rugbrain_ingest
 
-        report = await _ingest(
-            token_address=scan_result.token_address,
-            chain=getattr(scan_result, "chain", "solana"),
-            safety_score=float(getattr(scan_result, "safety_score", 50)),
-            risk_flags=list(getattr(scan_result, "risk_flags", [])),
-            symbol=getattr(scan_result, "symbol", ""),
-            name=getattr(scan_result, "name", ""),
-            extra={
-                "confidence": getattr(scan_result, "confidence", 0),
-                "tier_required": getattr(scan_result, "tier_required", "free"),
-            },
-        )
+        chain = getattr(scan_result, "chain", "solana")
+        content = f"Token: {scan_result.token_address} ({getattr(scan_result, 'symbol', '')}) on {chain}. Score: {getattr(scan_result, 'safety_score', 50)}"
+        metadata = {
+            "token_address": scan_result.token_address,
+            "chain": chain,
+            "safety_score": getattr(scan_result, "safety_score", 50),
+            "risk_flags": list(getattr(scan_result, "risk_flags", [])),
+            "symbol": getattr(scan_result, "symbol", ""),
+            "name": getattr(scan_result, "name", ""),
+            "confidence": getattr(scan_result, "confidence", 0),
+            "tier_required": getattr(scan_result, "tier_required", "free"),
+        }
+        ok = await rugbrain_ingest(content=content, collection="token_scans", metadata=metadata)
         logger.info(
             "ingest_to_rag",
             token=scan_result.token_address,
-            status=report.status,
-            chunks=report.chunks_total,
+            status="ok" if ok else "failed",
         )
     except ImportError:
         logger.debug("ingest_to_rag_skipped (RAG ingestion module not available)")

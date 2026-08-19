@@ -209,17 +209,18 @@ async def ingest_news_webhook(
     Rate limit: 1 req/s burst 5 (token-bucket).
     """
     try:
-        from app.rag.ingestion import ingest_news_article as _ingest_news
+        from app.integrations.rugbrain_client import rugbrain_ingest
 
-        report = await _ingest_news(
-            title=request.title,
-            body=request.body,
-            source_url=request.source_url,
-            source_name=request.source_name,
-            published_at=request.published_at,
-            categories=request.categories,
-            sentiment=request.sentiment,
-        )
+        content = f"Title: {request.title}\nBody: {request.body}"
+        metadata = {
+            "source_url": request.source_url,
+            "source_name": request.source_name,
+            "published_at": str(request.published_at) if request.published_at else "",
+            "categories": request.categories or [],
+            "sentiment": request.sentiment or "",
+        }
+        ok = await rugbrain_ingest(content=content, collection="news_v2", metadata=metadata)
+        report = {"ingested": ok, "title": request.title}
         logger.info(
             "news_ingested",
             title=request.title[:60],

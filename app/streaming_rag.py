@@ -121,22 +121,21 @@ async def _run_watch_scans(watch_id: str) -> None:
 
         # 2. RAG search for known scam patterns
         try:
-            from app.rag.compat import three_pillar_search
+            from app.integrations.rugbrain_client import rugbrain_search
 
-            rag_results = await three_pillar_search(
+            rag_results = await rugbrain_search(
                 query=f"{token_address} scam detection",
                 collections=["known_scams", "scam_patterns", "forensic_reports"],
                 limit=5,
-                use_mmr=True,
             )
-            if rag_results.get("results"):
+            if rag_results:
                 _push_update(
                     watch_id,
                     {
                         "type": "rag",
-                        "source": "three_pillar_search",
+                        "source": "rugbrain",
                         "timestamp": datetime.now(UTC).isoformat(),
-                        "matches": len(rag_results["results"]),
+                        "matches": len(rag_results),
                         "top_match": rag_results["results"][0].get("content", "")[:200],
                         "confidence": rag_results.get("confidence"),
                     },

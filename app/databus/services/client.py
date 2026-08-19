@@ -345,13 +345,13 @@ class DataBus:
         # ── 9. RAG INDEXING (optional) ──
         if rag_index and result.get("data"):
             try:
-                from app.rag.compat import index_document
+                from app.integrations.rugbrain_client import rugbrain_ingest
 
                 doc_id = f"databus:{data_type}:{hash(str(kwargs))}"
-                await index_document(
+                await rugbrain_ingest(
+                    content=json.dumps(result["data"], default=str)[:2000],
                     collection="databus_results",
                     doc_id=doc_id,
-                    text=json.dumps(result["data"], default=str)[:2000],
                     metadata={"data_type": data_type, "source": source, "tier": tier},
                 )
             except (AttributeError, ImportError, json.JSONDecodeError):

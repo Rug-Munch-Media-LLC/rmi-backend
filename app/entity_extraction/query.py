@@ -92,7 +92,7 @@ async def hybrid_query(
           vector_docs       - docs from vector search
     """
     # Late import to avoid circular dependency
-    from app.rag.compat import search_multi_collection
+    from app.integrations.rugbrain_client import rugbrain_search
 
     # 1. Extract entities from query
     extraction = extract_entities(query)
@@ -115,20 +115,19 @@ async def hybrid_query(
 
     # 3. Vector (semantic) search
     vector_docs: list[dict[str, Any]] = []
-    search_fn = vector_search_fn or search_multi_collection
+    search_fn = vector_search_fn or rugbrain_search
     try:
         if collections:
             vector_docs = await search_fn(
-                query,
-                collections,
+                query=query,
+                collections=collections,
                 limit=limit * 2,
-                min_similarity=min_similarity,
             )
         else:
             vector_docs = await search_fn(
-                query,
+                query=query,
+                collections=collections,
                 limit=limit * 2,
-                min_similarity=min_similarity,
             )
     except Exception as exc:
         logger.warning("Vector search failed in hybrid_query: %s", exc)

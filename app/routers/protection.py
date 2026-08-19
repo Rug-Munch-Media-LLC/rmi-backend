@@ -91,29 +91,24 @@ class ProtectionResponse(BaseModel):
 async def check_rag_for_url(url: str) -> dict[str, Any] | None:
     """Check RAG for known scam URL."""
     try:
-        from app.rag.compat import three_pillar_search
+        from app.integrations.rugbrain_client import rugbrain_search
 
         results = await asyncio.wait_for(
-            three_pillar_search(
+            rugbrain_search(
                 query=url,
                 collections=["known_scams", "scam_patterns"],
                 limit=1,
-                min_similarity=0.7,
-                use_mmr=False,
-                use_kg=False,
-                use_parent_child=False,
             ),
-            timeout=0.2,
+            timeout=10.0,
         )
-        if results and results.get("results"):
-            for res in results["results"]:
-                if res.get("similarity", 0) >= 0.7:
-                    return {
-                        "safe": False,
-                        "risk": "critical",
-                        "reason": f"Known scam site per RAG (similarity: {res['similarity']:.2f})",
-                        "source": "rag",
-                    }
+        if results:
+            for res in results:
+                return {
+                    "safe": False,
+                    "risk": "critical",
+                    "reason": f"Known scam site per RAG (score: {res.get('rrf_score', 0):.2f})",
+                    "source": "rag",
+                }
     except TimeoutError:
         logger.debug(f"RAG check timed out for {url}")
     except Exception as e:
@@ -189,14 +184,13 @@ async def scan_url_content(url: str, client: httpx.AsyncClient) -> dict[str, Any
 async def feed_url_to_rag(url: str, is_safe: bool) -> None:
     """Feed URL scan result back to RAG for learning (best effort)."""
     try:
-        from app.rag.compat import ingest_document
+        from app.integrations.rugbrain_client import rugbrain_ingest
 
-        doc: dict[str, Any] = {
-            "content": f"URL: {url}\nSafety: {'safe' if is_safe else 'unsafe'}\nScanned by RMI Protection Suite",
-            "metadata": {"source": "protection_suite", "url": url, "safe": is_safe},
-        }
-        # Real signature is ingest_document(collection, content, metadata=...) — old call passed the whole dict
-        await ingest_document(collection="protection_scans", content=doc["content"], metadata=doc.get("metadata"))
+        await rugbrain_ingest(
+            content=f"URL: {url}\nSafety: {'safe' if is_safe else 'unsafe'}\nScanned by RMI Protection Suite",
+            collection="protection_scans",
+            metadata={"source": "protection_suite", "url": url, "safe": is_safe},
+        )
     except Exception as e:
         logger.debug(f"Failed to feed URL to RAG: {e}")
 
@@ -422,22 +416,18 @@ async def get_domains() -> dict[str, Any] | dict[str, list[Any]]:
             domains_set.update(backend_domains)
 
         try:
-            from app.rag.compat import three_pillar_search
+            from app.integrations.rugbrain_client import rugbrain_search
 
             rag_results = await asyncio.wait_for(
-                three_pillar_search(
+                rugbrain_search(
                     query="",
                     collections=["known_scams", "scam_patterns"],
                     limit=100,
-                    min_similarity=0.0,
-                    use_mmr=False,
-                    use_kg=False,
-                    use_parent_child=False,
                 ),
-                timeout=0.5,
+                timeout=10.0,
             )
-            if rag_results and rag_results.get("results"):
-                for res in rag_results["results"]:
+            if rag_results:
+                for res in rag_results:
                     content = res.get("content", "")
                     for line in content.split("\n"):
                         if line.startswith("URL: "):
@@ -489,9 +479,9 @@ async def protection_health() -> Any:
         health_status["modules"]["blocklist"] = f"error: {e}"
 
     try:
-        from app.rag.compat import three_pillar_search
+        from app.integrations.rugbrain_client import rugbrain_search
 
-        await three_pillar_search(query="test", collections=["known_scams"], limit=1, min_similarity=0.5)
+        await rugbrain_search(query="test", collections=["known_scams"], limit=1)
         health_status["modules"]["rag"] = "ok"
     except Exception as e:
         health_status["modules"]["rag"] = f"error: {e}"
