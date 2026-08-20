@@ -15,7 +15,7 @@ Provider limits (verified June 2026):
   OpenRouter free (no credits):  50 req/day,  20 rpm
   OpenRouter free ($10+ credits): 1000 req/day, 20 rpm  ← we have credits
   NVIDIA NIM free:               1000 credits, 40 rpm    ← different keys, same account
-  Local BGE:                     unlimited,    0 cost
+  Local Qwen3:                   unlimited,    0 cost
   Hash fallback:                 unlimited,    0 cost
 
 Auto-detects credit status and adjusts limits accordingly.
@@ -144,11 +144,11 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             free=True,
             priority=95,
         ),
-        # ── Tier 3: BGE-M3 via OpenRouter (paid, minimized) ──
+        # ── Tier 3: Qwen3 via OpenRouter (paid, minimized) ──
         ProviderLimit(
             id="bge_m3",
-            name="BGE-M3 (OpenRouter)",
-            model="BAAI/bge-m3",
+            name="Qwen3 (OpenRouter)",
+            model="qwen3-embedding-4b",
             dims=1024,
             base_url="https://openrouter.ai/api/v1/embeddings",
             key_env="OPENROUTER_API_KEY",
@@ -160,7 +160,7 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
         # ── Tier 4: Local BGE-small (CPU, always available) ──
         ProviderLimit(
             id="local_bge",
-            name="Local BGE-small",
+            name="Local Qwen3-fallback",
             model="local/bge-small-en-v1.5",
             dims=384,
             base_url="",
@@ -434,7 +434,7 @@ class EmbeddingDispatcher:
             import sentence_transformers
 
             self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
-            logger.info("Local BGE-small loaded")
+            logger.info("Local Qwen3-fallback loaded")
         except Exception as e:
             logger.warning(f"Local model: {e}")
 

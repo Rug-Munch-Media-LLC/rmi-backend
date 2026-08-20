@@ -53,7 +53,7 @@ def _get_headers() -> dict[str, Any]:
 VECTOR_TABLE = "rag_vectors"
 
 # Dynamic embedding dimension - determined by the active model.
-# Local BGE-small = 384, BGE-M3/OpenRouter = 3072, etc.
+# Local Qwen3 = 2560, OpenRouter = 3072, etc.
 # Set via env var or detect at runtime from the embedder.
 EMBEDDING_DIM = int(os.environ.get("RAG_EMBEDDING_DIM", "0"))  # 0 = auto-detect
 

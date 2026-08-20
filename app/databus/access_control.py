@@ -631,12 +631,10 @@ class AccessController:
         x402_tier: str = "",
     ) -> ConsumerType:
         """Identify who's making the request."""
-        # Explicit type override
-        if consumer_type:
-            try:
-                return ConsumerType(consumer_type)
-            except ValueError:
-                pass
+        # SECURITY: consumer_type from request is IGNORED — it was a bypass
+        # allowing any client to declare consumer_type=admin. Consumer type
+        # is derived ONLY from verified credentials (admin key, MCP tool_id,
+        # x402 tier, or JWT claims). Never trust client-declared values.
 
         # MCP tool
         if tool_id and tool_id in MCP_TOOL_SCOPES:

@@ -50,7 +50,7 @@ __all__ = [
 # ONE mandatory cross-encoder rerank per message, so the set is pruned to
 # the intent space the chat/bot actually grounds on, with no redundancy.
 # All 5 kept collections are verified populated AND searchable via the RAG
-# facade (all 1024d bge-m3 cosine — a single query embedding serves them).
+# facade (all 2560d qwen3-4b cosine — a single query embedding serves them).
 #
 # KEPT:
 #   security_patterns  — curated vuln patterns (408 pts; SWC registry,

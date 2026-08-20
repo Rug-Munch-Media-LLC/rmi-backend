@@ -1,8 +1,8 @@
 """RugMaps Phase 0→1 seeder — populate the ``rgm_wallets`` Qdrant collection.
 
 Reads labeled wallets from ClickHouse (``wallet_memory.wallet_labels``),
-embeds the label text via the Infinity RAG endpoint (``BAAI/bge-m3``,
-1024-dim), and upserts named ``dense`` vectors into the ``rgm_wallets``
+embeds the label text via the Qwen3-Embedding-4B llama.cpp endpoint (
+2560-dim), and upserts named ``dense`` vectors into the ``rgm_wallets``
 collection.
 
 Notes
@@ -14,8 +14,8 @@ Notes
   a different table/view with the same columns should be used.
 - Point IDs are deterministic UUIDs (``uuid5`` over ``chain:address``) so
   re-running the seeder is idempotent — the same point is replaced.
-- Embeddings are batched through Infinity's OpenAI-compatible
-  ``/embeddings`` endpoint (model ``BAAI/bge-m3`` = 1024-dim).
+- Embeddings are batched through llama.cpp's OpenAI-compatible
+  ``/embeddings`` endpoint (model ``qwen3-embedding-4b`` = 2560-dim).
 
 Usage (CLI wrapper):
     python scripts/ops/rugmaps_seed_wallets.py --limit 10000
@@ -41,8 +41,8 @@ from app.domains.rugmaps.qdrant import COLLECTIONS, DENSE_VECTOR_NAME
 logger = get_logger(__name__)
 
 WALLET_COLLECTION = "rgm_wallets"
-EMBEDDING_MODEL = "BAAI/bge-m3"
-EMBED_BATCH = 64  # texts per Infinity request
+EMBEDDING_MODEL = "qwen3-embedding-4b"
+EMBED_BATCH = 64  # texts per Qwen3 request
 UPSERT_BATCH = 128  # points per Qdrant upsert
 
 # Rows whose label is the "Null …" placeholder are excluded because they
@@ -91,7 +91,7 @@ def _point_id(chain: str, address: str) -> str:
 
 
 async def _embed_batch(client: httpx.AsyncClient, embed_url: str, texts: list[str]) -> list[list[float]]:
-    """Embed one batch of texts via Infinity; returns 1024-dim vectors.
+    """Embed one batch via Qwen3-4B; returns 2560-dim vectors.
 
     Falls back to a zero vector per failed text so a single bad request
     does not abort the whole seed.
@@ -135,7 +135,7 @@ async def seed_wallets(
     embed_url = (
         embed_url
         if embed_url is not None
-        else resolve_service_url("INFINITY_URL", docker="http://infinity-rag:8001", local="http://localhost:8001")
+        else resolve_service_url("EMBEDDER_URL", docker="http://172.22.0.1:8004/v1", local="http://127.0.0.1:8005/v1")
     ).rstrip("/")
     table = os.getenv("RGM_SEED_TABLE", "wallet_memory.wallet_labels")
 
@@ -251,7 +251,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=10_000, help="Max wallets to seed (default 10000)")
     parser.add_argument("--qdrant-url", default=None, help="Qdrant base URL (default: QDRANT_URL env)")
-    parser.add_argument("--embed-url", default=None, help="Infinity /embeddings base URL (default: INFINITY_URL env)")
+    parser.add_argument("--embed-url", default=None, help="Qwen3 /v1/embeddings base URL (default: EMBEDDER_URL env)")
     parser.add_argument("--dry-run", action="store_true", help="Fetch + embed but do not upsert")
     args = parser.parse_args()
 

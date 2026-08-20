@@ -35,7 +35,7 @@ CERT_CRIT_DAYS = 14
 
 # Containers that must be up for the fleet to be considered healthy.
 CRITICAL_SERVICES: tuple[str, ...] = (
-    "infinity-rag",
+
     "rmi-backend",
     "rmi-clickhouse",
     "rmi-postgres",
@@ -44,7 +44,7 @@ CRITICAL_SERVICES: tuple[str, ...] = (
 
 # Human-readable labels for the control-panel health summary.
 SERVICE_LABELS: dict[str, str] = {
-    "infinity-rag": "Infinity",
+
     "rmi-backend": "Backend",
     "rmi-clickhouse": "ClickHouse",
     "rmi-postgres": "Postgres",
@@ -64,7 +64,7 @@ FLEET_CONTAINERS: tuple[tuple[str, str], ...] = (
     ("rmi-redis", "Redis"),
     ("rmi-qdrant", "Qdrant"),
     ("degenfeed-meilisearch", "Meilisearch"),
-    ("infinity-rag", "Infinity"),
+    ( "Infinity"),
 )
 
 # Backup sentinel files written by /root/scripts/backup-*.sh on success.
@@ -504,7 +504,7 @@ def format_health_dashboard(data: dict[str, Any]) -> str:
     """Render the comprehensive health dashboard."""
     lines = ["📊 *System Health Dashboard*\n"]
 
-    # ── Fleet services (backend, postgres, clickhouse, redis, bots, rag, meilisearch, infinity) ──
+    # ── Fleet services (backend, postgres, clickhouse, redis, bots, rag, meilisearch) ──
     fleet = data.get("fleet_services") or []
     if fleet:
         lines.append("🚨 *Services*")

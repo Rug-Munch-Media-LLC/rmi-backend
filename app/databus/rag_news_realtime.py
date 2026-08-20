@@ -9,7 +9,7 @@ X/Crypto Twitter, Telegram news sweep — all already consolidated into a
 single news_intel pipeline.
 
 Uses story clustering (MinHash+DBSCAN) for cross-source dedup before
-embedding into Qdrant via upsert_rag_document (bge-m3 dense + sparse).
+embedding into Qdrant via upsert_rag_document (qwen3-4b dense + sparse).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ async def rag_news_realtime(**kw) -> dict[str, Any]:
     Pipeline:
       aggregate_all_news (200+ RSS feeds + CT + CryptoPanic)
       → story clusterer (MinHash+DBSCAN dedup)
-      → upsert_rag_document (bge-m3 embed → Qdrant news_v2)
+      → upsert_rag_document (qwen3-4b embed → Qdrant news_v2)
 
     Returns ingestion stats for monitoring.
     """

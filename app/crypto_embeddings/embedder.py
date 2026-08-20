@@ -28,9 +28,9 @@ from app.crypto_embeddings.models import (  # noqa: E402 — module docstring pr
 from app.crypto_embeddings.providers import (  # noqa: E402 — module docstring precedes import block
     ContractCodeEmbedder,
     HuggingFaceEmbedder,
-    InfinityBGEEmbedder,
-    LocalBGEEmbedder,
+    LocalEmbedder,
     OpenRouterEmbedder,
+    Qwen3Embedder,
 )
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
@@ -44,8 +44,8 @@ class CryptoEmbedder:
     """Multi-head embedder for crypto scam detection."""
 
     def __init__(self) -> None:
-        self._local: LocalBGEEmbedder | None = None  # always None — local model path hard-disabled (memory safety)
-        self._infinity: InfinityBGEEmbedder | None = None
+        self._local: LocalEmbedder | None = None  # always None — local model path hard-disabled (memory safety)
+        self._qwen3: Qwen3Embedder | None = None
         self._openrouter: OpenRouterEmbedder | None = None
         self._huggingface: HuggingFaceEmbedder | None = None
         self._redis: Any = None
@@ -58,8 +58,8 @@ class CryptoEmbedder:
         or_key = os.environ.get("OPENROUTER_API_KEY", "") or OPENROUTER_KEY
         hf_token = os.environ.get("HUGGINGFACE_TOKEN", "") or HF_TOKEN
 
-        self._infinity = InfinityBGEEmbedder()
-        logger.info("CryptoEmbedder: Infinity bge-m3 ready (PRIMARY, 1024d)")
+        self._qwen3 = Qwen3Embedder()
+        logger.info("CryptoEmbedder: Qwen3-Embedding-4B ready (PRIMARY, 2560d)")
         # Local BGE-small fallback is HARD-DISABLED: loading sentence-transformers/torch
         # in-process (~300MB resident, never unloaded) caused memory pressure. Do not re-enable.
         self._local = None
@@ -94,11 +94,11 @@ class CryptoEmbedder:
     async def _semantic_embed(self, texts: list[str], head: str = "semantic") -> list[list[float]]:
         if not texts:
             return []
-        if self._infinity:
+        if self._qwen3:
             try:
-                return await self._infinity.embed(texts)
+                return await self._qwen3.embed(texts)
             except Exception as e:
-                logger.warning(f"Infinity embedding failed: {e}")
+                logger.warning(f"Qwen3 embedding failed: {e}")
         if self._openrouter:
             try:
                 return await self._openrouter.embed(texts)
@@ -111,7 +111,7 @@ class CryptoEmbedder:
                 logger.warning(f"HuggingFace embedding failed: {e}")
         raise RuntimeError(
             "CryptoEmbedder: ALL remote embedding backends failed "
-            "(Infinity/OpenRouter/HuggingFace). Local in-process model is disabled "
+            "(Qwen3/OpenRouter/HuggingFace). Local in-process model is disabled "
             "for memory safety — no fallback loaded. Check remote embedder connectivity."
         )
 
@@ -417,7 +417,7 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
                 "openrouter": self._openrouter is not None,
                 "huggingface": self._huggingface is not None,
             },
-            "primary": "infinity/bge-m3 (1024d, remote)",
+            "primary": "qwen3-embedding-4b (2560d, remote)",
             "cache": {
                 "hits": self._cache_hits,
                 "misses": self._cache_misses,

@@ -71,7 +71,6 @@ async def cmd_dlogs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "Usage: `/dlogs <container> [lines]`\n\n"
             "Examples:\n"
             "`/dlogs rmi-backend`\n"
-            "`/dlogs infinity-rag 100`\n\n"
             "Default: 50 lines. Max: 500.",
             parse_mode=ParseMode.MARKDOWN,
         )
