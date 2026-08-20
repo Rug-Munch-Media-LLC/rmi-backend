@@ -6,7 +6,7 @@ Target: Qdrant 1.18.3 (docker `rmi-qdrant`, 127.0.0.1:6333, healthy, 42 legacy c
 ## 1. Goal
 
 Collapse all RAG vector stores into **one Qdrant collection** with native hybrid
-(dense ANN + sparse BM25, server-side RRF). The mature `app/rag/` stack (bge-m3 via
+(dense ANN + sparse BM25, server-side RRF). The mature `app/rag/` stack (qwen3-4b via
 Infinity, chunking, dedup, rerank) is kept and retargeted; the legacy `app/rag_service/`
 stack (FAISS, multi-head crypto_embeddings, semantic cache) is retired.
 
@@ -24,7 +24,7 @@ stack (FAISS, multi-head crypto_embeddings, semantic cache) is retired.
 }
 ```
 
-- **dense**: bge-m3 via Infinity (1024d, Cosine — L2-normalized on insert, consistent
+- **dense**: qwen3-embedding-4b via llama.cpp (1024d, Cosine — L2-normalized on insert, consistent
   with every existing collection).
 - **sparse `bm25`**: Qdrant server-side BM25 (k1=1.5, b=0.75 defaults) computed from the
   `content` payload field. **No fastembed/SPLADE dependency** — reuse the exact config
@@ -89,7 +89,7 @@ in-process `_apply_filters` post-filter step.
 | `engine._qdrant_search` + named-vector probing (`_qdrant_uses_named_vectors`) | becomes the only path |
 | `app/ann_index.py` (root, FAISS) + `app/rag_service/retrieval.py` FAISS path | Qdrant (rag_service deprecated) |
 | `app/semantic_cache.py` (Redis vec cache) | drop — Qdrant is the cache; keep only if latency regresses [REVIEW] |
-| `app/crypto_embeddings.py` multi-head bge-small (384d) | bge-m3 1024d; note: file already missing, rag_service imports are dangling [REVIEW] |
+| `app/crypto_embeddings.py` multi-head bge-small (384d) | qwen3-4b 1024d; note: file already missing, rag_service imports are dangling [REVIEW] |
 | 42 legacy Qdrant collections (news_v2, scams_v2, threat_intel_v2, scanned_tokens…) | frozen → alias-read → dropped |
 
 **Keep:** `dedup.py` Redis ZSET levels 1/3/4 (URL/fingerprint/entity — Redis is the right
@@ -106,11 +106,11 @@ needed.
 
 Sources: ClickHouse (news/scan/whale tables), Postgres (audits, threat intel, feedback),
 and legacy Redis/FAISS dumps (rag_service patterns). All re-indexing goes through the
-**same idempotent writer** (`ensure_collection` → batch embed bge-m3 → upsert uuid5 IDs),
+**same idempotent writer** (`ensure_collection` → batch embed qwen3-4b → upsert uuid5 IDs),
 so re-runs are safe.
 
 1. Export rows → chunk (`chunking.py`, existing 512-token/15% overlap) → embed (Infinity
-   bge-m3) → upsert.
+   qwen3-4b) → upsert.
 2. Backfill order by content_type priority: news → threat/scan → audit → wallet/pattern.
 3. Run `evaluation.py` on the new collection pre/post; gate cutover on recall parity
    (target: ≥ current hybrid, expected +5-15% from real BM25 IDF).

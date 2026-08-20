@@ -38,6 +38,7 @@ from urllib.parse import urlparse
 
 from app.config import settings
 from app.core.logging import get_logger
+from app.rag.ratings import rate_article
 from app.utils._crawler_constants import (
     _SOURCES_FILE,
     DEFAULT_COLLECTION,
@@ -79,7 +80,6 @@ from app.utils.dedup import (
     record_fp_group,
     record_group_membership,
 )
-from app.rag.ratings import rate_article
 
 log = get_logger(__name__)
 
@@ -349,7 +349,7 @@ def _hostname_resolves(hostname: str) -> bool:
 def _ensure_host_connectivity() -> None:
     """Pre-flight host-side connectivity for cron runs (executed OUTSIDE Docker).
 
-    Inside the rmi-backend container ``infinity-rag`` and ``rmi-redis``
+    Inside the rmi-backend container ``qwen3-embedder`` and ``rmi-redis``
     resolve and Redis needs no password. When this module runs on the host
     (``crawl-crypto-news.sh`` cron) those Docker-internal names fail DNS and
     Redis requires auth, which previously made every sweep item fail
@@ -357,7 +357,7 @@ def _ensure_host_connectivity() -> None:
 
     This makes the sweep fail open instead of failing hard:
 
-    * ``INFINITY_URL`` falls back to the host-mapped port (``localhost:8001``)
+    * ``EMBEDDER_URL`` falls back to the host-mapped port (``localhost:8001``)
       when the configured hostname does not resolve from this process.
     * Missing ``REDIS_URL`` (no credentials available) is logged and dedup is
       skipped downstream — ingestion still proceeds.
@@ -369,15 +369,15 @@ def _ensure_host_connectivity() -> None:
             "redis_url_missing host_side dedup_will_be_skipped hint=set REDIS_URL=redis://:password@localhost:6379/0"
         )
 
-    infinity = os.getenv("INFINITY_URL") or settings.infinity_url
+    infinity = os.getenv("EMBEDDER_URL") or settings.infinity_url
     try:
         host = urlparse(infinity).hostname or ""
     except ValueError:
         host = ""
-    if host and "infinity-rag" in host and not _hostname_resolves(host):
-        fallback = os.getenv("INFINITY_URL_FALLBACK", "http://localhost:8001")
+    if host and "qwen3-embedder" in host and not _hostname_resolves(host):
+        fallback = os.getenv("EMBEDDER_URL_FALLBACK", "http://127.0.0.1:8005/v1")
         log.warning("infinity_dns_fallback from=%s to=%s", infinity, fallback)
-        os.environ["INFINITY_URL"] = fallback
+        os.environ["EMBEDDER_URL"] = fallback
         # The settings singleton was built at import time; align it so the
         # lazy embedder singleton picks up the reachable URL.
         with contextlib.suppress(Exception):  # best-effort; env var is the source of truth

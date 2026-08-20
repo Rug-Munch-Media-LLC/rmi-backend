@@ -43,7 +43,7 @@ def resolve_service_url(key: str, docker: str, local: str) -> str:
 
     This mirrors ``app.rag.crawler._ensure_host_connectivity``: the RAG
     bridge (``scan_memory``, ``engine``, ``whale_indexer``) previously
-    hardcoded ``rmi-qdrant:6333`` / ``infinity-rag:8001`` defaults and
+    hardcoded ``rmi-qdrant:6333`` / ``qwen3-embedder:8004`` defaults and
     silently failed every host-side scan-to-RAG index (fail-open), leaving
     ``scanned_tokens`` empty.
     """
@@ -277,18 +277,18 @@ class Settings(BaseSettings):
 
     # ── AI providers ────────────────────────────────────────────────────
     # Ollama base URL. LLM-generation only (app.routers.ai_stream). RugBrain
-    # embeddings/reranking use Infinity exclusively (``infinity_url``).
+    # embeddings/reranking use Qwen3 exclusively (``infinity_url``).
     ollama_url: str = "http://localhost:11434"
     infinity_url: str = Field(
         default_factory=lambda: resolve_service_url(
-            "INFINITY_URL",
-            docker="http://infinity-rag:8001",
-            local="http://localhost:8001",
+            "EMBEDDER_URL",
+            docker="http://172.22.0.1:8004/v1",
+            local="http://127.0.0.1:8005/v1",
         ),
         description=(
-            "Infinity (OpenAI-compatible embedding/rerank server) base URL for the "
-            "RugBrain (crypto-native RAG) pipeline: POST /embeddings (BAAI/bge-m3) "
-            "and POST /rerank (BAAI/bge-reranker-v2-m3). Set INFINITY_URL env var. "
+            "Qwen3 (OpenAI-compatible embedding/rerank server) base URL for the "
+            "RugBrain (crypto-native RAG) pipeline: POST /v1/embeddings (qwen3-embedding-4b) "
+            "and POST /rerank (qwen3-reranker-4b). Set EMBEDDER_URL env var. "
             "Default auto-resolves: Docker-compose name inside the network, "
             "host-mapped localhost:8001 on host-side systemd runs."
         ),
@@ -465,23 +465,23 @@ class Settings(BaseSettings):
     bge_m3_url: str = Field(
         default="",
         description=(
-            "DEPRECATED — legacy BGE-M3 container HTTP service (the old :8001 path, "
-            "nothing listens there). BGE-M3 embeddings are served by Infinity "
+            "DEPRECATED — legacy Qwen3-4B container HTTP service (the old :8001 path, "
+            "nothing listens there). Qwen3-4B embeddings are served by Qwen3 "
             "(``infinity_url``)."
         ),
     )
     embedder_primary: str = Field(
         default="infinity",
         description=(
-            "Primary embedding backend: infinity | bge-m3 | openrouter. "
-            "Set EMBEDDER_PRIMARY. Default is Infinity (OpenAI-compatible /embeddings)."
+            "Primary embedding backend: infinity | qwen3-4b | openrouter. "
+            "Set EMBEDDER_PRIMARY. Default is Qwen3 (OpenAI-compatible /embeddings)."
         ),
     )
     embedder_primary_model: str = Field(
-        default="BAAI/bge-m3",
+        default="qwen3-embedding-4b",
         description=(
             "Model used by the primary embedder when EMBEDDER_PRIMARY=infinity "
-            "(e.g. BAAI/bge-m3 = 1024-dim via Infinity /embeddings). "
+            "(e.g. qwen3-embedding-4b = 2560-dim via Qwen3 /v1/embeddings). "
             "Set EMBEDDER_PRIMARY_MODEL."
         ),
     )
@@ -489,7 +489,7 @@ class Settings(BaseSettings):
         default="",
         description=(
             "DEPRECATED — Ollama fallback model name. RAG embedding now uses "
-            "Infinity exclusively; retained for config compat only. "
+            "Qwen3 exclusively; retained for config compat only. "
             "Set EMBEDDER_FALLBACK."
         ),
     )

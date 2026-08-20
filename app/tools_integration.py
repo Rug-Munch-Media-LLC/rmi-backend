@@ -387,7 +387,7 @@ async def tools_health() -> dict[str, Any]:
         "vault": {"available": bool(await vault_list_secrets()), "url": VAULT_ADDR},
         "file_upload": {
             "running": True,  # port 8001
-            "url": "http://localhost:8001",
+            "url": "http://127.0.0.1:8005/v1",
         },
         "timestamp": datetime.now(UTC).isoformat(),
     }

@@ -171,7 +171,6 @@ async def handle(data: str, query: CallbackQuery) -> bool:
             "rmi-redis",
             "rmi-clickhouse",
             "rmi-qdrant",
-            "infinity-rag",
             "degenfeed-meilisearch",
             "rmi-qdrant",
         ]

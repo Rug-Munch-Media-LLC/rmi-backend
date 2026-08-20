@@ -42,7 +42,7 @@ ROUTING_TABLE = {
         ("google/gemini-2.5-flash", "openrouter", 0.3, 0.0),  # 300ms, free tier via OR
     ],
     TaskType.EMBED: [
-        ("bge-m3", "infinity", 2.0, 0.0),  # 2s, local (infinity-rag)
+        ("qwen3-embedding-4b", "qwen3", 0.5, 0.0),  # 500ms, local (llama.cpp)
         ("mistralai/mistral-embed", "openrouter", 0.1, 0.0),  # 100ms, free
     ],
     TaskType.CODE: [

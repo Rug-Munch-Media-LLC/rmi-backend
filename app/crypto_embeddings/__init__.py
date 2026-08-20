@@ -23,9 +23,9 @@ from app.crypto_embeddings.models import (
 from app.crypto_embeddings.providers import (
     ContractCodeEmbedder,
     HuggingFaceEmbedder,
-    InfinityBGEEmbedder,
-    LocalBGEEmbedder,
+    LocalEmbedder,
     OpenRouterEmbedder,
+    Qwen3Embedder,
 )
 from app.crypto_embeddings.seed import KNOWN_SCAM_PATTERNS
 
@@ -50,9 +50,9 @@ __all__ = [
     "CryptoEmbedder",
     "EmbeddingResult",
     "HuggingFaceEmbedder",
-    "InfinityBGEEmbedder",
-    "LocalBGEEmbedder",
+    "LocalEmbedder",
     "OpenRouterEmbedder",
+    "Qwen3Embedder",
     "extract_contract_features",
     "extract_transaction_features",
     "extract_wallet_features",

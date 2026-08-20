@@ -162,7 +162,7 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
 
     chains["rag_news_realtime"] = ProviderChain(
         "rag_news_realtime",
-        description="Realtime DataBus news → RAG news_v2 ingestion via Qdrant hybrid store (200+ sources, Infinity rerank)",
+        description="Realtime DataBus news → RAG news_v2 ingestion via Qdrant hybrid store (200+ sources, Qwen3 rerank)",
         providers=[
             Provider(
                 "databus_news_ingest",

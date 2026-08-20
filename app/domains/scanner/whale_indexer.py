@@ -11,7 +11,7 @@ Pipeline::
         └── WebhookEngine._poll_loop
                 └── index_whale_event(raw_event)     ← this module
                         ├── build compact doc string
-                        ├── embed via get_embedding()  (BAAI/bge-m3, 1024d)
+                        ├── embed via get_embedding()  (qwen3-embedding-4b, 2560d)
                         └── upsert into whale_transfers
                                 payload {token, address, chain, wallet,
                                          value_usd, side, ts, tx_hash}
@@ -22,7 +22,7 @@ dropped with a warning and the cursor still advances.
 
 Vector size is 1024 to match every existing Qdrant collection in this repo
 (verified: scam_patterns, news_articles, wallet_embeddings, scam_intel_v2
-are all 1024-dim Cosine) and the primary embedder (``BAAI/bge-m3`` →
+are all 1024-dim Cosine) and the primary embedder (``qwen3-embedding-4b`` →
 ``EMBEDDING_DIM == 1024``). Search flows through the existing Qdrant
 fallback in ``app/rag/engine.py`` (``three_pillar_search`` with
 ``collection="whale_transfers"``), which reads ``content`` / ``metadata``
@@ -48,7 +48,7 @@ log = get_logger(__name__)
 COLLECTION = "whale_transfers"
 
 # All existing Qdrant collections in this repo are 1024-dim Cosine
-# (nomic embeddings are NOT used here — the primary embedder is bge-m3).
+# (nomic embeddings are NOT used here — the primary embedder is qwen3-embedding-4b).
 VECTOR_SIZE = 1024
 DISTANCE = "Cosine"
 

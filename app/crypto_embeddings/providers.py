@@ -1,4 +1,4 @@
-"""Embedding providers: Local BGE, Infinity bge-m3, OpenRouter, HuggingFace."""
+"""Embedding providers: Local BGE, Qwen3-4B, OpenRouter, HuggingFace."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class LocalBGEEmbedder:
     The in-process sentence-transformers/torch path (~300MB resident in the bot
     process, never unloaded) was the direct cause of memory pressure. This class
     now fails fast and can NEVER load a local model or touch torch. Use the
-    remote embedders (Infinity primary, OpenRouter, HuggingFace) or the hash
+    remote embedders (Qwen3 primary, OpenRouter, HuggingFace) or the hash
     fallback instead.
     """
 
@@ -50,15 +50,15 @@ class LocalBGEEmbedder:
         return results[0]
 
 
-class InfinityBGEEmbedder:
-    """BAAI/bge-m3 via the Infinity server (OpenAI-compatible /embeddings). 1024d, zero cost."""
+class Qwen3Embedder:
+    """Qwen3-Embedding-4B via llama.cpp (OpenAI-compatible /v1/embeddings). 2560d, zero cost."""
 
-    INFINITY_URL = os.getenv("INFINITY_URL", "http://infinity-rag:8001")
-    MODEL = "BAAI/bge-m3"
+    EMBEDDER_URL = os.getenv("EMBEDDER_URL", "http://172.22.0.1:8004/v1")
+    MODEL = "qwen3-embedding-4b"
     DIMS = 1024
 
-    def __init__(self, infinity_url: str | None = None) -> None:
-        self.url = infinity_url or os.getenv("INFINITY_URL", self.INFINITY_URL)
+    def __init__(self, qwen3_url: str | None = None) -> None:
+        self.url = qwen3_url or os.getenv("EMBEDDER_URL", self.EMBEDDER_URL)
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import httpx
@@ -89,7 +89,7 @@ class InfinityBGEEmbedder:
 
 
 class OpenRouterEmbedder:
-    """OpenRouter embedding API - NVIDIA Nemotron primary, bge-m3 fallback."""
+    """OpenRouter embedding API - NVIDIA Nemotron primary, qwen3 fallback."""
 
     BASE = "https://openrouter.ai/api/v1/embeddings"
     MODEL = OR_PRIMARY_EMBED
@@ -133,7 +133,7 @@ class HuggingFaceEmbedder:
     """HuggingFace Inference API - free tier fallback."""
 
     BASE = "https://api-inference.huggingface.co/models"
-    MODEL = "BAAI/bge-m3"
+    MODEL = "qwen3-embedding-4b"
 
     def __init__(self, token: str | None = None) -> None:
         self.token = token or HF_TOKEN

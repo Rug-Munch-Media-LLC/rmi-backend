@@ -46,7 +46,7 @@ MODEL_COSTS = {
         "note": "Free tier - 14.4K req/day, 9ms latency",
     },
     "mistral:7b": {"input": 0.0, "output": 0.0, "provider": "ollama"},
-    "bge-m3": {"input": 0.0, "output": 0.0, "provider": "infinity"},
+    "qwen3-embedding-4b": {"input": 0.0, "output": 0.0, "provider": "qwen3"},
 }
 
 _usage_log: list[dict[str, Any]] = []

@@ -524,7 +524,7 @@ async def index_social_sentiment_to_rag(limit_tokens: int = 50) -> dict[str, Any
     """Embed per-token sentiment metrics into the RAG ``social_sentiment`` collection.
 
     Mirrors ``rag_ingestion.nightly_rag_index`` — reuses the shared
-    ``_embed_batch`` pipeline (BGE-M3 embeddings + Redis doc store + ANN).
+    ``_embed_batch`` pipeline (Qwen3-4B embeddings + Redis doc store + ANN).
     """
     posts = load_ingested_posts()
     results = compute_social_sentiment(posts)

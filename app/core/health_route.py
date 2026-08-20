@@ -457,7 +457,7 @@ async def _check_rag_pipeline() -> dict[str, Any]:
 
     The scanner publishes high/critical findings to the ``rmi:rag:ingest``
     pub/sub channel and the ``rmi:rag:findings_queue`` LPUSH list. rmi-rag's
-    poller/subscriber consume those, embed with BGE-M3, and upsert into the
+    poller/subscriber consume those, embed with Qwen3-4B, and upsert into the
     Qdrant ``threat_intel`` collection. This returns:
 
     - ``queue_depth``: LLEN of ``rmi:rag:findings_queue`` (backlog waiting to
@@ -466,10 +466,10 @@ async def _check_rag_pipeline() -> dict[str, Any]:
       subscriber + poller (in-memory, resets on rmi-rag-api restart).
     - ``poller_running`` / ``subscriber_running``: whether rmi-rag's
       background consumers are alive.
-    - ``embedding_available``: whether Infinity has a usable embedding model
-      (BAAI/bge-m3) loaded.
-    - ``reranker_available``: whether Infinity has the reranker model
-      (BAAI/bge-reranker-v2-m3) loaded.
+    - ``embedding_available``: whether Qwen3 embedder has a usable model
+      (qwen3-embedding-4b) loaded.
+    - ``reranker_available``: whether Qwen3 reranker is available
+      (qwen3-reranker-4b) loaded.
     - ``status``: ``"healthy"`` or ``"degraded"``. Degraded when the embedder
       is unavailable or when consumers run but nothing has ever been ingested.
     - ``issues``: list of degradation reasons (``embedder_unavailable``,
@@ -497,26 +497,26 @@ async def _check_rag_pipeline() -> dict[str, Any]:
     except Exception as exc:
         stats["error"] = f"redis: {str(exc)[:120]}"
 
-    # ── Embedder health (Infinity) ──
-    # Try to reach Infinity and confirm both the embedding model (bge-m3)
-    # and the reranker model (bge-reranker-v2-m3) are loaded. Without an
+    # ── Embedder health (Qwen3) ──
+    # Try to reach the Qwen3 embedder and confirm the model
+    # and the reranker are loaded. Without an
     # embed model, rmi-rag cannot index findings even if consumers run.
     try:
         import httpx
 
-        infinity_base_url = _get_url(
-            "INFINITY_URL",
-            "http://infinity-rag:8001",
+        embedder_base_url = _get_url(
+            "EMBEDDER_URL",
+            "http://172.22.0.1:8004/v1",
             "http://127.0.0.1:8001",
         ).rstrip("/")
         async with httpx.AsyncClient() as http_client:
-            hresp = await http_client.get(f"{infinity_base_url}/health", timeout=5)
+            hresp = await http_client.get(f"{embedder_base_url}/health", timeout=5)
             if hresp.status_code != 200:
-                raise RuntimeError(f"infinity_health_http_{hresp.status_code}")
-            mresp = await http_client.get(f"{infinity_base_url}/models", timeout=5)
+                raise RuntimeError(f"embedder_health_http_{hresp.status_code}")
+            mresp = await http_client.get(f"{embedder_base_url}/models", timeout=5)
             model_ids = [m.get("id", "") for m in mresp.json().get("data", [])]
-            embedding_available = any("bge-m3" in mid for mid in model_ids)
-            reranker_available = any("bge-reranker" in mid for mid in model_ids)
+            embedding_available = any("qwen3" in mid or "embedding" in mid for mid in model_ids)
+            reranker_available = any("qwen3-reranker" in mid or "reranker" in mid for mid in model_ids)
     except Exception:
         embedding_available = False
         reranker_available = False

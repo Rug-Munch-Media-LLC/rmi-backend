@@ -4,7 +4,7 @@ Rug Munch Intelligence - RAG Ingestion Pipeline
 Nightly indexing of ALL data sources into the RAG system.
 Feeds: news, CT rundown, market data, social metrics, on-chain data.
 
-Runs at 3AM UTC. Embeds via NVIDIA NIM (BGE-M3, 1024d, free).
+Runs at 3AM UTC. Embeds via Qwen3-Embedding-4B via llama.cpp (2560d, free).
 Redis-backed with permanence to B2.  # Migrated from R2 to B2 2026-07-31
 """
 
@@ -489,7 +489,7 @@ async def _embed_batch(docs: list[dict[str, Any]], collection: str) -> int:
             if r.exists(f"rag:doc:{collection}:{doc_id}"):
                 continue
 
-            # Actually embed the document (bge-m3 via Ollama) and add the
+            # Actually embed the document (qwen3-4b via llama.cpp) and add the
             # vector to the ANN index so it is searchable — previously this
             # function only stored text+metadata and never computed vectors.
             try:
@@ -568,7 +568,7 @@ async def rag_health_check(**kw) -> dict[str, Any]:
             "status": "healthy",
             "total_documents": total,
             "collections": stats,
-            "embedder": "baai/bge-m3 (NVIDIA NIM, 1024d, free)",
+            "embedder": "qwen3-embedding-4b (llama.cpp, 2560d, free)",
             "storage": "Redis + B2 permanence",
             "nightly_cron": "3AM UTC",
             "checked_at": datetime.now(UTC).isoformat(),
