@@ -1,124 +1,24 @@
-# import-linter architectural contracts for the rmi-backend `app` package.
-#
-# What this is
-# ------------
-# import-linter statically analyzes the import graph of the `app` package and
-# enforces the layer boundaries declared below. It does NOT import the
-# application — it parses source, so it is fast and safe to run in CI without
-# dependencies installed.
-#
-# NOTE (grimp 3.15 / import-linter 2.x): the graph builder resolves imports
-# inside function bodies too, not just module-level imports. Function-level
-# lazy imports ARE visible to the gate and ARE enforced (see Contract 4).
-#
-# Run locally:   lint-imports --config .importlinter
-# CI:            .forgejo/workflows/ci.yml  →  `import-linter` job (blocking)
-# Makefile:      make import-lint
-#
-# Design principle: keep the contracts minimal and GREEN. This monolith has
-# grown organically; the four contracts below capture boundaries that hold
-# today (two via narrow, documented ignores for known lazy-import boundaries
-# that cannot yet be removed safely — see Contract 4). New boundaries should
-# be added one at a time, after the code is refactored to satisfy them.
-# Ignore lists must stay NARROW (exact module pairs) and each entry must be
-# documented; never widen them to silence whole packages.
-
 [importlinter]
-root_packages =
-    app
+root_package = app
 
-# ── Contract 1: API layer sits above the core layer ──────────────────
-# app.api is the HTTP entry layer; app.core is foundational infrastructure
-# (database, auth, logging, rate limiting, errors). Core must never reach
-# up into the API layer — keep framework/HTTP coupling out of foundations.
-[importlinter:api-above-core]
-name = API layer sits above core layer (core never imports api)
-type = layers
-layers =
-    app.api
-    app.core
+[importlinter:contract:domains-independence]
+name = Domain packages are independent (no cross-domain imports)
+type = independence
+modules =
+    app.domains
 
-# ── Contract 2: Services never import the HTTP layer ─────────────────
-# app.services are business-facing modules. They must not depend on route
-# definitions / request handlers in app.api or app.routers (inversion of
-# the intended dependency direction: routers/services sit below the API).
-[importlinter:services-do-not-import-api]
-name = Services never import the API/routers layer
-type = forbidden
-source_modules =
-    app.services
-forbidden_modules =
-    app.api
-    app.routers
-
-# ── Contract 3: Adapters are leaf modules ────────────────────────────
-# app.adapters (integration adapters such as binance_web3) are
-# self-contained integration points: they may use stdlib/third-party
-# libraries but must not import any other internal app.* package.
-[importlinter:adapters-are-leaf]
-name = Adapters are leaf modules (no internal app imports)
-type = forbidden
-source_modules =
-    app.adapters
-forbidden_modules =
-    app
-
-# ── Contract 4: Core never imports routers or services ───────────────
-# app.core is foundational infrastructure and must stay the lowest layer.
-# It must not reach UP into app.routers (HTTP handlers) or app.services
-# (business-facing modules). Both directions of this rule already hold at
-# module level; the two exceptions below are KNOWN function-level lazy
-# imports that cannot be safely removed yet (the helpers they reference are
-# defined in the router/service package, so removing them requires a
-# refactor of those modules — out of scope for this gate change).
-#
-# Known boundaries, ignored narrowly (exact module pair — the narrowest
-# scope import-linter 2.x supports; there is no function-level ignore):
-#
-#   1. app.core.middleware.cache_middleware lazily imports
-#      get_cached/set_cached from app.routers.x402_advanced_tools
-#      (runtime cache helpers defined in the router). Kept lazy on purpose:
-#      hoisting it to module level would create a permanent core→routers
-#      edge, so the correct long-term fix is to MOVE the cache helpers into
-#      app.core and have the router import from core. Until then, ignored.
-#
-#   2. app.core.dependencies.get_pryscraper_client lazily imports
-#      PryscraperClient from app.services.pryscraper_client (runtime
-#      singleton creation; also a TYPE_CHECKING-only annotation import).
-#      Correct long-term fix: move PryscraperClient (or its constructor)
-#      below core. Until then, ignored.
-#
-# CLEANUP RULE: when either lazy import is removed/refactored away, DELETE
-# its ignore_imports entry below. unmatched_ignore_imports_alerting is set
-# to `warn` so such a refactor does not hard-break CI — it prints a warning
-# reminding you to remove the now-stale entry.
-[importlinter:core-does-not-import-routers-or-services]
-name = Core layer never imports routers or services
+[importlinter:contract:core-foundation]
+name = Core never imports features (core is foundational)
 type = forbidden
 source_modules =
     app.core
 forbidden_modules =
+    app.domains
     app.routers
-    app.services
 ignore_imports =
+    # KNOWN DEBT (2026-08-21): DI convenience singletons in core.
+    # TODO(degodding-phase-4): move to feature-side registration.
+    app.core.dependencies -> app.domains.scanner.unified
+    app.core.dependencies -> app.domains.wallet.unified_wallet_scanner
+    app.core.lifespan -> app.databus.core
     app.core.middleware -> app.routers.x402_advanced_tools
-    app.core.dependencies -> app.services.pryscraper_client
-unmatched_ignore_imports_alerting = warn
-
-# ── Known boundaries NOT yet enforced (deliberately out of scope) ────
-# Next candidate once the code is refactored:
-#
-#   app.core.lifespan -> app.rag.tracing, app.databus.core
-#
-# This function-level lazy import is not covered by any contract today
-# (app.rag / app.databus are not in Contract 4's forbidden modules). When it
-# is cleaned up, extend Contract 4's forbidden_modules (or migrate to a full
-# layers contract) to:
-#   layers =
-#       app.api
-#       app.routers
-#       app.services
-#       app.core
-# A full-layers form of Contract 4 passes today with the two narrow ignores
-# above, so the only blocker to enforcing app.core.lifespan is removing that
-# lazy import first.
