@@ -432,145 +432,63 @@ async def _fetch_tool_context(message: str) -> str | None:
     return await _run_tool_for_intent(message, intent)
 
 
-# ── Routes ─────────────────────────────────────────────────────
+# ── chat() composed steps (degodding phase 3, 2026-08-21) ────────────
+# The POST /api/v1/chat handler used to be a single 308-line body. Its
+# composed steps are extracted here as module-level helpers so the endpoint
+# reads as an orchestration skeleton. Helpers live in THIS module (not a
+# submodule) on purpose: tests patch ``chat_mod._search_rag_context`` /
+# ``_rag_search_collection`` / ``_fetch_tool_context`` / ``do_chat_completion``
+# / ``searxng_search`` on the module object, and same-module globals resolve
+# those patched attributes at call time — moving the helpers to a submodule
+# would silently break that patching contract.
 
 
-@router.post("")
-async def chat(
-    req: ChatRequest,
+def _respond_canned(
+    user_id: str,
+    message: str,
+    answer: str,
+    *,
+    model: str,
+    provider: str,
     request: Request,
     response: Response,
-    user: dict[str, Any] | None = Depends(get_current_user),
-    _: None = Depends(chat_rate_limit),
 ) -> dict[str, Any]:
-    """Send a message and get an AI response (non-streaming)."""
-    user_id = user.get("id", "anon") if user else "anon"
+    """Persist both turns and return a canned (non-LLM) response payload.
 
-    # ── SECURITY LAYER 1: Input sanitization ──
-    raw_message = req.message
-    sanitized = ai_guard.sanitize_input(raw_message)
-    if sanitized != raw_message:
-        req.message = sanitized  # Use sanitized version
-
-    # ── SECURITY LAYER 2: Attack vector scan ──
-    scan = ai_guard.scan_input(req.message, session_id=user_id)
-    if not scan.safe:
-        ai_guard.record_block(
-            user_id, message=req.message, reason=scan.reason, category=scan.details.get("category", "")
-        )
-        raise AuthorizationError(message=f"Security alert: {scan.reason}")
-
-    # ── IDENTITY FAST-PATH ──
-    # Canned persona answer for identity/self questions — no RAG, no web
-    # search, no LLM round-trip. History is still saved so the conversation
-    # stays consistent for follow-ups.
-    identity_answer = _identity_answer(req.message)
-    if identity_answer is not None:
-        _save_message(user_id, "user", req.message)
-        _save_message(
-            user_id,
-            "assistant",
-            identity_answer,
-            {"model": "canned", "provider": "identity", "security_scanned": True, "rag_context_count": 0},
-        )
-        _apply_rate_limit_headers(response, request)
-        response.headers["X-RAG-Context"] = "0"
-        return {
-            "id": f"resp-{uuid.uuid4().hex[:8]}",
-            "message": identity_answer,
-            "model": "canned",
-            "provider": "identity",
-            "latency_ms": 0,
-            "usage": {},
-            "x_rag_context": 0,
-        }
-
-    # ── VAGUE-QUESTION FAST-PATH ──
-    # Underspecified questions ("what happened with the one token the other
-    # day") get a clarification prompt — no RAG/web/LLM round-trip, no risk of
-    # a degenerate "- " answer from the model.
-    vague_answer = _vague_question(req.message)
-    if vague_answer is not None:
-        _save_message(user_id, "user", req.message)
-        _save_message(
-            user_id,
-            "assistant",
-            vague_answer,
-            {"model": "canned", "provider": "vague", "security_scanned": True, "rag_context_count": 0},
-        )
-        _apply_rate_limit_headers(response, request)
-        response.headers["X-RAG-Context"] = "0"
-        return {
-            "id": f"resp-{uuid.uuid4().hex[:8]}",
-            "message": vague_answer,
-            "model": "canned",
-            "provider": "vague",
-            "latency_ms": 0,
-            "usage": {},
-            "x_rag_context": 0,
-        }
-
-    # ── RESPONSE CACHE (repeats) ──
-    # Repeated/common questions short-circuit the LLM round-trip entirely.
-    # The cache key is the (sanitized) message PLUS a fingerprint of any
-    # caller-supplied grounding (context_override.system_context — e.g. the
-    # Telegram bot's persona). Previously a grounded request bypassed the
-    # cache unconditionally, so every bot turn paid a full 56-88s LLM call
-    # instead of an 11ms cache hit; now the same grounding → same key →
-    # cache hit, while a DIFFERENT persona/RAG block never serves a stale
-    # cached answer. Identity/vague canned answers above already returned,
-    # so those are never cached. Failures are never cached either (we only
-    # store after a successful LLM response below).
-    client_grounded = bool(
-        req.context_override
-        and isinstance(req.context_override, dict)
-        and isinstance(req.context_override.get("system_context"), str)
-        and req.context_override.get("system_context", "").strip()
+    Shared by the identity / vague-question / response-cache fast paths:
+    no RAG, no web search, no LLM round-trip — but history is still saved
+    so the conversation stays consistent for follow-ups.
+    """
+    _save_message(user_id, "user", message)
+    _save_message(
+        user_id,
+        "assistant",
+        answer,
+        {"model": model, "provider": provider, "security_scanned": True, "rag_context_count": 0},
     )
-    grounding_text = req.context_override.get("system_context") if client_grounded and req.context_override else None
-    cache_key = _cache_key(req.message, grounding=grounding_text)
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        _save_message(user_id, "user", req.message)
-        _save_message(
-            user_id,
-            "assistant",
-            cached,
-            {"model": "cached", "provider": "cache", "security_scanned": True, "rag_context_count": 0},
-        )
-        _apply_rate_limit_headers(response, request)
-        response.headers["X-RAG-Context"] = "0"
-        return {
-            "id": f"resp-{uuid.uuid4().hex[:8]}",
-            "message": cached,
-            "model": "cached",
-            "provider": "cache",
-            "latency_ms": 0,
-            "usage": {},
-            "x_rag_context": 0,
-        }
+    _apply_rate_limit_headers(response, request)
+    response.headers["X-RAG-Context"] = "0"
+    return {
+        "id": f"resp-{uuid.uuid4().hex[:8]}",
+        "message": answer,
+        "model": model,
+        "provider": provider,
+        "latency_ms": 0,
+        "usage": {},
+        "x_rag_context": 0,
+    }
 
-    # Get or create user context
-    user_context = ""
-    if user:
-        tier = user.get("tier", "free")
-        display = user.get("display_name", user.get("email", "detective"))
-        user_context = f"User: {display} (tier: {tier})"
 
-    # ── TOOL-USE LAYER (live data) ──
-    # Price/scan/TA/market questions get real numbers injected into the
-    # system context so the LLM grounds its answer instead of hallucinating.
-    # Best-effort: failed/timeout executors return None and chat proceeds
-    # with normal RAG/LLM below — tools never block or break chat.
-    #
-    # ── RAG grounding (non-blocking) ──
-    # Direct web chat callers get automatic RAG grounding: search the RAG
-    # collections for context relevant to the message and inject the top
-    # hits into the system prompt before the LLM call. If the caller already
-    # supplied explicit system context (e.g. the Telegram bot sends its own
-    # RAG search via context_override.system_context), respect that instead —
-    # no double-grounding. RAG search is best-effort: on failure/timeout it
-    # returns empty and chat proceeds without context (never blocks chat).
+async def _gather_grounding(req: ChatRequest, user_context: str) -> tuple[str, int, int]:
+    """Fetch tool/RAG/web grounding concurrently and merge the system context.
+
+    Returns ``(system_context, rag_count, web_count)``. Grounding order in
+    the merged context: server-side RAG first, then live web results, then
+    any caller-supplied ``context_override.system_context``, with live tool
+    data LAST (most authoritative). Best-effort end to end: every fetcher is
+    fail-open, so a tool/RAG/web failure degrades to empty context and chat
+    proceeds.
+    """
     client_system_context: str | None = None
     if req.context_override and isinstance(req.context_override, dict):
         cs = req.context_override.get("system_context")
@@ -673,15 +591,17 @@ async def chat(
     if tool_result:
         system_context = _inject_tool_result(system_context, tool_result)
 
-    messages = await _build_messages(user_id, req.message, system_context, req.history)
+    return system_context, rag_count, web_count
 
-    # Save user message (sanitized)
-    _save_message(user_id, "user", req.message)
 
+async def _run_chat_completion(req: ChatRequest, messages: list[dict[str, Any]]) -> dict[str, Any]:
+    """Complexity-routed LLM call. Raises ExternalAPIError on provider failure.
+
+    Analytical/forensic questions go to the stronger deep (long) tier,
+    simple/quick ones to the fast (snappy) tier. An explicit ``req.model``
+    wins over routing.
+    """
     try:
-        # Complexity-based routing: analytical/forensic questions go to the
-        # stronger deep (long) tier, simple/quick ones to the fast (snappy)
-        # tier. An explicit req.model wins over routing.
         task_type = "chat" if req.model else _route_task(req.message)
         result = await do_chat_completion(
             messages=messages,
@@ -696,19 +616,35 @@ async def chat(
 
     if "error" in result:
         raise ExternalAPIError(message=result["error"])
+    return result
 
-    # ── SECURITY LAYER 3: Output sanitization ──
+
+def _finalize_chat_response(
+    *,
+    user_id: str,
+    req: ChatRequest,
+    request: Request,
+    response: Response,
+    result: dict[str, Any],
+    scan: Any,
+    cache_key: str,
+    rag_count: int,
+    web_count: int,
+) -> dict[str, Any]:
+    """Sanitize output, cache it, set grounding headers, persist, build payload.
+
+    SECURITY LAYER 3 (output sanitization) + the response cache write run
+    only on success, so failed calls are never cached. Grounded requests are
+    cached under the grounding-scoped key (same persona + same message → hit;
+    different persona → miss). Market-ish queries (price/mcap/chart/now/
+    today) get a short TTL because their answers go stale fast; everything
+    else an hour (the persona changes daily, so 1h is well within the
+    fresh-grounding window).
+    """
     response_content = ai_guard.sanitize_output(result.get("content", ""))
     if scan.details.get("disclaimer") and DISCLAIMER not in response_content:
         response_content += f"\n\n{DISCLAIMER}"
 
-    # ── Cache the (sanitized) success response ──
-    # Grounded requests are cached under the grounding-scoped key (same
-    # persona + same message → hit; different persona → miss). Market-ish
-    # queries (price/mcap/chart/now/today) get a short TTL because their
-    # answers go stale fast; everything else an hour (the persona changes
-    # daily, so 1h is well within the fresh-grounding window). This runs only
-    # on success, so failed calls are never cached.
     ttl = _CACHE_TTL_MARKET if _is_market_query(req.message) else _CACHE_TTL_DEFAULT
     _cache_set(cache_key, response_content, ttl)
 
@@ -742,6 +678,119 @@ async def chat(
         # Honest RAG grounding count (real unique hits, not collections x top_k).
         "x_rag_context": rag_count,
     }
+
+
+# ── Routes ─────────────────────────────────────────────────────
+
+
+@router.post("")
+async def chat(
+    req: ChatRequest,
+    request: Request,
+    response: Response,
+    user: dict[str, Any] | None = Depends(get_current_user),
+    _: None = Depends(chat_rate_limit),
+) -> dict[str, Any]:
+    """Send a message and get an AI response (non-streaming)."""
+    user_id = user.get("id", "anon") if user else "anon"
+
+    # ── SECURITY LAYER 1: Input sanitization ──
+    raw_message = req.message
+    sanitized = ai_guard.sanitize_input(raw_message)
+    if sanitized != raw_message:
+        req.message = sanitized  # Use sanitized version
+
+    # ── SECURITY LAYER 2: Attack vector scan ──
+    scan = ai_guard.scan_input(req.message, session_id=user_id)
+    if not scan.safe:
+        ai_guard.record_block(
+            user_id, message=req.message, reason=scan.reason, category=scan.details.get("category", "")
+        )
+        raise AuthorizationError(message=f"Security alert: {scan.reason}")
+
+    # ── IDENTITY FAST-PATH ──
+    # Canned persona answer for identity/self questions — no RAG, no web
+    # search, no LLM round-trip (see _respond_canned).
+    identity_answer = _identity_answer(req.message)
+    if identity_answer is not None:
+        return _respond_canned(
+            user_id,
+            req.message,
+            identity_answer,
+            model="canned",
+            provider="identity",
+            request=request,
+            response=response,
+        )
+
+    # ── VAGUE-QUESTION FAST-PATH ──
+    # Underspecified questions ("what happened with the one token the other
+    # day") get a clarification prompt — no RAG/web/LLM round-trip, no risk
+    # of a degenerate "- " answer from the model.
+    vague_answer = _vague_question(req.message)
+    if vague_answer is not None:
+        return _respond_canned(
+            user_id, req.message, vague_answer, model="canned", provider="vague", request=request, response=response
+        )
+
+    # ── RESPONSE CACHE (repeats) ──
+    # Repeated/common questions short-circuit the LLM round-trip entirely.
+    # The cache key is the (sanitized) message PLUS a fingerprint of any
+    # caller-supplied grounding (context_override.system_context — e.g. the
+    # Telegram bot's persona). Previously a grounded request bypassed the
+    # cache unconditionally, so every bot turn paid a full 56-88s LLM call
+    # instead of an 11ms cache hit; now the same grounding → same key →
+    # cache hit, while a DIFFERENT persona/RAG block never serves a stale
+    # cached answer. Identity/vague canned answers above already returned,
+    # so those are never cached. Failures are never cached either (we only
+    # store after a successful LLM response in _finalize_chat_response).
+    client_grounded = bool(
+        req.context_override
+        and isinstance(req.context_override, dict)
+        and isinstance(req.context_override.get("system_context"), str)
+        and req.context_override.get("system_context", "").strip()
+    )
+    grounding_text = req.context_override.get("system_context") if client_grounded and req.context_override else None
+    cache_key = _cache_key(req.message, grounding=grounding_text)
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return _respond_canned(
+            user_id, req.message, cached, model="cached", provider="cache", request=request, response=response
+        )
+
+    # Get or create user context
+    user_context = ""
+    if user:
+        tier = user.get("tier", "free")
+        display = user.get("display_name", user.get("email", "detective"))
+        user_context = f"User: {display} (tier: {tier})"
+
+    # ── GROUNDING: tool-use (live data) + RAG + live web search ──
+    # If the caller already supplied explicit system context (e.g. the
+    # Telegram bot sends its own RAG search via context_override.
+    # system_context), respect that instead — no double-grounding.
+    system_context, rag_count, web_count = await _gather_grounding(req, user_context)
+
+    messages = await _build_messages(user_id, req.message, system_context, req.history)
+
+    # Save user message (sanitized)
+    _save_message(user_id, "user", req.message)
+
+    # ── MODEL CALL (complexity-routed) ──
+    result = await _run_chat_completion(req, messages)
+
+    # ── SECURITY LAYER 3 + cache write + headers + persistence + payload ──
+    return _finalize_chat_response(
+        user_id=user_id,
+        req=req,
+        request=request,
+        response=response,
+        result=result,
+        scan=scan,
+        cache_key=cache_key,
+        rag_count=rag_count,
+        web_count=web_count,
+    )
 
 
 @router.post("/stream")

@@ -1,6 +1,6 @@
-"""Cross-encoder reranking for the RAG pipeline (Qwen3 Reranker 8B).
+"""Cross-encoder reranking for the RAG pipeline (Qwen3 Reranker 4B).
 
-Reranks retrieved candidates with Qwen3 Reranker 8B Q4_K_M via llama.cpp
+Reranks retrieved candidates with Qwen3 Reranker 4B Q6_K via llama.cpp
 ``/rerank`` endpoint (host systemd service, bound to 172.22.0.1:8003).
 
 Fail-open: if the reranker is unreachable, callers keep the pre-rerank order
@@ -14,18 +14,17 @@ from typing import Any
 
 import httpx
 
-from app.config import settings
 from app.core.logging import get_logger
 from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 
-# Qwen3 Reranker 8B Q4_K_M via llama.cpp on Talos (systemd qwen-reranker.service)
+# Qwen3 Reranker 4B Q6_K via llama.cpp on Talos (systemd qwen-reranker.service)
 RERANK_URL: str = os.getenv("RERANK_URL", "http://172.22.0.1:8003")
 
 
 async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> list[dict[str, Any]]:
-    """Rerank *documents* against *query* via Qwen3 Reranker 8B.
+    """Rerank *documents* against *query* via Qwen3 Reranker 4B.
 
     Args:
         query: The user query string.
@@ -44,7 +43,7 @@ async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> li
         "rag.rerank.qwen3",
         {
             "openinference.span.kind": "RERANKER",
-            "openinference.embedding.model": "Qwen3-Reranker-8B-Q4_K_M",
+            "openinference.embedding.model": "Qwen3-Reranker-4B-Q6_K",
             "rerank.input_count": len(documents),
             "rerank.top_n": top_n,
         },
