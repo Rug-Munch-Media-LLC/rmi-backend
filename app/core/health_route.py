@@ -530,7 +530,7 @@ async def _check_rag_pipeline() -> dict[str, Any]:
     try:
         rag_api_url = os.getenv(
             "RAG_API_URL",
-            "http://rmi-rag-api:8012" if not _IS_DEV else "http://127.0.0.1:8012",
+            "http://rugbrain-api:8012" if not _IS_DEV else "http://127.0.0.1:8012",
         ).rstrip("/")
         http_client = await _get_http_client()
         resp = await asyncio.wait_for(http_client.get(f"{rag_api_url}/health"), timeout=2.0)
