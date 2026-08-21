@@ -471,7 +471,7 @@ async def _own_price_argmax(token: str, chain: str) -> dict[str, Any] | None:
                       AND type = 'swap'
                       AND {where_extra}
                       AND block_timestamp >= now() - INTERVAL 24 HOUR
-                    """,
+                    """,  # nosec B608 - internal constant fragments, params bound below
                     {"token": token, "chain": chain},
                 )
             )
