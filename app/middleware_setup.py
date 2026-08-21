@@ -319,7 +319,7 @@ def _try_register_auth(app: FastAPI) -> None:
         app.add_middleware(AuthMiddleware)
         log.info("middleware_registered name=auth")
     except Exception as exc:
-        log.warning("middleware_skipped name=auth err=%s", exc)
+        log.error("middleware_skipped name=auth err=%s — API IS RUNNING UNAUTHENTICATED", exc)
 
 
 def _try_register_security_headers(app: FastAPI) -> None:

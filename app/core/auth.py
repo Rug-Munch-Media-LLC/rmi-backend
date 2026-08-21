@@ -110,8 +110,6 @@ PUBLIC_PREFIXES = (
     "/api/v1/databus/webhooks/",  # External webhook receivers (Helius, Moralis, etc.) — auth via Bearer token per-service
     "/api/v1/degenfeed/storage/",  # DegenFeed KV storage gateway — auth enforced in-router (X-API-Key OR Bearer, RMI_AUTH_TOKEN or RMI_INTERNAL_KEY)
     # KV migration endpoints (Phase 2 KV→selfhosted) — auth enforced in-router (same dual-token check)
-    "/api/v1/rate-limits/",  # POST /report, GET /check
-    "/api/v1/queue/",  # POST /enqueue, GET /dequeue
     "/api/v1/sessions",
     "/api/v1/chat-history",
     "/api/v1/identities",
