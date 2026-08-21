@@ -109,7 +109,7 @@ async def list_news(
             cutoff = utcnow() - timedelta(hours=fetch_hours)
             engagement_select, engagement_join = await _engagement_joins()
             query = (
-                "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
+                "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
                 "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
@@ -258,7 +258,8 @@ async def trending_news(
         engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
             rows = await conn.fetch(
-                "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
+                # nosec B608 — engagement fragments are internal; params bound
+                "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
                 "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
@@ -363,7 +364,8 @@ async def get_news(news_id: str) -> NewsItemOut:
         engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
             r = await conn.fetchrow(
-                "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
+                # nosec B608 — engagement fragments are internal; params bound
+                "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
                 "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, "
                 f"{engagement_select}"
