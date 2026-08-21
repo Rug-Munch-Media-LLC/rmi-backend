@@ -82,6 +82,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _birdeye_price,  # noqa: F401 — consumed by category builders via locals()
         _coindesk_news,  # noqa: F401 — consumed by category builders via locals()
         _dune_early_buyers,  # noqa: F401 — consumed by category builders via locals()
+        _gmgn_trending,  # noqa: F401 — consumed by category builders via locals()
         _messari_news,  # noqa: F401 — consumed by category builders via locals()
         _santiment_dev_activity,  # noqa: F401 — consumed by category builders via locals()
         _solana_tracker_price,  # noqa: F401 — consumed by category builders via locals()
@@ -168,7 +169,11 @@ def build_provider_chains() -> dict[str, ProviderChain]:
             if builder:
                 chains.update(builder(locals()))
         except Exception as exc:
-            logger.warning(f"Chain builder '{name}' failed: {exc}")
+            # NOTE: keep the chain-alive behaviour (don't propagate), but fail
+            # LOUD in logs so silent builder breakage (e.g. the _gmgn_trending /
+            # interval_minutes bugs that killed market + system builders) is
+            # surfaced instead of swallowed at DEBUG/warning-only.
+            logger.exception("Chain builder '%s' failed: %s", name, exc)
 
     # ── Generated / optional chains ──
     for _builder_module in (

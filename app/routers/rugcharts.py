@@ -354,3 +354,154 @@ async def rugcharts_whales(
         source="lite_chain_indexer (ClickHouse dex_events)",
         confidence=0.8 if trades else 0.0,
     )
+
+
+@router.get("/health")
+async def rugcharts_health() -> dict[str, Any]:
+    """Health/capability probe for RugCharts.
+
+    The frontend (``services/rmi/api/rugcharts.ts``) calls this to test the
+    backend is reachable and enumerate the signals/TA surfaces it can render.
+    """
+    return {
+        "status": "ok",
+        "service": "rugcharts",
+        "signal_types": ["whale_buy", "whale_sell", "death_spiral", "volume_spike", "rug_risk_high"],
+        "capabilities": [
+            "trending",
+            "ohlcv",
+            "intel",
+            "analyze",
+            "signals",
+            "ta",
+            "whales",
+        ],
+    }
+
+
+@router.get("/analyze/{address}")
+async def rugcharts_analyze(
+    address: str,
+    chain: str = Query("solana", description="Blockchain to query"),
+) -> dict[str, Any]:
+    """Token analysis snapshot for the RugCharts compare/multi-chain UI.
+
+    Real data from GeckoTerminal pair info + the RugCharts rug/volume
+    scoring helpers. Flat field names mirror what the frontend
+    (``MultiChainCompare.tsx``) expects.
+    """
+    pair = await _fetch_pair_info(address, chain)
+
+    price = float(pair.get("base_token_price_usd", 0) or 0)
+    vol_auth = _compute_volume_authenticity(pair, [])
+    rug_score = _compute_rug_score(pair, vol_auth)
+
+    result: dict[str, Any] = {
+        "chain": chain,
+        "address": address,
+        "symbol": "",
+        "name": pair.get("name", ""),
+        "fallback_used": not bool(pair),
+    }
+    # Derive base-token symbol from pair name if present, else leave blank.
+    if pair.get("name"):
+        result["symbol"] = str(pair["name"]).split("/")[0].strip()
+    if pair:
+        result["price_usd"] = price
+        result["price_change_24h"] = float(pair.get("price_change_24h", 0) or 0)
+        result["volume_24h"] = float(pair.get("volume_24h", 0) or 0)
+        result["liquidity_usd"] = float(pair.get("liquidity_usd", 0) or 0)
+        result["holder_count"] = 0
+        result["top_holder_pct"] = 0
+        result["market_cap"] = float(pair.get("market_cap", 0) or 0)
+        result["risk_score"] = int(rug_score.get("score", 0) or 0)
+        result["risk_level"] = (
+            "HIGH" if rug_score.get("score", 0) > 70 else "MEDIUM" if rug_score.get("score", 0) > 40 else "LOW"
+        )
+        result["age_hours"] = 0
+
+    return result
+
+
+@router.get("/ta/{address}")
+async def rugcharts_ta(
+    address: str,
+    chain: str = Query("solana", description="Blockchain to query"),
+    timeframe: str = Query("1h", description="Candle timeframe"),
+) -> dict[str, Any]:
+    """Technical-analysis snapshot derived from real GeckoTerminal OHLCV.
+
+    Mirrors the TA computation used by ``/intel`` so the frontend gets a
+    consistent indicator set. Returns an empty set when no candles resolve.
+    """
+    candles = await _fetch_ohlcv_gecko(address, chain, timeframe, 100)
+    if len(candles) < 20:
+        return {"chain": chain, "address": address, "available": False, "reason": "insufficient_ohlcv"}
+
+    closes = [float(c["close"]) for c in candles]
+    sma20 = sum(closes[-20:]) / 20
+    sma7 = sum(closes[-7:]) / 7
+    gains, losses = [], []
+    for i in range(-14, 0):
+        diff = closes[i] - closes[i - 1]
+        gains.append(max(0, diff))
+        losses.append(max(0, -diff))
+    avg_gain = sum(gains) / 14
+    avg_loss = sum(losses) / 14
+    rs = avg_gain / avg_loss if avg_loss > 0 else 100
+    rsi = 100 - (100 / (1 + rs))
+    bb_mean = sma20
+    bb_std = (sum((c - bb_mean) ** 2 for c in closes[-20:]) / 20) ** 0.5
+    vols = [float(c.get("volume", 0)) for c in candles]
+    vol_sma = sum(vols[-20:]) / 20
+    vol_current = vols[-1] if vols else 0
+
+    return {
+        "chain": chain,
+        "address": address,
+        "available": True,
+        "sma_7": round(sma7, 10),
+        "sma_20": round(sma20, 10),
+        "rsi_14": round(rsi, 2),
+        "bb_upper": round(bb_mean + 2 * bb_std, 10),
+        "bb_lower": round(bb_mean - 2 * bb_std, 10),
+        "bb_middle": round(bb_mean, 10),
+        "volume_sma_20": round(vol_sma, 2),
+        "volume_current": round(vol_current, 2),
+        "price_vs_sma20": "ABOVE" if closes[-1] > sma20 else "BELOW",
+        "rsi_signal": "OVERBOUGHT" if rsi > 70 else "OVERSOLD" if rsi < 30 else "NEUTRAL",
+        "trend": "BULLISH" if sma7 > sma20 else "BEARISH",
+    }
+
+
+@router.get("/signals/{address}")
+async def rugcharts_signals(
+    address: str,
+    chain: str = Query("solana", description="Blockchain to query"),
+    limit: int = Query(20, ge=1, le=100, description="Max signals to return"),
+) -> dict[str, Any]:
+    """AI-style signals for a token, built from real whale-trade data.
+
+    Each signal is derived from a whale-flagged ClickHouse dex event
+    (buy/sell, time, price, USD notional). When no trades resolve we return
+    an empty ``signals`` list — the frontend (``AISignals.tsx``) reads
+    ``signals``/``entries`` and renders empty gracefully.
+    """
+    trades = await _fetch_whale_trades_clickhouse(address, chain, limit)
+    signals: list[dict[str, Any]] = []
+    for t in trades:
+        side = t.get("side", "unknown")
+        signals.append(
+            {
+                "id": t.get("tx_hash", ""),
+                "type": "buy" if side == "buy" else "sell" if side == "sell" else "info",
+                "timestamp": t.get("time", 0),
+                "price_at_signal": float(t.get("price_usd", 0) or 0),
+                "confidence": 70 if side != "unknown" else 40,
+                "title": f"Whale {side.upper()} ${float(t.get('volume_usd', 0) or 0):,.0f}",
+                "reasoning": f"Whale-flagged swap on {chain} ({t.get('tx_hash', '')[:10]}...)",
+                "indicators": ["whale_trade", {"volume_usd": float(t.get("volume_usd", 0) or 0)}],
+                "timeframe": "1h",
+            }
+        )
+    return {"chain": chain, "address": address, "signals": signals, "count": len(signals)}

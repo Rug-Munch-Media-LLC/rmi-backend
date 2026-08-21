@@ -45,6 +45,7 @@ class Provider:
     description: str = ""  # Human-readable description
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
+    interval_minutes: int = 0  # Optional refresh cadence for scheduled providers (0 = no schedule)
 
 
 @dataclass
