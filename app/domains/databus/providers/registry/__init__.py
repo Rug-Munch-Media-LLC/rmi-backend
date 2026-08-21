@@ -62,19 +62,23 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _defillama_tvl,  # noqa: F401 — consumed by category builders via locals()
         _etherscan_tx_trace,  # noqa: F401 — consumed by category builders via locals()
     )
-    from ..chains.free_security import (
-        _free_blockscout_labels,  # noqa: F401 — consumed by category builders via locals()
-        _free_etherscan_labels,  # noqa: F401 — consumed by category builders via locals()
+    from ..chains.free_market_price import (
         _free_market_clickhouse_twap,  # noqa: F401 — consumed by category builders via locals()
         _free_market_coingecko,  # noqa: F401 — consumed by category builders via locals()
         _free_market_geckoterminal,  # noqa: F401 — consumed by category builders via locals()
         _free_market_oneinch_quote,  # noqa: F401 — consumed by category builders via locals()
         _free_market_paraswap_quote,  # noqa: F401 — consumed by category builders via locals()
+    )
+    from ..chains.free_security_tokens import (
         _free_security_clickhouse,  # noqa: F401 — consumed by category builders via locals()
         _free_security_dexscreener,  # noqa: F401 — consumed by category builders via locals()
         _free_security_goplus,  # noqa: F401 — consumed by category builders via locals()
         _free_security_honeypot_is,  # noqa: F401 — consumed by category builders via locals()
         _free_security_rugcheck,  # noqa: F401 — consumed by category builders via locals()
+    )
+    from ..chains.free_wallet_labels import (
+        _free_blockscout_labels,  # noqa: F401 — consumed by category builders via locals()
+        _free_etherscan_labels,  # noqa: F401 — consumed by category builders via locals()
         _free_wallet_pattern_heuristics,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.freemium_apis import (
