@@ -41,8 +41,6 @@ if TYPE_CHECKING:
 
     from app.chain_client import ChainClient
     from app.core.rate_limiter import UnifiedRateLimiter
-    from app.domains.scanner.unified import UnifiedTokenScanner
-    from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
     from app.evm_connector import EVMClient
     from app.services.pryscraper_client import PryscraperClient
 
@@ -180,26 +178,6 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 
 
 # ── Scanners ─────────────────────────────────────────────────────────────────
-
-
-def get_token_scanner() -> UnifiedTokenScanner:
-    """Token scanner singleton (50+ security modules).
-
-    Wraps ``app.domains.scanner.unified.get_token_scanner``.
-    """
-    from app.domains.scanner.unified import get_token_scanner as _get
-
-    return _get()
-
-
-def get_wallet_scanner() -> UnifiedWalletScanner:
-    """Wallet scanner singleton (entity clustering, RAG, risk scoring).
-
-    Wraps ``app.domains.wallet.unified_wallet_scanner.get_wallet_scanner``.
-    """
-    from app.domains.wallet.unified_wallet_scanner import get_wallet_scanner as _get
-
-    return _get()
 
 
 # ── Pryscraper client ────────────────────────────────────────────────────────

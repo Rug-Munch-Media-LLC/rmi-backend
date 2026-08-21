@@ -16,9 +16,7 @@ forbidden_modules =
     app.domains
     app.routers
 ignore_imports =
-    # KNOWN DEBT (2026-08-21): DI convenience singletons in core.
-    # TODO(degodding-phase-4): move to feature-side registration.
-    app.core.dependencies -> app.domains.scanner.unified
-    app.core.dependencies -> app.domains.wallet.unified_wallet_scanner
+    # KNOWN DEBT (2026-08-21): remaining cross-layer conveniences.
+    # TODO(degodding-phase-4): lifespan databus init + middleware x402 mount.
     app.core.lifespan -> app.databus.core
     app.core.middleware -> app.routers.x402_advanced_tools
