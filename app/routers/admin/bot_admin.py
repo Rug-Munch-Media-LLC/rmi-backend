@@ -63,8 +63,8 @@ def _shared_secrets() -> set[str]:
 
         if settings.rmi_auth_token:
             secrets.add(settings.rmi_auth_token)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("auth-token collection skipped: %s", exc)
     return secrets
 
 
@@ -131,8 +131,8 @@ def _resolve_bot_db_path() -> str:
 
         if os.path.exists(bot_db.DB_PATH):
             return bot_db.DB_PATH
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("bot DB path detection failed: %s", exc)
 
     candidates = [
         os.getenv("BOT_DB_PATH", "").strip(),

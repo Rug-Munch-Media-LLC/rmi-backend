@@ -8,8 +8,9 @@ endpoints. Returns rich price context with market data. Fail-open: returns
 
 from __future__ import annotations
 
+import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -17,6 +18,8 @@ import httpx
 from app.core.logging import get_logger
 
 from ._shared import _to_float
+
+logger = logging.getLogger(__name__)
 
 logger = get_logger(__name__)
 
@@ -52,7 +55,6 @@ _COINGECKO_IDS: dict[str, str] = {
     "sui": "sui",
     "uni": "uniswap",
     "aave": "aave",
-    "link": "chainlink",
     "ldo": "lido-dao",
     "ondo": "ondo-finance",
 }
@@ -75,7 +77,6 @@ _COINCAP_IDS: dict[str, str] = {
     "dot": "polkadot",
     "matic": "matic-network",
     "polygon": "matic-network",
-    "link": "chainlink",
     "shib": "shiba-inu",
     "pepe": "pepe",
     "usdt": "tether",
@@ -133,8 +134,8 @@ async def _fetch_rich_cg_data(symbol: str, cg_id: str) -> dict[str, Any] | None:
         extra_data = await cg.get_coin_market_data(cg_id)
         if extra_data:
             extra = extra_data
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("coingecko market-data enrichment failed: %s", exc)
 
     price = _to_float(data.get("usd"))
     change = _to_float(data.get("usd_24h_change"))
@@ -309,11 +310,11 @@ async def _fetch_price_with_fallback(
                         f"| FDV | ${fdv:,.0f} |" if fdv else "",
                         f"| 24h Trades | {int(buys or 0)} buys / {int(sells or 0)} sells |" if buys is not None else "",
                         f"| DEX | {pair.get('dexId', '?')} |" if pair.get("dexId") else "",
-                        f"| As of | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} |",
+                        f"| As of | {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')} |",
                     ]
-                    return {"_formatted": "\n".join(l for l in lines if l)}
-            except Exception:
-                pass
+                    return {"_formatted": "\n".join(ln for ln in lines if ln)}
+            except Exception as exc:
+                logger.debug("coingecko formatted-table path failed: %s", exc)
 
             # DexScreener failed — try symbol-based fallbacks
             for fn in (_fetch_coincap_price, _fetch_cmc_price):
@@ -338,8 +339,8 @@ async def _fetch_price_with_fallback(
                             "volume_24h": _to_float(data.get("usd_24h_vol")),
                             "source": "coingecko",
                         }
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("coingecko quote path failed: %s", exc)
 
             # Fallback to symbol-based providers
             for fn in (_fetch_coincap_price, _fetch_cmc_price):
@@ -356,8 +357,8 @@ async def _fetch_price_with_fallback(
             rich = await _fetch_rich_cg_data(symbol, cg_id)
             if rich and rich.get("price"):
                 return rich
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("rich coingecko fetch failed: %s", exc)
 
     # 2. CoinCap
     result = await _fetch_coincap_price(symbol)
@@ -411,7 +412,7 @@ def _format_rich_price(data: dict[str, Any]) -> str:
         lines.append(f"| Market Dominance | {dom_str} |")
 
     lines.append(f"| Data Source | {source} |")
-    lines.append(f"| As of | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} |")
+    lines.append(f"| As of | {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')} |")
 
     return "\n".join(lines)
 

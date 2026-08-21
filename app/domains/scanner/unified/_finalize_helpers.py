@@ -12,6 +12,7 @@ external backend is unavailable, so a failing helper never fails the scan.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 from typing import TYPE_CHECKING, Any
@@ -23,6 +24,8 @@ from app.domains.scanner.unified.persistence import (
     publish_rag_finding,
 )
 from app.domains.scanner.unified.scoring import compute_score
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -247,8 +250,8 @@ async def finalize_background(
         record_token_scan_coverage(result.enrichment_sources, modules_run_list)
     except ImportError:
         pass
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("token scan coverage recording failed: %s", exc)
 
     # ── Persist: Postgres + Redis cache (fire-and-forget) ──
     asyncio.create_task(persist_result(result))

@@ -1,10 +1,12 @@
 """Embedding utilities — delegates to rugbrain HTTP API."""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class RAGUnavailableError(Exception):
     """RAG system is unavailable."""
-
-    pass
 
 
 async def get_embedding(text: str, model: str = "") -> list[float]:
@@ -24,6 +26,6 @@ async def get_embedding(text: str, model: str = "") -> list[float]:
             )
             if r.status_code == 200:
                 return r.json().get("embedding", [])
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("embedding fetch failed, returning empty: %s", exc)
     return []
