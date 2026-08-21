@@ -71,6 +71,13 @@ def create_app() -> FastAPI:
     # Order matters: handlers before middleware before routes
     register_error_handlers(app)
     register_middleware(app)
+
+    # Liveness (/healthz) + readiness (/readyz) — registered BEFORE mount_all
+    # so orchestrator probes work even if a router mount fails.
+    from app.core.health import register_health_routes
+
+    register_health_routes(app)
+
     mounted = mount_all(app)
 
     log.info(
