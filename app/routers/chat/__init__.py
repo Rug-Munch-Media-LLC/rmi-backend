@@ -20,16 +20,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import os
+import re
 import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 
 from app.ai_router import (
     chat_completion as do_chat_completion,
@@ -46,8 +44,26 @@ from app.domains.chat_tools import _detect_tool_intent, _run_tool_for_intent
 # ── AI Security Guard ──
 from app.security.chat_guardrails import get_chat_rate_limiter
 
-from ..chat_db import _get_db
 from ..chat_history import router as chat_history_router
+
+# ── Phase-2 de-godding extractions (2026-08-21) ──
+# Request models + token budget, response cache, persistence, and the market
+# context fetcher live in their own modules; names are re-exported here so
+# every existing importer and test keeps working against the SAME objects.
+from ._chat_models import (
+    _CHAT_MAX_TOKENS_BASE,  # noqa: F401  (re-export for existing importers)
+    _CHAT_MAX_TOKENS_MAX,  # noqa: F401  (re-export for existing importers)
+    _CHAT_MAX_TOKENS_MIN,  # noqa: F401  (re-export for existing importers)
+    CHAT_MAX_TOKENS_DEFAULT,  # noqa: F401  (re-export for existing importers)
+    ChatRequest,  # noqa: TC001  (runtime re-export: FastAPI resolves it via get_type_hints)
+    StreamRequest,  # noqa: TC001  (runtime re-export: FastAPI resolves it via get_type_hints)
+    _resolve_chat_max_tokens_default,  # noqa: F401  (re-export for existing importers)
+)
+from ._market_fetch import (
+    COINGECKO_API,  # noqa: F401  (re-export for existing importers)
+    _fetch_market_context,  # noqa: F401  (patch target: app.routers.chat._fetch_market_context)
+    _get_client,  # noqa: F401  (re-export for existing importers)
+)
 
 # ── Extracted pure helpers ──
 # Message-building + shared ai_guard live in ._messages; prompt text and the
@@ -61,6 +77,7 @@ from ._messages import (
     _sanitize_history,  # noqa: F401  (re-export for existing importers)
     ai_guard,
 )
+from ._persistence import _save_message
 from ._prompts import (
     _EVM_ADDRESS_RE,  # noqa: F401  (re-export for existing importers)
     _IDENTITY_ANSWER,  # noqa: F401  (re-export for existing importers)
@@ -99,6 +116,11 @@ from ._rag import (
     _rag_dedup_key,
     _route_task,
 )
+from ._response_cache import (
+    _cache_get,
+    _cache_set,
+    _chat_cache,  # noqa: F401  (module attribute — tests clear it directly)
+)
 
 logger = get_logger(__name__)
 
@@ -113,9 +135,6 @@ if TYPE_CHECKING:
     import redis.asyncio as redis
 
 
-# ── Free API endpoints for market context ──
-COINGECKO_API = "https://api.coingecko.com/api/v3"
-
 # ── Redis ──
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -126,18 +145,10 @@ _redis: redis.Redis | None = None
 
 CACHE_TTL = 300  # 5 minutes
 
-_http_client: httpx.AsyncClient | None = None
-
-
-async def _get_client() -> httpx.AsyncClient:
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(
-            timeout=10.0,
-            headers={"User-Agent": "RugMunchIntelligence/1.0"},
-        )
-    return _http_client
-    logger.warning("chat_db_init_failed", exc_info=True)
+# NOTE: COINGECKO_API / _http_client / _get_client moved to ._market_fetch
+# (re-exported above). The orphaned ``logger.warning("chat_db_init_failed")``
+# line that sat unreachable after ``return _http_client`` was dropped with
+# the move — it could never execute.
 
 
 # ── Chat rate limiting (Part 3: 30/min, 200/hour per IP) ──
@@ -173,104 +184,12 @@ def _apply_rate_limit_headers(response: Response, request: Request) -> None:
 
 
 # ── Models ──
-# Chat answers are short prose — a 320-token budget keeps generation latency
-# snappy on the free remote chat tier (measured 2026-08-15 on the old CPU
-# host: generation dominated total latency, so the token budget IS the
-# latency lever). The default can be raised at deploy time via
-# RMI_CHAT_MAX_TOKENS (clamped to 64..2048 — the Pydantic Field bounds stay
-# 64..8192 for explicit requests).
-# 2026-08-14: raised 512 -> 1536 — 512 was truncating long educational answers
-# (e.g. "how to learn TA") mid-sentence for the bot, which sends no max_tokens.
-# 2026-08-15: 1536 -> 768 — context fetches (tool/RAG/web) now run in parallel
-# via asyncio.gather and the tool-result block is capped at 1200 chars, so the
-# prompt stays lean while the model gets fresher grounding; 768 keeps long
-# educational answers from truncating while bounding generation latency.
-# 2026-08-15: 768 -> 320 — the bot sends max_tokens explicitly (768) and the
-# 4B local model needed 87-136s per answer on CPU, blowing past the client
-# timeout and the bot's 60s backend timeout, forcing the slow fallback chain.
-# 320 tokens ≈ 1300 chars — a full Telegram answer for most queries (long
-# answers are chunked bot-side at 3800 chars). Long educational answers may
-# truncate at 320; raise per-deploy via RMI_CHAT_MAX_TOKENS if needed.
-_CHAT_MAX_TOKENS_BASE = 320
-_CHAT_MAX_TOKENS_MIN = 64
-_CHAT_MAX_TOKENS_MAX = 2048
-
-
-def _resolve_chat_max_tokens_default(env_value: str | None = None) -> int:
-    """Resolve the ChatRequest ``max_tokens`` default.
-
-    Returns ``_CHAT_MAX_TOKENS_BASE`` (512) unless ``RMI_CHAT_MAX_TOKENS`` is
-    set to a parseable int, in which case the value is clamped to
-    ``64..2048``. Unparseable values fall back to the base default.
-    """
-    raw = os.getenv("RMI_CHAT_MAX_TOKENS") if env_value is None else env_value
-    if raw is None or not raw.strip():
-        return _CHAT_MAX_TOKENS_BASE
-    try:
-        parsed = int(raw)
-    except ValueError:
-        return _CHAT_MAX_TOKENS_BASE
-    return max(_CHAT_MAX_TOKENS_MIN, min(parsed, _CHAT_MAX_TOKENS_MAX))
-
-
-CHAT_MAX_TOKENS_DEFAULT = _resolve_chat_max_tokens_default()
-
-
-class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=2000)
-    model: str | None = Field(default=None, description="Specific model to use")
-    tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$", description="AI model tier")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=CHAT_MAX_TOKENS_DEFAULT, ge=64, le=8192)
-    context_override: dict[str, Any] | None = Field(
-        default=None, description="Custom context injection. `system_context` (str) is appended to the system prompt."
-    )
-    history: list[dict[str, str]] | None = Field(
-        default=None,
-        description=(
-            "Explicit conversation history (user/assistant messages). "
-            "When provided it OVERRIDES the DB-loaded history for this request "
-            "(used by trusted server-side callers such as the Telegram bot, "
-            "which must not read the shared anonymous history bucket)."
-        ),
-    )
-
-
-class StreamRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=2000)
-    model: str | None = Field(default=None)
-    tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=512, ge=64, le=8192)
+# ChatRequest / StreamRequest + the max-token budget resolution moved to
+# ._chat_models (re-exported above).
 
 
 # ── Market context fetcher ──
-async def _fetch_market_context() -> dict[str, Any]:
-    """Fetch live market data for AI context injection."""
-    try:
-        client = await _get_client()
-        resp = await client.get(
-            f"{COINGECKO_API}/simple/price",
-            params={
-                "ids": "bitcoin,ethereum,solana",
-                "vs_currencies": "usd",
-                "include_24hr_change": "true",
-                "include_24hr_vol": "true",
-            },
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "btc_price": data.get("bitcoin", {}).get("usd", 0),
-                "btc_change_24h": data.get("bitcoin", {}).get("usd_24h_change", 0),
-                "eth_price": data.get("ethereum", {}).get("usd", 0),
-                "eth_change_24h": data.get("ethereum", {}).get("usd_24h_change", 0),
-                "sol_price": data.get("solana", {}).get("usd", 0),
-                "sol_change_24h": data.get("solana", {}).get("usd_24h_change", 0),
-            }
-    except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
-        logger.warning(f"CoinGecko price fetch failed: {e}")
-    return {}
+# _fetch_market_context moved to ._market_fetch (re-exported above).
 
 
 # ── RAG context grounding ───────────────────────────────────────────────
@@ -489,52 +408,12 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
 # trivial asks, while hard questions get the model with enough reasoning
 # power).
 # ── Helper to save message ──
-def _save_message(user_id: str, role: str, content: str, metadata: dict[str, Any] | None = None) -> Any:
-    msg_id = f"msg-{uuid.uuid4().hex[:10]}"
-    conn = _get_db()
-    conn.execute(
-        "INSERT INTO chat_messages (id, user_id, role, content, metadata) VALUES (?, ?, ?, ?, ?)",
-        (msg_id, user_id, role, content, json.dumps(metadata or {})),
-    )
-    conn.commit()
-    conn.close()
-    return msg_id
+# _save_message moved to ._persistence (re-exported above).
 
 
 # ── Response cache (speed for repeats) ─────────────────────────────────
-# Small in-process TTL cache keyed on the normalized message. Repeated/common
-# questions (e.g. "what is solana", "btc price") short-circuit the LLM
-# round-trip entirely. Purely in-memory: no Redis, plain dict +
-# ``time.monotonic``. NEVER caches the identity/vague canned answers (those
-# fast-paths return before the cache is consulted) and NEVER caches LLM
-# failures (only successful responses are stored).
-_chat_cache: dict[str, tuple[float, str]] = {}
-
-
-def _cache_get(key: str) -> str | None:
-    """Return the cached response for ``key``, or None on miss/expiry."""
-    entry = _chat_cache.get(key)
-    if entry is None:
-        return None
-    expires_at, response = entry
-    if time.monotonic() > expires_at:
-        _chat_cache.pop(key, None)
-        return None
-    return response
-
-
-def _cache_set(key: str, response: str, ttl: int) -> None:
-    """Store ``response`` under ``key`` with a ``ttl`` (seconds).
-
-    Evicts the oldest entries when the dict exceeds ``_CACHE_MAX_ENTRIES``.
-    """
-    _chat_cache[key] = (time.monotonic() + ttl, response)
-    if len(_chat_cache) > _CACHE_MAX_ENTRIES:
-        # Oldest = earliest expiry timestamp (monotonic, so insertion order).
-        overflow = len(_chat_cache) - _CACHE_MAX_ENTRIES
-        oldest_keys = sorted(_chat_cache, key=lambda k: _chat_cache[k][0])[:overflow]
-        for k in oldest_keys:
-            _chat_cache.pop(k, None)
+# _chat_cache / _cache_get / _cache_set moved to ._response_cache
+# (re-exported above).
 
 
 # ── Tool-use layer (live data grounding) ───────────────────────────────
