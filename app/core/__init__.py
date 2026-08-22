@@ -54,8 +54,6 @@ from app.core.dependencies import (
     get_rate_limiter,
     get_redis,
     get_settings,
-    get_token_scanner,
-    get_wallet_scanner,
 )
 
 # Re-export event bus + CQRS

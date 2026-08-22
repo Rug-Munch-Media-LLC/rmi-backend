@@ -17,6 +17,7 @@ os.environ["ENVIRONMENT"] = "dev"
 os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 os.environ["DEV_BYPASS_AUTH"] = "false"
 
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -109,6 +110,9 @@ from unittest.mock import AsyncMock  # noqa: E402 — module docstring precedes 
 
 from fastapi.testclient import TestClient  # noqa: E402 — module docstring precedes import block
 
+if TYPE_CHECKING:
+    from app.domains.scanner.unified.model import ScanResult
+
 
 def _make_result(
     token_address: str,
@@ -181,7 +185,7 @@ def mock_scanner():
 @pytest.fixture
 def sync_client(scanner_app, mock_scanner):
     """TestClient with the token scanner dependency overridden to the mock."""
-    from app.core.dependencies import get_token_scanner
+    from app.features import get_token_scanner
 
     scanner_app.dependency_overrides[get_token_scanner] = lambda: mock_scanner
     client = TestClient(scanner_app)
@@ -274,7 +278,8 @@ class TestTokenScanV2:
             "/api/v2/scanner/token/scan",
             json={"address": "0xBBB", "chain": "ethereum"},
         )
-        assert r1.status_code == 200 and r2.status_code == 200
+        assert r1.status_code == 200
+        assert r2.status_code == 200
         assert r1.json()["token"] == "0xAAA"
         assert r2.json()["token"] == "0xBBB"
         assert set(seen_addresses) == {"0xAAA", "0xBBB"}
@@ -297,7 +302,8 @@ class TestTokenScanStatusV2:
         monkeypatch.setattr(scanner_mod, "scan_status", fake_status)
         return fake_status
 
-    def test_status_returns_state_and_modules(self, scanner_app, mock_scan_status, _allow_global_rate_limits) -> None:
+    @pytest.mark.usefixtures("_allow_global_rate_limits")
+    def test_status_returns_state_and_modules(self, scanner_app, mock_scan_status) -> None:
         """GET /api/v2/scanner/token/scan/{chain}/{address}/status → state + modules_run."""
         client = TestClient(scanner_app)
         resp = client.get("/api/v2/scanner/token/scan/ethereum/0xAbC1234567890AbC1234567890AbC1234567890/status")
@@ -307,7 +313,8 @@ class TestTokenScanStatusV2:
         assert body["modules_run"] == ["core", "baseline", "sentinel"]
         client.close()
 
-    def test_status_includes_risk_flags(self, scanner_app, monkeypatch, _allow_global_rate_limits) -> None:
+    @pytest.mark.usefixtures("_allow_global_rate_limits")
+    def test_status_includes_risk_flags(self, scanner_app, monkeypatch) -> None:
         """Completed cached status surfaces risk_flags for the UI."""
         from app.domains.scanner.unified import scanner as scanner_mod
 
@@ -328,7 +335,8 @@ class TestTokenScanStatusV2:
         assert resp.json()["risk_flags"] == ["honeypot_detected", "lp_not_locked"]
         client.close()
 
-    def test_status_unknown_scan_404(self, scanner_app, monkeypatch, _allow_global_rate_limits) -> None:
+    @pytest.mark.usefixtures("_allow_global_rate_limits")
+    def test_status_unknown_scan_404(self, scanner_app, monkeypatch) -> None:
         """No status exists → 404 with a ProblemDetail body, never 500."""
         from app.domains.scanner.unified import scanner as scanner_mod
 
@@ -344,14 +352,15 @@ class TestTokenScanStatusV2:
 
 
 class TestWalletScanV2:
-    def test_wallet_scan_free_tier_gated(self, scanner_app, _allow_global_rate_limits) -> None:
+    @pytest.mark.usefixtures("_allow_global_rate_limits")
+    def test_wallet_scan_free_tier_gated(self, scanner_app) -> None:
         """Free-tier wallet scan is data-gated (P0-5): asks caller to sign up.
 
         The gate short-circuits BEFORE the scanner is invoked — so the
         wallet scanner dependency is overridden with a mock that must
         never be called.
         """
-        from app.core.dependencies import get_wallet_scanner
+        from app.features import get_wallet_scanner
 
         never_called = AsyncMock()
         scanner_app.dependency_overrides[get_wallet_scanner] = lambda: never_called
