@@ -23,9 +23,14 @@ os.environ["ENVIRONMENT"] = "dev"
 os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 os.environ["DEV_BYPASS_AUTH"] = "false"
 
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from unittest.mock import AsyncMock, patch
+
+if TYPE_CHECKING:
+    from app.domains.scanner.unified.model import ScanResult
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 
@@ -58,7 +63,7 @@ def _allow_global_rate_limits():
         yield
 
 
-def _make_scan_result(address: str, chain: str = "ethereum") -> "ScanResult":
+def _make_scan_result(address: str, chain: str = "ethereum") -> ScanResult:
     """Build a minimal ScanResult so scanner tests never touch live services."""
     from app.domains.scanner.unified.model import ScanResult
 
@@ -102,7 +107,7 @@ def mock_scanner():
 @pytest.fixture
 async def scanner_client(app, mock_scanner):
     """Async client with the token scanner dependency overridden to the mock."""
-    from app.core.dependencies import get_token_scanner
+    from app.features import get_token_scanner
 
     app.dependency_overrides[get_token_scanner] = lambda: mock_scanner
     transport = ASGITransport(app=app)
@@ -526,7 +531,7 @@ class TestTokenScanRequest:
     def test_address_required(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError), match=r".*"):
             TokenScanRequest()
 
 
@@ -541,32 +546,32 @@ class TestRateLimitPathResolution:
     def test_health_path(self):
         from app.core.rate_limiter import _resolve_rate_limit
 
-        rate, burst = _resolve_rate_limit("/health")
+        rate, _burst = _resolve_rate_limit("/health")
         assert rate > 0
-        assert burst > 0
+        assert _burst > 0
 
     def test_auth_path(self):
         from app.core.rate_limiter import _resolve_rate_limit
 
-        rate, burst = _resolve_rate_limit("/login")
+        rate, _burst = _resolve_rate_limit("/login")
         assert rate > 0
 
     def test_unknown_path_defaults(self):
         from app.core.rate_limiter import _resolve_rate_limit
 
-        rate, burst = _resolve_rate_limit("/some/unknown/path")
+        rate, _burst = _resolve_rate_limit("/some/unknown/path")
         assert rate > 0
-        assert burst > 0
+        assert _burst > 0
 
     def test_scanner_path(self):
         from app.core.rate_limiter import _resolve_rate_limit
 
-        rate, burst = _resolve_rate_limit("/api/v1/scanner/token")
+        rate, _burst = _resolve_rate_limit("/api/v1/scanner/token")
         assert rate > 0
 
     def test_path_matches_longest_prefix(self):
         from app.core.rate_limiter import _resolve_rate_limit
 
         # /api/v1/scanner should match before /api/v1 defaults
-        rate, burst = _resolve_rate_limit("/api/v1/scanner/token/scan")
+        rate, _burst = _resolve_rate_limit("/api/v1/scanner/token/scan")
         assert rate > 0

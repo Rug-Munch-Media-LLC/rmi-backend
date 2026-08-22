@@ -1,8 +1,16 @@
-"""Embedding utilities — delegates to rugbrain HTTP API."""
+"""Embedding utilities — delegates to rugbrain HTTP API.
+
+Primary embedder: Qwen3-Embedding-4B (2560d, self-hosted llama-server).
+Dimension MUST match rugbrain's EMBEDDING_DIM and the Qdrant collection.
+"""
 
 import logging
+from typing import Final
 
 logger = logging.getLogger(__name__)
+
+EMBED_MODEL_NAME: Final = "qwen3-embedding-4b"
+EMBEDDING_DIM: Final = 2560
 
 
 class RAGUnavailableError(Exception):

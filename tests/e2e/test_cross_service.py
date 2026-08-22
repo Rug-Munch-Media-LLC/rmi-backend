@@ -575,8 +575,8 @@ class TestFullUserFlow:
     @pytest.mark.e2e
     def test_wallet_query_after_scan(self, client, auth_headers):
         """Authenticated admin-tier user can query wallet data after scanning."""
-        from app.core.dependencies import get_wallet_scanner
         from app.domains.wallet.unified_wallet_scanner import WalletScanResult
+        from app.features import get_wallet_scanner
 
         # The v2 wallet route tier-gates on headers (X-RMI-Key / X-Payment-Verified),
         # NOT the JWT tier claim; "free" (no such header) returns a data_gated
