@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -356,21 +357,6 @@ class TestWalletAuth:
 
         assert _derive_user_id("a@b.com") != _derive_user_id("c@d.com")
 
-    def test_derive_user_id_is_deterministic(self):
-        """Same email should produce same user ID."""
-        from app.domains.auth.jwt import _derive_user_id
-
-        id1 = _derive_user_id("user@example.com")
-        id2 = _derive_user_id("user@example.com")
-        assert id1 == id2
-        assert len(id1) == 32
-
-    def test_derive_user_id_differs_for_diff_emails(self):
-        """Different emails should produce different IDs."""
-        from app.domains.auth.jwt import _derive_user_id
-
-        assert _derive_user_id("a@b.com") != _derive_user_id("c@d.com")
-
     def test_verify_wallet_signature_empty_inputs(self):
         """verify_wallet_signature should return False for empty inputs."""
         from app.domains.auth.wallet import verify_wallet_signature
@@ -410,7 +396,7 @@ class TestWalletAuth:
 class TestAuthMiddlewareIntegration:
     """Auth middleware integration — endpoint reachability tests."""
 
-    _AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+    _AUTH: ClassVar[dict[str, str]] = {"X-API-Key": "test-auth-token-32-chars-long!!"}
 
     @pytest.fixture(scope="module")
     def app(self):
@@ -430,24 +416,26 @@ class TestAuthMiddlewareIntegration:
         """Protected routes require X-API-Key header."""
         from fastapi.testclient import TestClient
 
-        resp = TestClient(app).get("/api/v1/bulletin/health")
+        resp = TestClient(app).get("/api/v1/bot/scan-probe-nonexistent")
         assert resp.status_code == 401
 
     def test_protected_route_with_valid_auth_succeeds(self, app) -> None:
         """Protected route with valid X-API-Key should pass auth."""
         from fastapi.testclient import TestClient
 
-        resp = TestClient(app).get("/api/v1/bulletin/health", headers=self._AUTH)
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 404:
-            assert "Unauthorized" not in resp.json().get("detail", "")
+        # PROTECTED_SUBPATHS probe: middleware must authenticate regardless of
+        # route existence. Valid shared secret passes; absent route then yields
+        # a plain 404 whose detail is NOT an auth rejection.
+        resp = TestClient(app).get("/api/v1/bot/scan-probe-nonexistent", headers=self._AUTH)
+        assert resp.status_code == 404
+        assert "X-API-Key" not in resp.json().get("detail", "")
 
     def test_protected_route_with_wrong_key_returns_401(self, app) -> None:
         """Wrong API key should be rejected."""
         from fastapi.testclient import TestClient
 
         resp = TestClient(app).get(
-            "/api/v1/bulletin/health",
+            "/api/v1/bot/scan-probe-nonexistent",
             headers={"X-API-Key": "wrong-key-that-is-not-valid"},
         )
         assert resp.status_code == 401
