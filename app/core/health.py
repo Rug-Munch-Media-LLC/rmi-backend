@@ -189,7 +189,13 @@ def get_health_status() -> dict[str, Any]:
 
     results = _aio.run(run_health_checks())
     return {
-        "status": ("healthy" if all(d.healthy for d in results.values()) else "degraded"),
+        "status": (
+            "healthy"
+            if all(d.healthy for d in results.values())
+            else "degraded"
+            if any(d.healthy for d in results.values())
+            else "unhealthy"
+        ),
         "domains": {
             n: {"healthy": d.healthy, "error": d.error, "latency_ms": d.latency_ms} for n, d in results.items()
         },
