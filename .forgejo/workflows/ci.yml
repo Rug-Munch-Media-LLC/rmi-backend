@@ -22,7 +22,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + pre-commit
         run: |
           apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
@@ -36,7 +36,7 @@ jobs:
     container:
       image: node:22-bookworm-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0  # Need full history to check all commits in PR
       - name: Install commitlint
@@ -63,7 +63,7 @@ jobs:
     container:
       image: alpine:3.19
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0  # Need tags for git-cliff version detection
       - name: Install git-cliff
@@ -89,7 +89,7 @@ jobs:
     container:
       image: python:3.12-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install semgrep
         run: pip install semgrep
       - name: Semgrep SAST scan (community rules)
@@ -113,7 +113,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install aiverify
         run: pip install aiverify-cli 2>/dev/null || echo "aiverify install skipped"
         continue-on-error: true
@@ -140,7 +140,7 @@ jobs:
     container:
       image: node:22-bookworm-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Squawk
         run: npm install -g squawk-cli
       - name: Lint Postgres migrations
@@ -176,7 +176,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install sqlfluff
         run: pip install sqlfluff==4.3.0
       - name: Lint SQL files (structural rules)
@@ -193,7 +193,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates nodejs npm && rm -rf /var/lib/apt/lists/*
@@ -232,7 +232,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install system deps + uv
@@ -303,7 +303,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install import-linter
         run: pip install import-linter
       - name: Enforce architectural contracts
@@ -314,7 +314,7 @@ jobs:
     container:
       image: python:3.12-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install bandit
         run: pip install bandit
       - name: Bandit SAST scan
@@ -330,7 +330,7 @@ jobs:
     container:
       image: koalaman/shellcheck-alpine:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: ShellCheck
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
@@ -343,7 +343,7 @@ jobs:
     container:
       image: alpine:3.19
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install layerLint
         run: |
           apk add --no-cache curl tar
@@ -362,7 +362,7 @@ jobs:
     container:
       image: python:${PYTHON_VERSION}-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install system deps
         run: |
@@ -463,7 +463,7 @@ jobs:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -507,7 +507,7 @@ jobs:
       image: python:3.11-slim
     needs: build-and-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check dependency freshness
         run: |
           pip install libyear 2>/dev/null || true
@@ -533,7 +533,7 @@ jobs:
     container:
       image: grafana/k6:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Create results directory
         run: mkdir -p tests/k6/results
       - name: Connectivity pre-check
@@ -563,7 +563,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -588,7 +588,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv + mutmut
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -618,7 +618,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -647,7 +647,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -668,7 +668,7 @@ jobs:
     container:
       image: python:3.12-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pip-audit + deps
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -683,7 +683,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build image for scanning
         run: docker build -t app:${{ github.sha }} .
       - name: Run Trivy vulnerability scanner
@@ -706,7 +706,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -728,7 +728,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup uv + deps
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -785,7 +785,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Generate SBOM (CycloneDX)
         uses: anchore/sbom-action@v0
         with:
@@ -852,7 +852,7 @@ jobs:
       image: node:22-bookworm-slim
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install Open Code Review
@@ -914,7 +914,7 @@ jobs:
     container:
       image: golang:1.22-bookworm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install archfit
         run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
         continue-on-error: true
@@ -931,7 +931,7 @@ jobs:
     container:
       image: golang:1.22-bookworm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Draugr
         run: go install github.com/draugr-dev/draugr@latest || echo "Draugr install skipped"
         continue-on-error: true
@@ -962,7 +962,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install gitleaks
@@ -978,7 +978,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install scanners
@@ -997,7 +997,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Noseyparker full-history secret hunt
@@ -1016,7 +1016,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Schemathesis property-based API fuzzing (live OpenAPI)
         run: |
           pip install schemathesis
