@@ -421,7 +421,7 @@ ignore = ["DEP002", "DEP003"]
 # mutmut 3.x — critical-path scope per AI Test Oracle Policy (auth first)
 [tool.mutmut]
 source_paths = ["app/domains/auth"]
-also_copy = ["app/__init__.py", "app/domains/__init__.py"]
+also_copy = ["app"]
 pytest_add_cli_args_test_selection = ["tests/unit/domain/auth"]
 [tool.interrogate]
 fail-under = 60
