@@ -106,7 +106,7 @@ class TestL1Cache:
         cache = L1Cache(max_keys=100, stale_multiplier=1.0)
         asyncio.run(cache.set("expired_test", "old_data", ttl=1))
         time.sleep(1.1)
-        value, is_stale = asyncio.run(cache.get("expired_test"))
+        value, _is_stale = asyncio.run(cache.get("expired_test"))
         assert value is None, "Fully expired entry should return None"
 
     def test_l1_stats_track_hits_misses(self):
@@ -428,7 +428,35 @@ class TestProviderChain:
         )
         result = await chain.fetch()
         assert result["data"] == "from_b"
-        assert call_order == ["b", "a"], "Higher weight should be first"
+        # First success short-circuits (fetch docstring: "until one succeeds"):
+        # higher weight tried first, lower weight never called on success.
+        assert call_order == ["b"], "Higher weight first; fallback only on failure"
+
+    @pytest.mark.asyncio
+    async def test_fallback_tries_next_provider_on_failure(self):
+        """When the higher-weight provider fails, the next is tried."""
+        from app.databus.provider_core import Provider, ProviderChain, ProviderTier
+
+        call_order = []
+
+        async def failing(**kwargs):
+            call_order.append("primary")
+            raise ConnectionError("primary down")  # fetch() catches network-class errors
+
+        async def healthy(**kwargs):
+            call_order.append("secondary")
+            return {"data": "from_secondary", "source": "s", "latency_ms": 10, "tier": "free_api"}
+
+        chain = ProviderChain(
+            data_type="test",
+            providers=[
+                Provider(name="primary", tier=ProviderTier.FREE_API, fetch_fn=failing, weight=1.0),
+                Provider(name="secondary", tier=ProviderTier.FREE_API, fetch_fn=healthy, weight=0.5),
+            ],
+        )
+        result = await chain.fetch()
+        assert result["data"] == "from_secondary"
+        assert call_order == ["primary", "secondary"], "Fallback must try next provider"
 
     @pytest.mark.asyncio
     async def test_all_return_none_returns_none(self):
