@@ -17,7 +17,7 @@ jobs:
           k6 run tests/k6/load.js \
             -e BASE_URL=http://rmi-backend:8000 \
             --summary-export=tests/k6/results/load-summary.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: k6-load-report
           path: tests/k6/results/
