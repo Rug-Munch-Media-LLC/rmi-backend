@@ -20,7 +20,7 @@ jobs:
   pre-commit-mirror:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + pre-commit
@@ -61,7 +61,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: docker-x64
     container:
-      image: alpine:3.19
+      image: localhost/ci-alpine-node:3.19
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -87,7 +87,7 @@ jobs:
   semgrep:
     runs-on: docker-x64
     container:
-      image: python:3.12-slim
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install semgrep
@@ -111,7 +111,7 @@ jobs:
   aiverify:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install aiverify
@@ -174,7 +174,7 @@ jobs:
     # MODIFY TTL ... DELETE syntax the clickhouse dialect cannot parse yet.
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install sqlfluff
@@ -191,7 +191,7 @@ jobs:
   api-lint:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
@@ -230,7 +230,7 @@ jobs:
     # changes block the pipeline.
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -301,7 +301,7 @@ jobs:
     # Static analysis only — no application code is imported.
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install import-linter
@@ -312,7 +312,7 @@ jobs:
   bandit:
     runs-on: docker-x64
     container:
-      image: python:3.12-slim
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install bandit
@@ -341,7 +341,7 @@ jobs:
   layerlint:
     runs-on: docker-x64
     container:
-      image: alpine:3.19
+      image: localhost/ci-alpine-node:3.19
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install layerLint
@@ -504,7 +504,7 @@ jobs:
   deps-freshness:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     needs: build-and-test
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -561,7 +561,7 @@ jobs:
     needs: build-and-test
     continue-on-error: true  # informational only for now
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
@@ -586,7 +586,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv + mutmut
@@ -616,7 +616,7 @@ jobs:
     needs: build-and-test
     continue-on-error: true
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
@@ -645,7 +645,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
@@ -666,7 +666,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     container:
-      image: python:3.12-slim
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pip-audit + deps
@@ -704,7 +704,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + uv
@@ -726,7 +726,7 @@ jobs:
     runs-on: docker-x64
     needs: build-and-test
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup uv + deps
@@ -960,7 +960,7 @@ jobs:
   gitleaks:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -976,7 +976,7 @@ jobs:
   supply-chain:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -995,7 +995,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -1014,7 +1014,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Schemathesis property-based API fuzzing (live OpenAPI)
