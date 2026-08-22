@@ -40,6 +40,25 @@ class SystemHealthMonitor:
             "backend": {"status": "running", "pid": backend_pid},
         }
 
+        swap = psutil.swap_memory()
+
+        # Top memory consumers — surfaces runaway LSP servers / model servers
+        # (2026-08-22 incident: 6 orphaned pyright processes ate ~21GB).
+        hogs: list[dict[str, Any]] = []
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            try:
+                hogs.append(
+                    {
+                        "pid": proc.info["pid"],
+                        "name": (proc.info["name"] or "?")[:40],
+                        "mem_mb": round(proc.memory_info().rss / (1024**2), 1),
+                        "cpu_percent": proc.cpu_percent(interval=0),
+                    }
+                )
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        hogs.sort(key=lambda h: h["mem_mb"], reverse=True)
+
         return {
             "timestamp": datetime.now(UTC).isoformat(),
             "cpu": {
@@ -53,6 +72,12 @@ class SystemHealthMonitor:
                 "percent": memory.percent,
                 "used_gb": round(memory.used / (1024**3), 2),
             },
+            "swap": {
+                "total_gb": round(swap.total / (1024**3), 2),
+                "used_gb": round(swap.used / (1024**3), 2),
+                "percent": swap.percent,
+            },
+            "top_processes": hogs[:10],
             "disk": {
                 "total_gb": round(disk.total / (1024**3), 2),
                 "used_gb": round(disk.used / (1024**3), 2),
