@@ -56,7 +56,7 @@ async def e2e_client(e2e_base_url: str):
     try:
         async with httpx.AsyncClient(
             base_url=e2e_base_url,
-            timeout=httpx.Timeout(connect=5.0, read=30.0, pool=5.0),
+            timeout=httpx.Timeout(connect=5.0, read=30.0, write=30.0, pool=5.0),
             headers={"Content-Type": "application/json"},
         ) as client:
             # Quick health check to verify the service is up

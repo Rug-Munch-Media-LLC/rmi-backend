@@ -40,6 +40,10 @@ os.environ.setdefault("RMI_INTERNAL_KEY", "test-internal-key-e2e-1234567890")
 import httpx
 import pytest
 
+# E2E requires a deployed API (TEST_BASE_URL or localhost:8000) + healthy async
+# fixtures — runs in CI/staging, not as a hermetic push gate.
+pytestmark = pytest.mark.integration
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 

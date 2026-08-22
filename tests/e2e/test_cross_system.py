@@ -28,6 +28,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from fastapi.testclient import TestClient
 
+# E2E requires a deployed API (TEST_BASE_URL or localhost:8000) + healthy async
+# fixtures — runs in CI/staging, not as a hermetic push gate.
+pytestmark = pytest.mark.integration
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # FIXTURES
 # ═══════════════════════════════════════════════════════════════════════════════

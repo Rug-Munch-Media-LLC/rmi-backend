@@ -12,7 +12,13 @@ The basic flow tests the three most critical paths:
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
+
+# E2E requires a deployed API (TEST_BASE_URL or localhost:8000) + healthy async
+# fixtures — runs in CI/staging, not as a hermetic push gate.
+pytestmark = pytest.mark.integration
 
 # ── Test tokens / wallets (known addresses on mainnet) ─────────────────
 SOLANA_TOKEN = "So11111111111111111111111111111111111111112"  # Wrapped SOL
@@ -59,7 +65,7 @@ class TestE2ETokenScan:
     """Token security scan — the core product function."""
 
     ENDPOINT = "/api/v2/scanner/token/scan"
-    _AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+    _AUTH: ClassVar[dict[str, str]] = {"X-API-Key": "test-auth-token-32-chars-long!!"}
 
     @pytest.mark.smoke
     async def test_scan_solana_token(self, e2e_client) -> None:
@@ -116,7 +122,7 @@ class TestE2EWalletScan:
     """Wallet risk scan — core product function."""
 
     ENDPOINT = "/api/v2/scanner/wallet/scan"
-    _AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+    _AUTH: ClassVar[dict[str, str]] = {"X-API-Key": "test-auth-token-32-chars-long!!"}
 
     @pytest.mark.smoke
     async def test_scan_solana_wallet(self, e2e_client) -> None:
@@ -147,7 +153,7 @@ class TestE2EWalletScan:
 class TestE2EBulkFlow:
     """Aggregate flow: health check → scan token → verify result coherence."""
 
-    _AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+    _AUTH: ClassVar[dict[str, str]] = {"X-API-Key": "test-auth-token-32-chars-long!!"}
 
     @pytest.mark.smoke
     async def test_health_then_scan_then_result(self, e2e_client) -> None:
