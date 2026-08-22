@@ -45,12 +45,12 @@ class SystemHealthMonitor:
         # Top memory consumers — surfaces runaway LSP servers / model servers
         # (2026-08-22 incident: 6 orphaned pyright processes ate ~21GB).
         hogs: list[dict[str, Any]] = []
-        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+        for proc in psutil.process_iter():
             try:
                 hogs.append(
                     {
-                        "pid": proc.info["pid"],
-                        "name": (proc.info["name"] or "?")[:40],
+                        "pid": proc.pid,
+                        "name": (proc.name() or "?")[:40],
                         "mem_mb": round(proc.memory_info().rss / (1024**2), 1),
                         "cpu_percent": proc.cpu_percent(interval=0),
                     }
