@@ -20,6 +20,9 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import text as sa_text
 
+# Requires a live PostgreSQL (DATABASE_URL/ALEMBIC_DATABASE_URL) — runs in CI/nightly.
+pytestmark = pytest.mark.integration
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -164,5 +167,5 @@ def test_table_row_counts(db_session: Session) -> None:
     print("  Table row counts:")
     for table in tables:
         # table name validated against EXPECTED_TABLES set above — safe from injection
-        count = db_session.execute(sa_text(f"SELECT count(*) FROM {table}")).scalar()
+        count = db_session.execute(sa_text(f"SELECT count(*) FROM {table}")).scalar()  # noqa: S608 - table from EXPECTED_TABLES allowlist
         print(f"    {table}: {count}")
