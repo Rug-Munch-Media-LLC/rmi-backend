@@ -132,7 +132,6 @@ class SystemHealthMonitor:
             supabase_url = os.getenv("SUPABASE_URL")
             if not supabase_url:
                 return {"status": "not_configured"}
-            import httpx
 
             async with httpx.AsyncClient() as client:
                 r = await client.get(f"{supabase_url}/rest/v1/", timeout=5)

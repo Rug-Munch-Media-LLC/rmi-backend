@@ -123,7 +123,14 @@ pre-commit:
       glob: "*.py"
       run: |
         if [ -f "pyproject.toml" ] && command -v pyright &>/dev/null; then
-          pyright {staged_files} 2>/dev/null || true
+          # At pre-push nothing is staged; bare `pyright` would re-analyze the
+          # whole repo (~10 min). Staged-file scope only — CI is the full gate.
+          FILES=$(printf '%s\n' {staged_files} | grep '\.py$' || true)
+          if [ -z "$FILES" ]; then
+            echo "[pyright] no staged python files — deferring to CI gate"
+            exit 0
+          fi
+          pyright $FILES 2>/dev/null || true
         fi
 
     # -- Frontend lint (FRONTEND repos) -----------------------
