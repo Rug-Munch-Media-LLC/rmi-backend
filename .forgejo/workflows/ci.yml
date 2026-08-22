@@ -103,7 +103,7 @@ jobs:
             --exclude='app/legacy/' \
             --sarif=semgrep.sarif \
             app/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: semgrep-report
           path: semgrep.sarif
@@ -125,7 +125,7 @@ jobs:
             echo "aiverify not installed — skipping"
           fi
         continue-on-error: true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: aiverify-report
           path: aiverify-output.json
@@ -216,7 +216,7 @@ jobs:
           "
       - name: Lint OpenAPI with Spectral
         run: spectral lint openapi.json --ruleset .spectral.yaml --fail-severity=error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: openapi-schema
           path: openapi.json
@@ -320,7 +320,7 @@ jobs:
       - name: Bandit SAST scan
         run: bandit -r app/ -ll -f json -o bandit-report.json
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bandit-report
           path: bandit-report.json
@@ -442,7 +442,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: coverage-report
           path: |
@@ -550,7 +550,7 @@ jobs:
           k6 run tests/k6/smoke.js \
             -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }} \
             --summary-export=tests/k6/results/smoke-summary.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: k6-smoke-report
@@ -574,7 +574,7 @@ jobs:
           uv pip install --python .venv/bin/python -e ".[dev]" mutmut
       - name: Mutation testing (scoped to app/core)
         run: source .venv/bin/activate && mutmut run --paths-to-mutate app/core/ --test-timeout 10 || echo "Mutation score noted (non-blocking)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: mutation-report
@@ -632,7 +632,7 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pytest --durations=10 tests/ -q --tb=short -m "not integration"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: slow-test-report
@@ -695,7 +695,7 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
           vuln-type: 'os,library'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: trivy-results
           path: trivy-results.sarif
@@ -739,7 +739,7 @@ jobs:
           uv pip install --python .venv/bin/python -r requirements.txt
           uv pip install --python .venv/bin/python -e ".[dev]" pact-python
       - name: Download pact files (from consumer CI)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         continue-on-error: true
         with:
           name: pacts
@@ -773,7 +773,7 @@ jobs:
             echo "ℹ️  No local pact files and no Pact Broker configured — publish consumer pacts first"
           fi
       - name: Upload provider verification results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: provider-verification
@@ -799,7 +799,7 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: sbom
           path: sbom.spdx.json
@@ -901,7 +901,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload OCR report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ocr-review-report
           path: |
@@ -950,7 +950,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload Draugr SARIF
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: draugr-sarif
           path: draugr-out/
