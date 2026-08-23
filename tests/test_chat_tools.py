@@ -132,19 +132,32 @@ def test_chain_for_address() -> None:
 
 
 async def test_exec_price_returns_none_when_fetch_raises() -> None:
+    """All price sources failing → executor returns None (fail-open).
+
+    2026-08-23: the fallback chain grew (coingecko → dexscreener →
+    coincap/cmc). Mocking only coingecko leaked a LIVE coinmarketcap
+    call into unit tests. Every source in the chain must be neutralized.
+    """
     with (
         mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
         mock.patch("app.coingecko_connector.get_coingecko_connector", side_effect=RuntimeError("boom")),
+        mock.patch("app.databus.provider_implementations.price._dexscreener_price", side_effect=RuntimeError("boom")),
+        mock.patch("app.domains.chat_tools.price._fetch_coincap_price", side_effect=RuntimeError("boom")),
+        mock.patch("app.domains.chat_tools.price._fetch_cmc_price", side_effect=RuntimeError("boom")),
     ):
         assert await _exec_price("price of btc") is None
 
 
 async def test_exec_price_returns_none_when_no_price_data() -> None:
+    """Every source returning nothing → None (no live fallback leakage)."""
     conn = mock.MagicMock()
     conn.get_token_price = mock.AsyncMock(return_value=None)
     with (
         mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
         mock.patch("app.coingecko_connector.get_coingecko_connector", return_value=conn),
+        mock.patch("app.databus.provider_implementations.price._dexscreener_price", return_value=None),
+        mock.patch("app.domains.chat_tools.price._fetch_coincap_price", return_value=None),
+        mock.patch("app.domains.chat_tools.price._fetch_cmc_price", return_value=None),
     ):
         assert await _exec_price("price of btc") is None
 
