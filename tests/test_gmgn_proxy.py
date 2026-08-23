@@ -50,15 +50,24 @@ def reload_gmgn(monkeypatch):
 
 
 def _proxy_200_payload() -> dict:
+    """GMGN Agent API shape (2026-08-23): price is a nested object with
+    per-window stats; supplies are token-level fields."""
     return {
         "data": {
             "token": {
                 "address": "TOKEN123",
                 "symbol": "PUMP",
                 "name": "Pump Token",
-                "price": 0.00123,
-                "market_cap": 12345,
-                "fdv": 50000,
+                "price": {
+                    "price": 0.00123,
+                    "price_1h": 0.5,
+                    "price_24h": -2.0,
+                    "volume_24h": 9999.0,
+                    "buys_24h": 100,
+                    "sells_24h": 80,
+                },
+                "circulating_supply": 123000000,
+                "total_supply": 500000000,
                 "liquidity": 8000,
                 "holder_count": 250,
                 "creation_timestamp": 1723000000,

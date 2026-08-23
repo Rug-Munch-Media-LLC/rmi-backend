@@ -177,7 +177,10 @@ class GMGNProvider:
             data = await self._agent_get("/v1/token/info", {"chain": chain_slug, "address": address})
             if not data:
                 return None
-            token = data.get("data") or {}
+            # Agent API shape: {"data": {"token": {...}}} — 2026-08-23 audit:
+            # the parser stopped one level short (token = data["data"]), so
+            # every field read hit the wrapper and returned defaults.
+            token = ((data.get("data") or {}).get("token")) or {}
             if not token:
                 return None
             price_obj = token.get("price") or {}
