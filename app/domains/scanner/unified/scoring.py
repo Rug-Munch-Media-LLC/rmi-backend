@@ -576,7 +576,10 @@ def apply_market_scoring(r: ScanResult) -> None:
 
     # Recent exploits in the same category → higher risk (bounded).
     if exploits > 0:
-        penalty = min(-5.0 * min(exploits, 2), -10.0)
+        # TOP-100 #19: max() not min() — min() of two negatives always yields
+        # the cap (-10) even for a single exploit; contract is -5 per exploit
+        # capped at -10.
+        penalty = max(-5.0 * min(exploits, 2), -10.0)
         _apply_market_delta(r, penalty, "MARKET_RECENT_EXPLOITS", risk=True)
 
     # Chain volume (TVL) direction.

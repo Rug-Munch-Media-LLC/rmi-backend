@@ -327,9 +327,13 @@ class AddressLabeler:
                         )
 
             # Query wallet_profiles collection
-            results = await search_similar(
+            # TOP-100 #21: was `search_similar(...)` — undefined name (F821).
+            # The NameError was swallowed by gather(return_exceptions=True),
+            # silently killing this label source. Use rugbrain_search like
+            # the known_scams query above.
+            results = await rugbrain_search(
                 f"address:{address}",
-                collection="wallet_profiles",
+                collections=["wallet_profiles"],
                 limit=5,
             )
             if results:

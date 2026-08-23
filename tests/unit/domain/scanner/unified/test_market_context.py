@@ -222,3 +222,28 @@ class TestApplyMarketScoring:
         market = result.breakdown.get("market") or {}
         flags = market.get("flags") or []
         assert "MARKET_FEAR_NEW_TOKEN" in flags
+
+
+class TestExploitPenaltyGolden:
+    """TOP-100 #19 golden contract: -5 per exploit, capped at -10.
+
+    Regression: the penalty used min() of two negatives, which always
+    produced the -10 cap even for a single exploit.
+    """
+
+    def _delta(self, exploits: int) -> float:
+        result = ScanResult(token_address="0xTEST", chain="solana")
+        result.market_context = _ctx(recent_exploits=exploits)
+        compute_score(result)
+        before = result.safety_score
+        apply_market_scoring(result)
+        return before - result.safety_score
+
+    def test_single_exploit_costs_five_not_ten(self) -> None:
+        assert self._delta(1) == pytest.approx(5.0)
+
+    def test_two_exploits_hit_the_cap(self) -> None:
+        assert self._delta(2) == pytest.approx(10.0)
+
+    def test_three_exploits_still_capped_at_ten(self) -> None:
+        assert self._delta(3) == pytest.approx(10.0)
