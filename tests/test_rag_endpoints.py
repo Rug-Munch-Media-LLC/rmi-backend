@@ -53,21 +53,25 @@ def _allow_global_rate_limits():
 
 @pytest.fixture
 def mock_engine_search(monkeypatch):
-    """Default: engine search returns one high-score hit."""
-    import app.rag.service as service
+    """Default: rugbrain search returns one high-score hit.
 
-    async def fake_search(query, collection="scam_intel", top_k=5, min_similarity=0.0, filters=None):
+    2026-08-23: the v2 router calls rugbrain_search directly
+    (app/api/v1/rag/search.py) — the old engine_three_pillar_search
+    indirection is gone. Patch the name the ROUTER uses.
+    """
+    import app.api.v1.rag.search as rag_router
+
+    async def fake_search(query, collections=None, limit=10, rerank=False):
         return [
             {
                 "content": "Honeypot token: cannot sell after purchase",
-                "score": 0.92,
+                "rrf_score": 0.92,
                 "metadata": {"category": "honeypot"},
-                "collection": collection,
-                "id": "doc-1",
+                "doc_id": "doc-1",
             }
         ]
 
-    monkeypatch.setattr(service, "engine_three_pillar_search", fake_search)
+    monkeypatch.setattr(rag_router, "rugbrain_search", fake_search)
     return fake_search
 
 
@@ -86,29 +90,27 @@ class TestRagSearch:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["query"] == "honeypot token"
-        assert body["total"] == 1
         assert len(body["hits"]) == 1
         hit = body["hits"][0]
         assert hit["content"] == "Honeypot token: cannot sell after purchase"
         assert hit["score"] == 0.92
         assert hit["collection"] == "scam_intel"
-        assert body["collection"] == "scam_intel"
+        assert body["collections_searched"] == ["scam_intel"]
 
     def test_search_unknown_collection_graceful(self, client: TestClient, monkeypatch) -> None:
         """Unknown collection → 200 with empty hits, not 500."""
-        import app.rag.service as service
+        import app.api.v1.rag.search as rag_router
 
-        async def fake_search(query, collection="scam_intel", top_k=5, min_similarity=0.0, filters=None):
+        async def fake_search(query, collections=None, limit=10, rerank=False):
             return []
 
-        monkeypatch.setattr(service, "engine_three_pillar_search", fake_search)
+        monkeypatch.setattr(rag_router, "rugbrain_search", fake_search)
         resp = client.post(
             "/api/v1/rag/v2/search",
             json={"query": "anything", "collection": "does_not_exist", "top_k": 5},
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["total"] == 0
         assert body["hits"] == []
 
     def test_search_empty_query_422(self, client: TestClient) -> None:
@@ -130,34 +132,70 @@ class TestRagSearch:
 
 class TestRagStats:
     def test_stats_shape(self, app, monkeypatch) -> None:
-        """GET /api/v1/rag/v2/stats → collection counts + embedder backend.
+        """GET /api/v1/rag/v2/stats → per-collection point/vector counts.
 
-        The router calls ``engine_get_stats()`` synchronously (the engine
-        function is sync — ``app/rag/engine.py::get_stats``), so the fake
-        must be a plain function, not a coroutine. Patching is done on the
-        router's own namespace (``app.api.v1.rag.search.engine_get_stats``)
-        because the router imports ``get_stats as engine_get_stats``.
+        2026-08-23: the endpoint queries Qdrant v2's HTTP API directly
+        (httpx inside the handler) — the engine_get_stats indirection is
+        gone. Mock the httpx transport and assert the new response shape:
+        {collections: {name: {points, vectors, dim}}, status}.
         """
+        import httpx
+
         import app.api.v1.rag.search as rag_router
 
-        def fake_stats(collections=None):
-            return {
-                "total_docs": 1234,
-                "backend": "qdrant",
-                "collections": [
-                    {"name": "scam_intel", "docs": 1000},
-                    {"name": "known_scams", "docs": 234},
-                ],
-            }
+        class FakeResp:
+            def __init__(self, payload):
+                self._p = payload
+                self.status_code = 200
 
-        monkeypatch.setattr(rag_router, "engine_get_stats", fake_stats)
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self._p
+
+        class FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def get(self, url):
+                if url.endswith("/collections"):
+                    return FakeResp({"result": {"collections": [{"name": "scam_intel"}, {"name": "known_scams"}]}})
+                if url.endswith("/scam_intel"):
+                    return FakeResp(
+                        {
+                            "result": {
+                                "points_count": 1000,
+                                "vectors_count": 1000,
+                                "config": {"params": {"vectors": {"size": 1024}}},
+                            }
+                        }
+                    )
+                return FakeResp(
+                    {
+                        "result": {
+                            "points_count": 234,
+                            "vectors_count": 234,
+                            "config": {"params": {"vectors": {"size": 1024}}},
+                        }
+                    }
+                )
+
+        monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
         client = TestClient(app)
         resp = client.get("/api/v1/rag/v2/stats")
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["total_docs"] == 1234
-        assert body["backend"] == "qdrant"
-        assert len(body["collections"]) == 2
+        assert body["status"] == "ok"
+        assert set(body["collections"]) == {"scam_intel", "known_scams"}
+        assert body["collections"]["scam_intel"]["points"] == 1000
+        assert body["collections"]["scam_intel"]["dim"] == 1024
 
 
 class TestRagIngest:
@@ -171,13 +209,13 @@ class TestRagIngest:
         assert resp.status_code == 401, resp.text
 
     def test_ingest_document(self, app, mock_engine_search, monkeypatch) -> None:
-        """Authenticated ingest returns doc_id + status + chunks."""
-        import app.rag.service as service
+        """Authenticated ingest returns doc_id + status."""
+        import app.api.v1.rag.search as rag_router
 
-        async def fake_ingest(collection, doc_id, content, metadata=None, content_type="general"):
-            return {"status": "ok", "chunks": 3}
+        async def fake_ingest(content, collection="default", doc_id=None, metadata=None, **kw):
+            return True
 
-        monkeypatch.setattr(service, "engine_ingest_document", fake_ingest)
+        monkeypatch.setattr(rag_router, "rugbrain_ingest", fake_ingest)
         client = TestClient(app)
         resp = client.post(
             "/api/v1/rag/v2/ingest",
@@ -189,18 +227,17 @@ class TestRagIngest:
         assert body["doc_id"] == "doc-42"
         assert body["collection"] == "scam_intel"
         assert body["status"] == "ok"
-        assert body["chunks"] == 3
 
 
 class TestRagFeedback:
     def test_feedback_scam_ingest(self, app, mock_engine_search, monkeypatch) -> None:
         """Feedback records a known scam into the known_scams collection."""
-        import app.rag.service as service
+        import app.api.v1.rag.search as rag_router
 
-        async def fake_ingest(collection, doc_id, content, metadata=None, content_type="general"):
-            return {"status": "ok", "chunks": 1}
+        async def fake_ingest(content, collection="default", doc_id=None, metadata=None, **kw):
+            return True
 
-        monkeypatch.setattr(service, "engine_ingest_document", fake_ingest)
+        monkeypatch.setattr(rag_router, "rugbrain_ingest", fake_ingest)
         client = TestClient(app)
         resp = client.post(
             "/api/v1/rag/v2/feedback",

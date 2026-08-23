@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.integrations.rugbrain_client import rugbrain_ingest, rugbrain_search
 
@@ -23,6 +23,14 @@ class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2048)
     collection: str = Field(default="scam_intel")
     top_k: int = Field(default=5, ge=1, le=50)
+
+    @field_validator("query")
+    @classmethod
+    def _query_not_blank(cls, v: str) -> str:
+        # min_length alone admits "   " — blank queries must 422.
+        if not v.strip():
+            raise ValueError("query must not be blank")
+        return v.strip()
 
 
 class SearchHit(BaseModel):

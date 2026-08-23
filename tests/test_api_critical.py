@@ -216,8 +216,14 @@ class TestAuthMiddleware:
         assert not is_public_path("/api/v1/databus/query", "GET")
 
     def test_auth_middleware_rejects_missing_key(self, app):
-        """Auth middleware returns 401 on protected path without X-API-Key
-        when RMI_AUTH_TOKEN is configured.
+        """Auth middleware returns 401 on protected subpath without
+        X-API-Key when RMI_AUTH_TOKEN is configured.
+
+        Probe target must be a PROTECTED_SUBPATHS entry (auth.py:148):
+        the middleware authenticates those *regardless of route
+        existence* — the anti-enumeration property under test. A path
+        matching neither PUBLIC_PREFIXES nor PROTECTED_SUBPATHS (like a
+        random string) correctly falls through to 404 by design.
         """
         from starlette.testclient import TestClient
 
@@ -229,14 +235,20 @@ class TestAuthMiddleware:
 
         try:
             client = TestClient(app)
-            resp = client.get("/api/v1/some-protected-route")
-            # Should be rejected — 401 because token is configured
+            resp = client.get("/api/v1/bot/scan")  # PROTECTED_SUBPATHS entry
+            # Should be rejected — 401 because token is configured,
+            # even though the bot router may not be mounted in tests.
             assert resp.status_code in (401,)
         finally:
             auth_mod.RMI_AUTH_TOKEN = saved_token
 
     def test_auth_middleware_accepts_valid_key(self, app):
-        """Auth middleware allows request with valid X-API-Key."""
+        """Auth middleware allows request with valid X-API-Key.
+
+        With a VALID key on a PROTECTED_SUBPATH, auth passes and the
+        request proceeds to routing — which 404s when the route isn't
+        mounted. 404-here is the success signal for the auth layer.
+        """
         from starlette.testclient import TestClient
 
         # Temporarily set a token
@@ -248,11 +260,13 @@ class TestAuthMiddleware:
         try:
             client = TestClient(app)
             resp = client.get(
-                "/api/v1/test-protected-auth",
+                "/api/v1/bot/scan",
                 headers={"X-API-Key": "test-valid-key-12345"},
             )
-            # Route doesn't exist, so we get 404, not 401
-            assert resp.status_code == 404
+            # Auth passed -> routing ran -> 404 (route absent) or
+            # 405 (route mounted, wrong method). Both prove the auth
+            # layer let a VALID credential through.
+            assert resp.status_code in (404, 405)
         finally:
             auth_mod.RMI_AUTH_TOKEN = original_token
 
