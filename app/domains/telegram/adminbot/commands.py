@@ -24,6 +24,12 @@ from app.domains.telegram.adminbot._cmd_backup import (
     cmd_backup_status,
     cmd_backup_verify,
 )
+from app.domains.telegram.adminbot._cmd_control import (
+    cmd_cleanup,
+    cmd_digest,
+    cmd_logins,
+    cmd_pressure,
+)
 from app.domains.telegram.adminbot._cmd_core import (
     cmd_alerts,
     cmd_disk,
@@ -101,7 +107,9 @@ __all__ = [
     "cmd_backup_verify",
     "cmd_certs",
     "cmd_chain",
+    "cmd_cleanup",
     "cmd_deploy",
+    "cmd_digest",
     "cmd_disk",
     "cmd_dlogs",
     "cmd_docker",
@@ -113,12 +121,14 @@ __all__ = [
     "cmd_health",
     "cmd_help",
     "cmd_indexer",
+    "cmd_logins",
     "cmd_logs",
     "cmd_mem",
     "cmd_menu",
     "cmd_net",
     "cmd_news",
     "cmd_oc",
+    "cmd_pressure",
     "cmd_push",
     "cmd_quick",
     "cmd_ragstats",

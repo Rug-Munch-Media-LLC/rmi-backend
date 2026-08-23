@@ -46,7 +46,9 @@ from app.domains.telegram.adminbot.commands import (
     cmd_backup_verify,
     cmd_certs,
     cmd_chain,
+    cmd_cleanup,
     cmd_deploy,
+    cmd_digest,
     cmd_disk,
     cmd_dlogs,
     cmd_docker,
@@ -58,12 +60,14 @@ from app.domains.telegram.adminbot.commands import (
     cmd_health,
     cmd_help,
     cmd_indexer,
+    cmd_logins,
     cmd_logs,
     cmd_mem,
     cmd_menu,
     cmd_net,
     cmd_news,
     cmd_oc,
+    cmd_pressure,
     cmd_push,
     cmd_quick,
     cmd_ragstats,
@@ -207,6 +211,12 @@ def main() -> None:
     app.add_handler(CommandHandler("admin_backup_status", cmd_backup_status))
     app.add_handler(CommandHandler("admin_backup_run", cmd_backup_run))
     app.add_handler(CommandHandler("admin_backup_verify", cmd_backup_verify))
+
+    # ── NEW Commands v7 (Deep server control) ──
+    app.add_handler(CommandHandler("pressure", cmd_pressure))
+    app.add_handler(CommandHandler("logins", cmd_logins))
+    app.add_handler(CommandHandler("cleanup", cmd_cleanup))
+    app.add_handler(CommandHandler("digest", cmd_digest))
 
     # ── NEW Commands v5 (admin_* aliases + control panel) ──
     app.add_handler(CommandHandler("admin_services", cmd_services))
