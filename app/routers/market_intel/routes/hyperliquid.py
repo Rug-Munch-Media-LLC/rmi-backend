@@ -146,11 +146,22 @@ async def get_hyperliquid_liquidation_map(
 # Free public endpoints only; each venue fails independently.
 
 
+def _proxy_client() -> httpx.AsyncClient:
+    """Client routed through Webshare proxy for geo-blocked venues (Bybit).
+
+    LIQMAP_PROXY_URL env; no-op direct client when unset.
+    """
+    import os
+
+    proxy = os.getenv("LIQMAP_PROXY_URL", "").strip()
+    return httpx.AsyncClient(timeout=12, proxy=proxy or None)
+
+
 async def _bybit_liquidation_snapshot() -> dict[str, dict[str, Any]]:
     """Bybit v5 tickers: one call -> OI + funding + mark for all linear."""
     out: dict[str, dict[str, Any]] = {}
     try:
-        async with httpx.AsyncClient(timeout=10) as c:
+        async with _proxy_client() as c:
             r = await c.get("https://api.bybit.com/v5/market/tickers", params={"category": "linear"})
             for t in (r.json().get("result") or {}).get("list", []):
                 sym = str(t.get("symbol") or "").replace("USDT", "").replace("USDC", "")
