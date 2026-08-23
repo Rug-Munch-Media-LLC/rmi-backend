@@ -18,7 +18,7 @@ async def _passthrough_market_overview(**kwargs) -> dict[str, Any] | None:
             r = await c.get("http://localhost:8000/api/v1/content/market-overview")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -31,7 +31,7 @@ async def _passthrough_trending(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"http://localhost:8000/api/v1/tokens/trending?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -44,7 +44,7 @@ async def _passthrough_news(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"http://localhost:8000/api/v1/news/feed?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
 
     # Fallback: try the domain POST endpoint
@@ -75,7 +75,7 @@ async def _passthrough_news(**kwargs) -> dict[str, Any] | None:
                     "source": "rmi_news_fallback",
                     "free": True,
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("news fallback also failed")
     return None
 
@@ -88,7 +88,7 @@ async def _passthrough_alerts(**kwargs) -> dict[str, Any] | None:
         count = await get_active_alert_count()
         recent = await get_recent_alerts(limit=kwargs.get("limit", 20))
         return {"count": count, "alerts": recent}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return {"count": 0, "alerts": []}
 
@@ -153,7 +153,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
                     label = json.loads(data)
                     first_label = label
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("redis provider error")
 
     if first_label:
@@ -172,9 +172,17 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
         import aiohttp
 
         # ClickHouse HTTP interface (native driver not in container)
-        ch_url = os.getenv(
-            "CLICKHOUSE_URL",
-            "http://rmi:clickhouse_rmi_prod_2026@rmi-clickhouse:8123?default_format=TabSeparated",
+        # SECURITY (TOP-100 #7, 2026-08-23): hardcoded prod credential default
+        # removed. URL is composed from component env vars; empty password
+        # fails loudly against ClickHouse instead of silently using a secret
+        # baked into source.
+        ch_url = os.getenv("CLICKHOUSE_URL") or (
+            "http://{user}:{pw}@{host}:{port}/?default_format=TabSeparated".format(
+                user=os.getenv("CLICKHOUSE_USER", "rmi"),
+                pw=os.getenv("CLICKHOUSE_PASSWORD", ""),
+                host=os.getenv("CLICKHOUSE_HOST", "rmi-clickhouse"),
+                port=os.getenv("CLICKHOUSE_PORT", "8123"),
+            )
         )
         # NOTE: Addresses are wallet hex/base58 — SQL-safe alphanumeric.
         # Escape single quotes for the ClickHouse string literal (injection guard):
@@ -246,7 +254,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
                             # Also set a 48h TTL as safety net
                             r2.expire(cache_key, 172800)
                         r2.close()
-                    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+                    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
                         logger.warning("write-through cache error")
 
                     return {
@@ -281,9 +289,17 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
 
         import aiohttp
 
-        ch_url = os.getenv(
-            "CLICKHOUSE_URL",
-            "http://rmi:clickhouse_rmi_prod_2026@rmi-clickhouse:8123?default_format=TabSeparated",
+        # SECURITY (TOP-100 #7, 2026-08-23): hardcoded prod credential default
+        # removed. URL is composed from component env vars; empty password
+        # fails loudly against ClickHouse instead of silently using a secret
+        # baked into source.
+        ch_url = os.getenv("CLICKHOUSE_URL") or (
+            "http://{user}:{pw}@{host}:{port}/?default_format=TabSeparated".format(
+                user=os.getenv("CLICKHOUSE_USER", "rmi"),
+                pw=os.getenv("CLICKHOUSE_PASSWORD", ""),
+                host=os.getenv("CLICKHOUSE_HOST", "rmi-clickhouse"),
+                port=os.getenv("CLICKHOUSE_PORT", "8123"),
+            )
         )
 
         # Build IN clause with quotes; each address single-quote-escaped for
@@ -365,7 +381,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
                         r2.setnx(cache_key, json.dumps(label_dict))
                         r2.expire(cache_key, 172800)
                 r2.close()
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
                 logger.warning("batch write-through cache error")
 
             labeled_count = sum(len(v) for v in addr_labels.values())
@@ -395,7 +411,7 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -417,6 +433,6 @@ async def _passthrough_rag(query: str = "", collection: str = "known_scams", **k
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

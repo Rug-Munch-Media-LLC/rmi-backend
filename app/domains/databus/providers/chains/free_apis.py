@@ -38,7 +38,7 @@ async def _defillama_tvl(**kw) -> dict[str, Any] | None:
             r = await c.get("https://api.llama.fi/protocols")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -50,7 +50,7 @@ async def _defillama_chains(**kw) -> dict[str, Any] | None:
             r = await c.get("https://api.llama.fi/v2/chains")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -66,7 +66,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -78,7 +78,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict[str, Any] | No
             r = await c.get(f"https://api.blockchair.com/{chain}/stats")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -94,6 +94,6 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
             r = await c.get(url)
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

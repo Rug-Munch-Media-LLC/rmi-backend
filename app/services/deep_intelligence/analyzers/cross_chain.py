@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.services.deep_intelligence.core import cfg, client, logger
 
 
@@ -62,7 +64,7 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
                                 "pair_created": pair.get("pairCreatedAt", ""),
                             }
                         )
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"Cross-chain search failed: {e}")
 
     if len(profiles) >= 3:

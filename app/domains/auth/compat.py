@@ -23,9 +23,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.core.logging import get_logger
-from app.domains.auth.jwt import _create_jwt, _verify_jwt
+from app.domains.auth.jwt import _verify_jwt
 from app.domains.auth.passwords import hash_password, verify_password
-from app.domains.auth.store import _get_user, _get_user_by_email, _save_user
+from app.domains.auth.store import _get_user, _save_user
 from app.domains.auth.wallet import get_or_create_wallet_user, verify_wallet_signature
 
 log = get_logger(__name__)
@@ -132,9 +132,9 @@ async def auth_delete_account(request: Request) -> dict[str, Any]:
     """Delete the authenticated user's account."""
     user = _require_user(request)
     try:
-        import redis
-        import json
         import os
+
+        import redis
 
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
@@ -145,7 +145,7 @@ async def auth_delete_account(request: Request) -> dict[str, Any]:
         r.delete(f"rmi:users:{user['id']}")
         r.delete(f"rmi:user:{user['id']}")
         log.info("auth_account_deleted user=%s", user["id"])
-    except Exception as exc:  # noqa: BLE001 — best-effort deletion
+    except Exception as exc:
         log.warning("auth_delete_account_redis_failed user=%s err=%s", user["id"], exc)
     return {"ok": True}
 

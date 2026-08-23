@@ -33,7 +33,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -110,7 +110,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
                             key=lambda x: {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}.get(x, 0),
                         )
                         health["risk_factors"].append(f"Very few holders ({n})")
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Holder health: {e}")
 
@@ -123,7 +123,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
         r = _r()
         r.setex(cache_key, CACHE_TTL["holder_health"], json.dumps(health, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return health

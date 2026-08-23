@@ -80,7 +80,7 @@ async def _birdeye_overview(address: str = "", **kw: Any) -> dict[str, Any] | No
                     return r.json()
                 if r.status_code not in (400, 401, 403):
                     return None  # 404/429/5xx — key is fine, endpoint/rate is not
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
             logger.warning("provider error")
     return None
 
@@ -109,7 +109,7 @@ async def _birdeye_price(address: str = "", **kw: Any) -> dict[str, Any] | None:
                     return r.json()
                 if r.status_code not in (400, 401, 403):
                     return None
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
             logger.warning("provider error")
     return None
 
@@ -130,7 +130,7 @@ async def _solana_tracker_price(mint: str = "", **kw: Any) -> dict[str, Any] | N
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -148,7 +148,7 @@ async def _solana_tracker_token(mint: str = "", **kw: Any) -> dict[str, Any] | N
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -166,7 +166,7 @@ async def _solana_tracker_trending(**kw: Any) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -188,7 +188,7 @@ async def _gmgn_trending(**kw: Any) -> dict[str, Any] | None:
         data = await get_gmgn_provider().get_trending(chain=chain, interval=interval, limit=limit)
         if data:
             return {"trending": data, "source": "gmgn"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -210,7 +210,7 @@ async def _messari_news(limit: int = 20, **kw: Any) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -232,7 +232,7 @@ async def _coindesk_news(limit: int = 20, **kw: Any) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -269,7 +269,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw: Any) -> d
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -291,7 +291,7 @@ async def _virustotal_url_scan(url: str, **kw: Any) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -323,6 +323,6 @@ async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", *
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

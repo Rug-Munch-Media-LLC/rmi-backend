@@ -33,7 +33,7 @@ async def cross_chain_entity(address: str = "", **kw) -> dict[str, Any] | None:
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     if not ARKHAM_KEY:
@@ -78,7 +78,7 @@ async def cross_chain_entity(address: str = "", **kw) -> dict[str, Any] | None:
                                         "twitter": ent.get("twitter"),
                                     }
                                 )
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Cross-chain entity: {e}")
 
@@ -94,7 +94,7 @@ async def cross_chain_entity(address: str = "", **kw) -> dict[str, Any] | None:
         r = _r()
         r.setex(cache_key, CACHE_TTL["cross_chain"], json.dumps(result, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return result

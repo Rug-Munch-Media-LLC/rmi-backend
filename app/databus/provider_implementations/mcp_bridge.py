@@ -84,6 +84,6 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict[st
                                 "server": mcp_server,
                                 "tool": mcp_tool,
                             }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

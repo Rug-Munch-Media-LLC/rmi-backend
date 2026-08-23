@@ -35,10 +35,16 @@ class WalletScanRequest(BaseModel):
 
 
 def _get_tier(request: Request) -> str:
-    if request.headers.get("X-RMI-Key") == INTERNAL_API_KEY:
+    # SECURITY (TOP-100 #8, 2026-08-23): the client-supplied
+    # ``X-Payment-Verified`` header is no longer honored — anyone could set it
+    # and unlock pro-tier scans / bypass the wallet-data paywall. Paid tiers
+    # must be established server-side (x402 payment settlement or an internal
+    # key), never from headers an anonymous client controls.
+    import hmac as _hmac
+
+    supplied_key = request.headers.get("X-RMI-Key", "")
+    if supplied_key and _hmac.compare_digest(supplied_key, INTERNAL_API_KEY):
         return "admin"
-    if request.headers.get("X-Payment-Verified") == "true":
-        return "pro"
     return "free"
 
 

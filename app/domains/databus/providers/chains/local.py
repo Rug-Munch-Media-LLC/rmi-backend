@@ -34,7 +34,7 @@ async def _local_token_price(**kwargs) -> dict[str, Any] | None:
             if cached:
                 return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -53,7 +53,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -114,7 +114,7 @@ async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] |
                     key = f"rmi:label:{lchain}:{address}"
                     r.setex(key, 3600, json.dumps(entry))
                 r.close()
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
                 logger.debug("write-through to Redis for ClickHouse labels failed")
 
             return result
@@ -131,7 +131,7 @@ async def _passthrough_market_overview(**kwargs) -> dict[str, Any] | None:
             r = await c.get("http://localhost:8000/api/v1/databus/market/brief")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -143,7 +143,7 @@ async def _passthrough_trending(**kwargs) -> dict[str, Any] | None:
             r = await c.get("http://localhost:8000/api/v1/databus/market/trending")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -195,7 +195,7 @@ async def _passthrough_news(**kwargs) -> dict[str, Any] | None:
                         },
                         "source": "full_news_feed",
                     }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("news passthrough failed")
 
     return None
@@ -213,7 +213,7 @@ async def _passthrough_alerts(**kwargs) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -228,7 +228,7 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -246,7 +246,7 @@ async def _passthrough_rag(query: str = "", collection: str = "known_scams", **k
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -262,7 +262,7 @@ async def _passthrough_hyperliquid(**kwargs: Any) -> dict[str, Any] | None:
             r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -277,7 +277,7 @@ async def _passthrough_hyperliquid_action(**kwargs: Any) -> dict[str, Any] | Non
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -293,7 +293,7 @@ async def _passthrough_insider_wallets(**kwargs: Any) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -309,6 +309,6 @@ async def _passthrough_prediction_signals(**kwargs: Any) -> dict[str, Any] | Non
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

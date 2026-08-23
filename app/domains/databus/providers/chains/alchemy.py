@@ -30,7 +30,7 @@ async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet
             r = await c.post(url, json=payload)
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -52,6 +52,6 @@ async def _alchemy_token_metadata(address: str = "", network: str = "eth-mainnet
             r = await c.post(url, json=payload)
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

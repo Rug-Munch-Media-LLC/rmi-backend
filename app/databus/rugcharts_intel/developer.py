@@ -33,7 +33,7 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -98,7 +98,7 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
                         else:
                             reputation["total_tokens_deployed"] = "0-1"
                             reputation["risk_level"] = "LOW"
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Dev reputation: {e}")
 
@@ -109,7 +109,7 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
         r = _r()
         r.setex(cache_key, CACHE_TTL["dev_reputation"], json.dumps(reputation, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return reputation

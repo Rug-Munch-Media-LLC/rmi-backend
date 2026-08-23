@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.core.redis import get_redis_async
 
@@ -49,7 +51,7 @@ def get_clickhouse() -> Any | None:
         _ch_client.execute("SELECT 1")
         log.info("webhooks_clickhouse_connected", host=host, port=port, db=database)
         return _ch_client
-    except (ValueError, ConnectionError, RuntimeError) as exc:
+    except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
         log.warning("webhooks_clickhouse_unavailable", error=str(exc))
         _ch_client = None
         return None

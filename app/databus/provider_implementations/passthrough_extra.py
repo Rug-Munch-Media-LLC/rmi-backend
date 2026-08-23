@@ -20,7 +20,7 @@ async def _passthrough_hyperliquid(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"{settings.backend_url}/api/v1/market/hyperliquid?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -33,7 +33,7 @@ async def _passthrough_hyperliquid_action(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"{settings.backend_url}/api/v1/market/hyperliquid-action?limit={limit}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -47,7 +47,7 @@ async def _passthrough_insider_wallets(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"{settings.backend_url}/api/v1/market/insider-wallets?limit={limit}&tier={tier}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -61,6 +61,6 @@ async def _passthrough_prediction_signals(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"{settings.backend_url}/api/v1/market/prediction-signals?limit={limit}&tier={tier}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

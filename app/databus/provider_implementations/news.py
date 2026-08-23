@@ -44,7 +44,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict[str, Any] | None:
                             }
                         )
                     return {"articles": articles, "source": "messari", "count": len(articles)}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -81,7 +81,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
                             }
                         )
                     return {"articles": articles, "source": "coindesk", "count": len(articles)}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -118,7 +118,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict[s
                     "dev_activity": data.get("data", {}).get("getMetric", {}).get("timeseriesData", []),
                     "source": "santiment",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -144,7 +144,7 @@ async def _virustotal_url_scan(url: str, **kw) -> dict[str, Any] | None:
                     "harmless": stats.get("harmless", 0),
                     "source": "virustotal",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -190,7 +190,7 @@ async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", *
                                     }
                             elif r_result.status_code != 202:
                                 break
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"provider error: {e}")
         return None
 

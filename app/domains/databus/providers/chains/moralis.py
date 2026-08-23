@@ -28,7 +28,7 @@ async def _moralis_price(**kwargs) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -47,7 +47,7 @@ async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) ->
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -66,7 +66,7 @@ async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> d
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -85,7 +85,7 @@ async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -104,7 +104,7 @@ async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> d
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -123,7 +123,7 @@ async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -141,7 +141,7 @@ async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict[str, Any] |
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -160,6 +160,6 @@ async def _moralis_search_tokens(query: str = "", **kw) -> dict[str, Any] | None
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

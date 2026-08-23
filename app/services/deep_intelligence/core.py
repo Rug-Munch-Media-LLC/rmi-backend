@@ -84,7 +84,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"GMGN HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -103,7 +103,7 @@ class MultiChainClient:
                     return best
                 return {"error": "no matching pair found"}
             return {"error": f"DexScreener HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -119,7 +119,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Scanner HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -133,7 +133,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Helius HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -147,7 +147,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Helius HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -164,7 +164,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Birdeye HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -190,7 +190,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Moralis HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -217,7 +217,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Webacy HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -238,7 +238,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Bitquery HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -256,7 +256,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"LunarCrush HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -284,7 +284,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"GoPlus HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -301,7 +301,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"Chainabuse HTTP {resp.status_code}"}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
@@ -313,7 +313,7 @@ class MultiChainClient:
             if resp.status_code == 200:
                 return resp.json()
             return {"error": f"HTTP {resp.status_code}", "url": url}
-        except (ValueError, ConnectionError, RuntimeError) as e:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 

@@ -10,6 +10,8 @@ import json
 import subprocess
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.mcp_bridge")
@@ -44,11 +46,12 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict[st
             capture_output=True,
             text=True,
             timeout=30,
-        shell=False)
+            shell=False,
+        )
         if result.returncode == 0:
             return json.loads(result.stdout)
         logger.warning(f"MCP call failed: {result.stderr[:200]}")
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"MCP bridge error: {e}")
     except subprocess.TimeoutExpired:
         logger.warning("MCP bridge timeout")

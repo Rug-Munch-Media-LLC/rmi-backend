@@ -33,7 +33,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -92,7 +92,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
                             liquidity_data["lp_concentration_risk"] = "LOW"
                             liquidity_data["risk_score"] = 20
                             liquidity_data["risk_level"] = "LOW"
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Liquidity monitor: {e}")
 
@@ -109,7 +109,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
                         if entity.get("name"):
                             h["entity"] = entity["name"]
                             h["entity_type"] = entity.get("type", "")
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
                 logger.warning("error")
 
     liquidity_data["token"] = address
@@ -121,7 +121,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
         r = _r()
         r.setex(cache_key, CACHE_TTL["liquidity"], json.dumps(liquidity_data, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return liquidity_data

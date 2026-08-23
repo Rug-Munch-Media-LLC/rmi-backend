@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
 from app.domains.scanner.webhooks.providers.utils import get_clickhouse
@@ -68,7 +70,7 @@ class WalletActivityProvider:
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
                 params,
             )
-        except (ValueError, ConnectionError, RuntimeError) as exc:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
             log.warning("wallet_activity_query_failed", error=str(exc))
             return []
 

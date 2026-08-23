@@ -34,7 +34,7 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
@@ -83,7 +83,7 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
                                         }
                                     )
                                     break
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Insider detection: {e}")
 
@@ -101,7 +101,7 @@ async def insider_pattern_detector(address: str = "", chain: str = "solana", **k
         r = _r()
         r.setex(cache_key, CACHE_TTL["insider"], json.dumps(result, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return result

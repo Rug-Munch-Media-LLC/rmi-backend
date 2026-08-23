@@ -97,7 +97,7 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     matches: list[dict[str, Any]] = []
@@ -207,7 +207,7 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
                         "evidence": evidence,
                     }
                 )
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Rug pattern matcher: {e}")
 
@@ -238,7 +238,7 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
         r = _r()
         r.setex(cache_key, CACHE_TTL["rug_pattern"], json.dumps(result, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return result

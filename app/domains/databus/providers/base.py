@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+import httpx
+
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -135,7 +137,7 @@ class ProviderChain:
                     _circuit_breakers[provider.name].record_success()
                     return result
 
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
                 logger.warning(f"provider error: {e}")
                 if provider.name not in _circuit_breakers:
                     _circuit_breakers[provider.name] = SimpleCircuitBreaker(

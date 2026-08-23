@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
 from app.domains.scanner.webhooks.providers.utils import get_clickhouse
@@ -44,7 +46,7 @@ class LiquidityChangeProvider:
                 if isinstance(watchdog_events, list):
                     events.extend(watchdog_events)
                     return events
-            except (ValueError, ConnectionError, RuntimeError) as exc:
+            except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
                 log.debug("liquidity_watchdog_unavailable", error=str(exc))
 
         # Fallback: use ClickHouse token_transfers with known DEX pool addresses
@@ -77,7 +79,7 @@ class LiquidityChangeProvider:
                 """,
                 {"since": since, "min_val": self.DEFAULT_MIN_VALUE},
             )
-        except (ValueError, ConnectionError, RuntimeError) as exc:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
             log.warning("liquidity_query_failed", error=str(exc))
             return []
 

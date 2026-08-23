@@ -24,7 +24,7 @@ async def _arkham_entity(address: str = "", **kw) -> dict[str, Any] | None:
             r = await c.get(f"{_ARKHAM_BASE}/intelligence/address/{address}", headers=headers)
             if r.status_code == 200:
                 return {"entity": r.json(), "address": address, "source": "arkham"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -45,7 +45,7 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict[str, Any] | No
             )
             if r.status_code == 200:
                 return {"counterparties": r.json(), "address": address, "source": "arkham"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -61,7 +61,7 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict[str, Any] | None:
             r = await c.get(f"{_ARKHAM_BASE}/intelligence/search", params={"query": query}, headers=headers)
             if r.status_code == 200:
                 return {"results": r.json(), "query": query, "source": "arkham"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -77,7 +77,7 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict[str, Any] | None:
             r = await c.get(f"{_ARKHAM_BASE}/intelligence/address/{address}", headers=headers)
             if r.status_code == 200:
                 return {"portfolio": r.json(), "address": address, "source": "arkham"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -98,7 +98,7 @@ async def _arkham_transfers(address: str = "", **kw) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return {"transfers": r.json(), "address": address, "source": "arkham"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -127,6 +127,6 @@ async def _arkham_labels(address: str = "", **kw) -> dict[str, Any] | None:
                     "chain": data.get("chain"),
                     "source": "arkham",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

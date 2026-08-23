@@ -25,6 +25,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
@@ -76,7 +77,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         # Last resort: try fallback before raising error
@@ -96,7 +97,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, Any]:
                     "recovered_from_error": str(e),
                     "guarantee": "Data delivered or auto-refund via x402 receipt",
                 }
-        except (ValueError, KeyError, ConnectionError, RuntimeError):
+        except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
             logger.exception("token_tools error")
             raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -141,7 +142,7 @@ async def _rug_shield(address: str, chain: str) -> dict[str, Any]:
         else:
             risk_score += 40
             flags.append("no_dex_data")
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
         risk_score += 20
@@ -155,7 +156,7 @@ async def _rug_shield(address: str, chain: str) -> dict[str, Any]:
                 risk_score += 30
                 flags.append("no_account")
             result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
-        except (ValueError, KeyError, ConnectionError, RuntimeError):
+        except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
             logger.exception("token_tools error")
             raise
 
@@ -167,7 +168,7 @@ async def _rug_shield(address: str, chain: str) -> dict[str, Any]:
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
         else:
             result["coingecko_verified"] = False  # type: ignore[assignment]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -193,7 +194,7 @@ async def rug_shield(req: TokenRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -224,7 +225,7 @@ async def _token_pulse(address: str, chain: str) -> dict[str, Any]:
             result["fdv"] = pair.get("fdv", 0)
             result["pair_age_hours"] = pair.get("pairCreatedAt", 0)
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -238,7 +239,7 @@ async def _token_pulse(address: str, chain: str) -> dict[str, Any]:
                 "total_supply": data.get("market_data", {}).get("total_supply"),
             }
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -316,7 +317,7 @@ async def token_pulse(req: TokenRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -342,7 +343,7 @@ async def _token_forensics(address: str, chain: str) -> dict[str, Any]:
             result["price_change_24h"] = pair.get("priceChange", {}).get("h24", 0)
             result["pair_age_days"] = pair.get("pairCreatedAt", 0)
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -357,7 +358,7 @@ async def _token_forensics(address: str, chain: str) -> dict[str, Any]:
                 "current_price": data.get("market_data", {}).get("current_price", {}),
             }
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -371,7 +372,7 @@ async def _token_forensics(address: str, chain: str) -> dict[str, Any]:
         if data and data.get("data"):
             result["geckoterminal"] = True  # type: ignore[assignment]
             result["sources_used"].append("geckoterminal")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -381,7 +382,7 @@ async def _token_forensics(address: str, chain: str) -> dict[str, Any]:
         if data and data.get("coins"):
             result["defillama"] = data["coins"]
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -427,7 +428,7 @@ async def token_forensics(req: GenericRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -453,7 +454,7 @@ async def token_deep_dive(req: GenericRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -497,7 +498,7 @@ async def _honeypot_check(address: str, chain: str) -> dict[str, Any]:
         else:
             result["is_honeypot"] = None  # type: ignore[assignment]
             result["reason"] = "No trading pairs found"
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -512,7 +513,7 @@ async def _honeypot_check(address: str, chain: str) -> dict[str, Any]:
             else:
                 result["is_contract"] = True  # type: ignore[assignment]
                 result["sources_used"].append(f"{chain}_rpc")  # type: ignore[attr-defined]
-        except (ValueError, KeyError, ConnectionError, RuntimeError):
+        except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
             logger.exception("token_tools error")
             raise
 
@@ -533,7 +534,7 @@ async def honeypot_check(req: GenericRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -570,7 +571,7 @@ async def token_comparison(req: MultiTokenRequest) -> dict[str, Any]:
             "tokens": comparisons,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -621,7 +622,7 @@ async def _risk_monitor(address: str, chain: str) -> dict[str, Any]:
                 )
 
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -651,7 +652,7 @@ async def risk_monitor(req: GenericRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -687,7 +688,7 @@ async def _liquidity_flow(address: str, chain: str) -> dict[str, Any]:
                 )
             result["total_liquidity_usd"] = total_liq  # type: ignore[assignment]
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -698,7 +699,7 @@ async def _liquidity_flow(address: str, chain: str) -> dict[str, Any]:
             coin = data["coins"][f"{chain}:{address}"]
             result["price"] = coin.get("price", 0)
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -719,7 +720,7 @@ async def liquidity_flow(req: GenericRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -784,12 +785,12 @@ async def _rug_pull_predictor(address: str, chain: str) -> dict[str, Any]:
                             )
                         result["holder_count"] = holders  # type: ignore[assignment]
                         result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
-                except (ValueError, KeyError, ConnectionError, RuntimeError):
+                except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
                     logger.exception("token_tools error")
                     raise
 
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ValueError, KeyError, ConnectionError, RuntimeError):
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError):
         logger.exception("token_tools error")
         raise
 
@@ -834,7 +835,7 @@ async def rug_pull_predictor(req: GenericRequest) -> dict[str, Any]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
+    except (ValueError, KeyError, ConnectionError, RuntimeError, httpx.HTTPError) as e:
         logger.exception(f"token_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
