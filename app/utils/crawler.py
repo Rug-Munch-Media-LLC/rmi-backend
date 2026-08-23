@@ -369,19 +369,19 @@ def _ensure_host_connectivity() -> None:
             "redis_url_missing host_side dedup_will_be_skipped hint=set REDIS_URL=redis://:password@localhost:6379/0"
         )
 
-    infinity = os.getenv("EMBEDDER_URL") or settings.infinity_url
+    embedder_url = os.getenv("EMBEDDER_URL") or settings.qwen_embed_url
     try:
-        host = urlparse(infinity).hostname or ""
+        host = urlparse(embedder_url).hostname or ""
     except ValueError:
         host = ""
     if host and "qwen3-embedder" in host and not _hostname_resolves(host):
         fallback = os.getenv("EMBEDDER_URL_FALLBACK", "http://127.0.0.1:8005/v1")
-        log.warning("infinity_dns_fallback from=%s to=%s", infinity, fallback)
+        log.warning("embedder_dns_fallback from=%s to=%s", embedder_url, fallback)
         os.environ["EMBEDDER_URL"] = fallback
         # The settings singleton was built at import time; align it so the
         # lazy embedder singleton picks up the reachable URL.
         with contextlib.suppress(Exception):  # best-effort; env var is the source of truth
-            settings.infinity_url = fallback
+            settings.qwen_embed_url = fallback
 
 
 async def discover_and_ingest(
