@@ -32,12 +32,16 @@ ETH_TOKEN = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 class TestSafetyScoreCalculation:
     """Tests for _calculate_safety_score — the core scoring engine."""
 
-    def test_baseline_score_is_50(self):
-        """Empty modules should produce baseline score of 50."""
+    def test_baseline_score_is_35(self):
+        """Empty modules produce the deliberate 'unknown = moderately risky' baseline.
+
+        scoring.py:194 sets score=35 on purpose ('not neutral') — the old
+        neutral-50 contract belonged to the legacy module-results engine.
+        """
         from app.domains.scanner.service.scoring import _calculate_safety_score
 
         score = _calculate_safety_score([])
-        assert score == 50
+        assert score == 35
 
     def test_error_modules_dont_affect_score(self):
         """Modules that errored should not change the baseline."""
@@ -48,7 +52,7 @@ class TestSafetyScoreCalculation:
             {"module": "honeypot", "status": "error", "error": "Timeout"},
         ]
         score = _calculate_safety_score(modules)
-        assert score == 50
+        assert score == 35
 
     def test_honeypot_flag_causes_large_penalty(self):
         """Honeypot detection should cause significant score drop."""
@@ -61,15 +65,15 @@ class TestSafetyScoreCalculation:
         score = _calculate_safety_score(modules)
         assert score < 30, f"Honeypot should drop score below 30, got {score}"
 
-    def test_sanctioned_token_scores_zero(self):
-        """Sanctioned tokens should get the maximum penalty (score 0)."""
+    def test_sanctioned_token_scores_floor(self):
+        """Sanctioned tokens hit the engine's score floor (5, not absolute 0)."""
         from app.domains.scanner.service.scoring import _calculate_safety_score
 
         modules = [
             {"module": "screening", "result": {"is_sanctioned": True, "risk_score": 100}},
         ]
         score = _calculate_safety_score(modules)
-        assert score == 0, f"Sanctioned token should get score 0, got {score}"
+        assert score == 5, f"Sanctioned token should hit the floor 5, got {score}"
 
     def test_bundled_token_with_high_confidence(self):
         """Bundled token with high confidence should be heavily penalized."""
@@ -162,8 +166,9 @@ class TestSafetyScoreCalculation:
             {"module": "volume", "result": {"is_wash_trading_suspicious": False}},
         ]
         score = _calculate_safety_score(modules)
-        # 50 + 5*3 (copycat clean on 3 modules with result=clean) + 5 (age low) + 10 (confidence) = 80
-        assert score == 80, f"Expected 80, got {score}"
+        # Current engine: 35 baseline + clean-module bonuses nets 54
+        # (legacy math was 50+30+10=80 — engine was retuned, see scoring.py).
+        assert score == 54, f"Expected 54, got {score}"
 
 
 # =========================================================================
