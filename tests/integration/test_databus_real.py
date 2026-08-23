@@ -551,16 +551,19 @@ class TestProviderRateLimiting:
     """Tests for DataBus provider rate limiting and quota tracking."""
 
     def test_rate_limiter_tracks_calls(self):
-        """Rate limiter should track call count."""
+        """Rate limiter enforces min_interval between calls."""
+
         from app.databus.provider_core import _RateLimiter
 
-        limiter = _RateLimiter(rpm=10)
+        limiter = _RateLimiter(rps=10)  # min_interval = 0.1s
         assert limiter.can_call() is True
 
-        for _ in range(10):
-            limiter.record_call()
+        limiter.record_call()
+        assert limiter.can_call() is False, "call within min_interval must be rejected"
 
-        assert limiter._calls_in_window == 10
+        limiter.last_call -= 0.2  # simulate interval elapsed
+        assert limiter.can_call() is True
+        assert limiter.min_interval == 0.1
 
     def test_provider_tier_enum_values(self):
         """ProviderTier enum should have correct values."""
@@ -587,12 +590,13 @@ class TestProviderRateLimiting:
         assert p.monthly_quota == 0  # 0 = unlimited
 
     def test_rate_limiter_initial_state(self):
-        """Rate limiter should start with zero calls."""
+        """Rate limiter should start ready to call with correct interval."""
         from app.databus.provider_core import _RateLimiter
 
-        limiter = _RateLimiter(rpm=30)
-        assert limiter._calls_in_window == 0
-        assert limiter._rpm == 30
+        limiter = _RateLimiter(rps=30)
+        assert limiter.can_call() is True
+        assert limiter.min_interval == 1.0 / 30
+        assert limiter.last_call == 0.0
 
 
 # =========================================================================
