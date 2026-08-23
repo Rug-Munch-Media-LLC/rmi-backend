@@ -87,7 +87,7 @@ async def get_hyperliquid_liquidation_map(
             continue
         try:
             mark = float(ctx.get("markPx") or 0)
-            oi = float(ctx.get("open_interest") or 0)  # in coin units
+            oi = float(ctx.get("openInterest") or 0)  # in coin units
             funding = float(ctx.get("funding") or 0)
             prev_day_px = float(ctx.get("prevDayPx") or 0)
         except (TypeError, ValueError):
