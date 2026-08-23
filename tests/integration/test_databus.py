@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -24,31 +25,70 @@ class TestDataBusCache:
     @pytest.mark.integration
     async def test_l1_cache_hit_returns_data(self):
         """L1 memory cache should return cached data on second fetch."""
-        # TODO: mock databus.fetch() with cache
+        # Needs a databus.fetch() double with injectable cache layers.
+        pytest.skip("not implemented — needs fetch/cache seam")
 
     @pytest.mark.integration
     async def test_l2_redis_fallback_on_l1_miss(self):
         """L2 Redis should serve when L1 misses."""
+        pytest.skip("not implemented — needs redis testdouble")
 
     @pytest.mark.integration
     async def test_stale_while_revalidate_returns_stale(self):
         """SWR should return stale data while refreshing in background."""
+        pytest.skip("not implemented — needs redis testdouble")
 
 
 class TestCircuitBreakers:
     """Test provider circuit breakers - 3 failures → open → half-open → closed."""
 
+    def _breaker(self, threshold=3, recovery=0.2):
+        from app.core.circuit_breaker import SimpleCircuitBreaker
+
+        return SimpleCircuitBreaker("test-provider", failure_threshold=threshold, recovery_timeout=recovery)
+
     @pytest.mark.integration
     async def test_circuit_opens_after_three_failures(self):
         """Circuit should open after 3 consecutive provider failures."""
+        cb = self._breaker(threshold=3)
+        from app.core.circuit_breaker import State
+
+        assert cb.state is State.CLOSED
+        for _ in range(3):
+            cb.record_failure(is_server_error=True)
+        assert cb.state is State.OPEN
+        assert not cb.can_call(), "OPEN circuit must reject calls"
 
     @pytest.mark.integration
     async def test_half_open_allows_one_probe(self):
         """After timeout, half-open state should allow one probe request."""
+        import asyncio
+
+        from app.core.circuit_breaker import State
+
+        cb = self._breaker(threshold=2, recovery=0.1)
+        cb.record_failure()
+        cb.record_failure()
+        assert cb.state is State.OPEN
+        await asyncio.sleep(0.15)  # past recovery_timeout
+        assert cb.can_call(), "post-timeout call must be allowed as probe"
+        assert cb.state is State.HALF_OPEN
 
     @pytest.mark.integration
     async def test_closed_after_successful_probe(self):
         """Successful probe in half-open should close the circuit."""
+        import asyncio
+
+        from app.core.circuit_breaker import State
+
+        cb = self._breaker(threshold=2, recovery=0.1)
+        cb.record_failure()
+        cb.record_failure()
+        await asyncio.sleep(0.15)
+        assert cb.can_call()  # -> HALF_OPEN
+        cb.record_success()
+        assert cb.state is State.CLOSED
+        assert cb.can_call()
 
 
 class TestProviderFallback:
@@ -57,16 +97,45 @@ class TestProviderFallback:
     @pytest.mark.integration
     async def test_fallback_to_secondary_provider(self):
         """When primary fails, secondary provider should be tried."""
+        from app.databus.provider_core import Provider, ProviderChain, ProviderTier
+
+        async def primary(**kwargs):
+            raise ConnectionError("primary down")
+
+        async def secondary(**kwargs):
+            return {"data": "sec", "source": "secondary", "latency_ms": 5, "tier": "free_api"}
+
+        chain = ProviderChain(
+            data_type="test",
+            providers=[
+                Provider(name="p", tier=ProviderTier.FREE_API, fetch_fn=primary, weight=1.0),
+                Provider(name="s", tier=ProviderTier.FREE_API, fetch_fn=secondary, weight=0.5),
+            ],
+        )
+        result = await chain.fetch()
+        assert result is not None
+        assert result["data"] == "sec"
 
     @pytest.mark.integration
     async def test_all_providers_fail_returns_none(self):
         """When all providers fail, databus should return None."""
+        from app.databus.provider_core import Provider, ProviderChain, ProviderTier
+
+        async def down(**kwargs):
+            raise ConnectionError("down")
+
+        chain = ProviderChain(
+            data_type="test",
+            providers=[Provider(name=f"d{i}", tier=ProviderTier.FREE_API, fetch_fn=down, weight=1.0) for i in range(3)],
+        )
+        result = await chain.fetch()
+        assert result is None
 
 
 class TestDataBusSmoke:
     """Smoke tests for all 78 DataBus provider chains."""
 
-    CHAINS = [
+    CHAINS: ClassVar[list[str]] = [
         "token_price",
         "market_overview",
         "trending",
