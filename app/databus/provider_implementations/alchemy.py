@@ -30,7 +30,7 @@ async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet
                 data = r.json()
                 if "result" in data:
                     return {"balances": data["result"], "address": address, "network": network}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -54,6 +54,6 @@ async def _alchemy_token_metadata(contract: str = "", network: str = "eth-mainne
                 data = r.json()
                 if "result" in data:
                     return {"metadata": data["result"], "contract": contract}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

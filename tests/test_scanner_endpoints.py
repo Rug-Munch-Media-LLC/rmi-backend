@@ -230,8 +230,9 @@ class TestTokenScanV2:
         assert resp.json()["risk_flags"] == ["honeypot_detected", "lp_not_locked"]
         assert resp.json()["risk_level"] == "high"
 
-    def test_scan_tier_from_payment_header(self, sync_client, mock_scanner) -> None:
-        """X-Payment-Verified: true → the scanner is called with tier='pro'."""
+    def test_payment_header_is_not_trusted(self, sync_client, mock_scanner) -> None:
+        """X-Payment-Verified is client-controlled and MUST NOT unlock pro tier
+        (TOP-100 #8, 2026-08-23). The header is ignored; tier stays 'free'."""
         seen = {}
 
         async def tiered_scan(address, chain="solana", tier="free", admin_key=None):
@@ -245,8 +246,8 @@ class TestTokenScanV2:
             headers={"X-Payment-Verified": "true"},
         )
         assert resp.status_code == 200, resp.text
-        assert seen["tier"] == "pro"
-        assert resp.json()["tier"] == "pro"
+        assert seen["tier"] == "free"
+        assert resp.json()["tier"] == "free"
 
     def test_scan_missing_address_422(self, sync_client) -> None:
         """Missing required `address` field → 422, not 500."""

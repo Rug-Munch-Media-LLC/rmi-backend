@@ -11,6 +11,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+
 from app.services.deep_intelligence.core import client, logger
 
 
@@ -50,7 +52,7 @@ async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> di
         try:
             created_dt = datetime.fromisoformat(pair_created.replace("Z", "+00:00"))
             pair_age_days = (datetime.now(UTC) - created_dt).days
-        except (ValueError, ConnectionError, RuntimeError):
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError):
             logger.warning("err")
 
     risk_flags = []

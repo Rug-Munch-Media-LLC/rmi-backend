@@ -194,7 +194,7 @@ class WalletIngestionPipeline:
             )
             return True
 
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning("error: %s", e)
             logger.error("Ingestion failed for %s on %s: %s", addr, chain, e)
             # Still mark cooldown to avoid hammering on error
@@ -263,7 +263,7 @@ class WalletIngestionPipeline:
                 if not cursor or len(txs) < self.HELIUS_PAGE_LIMIT:
                     break
 
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
                 logger.warning("error: %s", e)
                 logger.warning("Helius fetch error (page %s): %s", page, e)
                 break
@@ -325,7 +325,7 @@ class WalletIngestionPipeline:
                 else:
                     break
 
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
                 logger.warning("error: %s", e)
                 logger.warning("Etherscan fetch error (page %s, %s): %s", page, chain, e)
                 break
@@ -354,7 +354,7 @@ class WalletIngestionPipeline:
                         for itx in int_txs:
                             itx["_internal"] = True
                         all_txs.extend(int_txs)
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning("error: %s", e)
             logger.debug("Etherscan internal tx fetch failed for %s: %s", chain, e)
 
@@ -381,7 +381,7 @@ class WalletIngestionPipeline:
                         for ttx in token_txs:
                             ttx["_token_transfer"] = True
                         all_txs.extend(token_txs)
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning("error: %s", e)
             logger.debug("Etherscan token tx fetch failed for %s: %s", chain, e)
 
@@ -534,7 +534,7 @@ class WalletIngestionPipeline:
                         )
                     )
 
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
                 logger.warning("error: %s", e)
                 logger.debug("Failed to normalize Helius tx: %s", e)
                 continue
@@ -637,7 +637,7 @@ class WalletIngestionPipeline:
                             normalized[-1].counterparty = contract_addr
                             normalized[-1].is_contract_creation = True
 
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
                 logger.warning("error: %s", e)
                 logger.debug("Failed to normalize Etherscan tx: %s", e)
                 continue
@@ -692,7 +692,7 @@ class WalletIngestionPipeline:
                 )
                 logger.info("Stored %s token transfers in ClickHouse", len(rows))
 
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning("error: %s", e)
             logger.warning("Token transfer storage failed: %s", e)
 
@@ -721,7 +721,7 @@ class WalletIngestionPipeline:
                 )
                 logger.info(f"Recorded deployer event: {tx.address} deployed {token_addr} on {tx.chain_id}")
 
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
                 logger.warning("error: %s", e)
                 logger.debug("Deployer event record failed: %s", e)
 

@@ -37,7 +37,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw: Any) -> dict[str, An
                         },
                         "source": "dexscreener",
                     }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -55,7 +55,7 @@ async def _dexscreener_holders(mint: str = "", **kw: Any) -> dict[str, Any] | No
                 pairs = data.get("pairs", [])
                 if pairs:
                     return {"pairs": pairs, "total_pairs": len(pairs), "source": "dexscreener"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -79,7 +79,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw: Any)
                         "fallback_used": False,
                         "freshness": "from_dexscreener_api",
                     }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -103,7 +103,7 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw:
                         "fallback_used": False,
                         "freshness": "from_dexscreener_api",
                     }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -144,7 +144,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
                         "tx_hash": tx_hash,
                         "source": "etherscan",
                     }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -163,7 +163,7 @@ async def _defillama_tvl(**kw: Any) -> dict[str, Any] | None:
                     "top_protocols": data[:10],
                     "source": "defillama",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -179,7 +179,7 @@ async def _defillama_chains(**kw: Any) -> dict[str, Any] | None:
                     "chains": [{"name": c.get("name"), "tvl": c.get("tvl")} for c in data if isinstance(c, dict)],
                     "source": "defillama",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -200,7 +200,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw: A
                         "data": data["data"][address],
                         "source": "blockchair",
                     }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -217,7 +217,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw: Any) -> dict[str, Any]
                     "stats": data.get("data", {}).get("stats", {}),
                     "source": "blockchair",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -237,6 +237,6 @@ async def _birdeye_overview(address: str = "", **kw: Any) -> dict[str, Any] | No
             if r.status_code == 200:
                 data = r.json()
                 return {"address": address, "data": data.get("data", {}), "source": "birdeye"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

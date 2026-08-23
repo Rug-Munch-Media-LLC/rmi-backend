@@ -32,7 +32,7 @@ async def _local_token_price(**kwargs) -> dict[str, Any] | None:
             if cached:
                 return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -47,7 +47,7 @@ async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"https://api.dexscreener.com/latest/dex/tokens/{token}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -62,7 +62,7 @@ async def _coingecko_price(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"https://api.coingecko.com/api/v3/simple/token_price/{token}", headers=headers)
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -79,7 +79,7 @@ async def _moralis_price(**kwargs) -> dict[str, Any] | None:
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -100,7 +100,7 @@ async def _birdeye_price(address: str = "", **kw) -> dict[str, Any] | None:
                     "price": data.get("data", {}).get("value"),
                     "source": "birdeye",
                 }
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -116,7 +116,7 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict[str, Any] | None:
         data = await st.get_price(mint)
         if data:
             return {"mint": mint, "price": data, "source": "solana_tracker"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -132,7 +132,7 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict[str, Any] | None:
         data = await st.get_token(mint)
         if data:
             return {"mint": mint, "data": data, "source": "solana_tracker"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -146,7 +146,7 @@ async def _solana_tracker_trending(**kw) -> dict[str, Any] | None:
         data = await st.get_tokens_trending(limit=20)
         if data:
             return {"trending": data, "source": "solana_tracker"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -162,6 +162,6 @@ async def _gmgn_trending(**kw) -> dict[str, Any] | None:
         data = await get_gmgn_provider().get_trending(chain=chain, interval=interval, limit=limit)
         if data:
             return {"trending": data, "source": "gmgn"}
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

@@ -32,7 +32,7 @@ async def whale_alert_stream(
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     whales = []
@@ -81,7 +81,7 @@ async def whale_alert_stream(
                                             "block": sig_data.get("slot"),
                                         }
                                     )
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Whale alert: {e}")
 
@@ -99,7 +99,7 @@ async def whale_alert_stream(
         r = _r()
         r.setex(cache_key, CACHE_TTL["whale_alert"], json.dumps(result, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return result

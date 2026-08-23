@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
 from app.domains.scanner.webhooks.providers.utils import get_clickhouse
@@ -55,7 +57,7 @@ class WhaleMoveProvider:
                 """,
                 {"since": since, "min_val": self.DEFAULT_MIN_VALUE},
             )
-        except (ValueError, ConnectionError, RuntimeError) as exc:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
             log.warning("whale_move_query_failed", error=str(exc))
             return []
 

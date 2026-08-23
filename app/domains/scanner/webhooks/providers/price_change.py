@@ -13,6 +13,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
 
@@ -88,7 +90,7 @@ class PriceChangeProvider:
                             }
                         )
 
-        except (ValueError, ConnectionError, RuntimeError) as exc:
+        except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
             log.warning("price_change_poll_failed", error=str(exc))
 
         return events

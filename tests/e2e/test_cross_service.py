@@ -582,7 +582,8 @@ class TestFullUserFlow:
         from app.domains.wallet.unified_wallet_scanner import WalletScanResult
         from app.features import get_wallet_scanner
 
-        # The v2 wallet route tier-gates on headers (X-RMI-Key / X-Payment-Verified),
+        # The v2 wallet route tier-gates on headers (X-RMI-Key only since
+        # 2026-08-23 — X-Payment-Verified is no longer trusted),
         # NOT the JWT tier claim; "free" (no such header) returns a data_gated
         # response with no "status" key. Use the internal key to reach the
         # full-scan path, and mock the scanner dependency (the documented

@@ -31,7 +31,7 @@ async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
             r = await c.get(f"https://api.dexscreener.com/latest/dex/tokens/{token}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -46,7 +46,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict[str, Any] | 
             r = await c.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -60,7 +60,7 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict[str, Any] | None:
             r = await c.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}/holders")
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -76,7 +76,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None
 
@@ -92,6 +92,6 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
             )
             if r.status_code == 200:
                 return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("provider error")
     return None

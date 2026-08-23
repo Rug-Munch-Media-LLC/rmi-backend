@@ -9,6 +9,8 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 
 from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
@@ -33,7 +35,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     report: dict[str, Any] = {
@@ -62,7 +64,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "highlights": _extract_security_highlights(security),
                 }
                 risk_scores.append(security.get("security_score", 50))
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"error: {e}")
             report["sections"]["security"] = {"error": str(e)[:100]}
 
@@ -84,7 +86,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "risk": holder_data.get("risk_level", "UNKNOWN"),
                 }
                 risk_scores.append(gini_risk)
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"error: {e}")
             report["sections"]["holders"] = {"error": str(e)[:100]}
 
@@ -101,7 +103,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "lp_holders": len(liq_data.get("lp_holders", [])),
                 }
                 risk_scores.append(liq_data.get("risk_score", 50))
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"error: {e}")
             report["sections"]["liquidity"] = {"error": str(e)[:100]}
 
@@ -124,7 +126,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     risk_scores.append(75)
                 elif rug_data.get("overall_rug_risk") == "MEDIUM":
                     risk_scores.append(45)
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"error: {e}")
             report["sections"]["rug_patterns"] = {"error": str(e)[:100]}
 
@@ -144,7 +146,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     dev_data.get("risk_level", "UNKNOWN"), 40
                 )
                 risk_scores.append(dev_risk)
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"error: {e}")
             report["sections"]["developer"] = {"error": str(e)[:100]}
 
@@ -163,7 +165,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     "risk_level": auth.get("risk_level", "UNKNOWN"),
                 }
                 risk_scores.append(auth.get("fake_volume_pct", 0))
-        except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+        except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
             logger.warning(f"error: {e}")
             report["sections"]["volume"] = {"error": str(e)[:100]}
 
@@ -182,7 +184,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
                     }
                     if entity["entity"].get("entity_name"):
                         risk_scores.append(5)
-            except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+            except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
                 logger.warning("error")
 
         if risk_scores:
@@ -220,7 +222,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
 
         report["sections_count"] = len(report["sections"])
         report["source"] = "instant_token_report"
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError) as e:
         logger.warning(f"error: {e}")
         report["error"] = str(e)[:200]
         logger.error(f"Token report failed: {e}")
@@ -229,7 +231,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
         r = _r()
         r.setex(cache_key, CACHE_TTL["token_report"], json.dumps(report, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
         logger.warning("error")
 
     return report

@@ -222,7 +222,7 @@ class EnhancedTransactionProvider:
                         category=["erc20", "erc721", "erc1155"],
                         max_count=SIG_LIMIT_PER_ADDRESS,
                     )
-                except (ValueError, ConnectionError, RuntimeError) as exc:
+                except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
                     log.debug("enhanced_tx_alchemy_transfers_failed chain=%s err=%s", chain, exc)
                     continue
 
@@ -232,7 +232,7 @@ class EnhancedTransactionProvider:
                         continue
                     try:
                         receipt = await connector.get_transaction_receipt(tx_hash, network=network)
-                    except (ValueError, ConnectionError, RuntimeError) as exc:
+                    except (ValueError, ConnectionError, RuntimeError, httpx.HTTPError) as exc:
                         log.debug("enhanced_tx_receipt_failed tx=%s err=%s", tx_hash, exc)
                         continue
 

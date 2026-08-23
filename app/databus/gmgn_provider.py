@@ -309,16 +309,17 @@ class GMGNProvider:
             return None
         try:
             chain_slug = _normalize_chain(chain)
+            # FIX (TOP-100 #9, 2026-08-23): this block referenced an undefined
+            # `resp` (NameError on every call) — _agent_get already returns the
+            # parsed JSON body (or None), so use `data` directly.
             data = await self._agent_get(
                 "/v1/market/token_top_traders",
                 {"chain": chain_slug, "address": address, "limit": min(limit, 100)},
             )
-            if resp.status_code == 200:
-                data = resp.json()
+            if data is not None:
                 trades = (data.get("data") or {}).get("history", data.get("data", data.get("trades", [])))
                 if isinstance(trades, list):
                     return normalize_trades(trades, "gmgn")
-            logger.debug("GMGN trades HTTP %s", resp.status_code)
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.debug("GMGN trades failed: %s", e)
         return None
