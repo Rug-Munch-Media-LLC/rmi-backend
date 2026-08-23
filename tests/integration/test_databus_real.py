@@ -624,7 +624,7 @@ class TestDataBusAccessControl:
 
     def test_data_types_exist_in_provider_chains(self):
         """Key data types should exist in the provider chains."""
-        from app.domains.databus._generated.provider_chains import build_provider_chains
+        from app.domains.databus.providers import build_provider_chains
 
         chains = build_provider_chains()
         for key_type in [
@@ -638,7 +638,7 @@ class TestDataBusAccessControl:
 
     def test_provider_chain_has_fallback(self):
         """Chains should have multiple providers for fallback."""
-        from app.domains.databus._generated.provider_chains import build_provider_chains
+        from app.domains.databus.providers import build_provider_chains
 
         chains = build_provider_chains()
         for key_type in ["token_price", "market_overview"]:
