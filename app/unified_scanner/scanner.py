@@ -264,9 +264,9 @@ def _compute_wallet_risk(factors: WalletRiskFactors, data_sources: list[str]) ->
     if factors.rug_pull_launcher_count > 0:
         risk += 50
         flags.append("RUG_PULL_LAUNCHER")
-    if factors.honeypot_tokens_owned > 0:
-        risk += 20
-        flags.append("HONEYPOT_HOLDER")
+    # TOP-100 #20: removed duplicate honeypot block (HONEYPOT_HOLDER +20) —
+    # it fired on the same signal as HOLDS_SCAM_TOKENS above (+25), double-
+    # counting one exposure as +45. HOLDS_SCAM_TOKENS_{n} carries the count.
     if factors.sniper_activity_score > 70:
         risk += 20
         flags.append("HIGH_SNIPER")

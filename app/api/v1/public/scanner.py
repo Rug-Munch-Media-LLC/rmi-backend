@@ -173,11 +173,22 @@ async def _run_token_scan(scan_id: str, chain: str, address: str, depth: str) ->
 
             result = await wallet_scan(wallet_address=address, chain=chain)
             score = result.get("risk_score", 50)
+            # TOP-100 #22: scan_wallet returns "risk_flags" (not flags/
+            # risk_factors) — the old lookup always yielded []. Severity now
+            # spans the full scale instead of collapsing to medium/low.
+            if score >= 80:
+                tier = "critical"
+            elif score >= 60:
+                tier = "high"
+            elif score >= 40:
+                tier = "medium"
+            else:
+                tier = "low"
             _scan_results[scan_id] = {
                 "status": "completed",
                 "risk_score": score,
-                "risk_tier": "medium" if score > 50 else "low",
-                "factors": result.get("flags", result.get("risk_factors", [])),
+                "risk_tier": tier,
+                "factors": result.get("risk_flags", result.get("flags", result.get("risk_factors", []))),
             }
         except Exception as e:
             _scan_results[scan_id] = {
@@ -218,7 +229,8 @@ async def scan_wallet_endpoint(request: WalletScanRequest) -> Any:
             address=request.address,
             chain=request.chain,
             risk_score=result.get("risk_score", 0),
-            risk_factors=result.get("flags", result.get("risk_factors", [])),
+            # TOP-100 #22: read risk_flags first — scan_wallet's actual key.
+            risk_factors=result.get("risk_flags", result.get("flags", result.get("risk_factors", []))),
             token_holdings=result.get("top_tokens", result.get("token_holdings", [])),
             analysis=result,
         )
