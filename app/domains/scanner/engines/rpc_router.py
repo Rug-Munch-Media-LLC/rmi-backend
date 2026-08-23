@@ -71,6 +71,7 @@ EVM_RPC_ENDPOINTS: dict[str, list[str]] = {
         "https://uk.rpc.blxrbdn.com",  # BloXroute — EU
         "https://singapore.rpc.blxrbdn.com",  # BloXroute — Asia
         "https://rpc.mevblocker.io",  # MevBlocker — free, MEV-protecting
+        "https://eth.nownodes.io/${NOWNODES_API_KEY}",  # NOWNodes (verified 2026-08-23)
         "https://gateway.tenderly.co/public/mainnet",  # Tenderly public gateway
         # ── Freemium (keyed) — used ONLY when the free pool is exhausted ──
         "https://lb.drpc.org/ogrpc?network=ethereum&dkey=${DRPC_API_KEY}",  # dRPC load balancer
@@ -255,6 +256,7 @@ SOLANA_RPC_ENDPOINTS: list[str] = [
     "${QUICKNODE_SOLANA_HTTP}",
     "${CHAINSTACK_SOLANA_URL}",  # Chainstack shared node (verified 2026-08-23)
     "${GETBLOCK_SOLANA_URL}",  # GetBlock shared (verified 2026-08-23)
+    "https://sol.nownodes.io/${NOWNODES_API_KEY}",  # NOWNodes (verified 2026-08-23)
 ]
 
 
