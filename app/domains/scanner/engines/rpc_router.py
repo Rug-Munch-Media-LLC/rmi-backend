@@ -101,6 +101,7 @@ EVM_RPC_ENDPOINTS: dict[str, list[str]] = {
         "https://lb.drpc.org/ogrpc?network=bsc&dkey=${DRPC_API_KEY}",
         "https://rpc.ankr.com/bsc/${ANKR_API_KEY}",
         "${QUICKNODE_BSC_HTTP}",
+        "${GETBLOCK_BSC_URL}",  # GetBlock shared (verified 2026-08-23)
     ],
     "polygon": [
         "https://polygon.llamarpc.com",  # LlamaNodes Polygon
@@ -252,6 +253,8 @@ SOLANA_RPC_ENDPOINTS: list[str] = [
     "https://lb.drpc.org/ogrpc?network=solana&dkey=${DRPC_API_KEY}",
     "https://rpc.ankr.com/solana/${ANKR_API_KEY}",
     "${QUICKNODE_SOLANA_HTTP}",
+    "${CHAINSTACK_SOLANA_URL}",  # Chainstack shared node (verified 2026-08-23)
+    "${GETBLOCK_SOLANA_URL}",  # GetBlock shared (verified 2026-08-23)
 ]
 
 
