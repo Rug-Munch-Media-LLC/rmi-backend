@@ -1,7 +1,12 @@
-"""Tron blockchain provider - free TronGrid API, no key needed."""
+"""Tron blockchain provider - TronGrid API (keyed free tier).
+
+TRONGRID_API_KEY env upgrades from anonymous limits to the registered
+free tier (higher req/s + daily quota). Falls back keyless if unset.
+"""
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
@@ -12,18 +17,25 @@ logger = get_logger(__name__)
 TRONGRID = "https://api.trongrid.io"
 
 
+def _headers() -> dict[str, str]:
+    key = os.getenv("TRONGRID_API_KEY", "").strip()
+    return {"TRON-PRO-API-KEY": key} if key else {}
+
+
 async def tron_balance(address: str) -> dict[str, Any] | None:
     """Get TRX balance + TRC20 tokens for an address."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             # TRX balance
-            r = await c.get(f"{TRONGRID}/v1/accounts/{address}")
+            r = await c.get(f"{TRONGRID}/v1/accounts/{address}", headers=_headers())
             if r.status_code == 200:
                 data = r.json().get("data", [{}])[0]
                 balance_trx = data.get("balance", 0) / 1_000_000
 
                 # TRC20 tokens
-                r2 = await c.get(f"{TRONGRID}/v1/accounts/{address}/transactions/trc20", params={"limit": 1})
+                r2 = await c.get(
+                    f"{TRONGRID}/v1/accounts/{address}/transactions/trc20", params={"limit": 1}, headers=_headers()
+                )
                 tokens = []
                 if r2.status_code == 200:
                     for t in r2.json().get("data", [])[:1]:
