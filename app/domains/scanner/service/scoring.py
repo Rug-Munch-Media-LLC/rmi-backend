@@ -159,6 +159,12 @@ async def _ingest_scan_to_rag(scan_result: Any) -> None:
 def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
     """Calculate safety score (0-100) from all module results.
 
+    .. deprecated:: ADR-0001 (docs/adr/ADR-0001-canonical-scoring.md)
+        FROZEN for new signals — bug-fixes only. Canonical scorer is
+        ``app.domains.scanner.unified.scoring.compute_score``; this module
+        is migrated away at Gate C of that ADR. Do NOT add scoring logic
+        here.
+
     Best-in-class methodology:
     - Baseline 35 (unknown/neutral — absence of evidence ≠ evidence of safety)
     - Confidence-weighted modules (reliable sources weighted higher)
