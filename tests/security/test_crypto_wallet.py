@@ -904,9 +904,9 @@ class TestArgon2idKeyDerivation:
         salt = secrets.token_bytes(16)
 
         if _HAS_ARGON2:
-            kdf = Argon2id(salt=salt, length=32, time_cost=3, memory_cost=65536, parallelism=4)
+            kdf = Argon2id(salt=salt, length=32, memory_cost=65536, iterations=3, lanes=4)
             key1 = kdf.derive(password.encode())
-            kdf2 = Argon2id(salt=salt, length=32, time_cost=3, memory_cost=65536, parallelism=4)
+            kdf2 = Argon2id(salt=salt, length=32, memory_cost=65536, iterations=3, lanes=4)
             key2 = kdf2.derive(password.encode())
         else:
             key1 = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 600000, 32)
@@ -919,8 +919,8 @@ class TestArgon2idKeyDerivation:
         salt = secrets.token_bytes(16)
 
         if _HAS_ARGON2:
-            kdf1 = Argon2id(salt=salt, length=32, time_cost=3, memory_cost=65536, parallelism=4)
-            kdf2 = Argon2id(salt=salt, length=32, time_cost=3, memory_cost=65536, parallelism=4)
+            kdf1 = Argon2id(salt=salt, length=32, memory_cost=65536, iterations=3, lanes=4)
+            kdf2 = Argon2id(salt=salt, length=32, memory_cost=65536, iterations=3, lanes=4)
             key1 = kdf1.derive(b"password-a")
             key2 = kdf2.derive(b"password-b")
         else:
@@ -934,8 +934,8 @@ class TestArgon2idKeyDerivation:
         password = b"same-password"
 
         if _HAS_ARGON2:
-            kdf1 = Argon2id(salt=b"a" * 16, length=32, time_cost=3, memory_cost=65536, parallelism=4)
-            kdf2 = Argon2id(salt=b"b" * 16, length=32, time_cost=3, memory_cost=65536, parallelism=4)
+            kdf1 = Argon2id(salt=b"a" * 16, length=32, memory_cost=65536, iterations=3, lanes=4)
+            kdf2 = Argon2id(salt=b"b" * 16, length=32, memory_cost=65536, iterations=3, lanes=4)
             key1 = kdf1.derive(password)
             key2 = kdf2.derive(password)
         else:
@@ -950,7 +950,7 @@ class TestArgon2idKeyDerivation:
         salt = secrets.token_bytes(16)
 
         if _HAS_ARGON2:
-            kdf = Argon2id(salt=salt, length=32, time_cost=3, memory_cost=65536, parallelism=4)
+            kdf = Argon2id(salt=salt, length=32, memory_cost=65536, iterations=3, lanes=4)
             key = kdf.derive(password)
         else:
             key = hashlib.pbkdf2_hmac("sha256", password, salt, 600000, 32)
