@@ -24,7 +24,7 @@ from fastapi import APIRouter, Query
 from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
 
-from .classifier import classify_trades, label_summary
+from .classifier import classify_trades, label_summary, volume_breakdown
 from .helpers import (
     _chain_freshness,
     _compute_rug_score,
@@ -34,6 +34,7 @@ from .helpers import (
     _fetch_ohlcv_clickhouse,
     _fetch_ohlcv_gecko,
     _fetch_pair_info,
+    _fetch_recent_trades_clickhouse,
     _fetch_whale_trades_clickhouse,
 )
 from .ta import compute_ta_snapshot
@@ -471,3 +472,75 @@ async def rugcharts_signals(
         "count": len(signals[:limit]),
         "label_summary": label_summary(labeled),
     }
+
+
+@router.get("/volume-analysis/{chain}/{token_address}")
+async def rugcharts_volume_analysis(
+    chain: str,
+    token_address: str,
+    limit: int = Query(200, ge=10, le=500, description="Recent trades to analyze"),
+) -> Any:
+    """Aggregate bot/wash-volume analysis — the metric DexScreener lacks.
+
+    Classifies the token's most recent dex trades (own indexer data) and
+    reports what share of traded volume is machine-generated vs organic.
+    Definitions are explicit in the response (`method` field); confidence
+    scales with sample size and thin samples return null percentages
+    rather than guesses.
+    """
+    trades = await _fetch_recent_trades_clickhouse(token_address, chain, limit)
+    labeled = classify_trades(trades)
+    breakdown = volume_breakdown(labeled)
+
+    # Predictive bias — transparent fusion of independent evidence sources.
+    # Every factor names its evidence; no fabricated price targets.
+    factors: list[dict[str, Any]] = []
+    bias_score = 0
+    if breakdown["bot_volume_pct"] is not None:
+        if breakdown["bot_volume_pct"] >= 40:
+            bias_score -= 25
+            factors.append(
+                {
+                    "factor": "bot_dominance",
+                    "impact": -25,
+                    "evidence": f"{breakdown['bot_volume_pct']}% of sampled volume is bot-labeled",
+                }
+            )
+        elif breakdown["bot_volume_pct"] >= 15:
+            bias_score -= 10
+            factors.append(
+                {"factor": "bot_elevated", "impact": -10, "evidence": f"{breakdown['bot_volume_pct']}% bot volume"}
+            )
+        else:
+            bias_score += 5
+            factors.append(
+                {"factor": "organic_flow", "impact": 5, "evidence": f"bot share only {breakdown['bot_volume_pct']}%"}
+            )
+    if breakdown["buy_pressure"] is not None:
+        bp = breakdown["buy_pressure"]
+        if bp >= 0.65:
+            bias_score += 15
+            factors.append({"factor": "buy_pressure", "impact": 15, "evidence": f"{bp:.0%} buy-side volume"})
+        elif bp <= 0.35:
+            bias_score -= 15
+            factors.append({"factor": "sell_pressure", "impact": -15, "evidence": f"only {bp:.0%} buy-side"})
+
+    bias = "BEARISH" if bias_score <= -20 else "BULLISH" if bias_score >= 20 else "NEUTRAL"
+
+    return envelope(
+        success=True,
+        data={
+            "chain": chain,
+            "token_address": token_address,
+            **breakdown,
+            "predictive_bias": {
+                "bias": bias,
+                "score": max(-100, min(100, bias_score)),
+                "factors": factors,
+                "method": "transparent_rule_fusion",
+                "disclaimer": "Heuristic bias from trade-flow evidence — not financial advice.",
+            },
+        },
+        source="lite_chain_indexer (ClickHouse dex_events)",
+        confidence=0.8 if breakdown["confidence"] == "high" else 0.5,
+    )

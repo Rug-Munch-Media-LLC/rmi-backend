@@ -157,3 +157,81 @@ def label_summary(trades: list[dict[str, Any]]) -> dict[str, int]:
     for t in trades:
         counts[t.get("wallet_label", "swap")] += 1
     return dict(counts)
+
+
+# ── Aggregate volume breakdown (WIN-10) ──────────────────────────────────
+# The killer metric DexScreener doesn't have: what share of a token's
+# traded volume is machine-generated? Definitions are explicit:
+#   bot_volume_pct    = volume from trades labeled `bot` / total volume
+#   suspicious_pct    = bot + bundle + sniper (coordinated/manipulative)
+#   organic_volume_pct= whale + swap (large-but-legit + normal flow)
+# Confidence scales with sample size — never overstate a thin sample.
+
+SUSPICIOUS_LABELS = ("bot", "bundle", "sniper")
+LOW_SAMPLE_TRADES = 20
+MEDIUM_SAMPLE_TRADES = 100
+
+
+def volume_breakdown(trades: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate labeled-trade stats for a token's recent trade window.
+
+    Input: output of classify_trades() (each trade carries wallet_label,
+    volume_usd, side, time). Pure function — fully unit-testable.
+    """
+    if not trades:
+        return {
+            "sample": {"trades_analyzed": 0, "window_hours": 0.0},
+            "bot_volume_pct": None,
+            "suspicious_volume_pct": None,
+            "organic_volume_pct": None,
+            "buy_pressure": None,
+            "label_breakdown": {},
+            "confidence": "none",
+            "method": "classifier_labels_over_recent_trades",
+        }
+
+    total_vol = sum(float(t.get("volume_usd", 0) or 0) for t in trades)
+    times = [int(t.get("time", 0) or 0) for t in trades]
+    window_hours = round((max(times) - min(times)) / 3600.0, 2) if len(times) > 1 else 0.0
+
+    label_stats: dict[str, dict[str, float]] = defaultdict(lambda: {"trades": 0, "volume_usd": 0.0})
+    buy_vol = 0.0
+    sell_vol = 0.0
+    for t in trades:
+        lbl = t.get("wallet_label", "swap")
+        vol = float(t.get("volume_usd", 0) or 0)
+        label_stats[lbl]["trades"] += 1
+        label_stats[lbl]["volume_usd"] += vol
+        if t.get("side") == "buy":
+            buy_vol += vol
+        elif t.get("side") == "sell":
+            sell_vol += vol
+
+    def _pct(vol: float) -> float | None:
+        return round(vol / total_vol * 100, 1) if total_vol > 0 else None
+
+    bot_vol = sum(label_stats[lbl]["volume_usd"] for lbl in ("bot",) if lbl in label_stats)
+    susp_vol = sum(label_stats[lbl]["volume_usd"] for lbl in SUSPICIOUS_LABELS if lbl in label_stats)
+
+    n = len(trades)
+    confidence = "low" if n < LOW_SAMPLE_TRADES else "medium" if n < MEDIUM_SAMPLE_TRADES else "high"
+
+    breakdown: dict[str, dict[str, Any]] = {}
+    for lbl, st in label_stats.items():
+        breakdown[lbl] = {
+            "trades": int(st["trades"]),
+            "volume_usd": round(st["volume_usd"], 2),
+            "volume_pct": _pct(st["volume_usd"]),
+        }
+
+    return {
+        "sample": {"trades_analyzed": n, "window_hours": window_hours},
+        "bot_volume_pct": _pct(bot_vol),
+        "suspicious_volume_pct": _pct(susp_vol),
+        "organic_volume_pct": _pct(total_vol - susp_vol),
+        "buy_pressure": round(buy_vol / (buy_vol + sell_vol), 3) if (buy_vol + sell_vol) > 0 else None,
+        "total_volume_usd": round(total_vol, 2),
+        "label_breakdown": breakdown,
+        "confidence": confidence,
+        "method": "classifier_labels_over_recent_trades",
+    }
