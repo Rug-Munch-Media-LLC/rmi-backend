@@ -24,6 +24,7 @@ ROUTING_TABLE = {
         # the backend repeatedly. DeepSeek Flash (direct API) is the reliable primary.
         ("deepseek/deepseek-v4-flash", "openrouter", 0.25, 0.14),  # direct DeepSeek API, reliable
         ("meta-llama/llama-3.3-70b-instruct", "groq", 0.3, 0.0),  # free fallback
+        ("qwen-chat", "litellm", 2.5, 0.0),  # gateway fallback (local, free)
     ],
     TaskType.CHEAP: [
         ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # reliable paid-fallback-first
@@ -33,6 +34,10 @@ ROUTING_TABLE = {
     TaskType.COMPLEX: [
         ("deepseek/deepseek-v4-pro", "openrouter", 0.5, 0.55),  # 500ms, $0.55/1M input
         ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # 300ms, cheap (fallback)
+        # litellm gateway (rmi-litellm container) — healthy path when direct
+        # keys are absent from the runtime env (2026-08-24 degradation fix).
+        ("qwen-analysis", "litellm", 3.0, 0.0),  # 9B local via gateway
+        ("qwen-chat", "litellm", 2.5, 0.0),
     ],
     TaskType.BULK: [
         ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # 300ms, cheap
@@ -141,6 +146,35 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
                 )
                 if r.status_code == 200:
                     return {"response": r.json()["response"], "model": model, "provider": "ollama-direct"}
+        elif provider == "litellm":
+            # rmi-litellm gateway — OpenAI-style chat completions with the
+            # platform's pooled upstream keys (works even when this
+            # container has no direct provider keys).
+            import os as _os
+
+            base = _os.getenv("LITELLM_BASE_URL", "").rstrip("/")
+            key = _os.getenv("LITELLM_API_KEY", "")
+            if not base:
+                # not configured — degrade silently
+                return None
+            async with httpx.AsyncClient(timeout=90) as c:
+                r = await c.post(
+                    f"{base}/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {key}"} if key else {},
+                    json={
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": kwargs.get("max_tokens", 2048),
+                        "temperature": kwargs.get("temperature", 0.7),
+                    },
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content")
+                    if content:
+                        return {"response": content, "model": model, "provider": "litellm-gateway"}
+                _ = r.status_code  # non-200 — fall through to next tier
+                return None
         elif provider in ("deepseek", "openrouter"):
             # Direct DeepSeek API (api.deepseek.com) — NOT OpenRouter, NOT Cerebras.
             # canonical config: llm_config.get_fast_config()/get_analysis_config().
