@@ -84,37 +84,6 @@ HOLDER_CACHE_TTL = 300
 TRENDING_CACHE_TTL = 60
 
 
-def _normalize_chain(chain: str) -> str:
-    """Map chain names to GMGN's short chain slugs (sol, eth, bsc, base...)."""
-    aliases = {
-        "solana": "sol",
-        "sol": "sol",
-        "ethereum": "eth",
-        "eth": "eth",
-        "mainnet": "eth",
-        "bsc": "bsc",
-        "bnb": "bsc",
-        "binance": "bsc",
-        "base": "base",
-        "polygon": "polygon",
-        "matic": "polygon",
-        "arbitrum": "arbitrum",
-        "arb": "arbitrum",
-        "optimism": "optimism",
-        "op": "optimism",
-        "avalanche": "avax",
-        "avax": "avax",
-        "fantom": "fantom",
-        "ftm": "fantom",
-        "tron": "tron",
-        "trx": "tron",
-        "robinhood": "robinhood",
-        "arc": "arc",
-        "stable": "stable",
-    }
-    return aliases.get(chain.lower(), chain.lower())
-
-
 # Constants live in gmgn_transport (single source); re-exported here because tests and callers read them from this module (import-time env contract).
 from app.databus.gmgn_transport import (  # noqa: E402,F401
     _f,
@@ -160,66 +129,7 @@ class GMGNProvider(TransportMixin, MarketEndpointsMixin, WalletEndpointsMixin):
     # CORE: Token Info
     # ═══════════════════════════════════════════════════════════════
 
-    async def get_token_info(self, address: str, chain: str = "solana") -> dict[str, Any]:
-        """Get comprehensive token data from GMGN."""
-        result = await cached_or_fetch(
-            f"token:{chain}:{address}",
-            TOKEN_CACHE_TTL,
-            self._fetch_token_info,
-            address,
-            chain,
-        )
-        if result:
-            return result
 
-        # Fallback: DexScreener
-        return await fallback_dexscreener_token(self._request, address, chain)
-
-    async def _fetch_token_info(self, address: str, chain: str) -> dict[str, Any] | None:
-        """Fetch token info from the GMGN Agent API (GET /v1/token/info)."""
-        if not self._available:
-            return None
-        try:
-            chain_slug = _normalize_chain(chain)
-            data = await self._agent_get("/v1/token/info", {"chain": chain_slug, "address": address})
-            if not data:
-                return None
-            # Agent API shape: {"data": {"token": {...}}} — 2026-08-23 audit:
-            # the parser stopped one level short (token = data["data"]), so
-            # every field read hit the wrapper and returned defaults.
-            token = ((data.get("data") or {}).get("token")) or {}
-            if not token:
-                return None
-            price_obj = token.get("price") or {}
-            price = _f(price_obj.get("price"))
-            circ = _f(token.get("circulating_supply"))
-            return {
-                "address": address,
-                "chain": chain,
-                "name": token.get("name", ""),
-                "symbol": token.get("symbol", ""),
-                "price": price,
-                "market_cap": price * circ if (price and circ) else 0,
-                "fdv": price * _f(token.get("total_supply")) if price else 0,
-                "liquidity": _f(token.get("liquidity")),
-                "volume_24h": _f(price_obj.get("volume_24h")),
-                "holders": int(token.get("holder_count", 0) or 0),
-                "price_change_1h": _f(price_obj.get("price_1h")),
-                "price_change_24h": _f(price_obj.get("price_24h")),
-                "buy_24h": int(price_obj.get("buys_24h", 0) or 0),
-                "sell_24h": int(price_obj.get("sells_24h", 0) or 0),
-                "created_at": token.get("creation_timestamp"),
-                "launchpad": token.get("launchpad"),
-                "ath_price": _f(token.get("ath_price")),
-                "launchpad_status": token.get("launchpad_status"),
-                "launchpad_progress": _f(token.get("launchpad_progress")),
-                "locked_ratio": _f(token.get("locked_ratio")),
-                "source": "gmgn",
-                "timestamp": datetime.now(UTC).isoformat(),
-            }
-        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-            logger.debug("GMGN token_info failed: %s", e)
-        return None
 
     # ═══════════════════════════════════════════════════════════════
     # WALLET INTELLIGENCE (derived — feeds the unified scanner)

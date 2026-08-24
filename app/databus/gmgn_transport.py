@@ -15,6 +15,11 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_chain(chain: str) -> str:
+    """Normalize chain names to GMGN slugs."""
+    return (chain or "ethereum").strip().lower()
+
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 
 GMGN_BASE = "https://gmgn.ai"
