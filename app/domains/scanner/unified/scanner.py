@@ -64,7 +64,7 @@ def _scan_status_key(chain: str, address: str) -> str:
 async def _store_scan_status(chain: str, address: str, payload: dict[str, Any]) -> None:
     """Best-effort publish of scan status to Redis (never raises)."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -81,7 +81,7 @@ async def scan_status(chain: str, address: str) -> dict[str, Any] | None:
     1h result cache written by ``persist_result`` for completed scans.
     """
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -193,7 +193,7 @@ class UnifiedTokenScanner:
         ``None`` so the fast path always falls through to a real scan.
         """
         try:
-            from app.core.redis import get_redis_async
+            from app.domains.scanner.engines._exceptions import get_redis_async
 
             r = get_redis_async()
             if r is None:

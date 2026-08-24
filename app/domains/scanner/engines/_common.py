@@ -75,7 +75,7 @@ async def redis_get(key: str) -> Any | None:
     on a miss or when Redis is unavailable.
     """
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -92,7 +92,7 @@ async def redis_get(key: str) -> Any | None:
 async def redis_set(key: str, value: Any, ttl: int = 300) -> bool:
     """Store a JSON-serialisable payload in Redis with TTL (graceful on failure)."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:

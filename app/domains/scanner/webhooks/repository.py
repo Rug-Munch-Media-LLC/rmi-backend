@@ -12,7 +12,7 @@ No business logic. Pure data access.
 from __future__ import annotations
 
 from app.domains.scanner.engines._logging import get_logger
-from app.core.redis import get_redis_async
+from app.domains.scanner.engines._exceptions import get_redis_async
 from app.domains.scanner.webhooks.models import WebhookSubscription
 
 log = get_logger(__name__)

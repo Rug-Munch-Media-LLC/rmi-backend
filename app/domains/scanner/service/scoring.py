@@ -60,7 +60,7 @@ async def _publish_scan_to_rag_queue(scan_result: Any) -> None:
     """
     import json as _json
 
-    from app.core.redis import get_redis_async
+    from app.domains.scanner.engines._exceptions import get_redis_async
 
     safety = float(getattr(scan_result, "safety_score", 50))
     risk_level = _risk_level_from_safety(safety)

@@ -308,7 +308,7 @@ async def _try_deployer_fingerprint(
 async def _redis_get_json(key: str) -> dict[str, Any] | None:
     """Fetch a JSON payload from Redis (graceful on failure)."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -328,7 +328,7 @@ async def _redis_get_json(key: str) -> dict[str, Any] | None:
 async def _redis_set_json(key: str, value: dict[str, Any], ttl: int) -> bool:
     """Store a JSON payload in Redis with TTL (graceful on failure)."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
