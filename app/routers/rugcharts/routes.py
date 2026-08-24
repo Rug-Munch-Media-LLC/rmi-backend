@@ -26,6 +26,7 @@ from app.core.logging import get_logger
 
 from .classifier import classify_trades, label_summary
 from .helpers import (
+    _chain_freshness,
     _compute_rug_score,
     _compute_volume_authenticity,
     _fetch_dexscreener_trending,
@@ -329,6 +330,8 @@ async def rugcharts_whales(
 @router.get("/health")
 async def rugcharts_health() -> dict[str, Any]:
     """Health/capability probe for RugCharts."""
+    freshness = await _chain_freshness()
+    chains_stale = [c for c, v in freshness.items() if v.get("status") == "stale"]
     return {
         "status": "ok",
         "service": "rugcharts",
@@ -344,6 +347,9 @@ async def rugcharts_health() -> dict[str, Any]:
             "wallet_labels",
             "ws_trades",
         ],
+        # Own-data coverage per chain — gaps are visible, not silent (WIN-9).
+        "own_data_freshness": freshness,
+        "chains_stale": chains_stale,
     }
 
 

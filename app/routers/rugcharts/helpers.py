@@ -985,3 +985,35 @@ async def _fetch_whale_trades_clickhouse(
         await _cache_set_json(cache_key, trades, WHALE_TTL)
 
     return trades
+
+
+# ── Chain data freshness (ops visibility — audit WIN-9) ──────────────────
+
+
+async def _chain_freshness() -> dict[str, dict[str, Any]]:
+    """Per-chain freshness of our own indexer tables (dex_events).
+
+    Makes coverage gaps like "no solana rows" or "bsc stale since Aug 9"
+    visible to ops instead of silently returning empty overlays.
+    """
+    try:
+        rows = await _ch_query(
+            "SELECT chain, count(), max(block_timestamp), "
+            "dateDiff('hour', max(block_timestamp), now()) "
+            "FROM dex_events GROUP BY chain ORDER BY max(block_timestamp) DESC",
+            {},
+        )
+    except Exception as e:
+        logger.debug(f"freshness query failed: {e}")
+        return {}
+
+    out: dict[str, dict[str, Any]] = {}
+    for chain, cnt, latest, hours in rows:
+        hours = int(hours or 0)
+        out[chain] = {
+            "events": int(cnt),
+            "latest_utc": str(latest),
+            "hours_stale": hours,
+            "status": "fresh" if hours <= 2 else "delayed" if hours <= 24 else "stale",
+        }
+    return out
