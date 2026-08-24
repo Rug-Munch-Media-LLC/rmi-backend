@@ -16,18 +16,29 @@ Architecture:
 from __future__ import annotations
 
 import json
-import math
 from typing import Any, cast
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.model_router import smart_route
+from app.core.rate_limiter import UnifiedRateLimiter
+from app.routers.rugcharts.ta import (
+    bollinger as _ta_bollinger,
+    ema_series as _ta_ema_series,
+    rsi as _ta_rsi,
+)
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai-chart"])
+
+# ── Cost guards (audit WIN-5) ────────────────────────────────────────────
+# Each call triggers paid/local LLM inference: strict per-client bucket on
+# top of the global middleware (10s sustained, burst 5).
+_llm_limiter = UnifiedRateLimiter()
+_degraded_count = 0
 
 
 # ── Request / Response models ──────────────────────────────────────────
@@ -43,11 +54,11 @@ class OHLCVCandle(BaseModel):
 
 
 class ChartAnalysisRequest(BaseModel):
-    chain: str = Field(default="solana", description="Blockchain (solana, ethereum, base, bsc, etc.)")
-    pair: str = Field(default="", description="Token pair address or contract address")
-    symbol: str = Field(default="", description="Token symbol (e.g. BONK)")
-    name: str = Field(default="", description="Token name")
-    timeframe: str = Field(default="1d", description="Candle timeframe (1h, 4h, 1d, 7d)")
+    chain: str = Field(default="solana", max_length=32, description="Blockchain (solana, ethereum, base, bsc, etc.)")
+    pair: str = Field(default="", max_length=128, description="Token pair address or contract address")
+    symbol: str = Field(default="", max_length=64, description="Token symbol (e.g. BONK)")
+    name: str = Field(default="", max_length=256, description="Token name")
+    timeframe: str = Field(default="1d", max_length=8, description="Candle timeframe (1h, 4h, 1d, 7d)")
     current_price: float = Field(default=0.0, description="Current/last price")
     price_change_24h: float = Field(default=0.0, description="24h price change percentage")
     volume_24h: float = Field(default=0.0, description="24h volume USD")
@@ -55,7 +66,11 @@ class ChartAnalysisRequest(BaseModel):
     fdv: float = Field(default=0.0, description="Fully diluted valuation")
     buys_24h: int = Field(default=0, description="24h buy transactions")
     sells_24h: int = Field(default=0, description="24h sell transactions")
-    candles: list[OHLCVCandle] = Field(default_factory=list, description="OHLCV candle data for the timeframe")
+    candles: list[OHLCVCandle] = Field(
+        default_factory=list,
+        max_length=1500,  # payload cap — LLM cost surface (audit WIN-5)
+        description="OHLCV candle data for the timeframe",
+    )
 
 
 class KeyLevel(BaseModel):
@@ -79,88 +94,63 @@ class ChartAnalysisResponse(BaseModel):
     provider: str = ""  # Which AI provider responded
 
 
-# ── Technical Indicators (pure Python, no external deps) ────────────────
+# ── Technical Indicators — delegated to the shared RugCharts TA module ──
+# Audit WIN-6: RSI/MACD/Bollinger/EMA were implemented independently HERE and
+# in /rugcharts{,/intel,/ta} with guaranteed drift. One implementation now
+# serves every surface (see app/routers/rugcharts/ta.py) — imported at top.
 
 
 def compute_rsi(closes: list[float], period: int = 14) -> float:
-    """Relative Strength Index."""
-    if len(closes) < period + 1:
-        return 50.0
-    gains = []
-    losses = []
-    for i in range(1, period + 1):
-        diff = closes[-i] - closes[-(i + 1)]
-        if diff >= 0:
-            gains.append(diff)
-        else:
-            losses.append(-diff)
-    avg_gain = sum(gains) / period if gains else 0
-    avg_loss = sum(losses) / period if losses else 0
-    if avg_loss == 0:
-        return 100.0
-    rs = avg_gain / avg_loss
-    return 100.0 - (100.0 / (1.0 + rs))
+    """Relative Strength Index (Wilder smoothing) — shared implementation."""
+    value = _ta_rsi(closes, period)
+    return 50.0 if value is None else float(value)
 
 
 def compute_macd(closes: list[float]) -> dict[str, Any]:
     """MACD (12, 26, 9) — returns {macd, signal, histogram, crossover}."""
+    neutral = {"macd": 0, "signal": 0, "histogram": 0, "crossover": "neutral"}
     if len(closes) < 35:
-        return {"macd": 0, "signal": 0, "histogram": 0, "crossover": "neutral"}
+        return neutral
 
-    def ema(data: list[float], period: int) -> list[float]:
-        if len(data) < period:
-            return []
-        multiplier = 2.0 / (period + 1)
-        result = [sum(data[:period]) / period]
-        for price in data[period:]:
-            result.append((price - result[-1]) * multiplier + result[-1])
-        return result
+    ema_fast = _ta_ema_series(closes, 12)
+    ema_slow = _ta_ema_series(closes, 26)
+    difs = [(f - s) if (f is not None and s is not None) else None for f, s in zip(ema_fast, ema_slow, strict=False)]
+    defined = [d for d in difs if d is not None]
+    if len(defined) < 2:
+        return neutral
+    deas = _ta_ema_series(defined, 9)
+    cur_dif, prev_dif = defined[-1], defined[-2]
+    cur_dea = deas[-1]
+    prev_dea = deas[-2] if len(deas) > 1 and deas[-2] is not None else cur_dea
+    if cur_dea is None or prev_dea is None:
+        return neutral
 
-    ema12 = ema(closes, 12)
-    ema26 = ema(closes, 26)
-    if not ema12 or not ema26:
-        return {"macd": 0, "signal": 0, "histogram": 0, "crossover": "neutral"}
-
-    min_len = min(len(ema12), len(ema26))
-    macd_line = [ema12[-(min_len - i)] - ema26[-(min_len - i)] for i in range(min_len)]
-    signal_line = ema(macd_line, 9)
-    if not signal_line:
-        return {"macd": 0, "signal": 0, "histogram": 0, "crossover": "neutral"}
-
-    current_macd = macd_line[-1]
-    current_signal = signal_line[-1]
-    prev_macd = macd_line[-2] if len(macd_line) > 1 else current_macd
-    prev_signal = signal_line[-2] if len(signal_line) > 1 else current_signal
-    histogram = current_macd - current_signal
-
-    if prev_macd <= prev_signal and current_macd > current_signal:
+    histogram = cur_dif - cur_dea
+    if prev_dif <= prev_dea and cur_dif > cur_dea:
         crossover = "bullish"
-    elif prev_macd >= prev_signal and current_macd < current_signal:
+    elif prev_dif >= prev_dea and cur_dif < cur_dea:
         crossover = "bearish"
     else:
         crossover = "neutral"
 
     return {
-        "macd": round(current_macd, 8),
-        "signal": round(current_signal, 8),
+        "macd": round(cur_dif, 8),
+        "signal": round(cur_dea, 8),
         "histogram": round(histogram, 8),
         "crossover": crossover,
     }
 
 
 def compute_bollinger_bands(closes: list[float], period: int = 20) -> dict[str, float | str]:
-    """Bollinger Bands (20, 2)."""
+    """Bollinger Bands (20, 2) — shared implementation + position metadata."""
     if len(closes) < period:
         return {"upper": 0, "middle": 0, "lower": 0, "width_pct": 0, "position": "unknown"}
-    recent = closes[-period:]
-    middle = sum(recent) / period
-    variance = sum((x - middle) ** 2 for x in recent) / period
-    std_dev = math.sqrt(variance)
-    upper = middle + 2 * std_dev
-    lower = middle - 2 * std_dev
+    bands = _ta_bollinger(closes, period)
+    upper, middle, lower = bands["upper"], bands["middle"], bands["lower"]
+    if upper is None or middle is None or lower is None:
+        return {"upper": 0, "middle": 0, "lower": 0, "width_pct": 0, "position": "unknown"}
     current = closes[-1]
     width_pct = ((upper - lower) / middle) * 100 if middle > 0 else 0
-
     if current > upper:
         position = "above_upper"
     elif current < lower:
@@ -169,7 +159,6 @@ def compute_bollinger_bands(closes: list[float], period: int = 20) -> dict[str, 
         position = "above_middle"
     else:
         position = "below_middle"
-
     return {
         "upper": round(upper, 8),
         "middle": round(middle, 8),
@@ -180,14 +169,14 @@ def compute_bollinger_bands(closes: list[float], period: int = 20) -> dict[str, 
 
 
 def compute_ema(closes: list[float], period: int) -> float:
-    """Exponential Moving Average."""
+    """Exponential Moving Average (latest bar) — shared implementation."""
+    if not closes:
+        return 0
     if len(closes) < period:
-        return closes[-1] if closes else 0
-    multiplier = 2.0 / (period + 1)
-    ema_val = sum(closes[:period]) / period
-    for price in closes[period:]:
-        ema_val = (price - ema_val) * multiplier + ema_val
-    return ema_val
+        return closes[-1]
+    series = _ta_ema_series(closes, period)
+    last = series[-1]
+    return float(last) if last is not None else closes[-1]
 
 
 def find_sr_levels(candles: list[dict[str, float]], lookback: int = 50) -> list[KeyLevel]:
@@ -401,7 +390,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no code fences, no extra text. J
 
 
 @router.post("/chart-analysis", response_model=ChartAnalysisResponse)
-async def chart_analysis(req: ChartAnalysisRequest) -> ChartAnalysisResponse:
+async def chart_analysis(request: Request, req: ChartAnalysisRequest) -> ChartAnalysisResponse:
     """Run AI-powered technical analysis on OHLCV chart data.
 
     Computes technical indicators (RSI, MACD, Bollinger Bands, EMAs,
@@ -414,6 +403,12 @@ async def chart_analysis(req: ChartAnalysisRequest) -> ChartAnalysisResponse:
     Returns:
         ChartAnalysisResponse with trend, signals, risk, and detailed AI analysis.
     """
+    # 0. Per-client cost guard — this endpoint spends money per call.
+    client_id = request.client.host if request.client else "anonymous"
+    allowed, headers = await _llm_limiter.acquire(f"chart-analysis:{client_id}", rate=0.1, burst=5.0)
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded for AI analysis", headers=headers)
+
     # 1. Convert candles to dicts for indicator computation
     candle_dicts = [c.model_dump() for c in req.candles] if req.candles else []
 
@@ -439,12 +434,15 @@ async def chart_analysis(req: ChartAnalysisRequest) -> ChartAnalysisResponse:
             prefer="fast",
         )
     except Exception as e:
-        logger.error("chart_analysis_ai_failed", error=str(e))
+        global _degraded_count
+        _degraded_count += 1
+        logger.error("chart_analysis_degraded", error=str(e), degraded_total=_degraded_count)
         # Fallback: return indicator-based analysis without AI
         return _build_fallback_response(req, indicators, sr_levels, patterns)
 
     if not result or "error" in result:
-        logger.warning("chart_analysis_ai_error", result=result)
+        _degraded_count += 1
+        logger.warning("chart_analysis_degraded", result=result, degraded_total=_degraded_count)
         return _build_fallback_response(req, indicators, sr_levels, patterns)
 
     # 7. Parse the AI response
