@@ -19,7 +19,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import run_sync, to_iso
 from app.domains.scanner.engines._deployer_fingerprint_helpers import (
     _assign_risk_bucket,

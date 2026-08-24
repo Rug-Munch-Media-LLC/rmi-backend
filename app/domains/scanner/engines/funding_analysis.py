@@ -81,7 +81,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     _query_batch_labels,  # noqa: F401
     redis_get,  # noqa: F401

@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.errors import ValidationError
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.tracing.fourbyte import decode_log, resolve_event_signature
 from app.domains.scanner.tracing.graph import build_cluster_graph
 from app.domains.scanner.tracing.hops import build_wallet_hops

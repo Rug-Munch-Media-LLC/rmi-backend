@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult

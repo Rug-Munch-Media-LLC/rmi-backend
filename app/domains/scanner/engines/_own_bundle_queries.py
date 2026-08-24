@@ -20,7 +20,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._own_bundle_common import (
     _LAUNCH_WINDOW_BLOCKS,
     _QUERY_TIMEOUT_SECONDS,

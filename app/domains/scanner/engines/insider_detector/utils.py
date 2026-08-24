@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 from .config import AVG_PRE_TRENDING_PUMP, INSIDER_WINDOW_MIN
 from .models import Confidence, InsiderEvidence, InsiderReport, InsiderType

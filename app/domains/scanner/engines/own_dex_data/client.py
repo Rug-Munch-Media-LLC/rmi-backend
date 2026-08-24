@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 

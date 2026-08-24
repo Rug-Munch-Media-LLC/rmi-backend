@@ -40,7 +40,7 @@ import os
 import time
 from typing import Any
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,

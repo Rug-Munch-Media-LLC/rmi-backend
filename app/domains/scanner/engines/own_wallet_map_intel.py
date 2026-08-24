@@ -4,7 +4,7 @@ from __future__ import annotations
 """Holder/funder classification + CEX-funding intel (de-godding 2026-08-23)."""
 
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from datetime import UTC, datetime, timedelta
 from typing import Any
 

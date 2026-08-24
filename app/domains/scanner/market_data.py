@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.models import SOLANA_RPC_ENDPOINTS
 
 logger = get_logger(__name__)

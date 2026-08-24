@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 from app.core.data_fusion import fusion
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.market_data import fetch_market_data
 from app.domains.scanner.models import ScanResult
 from app.domains.scanner.modules import (

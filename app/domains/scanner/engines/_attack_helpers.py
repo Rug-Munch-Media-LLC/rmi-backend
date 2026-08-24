@@ -22,7 +22,7 @@ from __future__ import annotations
 import time
 from typing import Any, cast
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import run_sync
 
 logger = get_logger("attack_detector")

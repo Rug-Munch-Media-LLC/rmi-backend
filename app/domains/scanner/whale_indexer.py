@@ -38,7 +38,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.webhooks.providers.utils import get_clickhouse
 from app.rag.embeddings import get_embedding
 

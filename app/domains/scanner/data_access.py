@@ -25,7 +25,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.config import (
     B2_BUCKET,
     B2_PATH_PREFIX,

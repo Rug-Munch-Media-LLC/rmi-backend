@@ -81,7 +81,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 # ``as`` alias marks the re-export so mypy strict (implicit_reexport=False)
 # keeps treating ``deployer_fingerprint._get_ch_client`` as exportable —

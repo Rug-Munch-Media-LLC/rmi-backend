@@ -22,7 +22,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_ch_client,
     _load_pair_cache,
