@@ -73,10 +73,6 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import (
-    _get_ch_client,
-    _normalize_chain,
-)
 from app.domains.scanner.engines._common import (
     _query_batch_labels,
     _query_contract_addresses,
@@ -113,6 +109,10 @@ from app.domains.scanner.engines._holder_clusters_helpers import (  # noqa: F401
     _classify_holder,
     _compute_gini,
     _compute_hhi,
+)
+from app.domains.scanner.engines._indexer_port import (
+    _get_ch_client,
+    _normalize_chain,
 )
 
 # Legacy module-local names kept for consistency with the other engines.

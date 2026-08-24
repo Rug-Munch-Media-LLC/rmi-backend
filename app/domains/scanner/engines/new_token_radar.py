@@ -56,10 +56,6 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import (
-    _get_ch_client,
-    _normalize_chain,
-)
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -67,6 +63,10 @@ from app.domains.scanner.engines._common import (
     redis_set,
     run_sync,
     to_iso,
+)
+from app.domains.scanner.engines._indexer_port import (
+    _get_ch_client,
+    _normalize_chain,
 )
 
 # Legacy module-local names kept so existing unit tests that patch

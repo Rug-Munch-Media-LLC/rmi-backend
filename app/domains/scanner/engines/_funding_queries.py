@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
+from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
 
 logger = get_logger(__name__)
 
