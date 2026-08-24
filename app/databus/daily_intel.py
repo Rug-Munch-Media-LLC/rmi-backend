@@ -473,8 +473,8 @@ async def _publish_to_farcaster(report: str, date_str: str) -> dict[str, Any]:
             # Grab the next 2 non-empty, non-header lines
             idx = lines.index(line)
             grabbed = 0
-            for l in lines[idx + 1 :]:
-                ls = l.strip()
+            for ln in lines[idx + 1 :]:
+                ls = ln.strip()
                 if ls and not ls.startswith("#"):
                     cast_lines.append(ls[:240])
                     grabbed += 1
@@ -482,15 +482,15 @@ async def _publish_to_farcaster(report: str, date_str: str) -> dict[str, Any]:
                         break
         if s.startswith("### TOP STORIES"):
             idx = lines.index(line)
-            for l in lines[idx + 1 : idx + 6]:
-                ls = l.strip()
+            for ln in lines[idx + 1 : idx + 6]:
+                ls = ln.strip()
                 if ls and ls.startswith(("- ", "• ")):
                     cast_lines.append(ls[:200])
 
         if s.startswith("### BOTTOM LINE"):
             idx = lines.index(line)
-            for l in lines[idx + 1 : idx + 3]:
-                ls = l.strip()
+            for ln in lines[idx + 1 : idx + 3]:
+                ls = ln.strip()
                 if ls and not ls.startswith("#") and not ls.startswith("---"):
                     cast_lines.append(f"\n{ls[:240]}")
 
@@ -618,7 +618,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict[str, Any]:
 
         # Date subtitle
         if stripped.startswith("## ") and "date" not in stripped.lower() and "intelligence" not in stripped.lower():
-            tg_parts.append(f"<i>{stripped.lstrip('## ').strip()}</i>\n")
+            tg_parts.append(f"<i>{stripped.removeprefix('## ').strip()}</i>\n")
             continue
 
         # Section headers
@@ -626,14 +626,14 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict[str, Any]:
             if in_bullets:
                 tg_parts.append("")
                 in_bullets = False
-            current_section = stripped.lstrip("### ").strip()
+            current_section = stripped.removeprefix("### ").strip()
             tg_parts.append(f"\n<b>{current_section}</b>\n")
             continue
 
         # Bullet points
-        if stripped.startswith("- ") or stripped.startswith("• "):
+        if stripped.startswith(("- ", "• ")):
             in_bullets = True
-            bullet_text = stripped.lstrip("- •").strip()
+            bullet_text = stripped.removeprefix("- ").removeprefix("• ").strip()
             # Handle **bold** markers in bullets
             bullet_text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", bullet_text)
             if " — " in bullet_text:
