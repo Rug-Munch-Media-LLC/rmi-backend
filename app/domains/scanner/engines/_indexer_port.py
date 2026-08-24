@@ -122,3 +122,12 @@ def normalize_chain(chain: str) -> str:
 
 def clear_caches() -> None:
     default_port().clear_caches()
+
+
+# ── Transitional aliases (migration period) ───────────────────────────
+# Engines historically used the provider's private names. These aliases
+# keep every call site working while call sites migrate to the public
+# names above. Do NOT use in new code.
+_get_ch_client = ch_client
+_new_ch_client = new_ch_client
+_normalize_chain = normalize_chain

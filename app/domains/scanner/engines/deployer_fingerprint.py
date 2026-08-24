@@ -82,13 +82,10 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import (
-    # ``as`` alias marks the re-export so mypy strict (implicit_reexport=False)
-    # keeps treating ``deployer_fingerprint._get_ch_client`` as exportable —
-    # the query submodule resolves the client lazily through this shim.
-    _get_ch_client as _get_ch_client,
-    _normalize_chain,
-)
+
+# ``as`` alias marks the re-export so mypy strict (implicit_reexport=False)
+# keeps treating ``deployer_fingerprint._get_ch_client`` as exportable —
+# the query submodule resolves the client lazily through this shim.
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -130,6 +127,10 @@ from app.domains.scanner.engines._deployer_fingerprint_queries import (  # noqa:
     _query_per_token_deployments,
     _query_same_funder_deployers,
     _query_token_dex_stats,
+)
+from app.domains.scanner.engines._indexer_port import (
+    _get_ch_client as _get_ch_client,
+    _normalize_chain,
 )
 
 # Legacy module-local names kept so existing unit tests that patch

@@ -82,7 +82,6 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import _normalize_chain
 from app.domains.scanner.engines._common import (
     _query_batch_labels,  # noqa: F401
     redis_get,  # noqa: F401
@@ -131,6 +130,7 @@ from app.domains.scanner.engines._funding_results import (
     _wallet_metrics_error,
     _wallet_metrics_unavailable,
 )
+from app.domains.scanner.engines._indexer_port import normalize_chain as _normalize_chain
 from app.domains.scanner.engines._io import (
     _CACHE,
     _CACHE_MAX,

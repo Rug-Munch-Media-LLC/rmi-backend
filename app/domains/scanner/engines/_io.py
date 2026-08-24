@@ -23,10 +23,6 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import (
-    _get_ch_client,
-    _new_ch_client,
-)
 from app.domains.scanner.engines._common import (
     _query_batch_labels,
     clear_cache as _common_clear_cache,
@@ -64,6 +60,10 @@ from app.domains.scanner.engines._funding_results import (
     _overlap_unavailable,
     _unavailable_result,
     _wallet_metrics_unavailable,
+)
+from app.domains.scanner.engines._indexer_port import (
+    _get_ch_client,
+    _new_ch_client,
 )
 from app.domains.scanner.engines._scoring import (
     _FRESH_WALLET_AGE_DAYS,

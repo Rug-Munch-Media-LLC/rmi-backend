@@ -76,10 +76,6 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import (
-    _get_ch_client,
-    _normalize_chain,
-)
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     error_result,
@@ -89,6 +85,10 @@ from app.domains.scanner.engines._common import (
     run_sync,
     to_iso,
     unavailable_result,
+)
+from app.domains.scanner.engines._indexer_port import (
+    _get_ch_client,
+    _normalize_chain,
 )
 from app.domains.scanner.engines.behavioral_fingerprint import (
     BEHAVIORAL_MIN_SIMILARITY,

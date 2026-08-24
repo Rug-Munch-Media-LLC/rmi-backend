@@ -82,7 +82,7 @@ class BaseEngine:
         Caches the result on the instance so ``get_cache_stats`` can report
         connectivity without re-probing.
         """
-        from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
+        from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
 
         self._client = _get_ch_client()
         return self._client
@@ -91,7 +91,7 @@ class BaseEngine:
 
     def normalize_chain(self, chain: str) -> str:
         """Normalize a chain name to ClickHouse format (canonical map)."""
-        from app.domains.databus.providers.chains.lite_chain_indexer import _normalize_chain
+        from app.domains.scanner.engines._indexer_port import normalize_chain as _normalize_chain
 
         return _normalize_chain(chain)
 
