@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable

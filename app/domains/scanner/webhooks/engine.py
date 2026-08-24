@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.webhooks.delivery import WebhookDeliveryService
 from app.domains.scanner.webhooks.models import (
     WebhookEvent,

@@ -37,7 +37,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.rag.embeddings import RAGUnavailableError
 
 if TYPE_CHECKING:

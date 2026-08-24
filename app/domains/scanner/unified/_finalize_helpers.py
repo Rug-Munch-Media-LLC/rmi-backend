@@ -17,7 +17,7 @@ import os
 import time
 from typing import TYPE_CHECKING, Any
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.unified.persistence import (
     auto_label_deployer,
     persist_result,

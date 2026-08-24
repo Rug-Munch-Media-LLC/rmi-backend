@@ -22,7 +22,7 @@ import httpx
 from eth_abi.abi import decode
 from eth_utils.address import to_checksum_address
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 

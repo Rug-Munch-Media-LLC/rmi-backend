@@ -16,7 +16,7 @@ import subprocess
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 

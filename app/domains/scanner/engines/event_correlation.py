@@ -31,7 +31,7 @@ from typing import Any
 
 import httpx
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines.price_oracle import get_token_price_at_time
 
 try:

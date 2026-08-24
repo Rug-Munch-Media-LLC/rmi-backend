@@ -21,7 +21,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.unified._coercion import _resolve_scan_tier
 from app.domains.scanner.unified._finalize_helpers import (
     finalize_background,

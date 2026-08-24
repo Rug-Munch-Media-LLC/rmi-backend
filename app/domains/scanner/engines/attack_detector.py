@@ -67,7 +67,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._attack_helpers import (
     _CH_DB,
     _RESULT_CACHE,

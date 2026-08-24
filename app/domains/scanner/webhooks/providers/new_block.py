@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
 
 log = get_logger(__name__)

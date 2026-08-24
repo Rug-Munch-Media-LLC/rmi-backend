@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 import httpx
 
 from app.config import settings
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.rugmaps.graph import (
     add_center_node,
     add_or_update_link,

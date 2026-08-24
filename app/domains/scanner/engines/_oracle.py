@@ -44,7 +44,7 @@ except ImportError:  # pragma: no cover
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._price_adapters import (
     _coingecko_price,
     _decimals_from_dexscreener,

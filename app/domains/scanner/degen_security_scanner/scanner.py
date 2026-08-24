@@ -11,7 +11,7 @@ import logging
 import time
 from datetime import UTC, datetime
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
 
 from .config import BIRDEYE_API_KEY, HELIUS_API_KEY

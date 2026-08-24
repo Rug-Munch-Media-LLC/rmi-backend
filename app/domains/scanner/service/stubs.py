@@ -25,6 +25,6 @@ API keys exists, implement it as a real module in
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)

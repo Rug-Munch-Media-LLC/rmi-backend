@@ -37,7 +37,7 @@ from typing import Any
 
 from redis.exceptions import RedisError
 
-from app.core.logging import get_logger
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
 
 logger = get_logger(__name__)
