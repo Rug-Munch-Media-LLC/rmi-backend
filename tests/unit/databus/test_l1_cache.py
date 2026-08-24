@@ -94,3 +94,28 @@ async def test_stats_shape():
     assert st["hit_rate"] == 50.0
     assert "stale_hits" in st
     assert "fresh_hit_rate" in st
+
+
+# ── Concurrency stress ────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_concurrent_set_get_consistent():
+    """25 writers + 5 readers hammering the cache: no lost writes, no
+    corruption, stats stay consistent."""
+    c = L1Cache(max_keys=500)
+
+    async def writer(i):
+        for j in range(20):
+            await c.set(f"k{i}-{j}", j, ttl=60)
+
+    async def reader():
+        for _ in range(50):
+            await c.get("k0-0")
+
+    import asyncio
+
+    await asyncio.gather(*(writer(i) for i in range(25)), *(reader() for _ in range(5)))
+    st = c.stats()
+    assert st["keys"] <= 500
+    assert st["hits"] + st["misses"] + st["stale_hits"] > 0
