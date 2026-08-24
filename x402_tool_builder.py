@@ -217,7 +217,7 @@ CONNECTORS = {
 # Count tools
 total = 0
 for name, conn in CONNECTORS.items():
-    tools = conn["tools"]
+    tools = conn["tools"]  # type: Any  # heterogeneous outer dict
     total += len(tools)
     key_status = "✅" if conn["api_key_file"] else "🆓 Free"
     print(f"\n{name}: {len(tools)} tools {key_status}")
