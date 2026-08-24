@@ -153,13 +153,18 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
             import os as _os
 
             base = _os.getenv("LITELLM_BASE_URL", "").rstrip("/")
+            # Tolerate bases with or without a trailing /v1 (env has /v1).
+            if not base.endswith("/v1"):
+                base = f"{base}/v1"
             key = _os.getenv("LITELLM_API_KEY", "")
             if not base:
                 # not configured — degrade silently
                 return None
-            async with httpx.AsyncClient(timeout=90) as c:
+            # CPU llama.cpp inference behind the gateway runs 30-60s+ under
+            # load — 90s ReadTimeouts produced spurious failures (2026-08-24).
+            async with httpx.AsyncClient(timeout=240) as c:
                 r = await c.post(
-                    f"{base}/v1/chat/completions",
+                    f"{base}/chat/completions",
                     headers={"Authorization": f"Bearer {key}"} if key else {},
                     json={
                         "model": model,
