@@ -730,7 +730,9 @@ class WalletIngestionPipeline:
     async def __aenter__(self) -> WalletIngestionPipeline:
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type, _exc_val, _exc_tb) -> None:
+        # Params follow the async-context-manager protocol; the pipeline
+        # closes unconditionally regardless of exception state.
         await self.close()
 
 
