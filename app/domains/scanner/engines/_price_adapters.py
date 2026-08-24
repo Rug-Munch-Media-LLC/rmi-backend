@@ -72,12 +72,46 @@ _NATIVE_COINGECKO_IDS: dict[str, str] = {
 }
 
 
+# ── DataBus port bindings (lazy; Phase 2 seam) ────────────────────────
+
+
+def _db_ds_price(*args: Any, **kwargs: Any) -> Any:
+    from app.domains.scanner.engines._databus_port import default_port
+
+    return default_port().dexscreener_price(*args, **kwargs)
+
+
+def _db_cg_market(*args: Any, **kwargs: Any) -> Any:
+    from app.domains.scanner.engines._databus_port import default_port
+
+    return default_port().coingecko_market(*args, **kwargs)
+
+
+def _db_gt_market(*args: Any, **kwargs: Any) -> Any:
+    from app.domains.scanner.engines._databus_port import default_port
+
+    return default_port().geckoterminal_market(*args, **kwargs)
+
+
+def _db_paraswap(*args: Any, **kwargs: Any) -> Any:
+    from app.domains.scanner.engines._databus_port import default_port
+
+    return default_port().paraswap_quote(*args, **kwargs)
+
+
+def _db_oneinch(*args: Any, **kwargs: Any) -> Any:
+    from app.domains.scanner.engines._databus_port import default_port
+
+    return default_port().oneinch_quote(*args, **kwargs)
+
+
+
 async def _dexscreener_price(token: str, chain: str, *, _depth: int = 0) -> dict[str, Any] | None:
     """Tier 2 — DexScreener token price (free, 300 req/min, no auth)."""
     try:
-        from app.domains.databus.providers.chains.dexscreener import _dexscreener_price as _ds
+        from app.domains.scanner.engines._databus_port import default_port as _dbport
 
-        raw = await _ds(mint=token, token=token)
+        raw = await _dbport().dexscreener_price(mint=token, token=token)
         if not raw:
             return None
         pairs = raw.get("pairs") if isinstance(raw, dict) else None
@@ -203,9 +237,8 @@ async def _coingecko_price(token: str, chain: str, *, _depth: int = 0) -> dict[s
     Reuses the verified free_security provider (same endpoint, no auth).
     """
     try:
-        from app.domains.databus.providers.chains.free_security import _free_market_coingecko
 
-        return await _free_market_coingecko(token_address=token, chain=chain, address=token)
+        return await _db_cg_market(token_address=token, chain=chain, address=token)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle CoinGecko failed for %s: %s", token[:16], exc)
         return None
@@ -270,9 +303,8 @@ async def _geckoterminal_price(token: str, chain: str, *, _depth: int = 0) -> di
     Reuses the verified free_security provider (same endpoint).
     """
     try:
-        from app.domains.databus.providers.chains.free_security import _free_market_geckoterminal
 
-        return await _free_market_geckoterminal(token_address=token, chain=chain, address=token)
+        return await _db_gt_market(token_address=token, chain=chain, address=token)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle GeckoTerminal failed for %s: %s", token[:16], exc)
         return None
@@ -286,9 +318,8 @@ async def _paraswap_price(token: str, chain: str, *, _depth: int = 0) -> dict[st
     USD via get_native_price.
     """
     try:
-        from app.domains.databus.providers.chains.free_security import _free_market_paraswap_quote
 
-        result = await _free_market_paraswap_quote(token_address=token, chain=chain, address=token)
+        result = await _db_paraswap(token_address=token, chain=chain, address=token)
         if not result:
             return None
         src_amount = float(result.get("src_amount", 0) or 0)
@@ -315,9 +346,8 @@ async def _oneinch_price(token: str, chain: str, *, _depth: int = 0) -> dict[str
     if not api_key:
         return None
     try:
-        from app.domains.databus.providers.chains.free_security import _free_market_oneinch_quote
 
-        result = await _free_market_oneinch_quote(
+        result = await _db_oneinch(
             token_address=token,
             chain=chain,
             address=token,
