@@ -166,7 +166,8 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.whale_alerts",  # /api/v1/whale-alerts/*  (5 routes, whale tracker)
     "app.routers.lp_health",  # /api/v1/lp-health/*  (5 routes, LP monitor)
     "app.routers.ai_stream",  # /api/v1/ai/*  (3 routes, SSE infra)
-    "app.routers.rugcharts",  # /api/v1/rugcharts/*  (3 routes, RugCharts backend)
+    "app.routers.rugcharts",  # /api/v1/rugcharts/*  (RugCharts backend)
+    "app.routers.rugcharts.ws",  # /ws/trades WebSocket live tape + /ws/trades/stats
     "app.routers.rugmaps_router",  # /api/v1/rugmaps/*  (7 routes, RugMaps viz)
     "app.routers.token_page",  # /api/v1/token/*  (1 route, unified token page)
     "app.routers.mev_advisory",  # /api/v1/mev-advisory/*  (2 routes, MEV warning)

@@ -1,12 +1,17 @@
-"""
+"""RugCharts Backend Router
+==========================
+Real OHLCV candles (ClickHouse own-data → GeckoTerminal fallback), volume
+authenticity, dev reputation, wallet-behavior labels and comprehensive token
+intelligence for the RugCharts page.
 
-RugCharts Backend Router
-========================
-Real OHLCV candles via GeckoTerminal, volume authenticity, dev reputation,
-and comprehensive token intelligence for the RugCharts page.
+Data-fetching + scoring helpers live in ``helpers.py``; shared TA math in
+``ta.py``; wallet/bot labeling in ``classifier.py``.
 
-Data-fetching + scoring helpers live in ``app/routers/rugcharts_helpers.py``
-(split out 2026-08-07).
+Honesty contract (2026-08-24 audit WIN-1):
+- Every candle/intel response reports its ACTUAL data ``source``
+  (clickhouse | geckoterminal | none) — previously ``fallback_used`` was
+  computed as "any candles exist" and lied about provenance.
+- Unknown metrics are ``null``, never fabricated zeros.
 """
 
 from __future__ import annotations
@@ -19,15 +24,18 @@ from fastapi import APIRouter, Query
 from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
 
-from .rugcharts_helpers import (
+from .classifier import classify_trades, label_summary
+from .helpers import (
     _compute_rug_score,
     _compute_volume_authenticity,
     _fetch_dexscreener_trending,
+    _fetch_holder_stats,
     _fetch_ohlcv_clickhouse,
     _fetch_ohlcv_gecko,
     _fetch_pair_info,
     _fetch_whale_trades_clickhouse,
 )
+from .ta import compute_ta_snapshot
 
 logger = get_logger("rugcharts_router")
 
@@ -46,7 +54,6 @@ async def rugcharts_trending(
     """
     tokens, fallback_used = await _fetch_dexscreener_trending(chain, limit)
 
-    # Fuse price data across all returned tokens for consistency
     now = datetime.datetime.now(datetime.UTC)
     for token in tokens[:limit]:
         price_data = {
@@ -67,6 +74,7 @@ async def rugcharts_trending(
             "tokens": tokens[:limit],
             "count": len(tokens),
             "chain": chain,
+            "source": "dexscreener" if tokens else "none",
             "fallback_used": fallback_used,
         },
         source="dexscreener",
@@ -85,18 +93,18 @@ async def rugcharts_ohlcv(
 
     Tries the chain-indexer ClickHouse materialized view first (freshest
     on-chain data, own-data), falls back to GeckoTerminal when unavailable
-    or for sub-hourly timeframes. Fuses the result with DexScreener pair
-    info via DataFusion for cross-referenced price confidence and volume
-    authenticity scoring.
+    or for sub-hourly timeframes. The response's ``source`` field reports
+    which backend actually served the candles.
     """
     now = datetime.datetime.now(datetime.UTC)
     candles = await _fetch_ohlcv_clickhouse(pair_address, chain, timeframe, limit)
+    candle_source = "clickhouse"
     if not candles:
         candles = await _fetch_ohlcv_gecko(pair_address, chain, timeframe, limit)
+        candle_source = "geckoterminal" if candles else "none"
     pair_info = await _fetch_pair_info(pair_address, chain)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
 
-    # Summary from candles
     summary = {}
     if candles:
         prices = [c["close"] for c in candles]
@@ -117,10 +125,9 @@ async def rugcharts_ohlcv(
         "freshness": now.isoformat(),
         "confidence": 0.6 if pair_info.get("base_token_price_usd") else 0.0,
     }
-    # If we have OHLCV close, add it as an additional price data point
     candle_price = (
         {
-            "source": "geckoterminal_ohlcv",
+            "source": f"{candle_source}_ohlcv",
             "price_usd": prices[-1],
             "freshness": now.isoformat(),
             "confidence": 0.55,
@@ -135,7 +142,6 @@ async def rugcharts_ohlcv(
 
     fused_price = await fusion.fuse_price_data(*price_sources)
 
-    # ── Enrich response with fusion metadata ──
     fusion_result = {
         "price_confidence": fused_price.get("confidence", 0),
         "price_usd_fused": fused_price.get("price_usd"),
@@ -155,9 +161,12 @@ async def rugcharts_ohlcv(
             "fusion": fusion_result,
             "timeframe": timeframe,
             "chain": chain,
+            # Honest provenance — which backend actually served these candles.
+            "source": candle_source,
+            # Back-compat flag (kept for existing consumers).
             "fallback_used": not bool(candles),
         },
-        source="geckoterminal+coingecko",
+        source=f"{candle_source}+coingecko" if candles else "none",
         confidence=fused_price.get("confidence", 0.3),
     )
 
@@ -170,59 +179,19 @@ async def rugcharts_intel(
     """Get comprehensive intelligence on a token pair.
 
     Fuses GeckoTerminal OHLCV, DexScreener pair info, volume authenticity,
-    and TA predictions through the DataFusion engine for a consolidated
-    intelligence brief with confidence scoring.
+    shared-module TA and predictive heuristics through the DataFusion engine
+    into a consolidated intelligence brief with confidence scoring.
     """
     pair_info = await _fetch_pair_info(pair_address, chain)
     candles = await _fetch_ohlcv_gecko(pair_address, chain, "1h", 48)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
     rug_score = _compute_rug_score(pair_info, vol_auth)
 
-    # Simple TA from candles
-    ta = {}
-    if len(candles) >= 20:
-        closes = [c["close"] for c in candles]
-        sma20 = sum(closes[-20:]) / 20
-        sma7 = sum(closes[-7:]) / 7
-        gains, losses = [], []
-        for i in range(-14, 0):
-            diff = closes[i] - closes[i - 1]
-            gains.append(max(0, diff))
-            losses.append(max(0, -diff))
-        avg_gain = sum(gains) / 14
-        avg_loss = sum(losses) / 14
-        rs = avg_gain / avg_loss if avg_loss > 0 else 100
-        rsi = 100 - (100 / (1 + rs))
-        bb_mean = sma20
-        bb_std = (sum((c - bb_mean) ** 2 for c in closes[-20:]) / 20) ** 0.5
-        bb_upper = bb_mean + 2 * bb_std
-        bb_lower = bb_mean - 2 * bb_std
-        vols = [c["volume"] for c in candles]
-        vol_sma = sum(vols[-20:]) / 20
-        vol_current = vols[-1] if vols else 0
+    ta = compute_ta_snapshot(candles)
 
-        ta = {
-            "sma_7": round(sma7, 10),
-            "sma_20": round(sma20, 10),
-            "rsi_14": round(rsi, 2),
-            "bb_upper": round(bb_upper, 10),
-            "bb_lower": round(bb_lower, 10),
-            "bb_middle": round(bb_mean, 10),
-            "volume_sma_20": round(vol_sma, 2),
-            "volume_current": round(vol_current, 2),
-            "price_vs_sma20": "ABOVE" if closes[-1] > sma20 else "BELOW",
-            "rsi_signal": "OVERBOUGHT" if rsi > 70 else "OVERSOLD" if rsi < 30 else "NEUTRAL",
-            "trend": "BULLISH" if sma7 > sma20 else "BEARISH",
-            "volume_trend": "HIGH"
-            if vol_current > vol_sma * 1.5
-            else "LOW"
-            if vol_current < vol_sma * 0.5
-            else "NORMAL",
-        }
-
-    # Predictive signals
+    # Heuristic signals — rule-based, honestly labeled as such (not AI).
     predictions = []
-    if ta:
+    if ta.get("available"):
         if ta.get("rsi_signal") == "OVERBOUGHT" and rug_score["score"] > 50:
             predictions.append(
                 {
@@ -274,7 +243,6 @@ async def rugcharts_intel(
                 }
             )
 
-    # ── Fuse into an intelligence brief via DataFusion ──
     fused_risk = await fusion.fuse_token_risk(
         additional=[
             {
@@ -301,6 +269,7 @@ async def rugcharts_intel(
             "volume_authenticity": vol_auth,
             "technical_analysis": ta,
             "predictions": predictions,
+            "prediction_method": "rule_based_heuristics",
             "intel_brief": intel_brief,
             "chain": chain,
             "pair_address": pair_address,
@@ -320,49 +289,46 @@ async def rugcharts_whales(
         0.0, ge=0.0, description="Optional minimum USD notional filter (0 = any whale-flagged event)"
     ),
 ) -> Any:
-    """Get whale trade markers for a token from chain-indexer ClickHouse.
+    """Whale trade markers + wallet-behavior labels for a token.
 
     Queries ``wallet_memory.dex_events`` for whale-flagged swaps where the
-    token appears on either side of the pair. Each marker carries the unix
-    timestamp, price, USD notional, tx hash and a buy/sell side derived from
-    Uniswap V2 in/out semantics (V3 amounts are absolute, side = "unknown").
-
-    This is the "own data" overlay source for the RugCharts price chart:
-    whale buys (green) / sells (red) rendered directly on the candles.
+    token appears on either side of the pair. Each marker carries unix time,
+    price, USD notional, tx hash, buy/sell side (V2 semantics; V3 =
+    "unknown") AND a heuristic ``wallet_label`` (whale/bot/sniper/bundle/
+    swap) computed by ``classifier.py`` from measurable trade-sequence
+    properties — the labels the frontend trade-tape filters on.
     """
     trades = await _fetch_whale_trades_clickhouse(token_address, chain, limit, min_usd)
+    labeled = classify_trades(trades)
 
-    buys = [t for t in trades if t["side"] == "buy"]
-    sells = [t for t in trades if t["side"] == "sell"]
-    unknown = [t for t in trades if t["side"] == "unknown"]
-    total_whale_usd = round(sum(float(t.get("volume_usd", 0)) for t in trades), 2)
+    buys = [t for t in labeled if t["side"] == "buy"]
+    sells = [t for t in labeled if t["side"] == "sell"]
+    unknown = [t for t in labeled if t["side"] == "unknown"]
+    total_whale_usd = round(sum(float(t.get("volume_usd", 0)) for t in labeled), 2)
 
     return envelope(
         success=True,
         data={
-            "whale_trades": trades,
+            "whale_trades": labeled,
             "buy_count": len(buys),
             "sell_count": len(sells),
             "unknown_count": len(unknown),
             "total_whale_usd": total_whale_usd,
-            "count": len(trades),
+            "label_summary": label_summary(labeled),
+            "count": len(labeled),
             "chain": chain,
             "token_address": token_address,
             "min_usd": min_usd,
             "limit": limit,
         },
         source="lite_chain_indexer (ClickHouse dex_events)",
-        confidence=0.8 if trades else 0.0,
+        confidence=0.8 if labeled else 0.0,
     )
 
 
 @router.get("/health")
 async def rugcharts_health() -> dict[str, Any]:
-    """Health/capability probe for RugCharts.
-
-    The frontend (``services/rmi/api/rugcharts.ts``) calls this to test the
-    backend is reachable and enumerate the signals/TA surfaces it can render.
-    """
+    """Health/capability probe for RugCharts."""
     return {
         "status": "ok",
         "service": "rugcharts",
@@ -375,6 +341,8 @@ async def rugcharts_health() -> dict[str, Any]:
             "signals",
             "ta",
             "whales",
+            "wallet_labels",
+            "ws_trades",
         ],
     }
 
@@ -386,15 +354,16 @@ async def rugcharts_analyze(
 ) -> dict[str, Any]:
     """Token analysis snapshot for the RugCharts compare/multi-chain UI.
 
-    Real data from GeckoTerminal pair info + the RugCharts rug/volume
-    scoring helpers. Flat field names mirror what the frontend
-    (``MultiChainCompare.tsx``) expects.
+    Real data from GeckoTerminal pair info + rug/volume scoring helpers +
+    REAL holder concentration via Helius (Solana). Metrics we cannot source
+    are ``null`` — never placeholder zeros presented as facts.
     """
     pair = await _fetch_pair_info(address, chain)
 
     price = float(pair.get("base_token_price_usd", 0) or 0)
     vol_auth = _compute_volume_authenticity(pair, [])
     rug_score = _compute_rug_score(pair, vol_auth)
+    holders = await _fetch_holder_stats(address, chain)
 
     result: dict[str, Any] = {
         "chain": chain,
@@ -402,23 +371,35 @@ async def rugcharts_analyze(
         "symbol": "",
         "name": pair.get("name", ""),
         "fallback_used": not bool(pair),
+        # Holder metrics always present: real where sourced, null where unknown.
+        "holder_count": None,
+        "top_holder_pct": holders["top_holder_pct"] if holders else None,
+        "top10_holder_pct": holders["top10_holder_pct"] if holders else None,
+        "holder_data_source": holders["source"] if holders else None,
     }
-    # Derive base-token symbol from pair name if present, else leave blank.
     if pair.get("name"):
-        result["symbol"] = str(pair["name"]).split("/")[0].strip()
+        result["symbol"] = str(pair.get("symbol") or str(pair["name"]).split("/")[0].strip())
     if pair:
         result["price_usd"] = price
         result["price_change_24h"] = float(pair.get("price_change_24h", 0) or 0)
         result["volume_24h"] = float(pair.get("volume_24h", 0) or 0)
         result["liquidity_usd"] = float(pair.get("liquidity_usd", 0) or 0)
-        result["holder_count"] = 0
-        result["top_holder_pct"] = 0
         result["market_cap"] = float(pair.get("market_cap", 0) or 0)
         result["risk_score"] = int(rug_score.get("score", 0) or 0)
         result["risk_level"] = (
             "HIGH" if rug_score.get("score", 0) > 70 else "MEDIUM" if rug_score.get("score", 0) > 40 else "LOW"
         )
-        result["age_hours"] = 0
+        created = pair.get("pool_created_at", "")
+        age_hours: float | None = None
+        if created:
+            try:
+                from datetime import datetime
+
+                created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                age_hours = round((datetime.now(created_dt.tzinfo) - created_dt).total_seconds() / 3600, 1)
+            except (ValueError, TypeError):
+                age_hours = None
+        result["age_hours"] = age_hours
 
     return result
 
@@ -431,47 +412,15 @@ async def rugcharts_ta(
 ) -> dict[str, Any]:
     """Technical-analysis snapshot derived from real GeckoTerminal OHLCV.
 
-    Mirrors the TA computation used by ``/intel`` so the frontend gets a
-    consistent indicator set. Returns an empty set when no candles resolve.
+    Uses the shared TA module so /ta, /intel and AI chart analysis can
+    never drift apart. Returns available=False when no candles resolve.
     """
     candles = await _fetch_ohlcv_gecko(address, chain, timeframe, 100)
-    if len(candles) < 20:
-        return {"chain": chain, "address": address, "available": False, "reason": "insufficient_ohlcv"}
+    snapshot = compute_ta_snapshot(candles)
+    if not snapshot.get("available"):
+        return {"chain": chain, "address": address, **snapshot}
 
-    closes = [float(c["close"]) for c in candles]
-    sma20 = sum(closes[-20:]) / 20
-    sma7 = sum(closes[-7:]) / 7
-    gains, losses = [], []
-    for i in range(-14, 0):
-        diff = closes[i] - closes[i - 1]
-        gains.append(max(0, diff))
-        losses.append(max(0, -diff))
-    avg_gain = sum(gains) / 14
-    avg_loss = sum(losses) / 14
-    rs = avg_gain / avg_loss if avg_loss > 0 else 100
-    rsi = 100 - (100 / (1 + rs))
-    bb_mean = sma20
-    bb_std = (sum((c - bb_mean) ** 2 for c in closes[-20:]) / 20) ** 0.5
-    vols = [float(c.get("volume", 0)) for c in candles]
-    vol_sma = sum(vols[-20:]) / 20
-    vol_current = vols[-1] if vols else 0
-
-    return {
-        "chain": chain,
-        "address": address,
-        "available": True,
-        "sma_7": round(sma7, 10),
-        "sma_20": round(sma20, 10),
-        "rsi_14": round(rsi, 2),
-        "bb_upper": round(bb_mean + 2 * bb_std, 10),
-        "bb_lower": round(bb_mean - 2 * bb_std, 10),
-        "bb_middle": round(bb_mean, 10),
-        "volume_sma_20": round(vol_sma, 2),
-        "volume_current": round(vol_current, 2),
-        "price_vs_sma20": "ABOVE" if closes[-1] > sma20 else "BELOW",
-        "rsi_signal": "OVERBOUGHT" if rsi > 70 else "OVERSOLD" if rsi < 30 else "NEUTRAL",
-        "trend": "BULLISH" if sma7 > sma20 else "BEARISH",
-    }
+    return {"chain": chain, "address": address, **snapshot}
 
 
 @router.get("/signals/{address}")
@@ -480,28 +429,39 @@ async def rugcharts_signals(
     chain: str = Query("solana", description="Blockchain to query"),
     limit: int = Query(20, ge=1, le=100, description="Max signals to return"),
 ) -> dict[str, Any]:
-    """AI-style signals for a token, built from real whale-trade data.
+    """Trading signals for a token, built from labeled whale-trade data.
 
-    Each signal is derived from a whale-flagged ClickHouse dex event
-    (buy/sell, time, price, USD notional). When no trades resolve we return
-    an empty ``signals`` list — the frontend (``AISignals.tsx``) reads
-    ``signals``/``entries`` and renders empty gracefully.
+    Each signal derives from a real ClickHouse dex event and carries the
+    classifier's wallet_label. When no trades resolve we return an empty
+    list — the frontend renders empty gracefully.
     """
     trades = await _fetch_whale_trades_clickhouse(address, chain, limit)
+    labeled = classify_trades(trades)
     signals: list[dict[str, Any]] = []
-    for t in trades:
+    for t in labeled:
         side = t.get("side", "unknown")
+        label = t.get("wallet_label", "swap")
+        confidence = max(t.get("label_confidence", 40), 70 if side != "unknown" else 40)
         signals.append(
             {
                 "id": t.get("tx_hash", ""),
                 "type": "buy" if side == "buy" else "sell" if side == "sell" else "info",
                 "timestamp": t.get("time", 0),
                 "price_at_signal": float(t.get("price_usd", 0) or 0),
-                "confidence": 70 if side != "unknown" else 40,
-                "title": f"Whale {side.upper()} ${float(t.get('volume_usd', 0) or 0):,.0f}",
-                "reasoning": f"Whale-flagged swap on {chain} ({t.get('tx_hash', '')[:10]}...)",
-                "indicators": ["whale_trade", {"volume_usd": float(t.get("volume_usd", 0) or 0)}],
+                "confidence": confidence,
+                "title": f"{label.capitalize()} {side.upper()} ${float(t.get('volume_usd', 0) or 0):,.0f}"
+                if side != "unknown"
+                else f"{label.capitalize()} activity ${float(t.get('volume_usd', 0) or 0):,.0f}",
+                "reasoning": f"{label}-labeled swap on {chain} ({t.get('tx_hash', '')[:10]}...)",
+                "indicators": ["whale_trade", label, {"volume_usd": float(t.get("volume_usd", 0) or 0)}],
+                "wallet_label": label,
                 "timeframe": "1h",
             }
         )
-    return {"chain": chain, "address": address, "signals": signals, "count": len(signals)}
+    return {
+        "chain": chain,
+        "address": address,
+        "signals": signals[:limit],
+        "count": len(signals[:limit]),
+        "label_summary": label_summary(labeled),
+    }

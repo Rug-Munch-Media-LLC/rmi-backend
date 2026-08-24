@@ -125,10 +125,10 @@ class TestRugchartsOhlcv:
         import app.routers.rugcharts as rc
 
         fake_candles = _candles(10)
-        monkeypatch.setattr(rc, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=fake_candles))
+        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=fake_candles))
         gecko = AsyncMock(return_value=[])
-        monkeypatch.setattr(rc, "_fetch_ohlcv_gecko", gecko)
-        monkeypatch.setattr(rc, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
+        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_gecko", gecko)
+        monkeypatch.setattr(rc.routes, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/solana/0xabc?timeframe=1h&limit=10")
         assert resp.status_code == 200, resp.text
@@ -151,10 +151,10 @@ class TestRugchartsOhlcv:
         its candles are returned verbatim."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
+        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
         gecko = AsyncMock(return_value=_candles(5))
-        monkeypatch.setattr(rc, "_fetch_ohlcv_gecko", gecko)
-        monkeypatch.setattr(rc, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
+        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_gecko", gecko)
+        monkeypatch.setattr(rc.routes, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/ethereum/0xdef?timeframe=1h&limit=5")
         assert resp.status_code == 200, resp.text
@@ -189,7 +189,7 @@ class TestRugchartsTrending:
                 "source": "new_launch",
             },
         ]
-        monkeypatch.setattr(rc, "_fetch_dexscreener_trending", AsyncMock(return_value=(tokens, False)))
+        monkeypatch.setattr(rc.routes, "_fetch_dexscreener_trending", AsyncMock(return_value=(tokens, False)))
 
         resp = client.get("/api/v1/rugcharts/trending?chain=solana&limit=10")
         assert resp.status_code == 200, resp.text
@@ -210,10 +210,10 @@ class TestRugchartsIntel:
         real TA, a prediction, and an intel brief."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
-        monkeypatch.setattr(rc, "_fetch_ohlcv_gecko", AsyncMock(return_value=_candles(24)))
+        monkeypatch.setattr(rc.routes, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
+        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=_candles(24)))
         monkeypatch.setattr(
-            rc,
+            rc.routes,
             "_compute_rug_score",
             lambda pair_info, vol_auth: {
                 "score": 72,
@@ -343,7 +343,7 @@ class TestRugchartsWhales:
                 "chain": "solana",
             },
         ]
-        monkeypatch.setattr(rc, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=trades))
+        monkeypatch.setattr(rc.routes, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=trades))
 
         resp = client.get("/api/v1/rugcharts/whales/solana/0xTOKEN")
         assert resp.status_code == 200, resp.text
@@ -364,7 +364,7 @@ class TestRugchartsWhales:
         import app.routers.rugcharts as rc
 
         mock = AsyncMock(return_value=[])
-        monkeypatch.setattr(rc, "_fetch_whale_trades_clickhouse", mock)
+        monkeypatch.setattr(rc.routes, "_fetch_whale_trades_clickhouse", mock)
 
         client.get("/api/v1/rugcharts/whales/ethereum/0xABC?limit=50&min_usd=50000")
         mock.assert_awaited_once_with("0xABC", "ethereum", 50, 50_000.0)
@@ -373,7 +373,7 @@ class TestRugchartsWhales:
         """No whale rows → empty lists and zero counts (soft overlay)."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=[]))
+        monkeypatch.setattr(rc.routes, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=[]))
 
         resp = client.get("/api/v1/rugcharts/whales/base/0xEMPTY")
         assert resp.status_code == 200, resp.text
@@ -388,39 +388,39 @@ class TestWhaleSideDerivation:
     """Pure-function tests for the V2 in/out → buy/sell logic."""
 
     def test_token0_out_is_buy(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         # token0 received FROM pool → trader bought token0
         assert _whale_side("0xT", "0xT", "0xWETH", "0", "0", "1000", "0") == "buy"
 
     def test_token0_in_with_token1_out_is_sell(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         # token0 sent INTO pool + token1 received OUT → trader sold token0
         assert _whale_side("0xT", "0xT", "0xWETH", "1000", "0", "0", "1500") == "sell"
 
     def test_token1_out_is_buy(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         assert _whale_side("0xT", "0xWETH", "0xT", "0", "0", "0", "2500") == "buy"
 
     def test_token1_in_with_token0_out_is_sell(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         assert _whale_side("0xT", "0xWETH", "0xT", "0", "1500", "800", "0") == "sell"
 
     def test_case_insensitive_match(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         assert _whale_side("0xt", "0xT", "0xWETH", "0", "0", "500", "0") == "buy"
 
     def test_no_match_is_unknown(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         assert _whale_side("0xOTHER", "0xT", "0xWETH", "100", "0", "0", "0") == "unknown"
 
     def test_v3_absolute_amounts_are_unknown(self) -> None:
-        from app.routers.rugcharts_helpers import _whale_side
+        from app.routers.rugcharts.helpers import _whale_side
 
         # V3 rows: only amount0/amount1 populated, all positive — no direction.
         assert _whale_side("0xT", "0xWETH", "0xT", "0", "0", "0", "0") == "unknown"
