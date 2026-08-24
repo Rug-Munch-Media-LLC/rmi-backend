@@ -27,7 +27,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.logging import get_logger
 
-from .classifier import classify_trades
+from .classifier import classify_trades, volume_breakdown
 from .helpers import _fetch_recent_trades_clickhouse
 
 logger = get_logger("rugcharts_ws")
@@ -39,6 +39,7 @@ MAX_CONNECTIONS = 200
 MAX_PER_GROUP = 25
 MAX_TRADES_PER_PUSH = 30
 DEDUPE_WINDOW = 500
+STATS_EVERY_N_POLLS = 5  # ~10s at default interval
 
 
 class _Group:
@@ -52,12 +53,44 @@ class _Group:
         self.task: asyncio.Task[None] | None = None
 
     async def _poll_and_push(self) -> None:
+        poll_count = 0
         while self.clients:
             try:
                 trades = await _fetch_recent_trades_clickhouse(self.token, self.chain, limit=50)
-                fresh = [
-                    t for t in classify_trades(trades) if t.get("tx_hash") and t["tx_hash"] not in self.sent_hashes
-                ]
+                labeled = classify_trades(trades)
+                fresh = [t for t in labeled if t.get("tx_hash") and t["tx_hash"] not in self.sent_hashes]
+
+                # WIN-11: periodic authoritative stats frame (bot %, buy pressure).
+                poll_count += 1
+                if poll_count % STATS_EVERY_N_POLLS == 0 and labeled:
+                    stats = volume_breakdown(labeled)
+                    payload_stats = json.dumps(
+                        {
+                            "type": "stats",
+                            "chain": self.chain,
+                            "token": self.token,
+                            "stats": {
+                                k: stats[k]
+                                for k in (
+                                    "bot_volume_pct",
+                                    "suspicious_volume_pct",
+                                    "organic_volume_pct",
+                                    "buy_pressure",
+                                    "confidence",
+                                )
+                            },
+                            "sample": stats["sample"],
+                        }
+                    )
+                    dead_s: list[WebSocket] = []
+                    for ws in list(self.clients):
+                        try:
+                            await ws.send_text(payload_stats)
+                        except Exception:
+                            dead_s.append(ws)
+                    for ws in dead_s:
+                        self._drop(ws)
+
                 if fresh:
                     for t in fresh:
                         self.sent_hashes.add(t["tx_hash"])
