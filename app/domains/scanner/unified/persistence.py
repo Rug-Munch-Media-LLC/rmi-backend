@@ -117,7 +117,7 @@ async def persist_result(result: ScanResult) -> None:
     # ── 3. Redis cache (independent of Postgres) — full legacy dict so a
     #    cache hit can be served as a complete ScanResult ──
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
         from app.domains.scanner.unified._legacy import _to_legacy_dict
 
         r = get_redis_async()
@@ -134,7 +134,7 @@ async def persist_result(result: ScanResult) -> None:
     #    run being counted twice when both persists fire). ──
     if result.background_status == "complete" and not getattr(result, "_stability_recorded", False):
         try:
-            from app.core.redis import get_redis_async
+            from app.domains.scanner.engines._exceptions import get_redis_async
 
             r = get_redis_async()
             if r is not None:
@@ -170,7 +170,7 @@ async def read_stability(chain: str, address: str) -> dict[str, Any] | None:
     frequent recent risk level and ``agreeing`` counts scans matching it.
     """
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -287,7 +287,7 @@ async def _get_async_session() -> Any | None:
 
 async def publish_rag_finding(result: ScanResult) -> None:
     """Publish high-risk scan finding to rmi-rag via Redis channel ``rmi:rag:ingest``."""
-    from app.core.redis import get_redis_async
+    from app.domains.scanner.engines._exceptions import get_redis_async
 
     r = get_redis_async()
     if r is None:

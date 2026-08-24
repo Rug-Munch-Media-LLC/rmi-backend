@@ -626,7 +626,7 @@ async def ingest_patterns_into_rag(findings: list[dict[str, Any]]) -> int:
 
         from redis.exceptions import RedisError
 
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:

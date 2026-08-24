@@ -526,7 +526,7 @@ async def _alert_high_risk(results: list[dict[str, Any]], chain: str) -> list[st
 async def _was_alerted(chain: str, token: str) -> bool:
     """Return True when this token was already alerted (Redis set)."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -541,7 +541,7 @@ async def _was_alerted(chain: str, token: str) -> bool:
 async def _mark_alerted(chain: str, token: str) -> None:
     """Mark a token as alerted for the dedup window."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:

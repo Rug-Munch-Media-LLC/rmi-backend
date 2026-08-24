@@ -196,7 +196,7 @@ async def _fetch_from_api(hex_signature: str) -> str | None:
 async def _redis_get(key: str) -> str | None:
     """Best-effort Redis GET. Returns None when Redis is unavailable."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
@@ -214,7 +214,7 @@ async def _redis_get(key: str) -> str | None:
 async def _redis_set(key: str, value: str, ttl: int = CACHE_TTL) -> None:
     """Best-effort Redis SETEX. Never raises."""
     try:
-        from app.core.redis import get_redis_async
+        from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = get_redis_async()
         if r is None:
