@@ -23,7 +23,6 @@ Auto-detects credit status and adjusts limits accordingly.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import os
 import time
@@ -64,113 +63,59 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
 
     # OpenRouter - different limits based on credit status
     or_rpd = 1000 if has_openrouter_credits else 50
-
     PROVIDERS = [
-        # ── Tier 1: Google Gemini #1 (3072d, FREE, best quality) ──
+        # ── Tier 1: LOCAL ALWAYS FIRST (free, self-hosted Qwen3) ──
         ProviderLimit(
-            id="gemini_1",
-            name="Google Gemini #1",
-            model="gemini-embedding-001",
-            dims=3072,
-            base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
-            key_env="GEMINI_API_KEY",
-            rpm=30,
-            rpd=1000,
+            id="qwen3_4b_local",
+            name="Qwen3-Embedding-4B local",
+            model="qwen3-embedding-4b",
+            dims=1024,
+            base_url=os.getenv("QWEN_EMBED_URL", "http://172.22.0.1:8004/v1") + "/embeddings",
+            key_env="",
+            rpm=99999,
+            rpd=99999,
             free=True,
-            priority=115,
+            priority=120,
         ),
-        # ── Tier 1b: Google Gemini #2 (3072d, separate project quota) ──
         ProviderLimit(
-            id="gemini_2",
-            name="Google Gemini #2",
-            model="gemini-embedding-001",
-            dims=3072,
-            base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
-            key_env="GEMINI_API_KEY_2",
-            rpm=30,
-            rpd=1000,
+            id="qwen3_06b_local",
+            name="Qwen3-Embedding-0.6B local (fast tier)",
+            model="qwen3-embedding-0.6b",
+            dims=1024,
+            base_url=os.getenv("QWEN_FAST_URL", "http://172.22.0.1:8007/v1") + "/embeddings",
+            key_env="",
+            rpm=99999,
+            rpd=99999,
             free=True,
             priority=110,
         ),
-        # ── Tier 1c: Google Gemini #3 (3072d, separate project quota) ──
+        # ── Tier 2: OpenRouter PAID backup (backup account) ──
         ProviderLimit(
-            id="gemini_3",
-            name="Google Gemini #3",
-            model="gemini-embedding-001",
-            dims=3072,
-            base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
-            key_env="GEMINI_API_KEY_3",
-            rpm=30,
-            rpd=1000,
-            free=True,
-            priority=105,
-        ),
-        # ── Tier 2: Mistral Embed (1024d, 1B free tokens/month) ──
-        ProviderLimit(
-            id="mistral",
-            name="Mistral Embed",
-            model="mistral-embed",
+            id="qwen3_8b_openrouter_paid",
+            name="Qwen3-Embedding-8B via OpenRouter (paid backup)",
+            model="qwen/qwen3-embedding-8b",
             dims=1024,
-            base_url="https://api.mistral.ai/v1/embeddings",
-            key_env="MISTRAL_API_KEY",
+            base_url="https://openrouter.ai/api/v1/embeddings",
+            key_env="OPENROUTER_BACKUP_API_KEY",
             rpm=60,
-            rpd=50000,
-            free=True,
-            priority=98,
+            rpd=or_rpd,
+            free=False,
+            priority=20,
         ),
-        # ── Tier 3: NVIDIA via OpenRouter (2048d, FREE) ──
+        # ── Tier 3: OpenRouter FREE (main account) ──
         ProviderLimit(
-            id="nv_openrouter",
-            name="NVIDIA (OpenRouter)",
-            model="nvidia/llama-nemotron-embed-vl-1b-v2:free",
-            dims=2048,
+            id="qwen3_free_openrouter",
+            name="LFM2.5-Embedding-350M free via OpenRouter (main acct, 1024-dim)",
+            model=os.getenv("OPENROUTER_FREE_EMBED_MODEL", "liquid/lfm-2.5-embedding-350m:free"),
+            dims=1024,
             base_url="https://openrouter.ai/api/v1/embeddings",
             key_env="OPENROUTER_API_KEY",
             rpm=20,
             rpd=or_rpd,
             free=True,
-            priority=100,
+            priority=15,
         ),
-        # ── Tier 2: NVIDIA Direct (separate quota from OpenRouter) ──
-        ProviderLimit(
-            id="nv_direct",
-            name="NVIDIA Direct",
-            model="nvidia/llama-nemotron-embed-vl-1b-v2",
-            dims=2048,
-            base_url="https://integrate.api.nvidia.com/v1/embeddings",
-            key_env="NVIDIA_API_KEY",
-            rpm=40,
-            rpd=1000,
-            free=True,
-            priority=95,
-        ),
-        # ── Tier 3: Qwen3 via OpenRouter (paid, minimized) ──
-        ProviderLimit(
-            id="bge_m3",
-            name="Qwen3 (OpenRouter)",
-            model="qwen3-embedding-4b",
-            dims=1024,
-            base_url="https://openrouter.ai/api/v1/embeddings",
-            key_env="OPENROUTER_API_KEY",
-            rpm=10,
-            rpd=100,
-            free=False,
-            priority=20,
-        ),
-        # ── Tier 4: Local BGE-small (CPU, always available) ──
-        ProviderLimit(
-            id="local_bge",
-            name="Local Qwen3-fallback",
-            model="local/bge-small-en-v1.5",
-            dims=384,
-            base_url="",
-            key_env="",
-            rpm=99999,
-            rpd=99999,
-            free=True,
-            priority=10,
-        ),
-        # ── Tier 5: Hash fallback (zero cost, deterministic) ──
+        # ── Tier 4: Hash fallback (zero cost, deterministic, last resort) ──
         ProviderLimit(
             id="hash",
             name="Hash Fallback",
@@ -430,13 +375,9 @@ class EmbeddingDispatcher:
         await self.tracker._connect()
         # Restore cache from Redis if available
         self.cache.load_from_redis()
-        try:
-            import sentence_transformers
-
-            self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
-            logger.info("Local Qwen3-fallback loaded")
-        except Exception as e:
-            logger.warning(f"Local model: {e}")
+        # Local embedders are the self-hosted Qwen3 llama.cpp servers
+        # (:8004 deep / :8007 fast) — no in-process model to preload.
+        logger.info("Embed providers: local Qwen3 4B+0.6B first, OR paid 8B backup, OR free LFM")
 
     async def embed(self, texts: list[str], task: str = "default") -> tuple[list[list[float]], str]:
         """Smart embed with quality-tier routing.
@@ -472,19 +413,19 @@ class EmbeddingDispatcher:
         for p in sorted(self._providers, key=lambda x: -x.priority):
             # Tier filter: only use providers allowed for this task
             # Local/hash always available as fallback
-            if allowed and p.id not in allowed and p.id not in ("local_bge", "hash"):
+            if allowed and p.id not in allowed and p.id not in ("qwen3_4b_local", "qwen3_06b_local", "hash"):
                 continue
             # Dimension filter
-            if p.dims < min_dims and p.id not in ("local_bge", "hash"):
+            if p.dims < min_dims and p.id not in ("qwen3_4b_local", "qwen3_06b_local", "hash"):
                 continue
 
             if not await self.tracker.can_call(p):
                 continue
 
             # ── Local ──
-            if p.id == "local_bge":
+            if p.id in ("qwen3_4b_local", "qwen3_06b_local"):
                 try:
-                    vecs = await self._embed_local(to_embed)
+                    vecs = await self._embed_local(to_embed, provider_id=p.id)
                     if vecs:
                         await self.tracker.record(p)
                         provider_name = p.name
@@ -522,6 +463,21 @@ class EmbeddingDispatcher:
         if vectors is None:
             vectors = self._embed_hash(to_embed)
             provider_name = "hash_emergency"
+
+        # Enforce the collection dim on every vector (MRL truncate +
+        # renormalize). Undersized vectors from a misconfigured provider
+        # are dropped loudly rather than poisoning a collection.
+        from app.embed_tiers import COLLECTION_DIM, normalize_dims
+
+        cleaned: list[list[float]] = []
+        for vec in vectors or []:
+            if len(vec) < COLLECTION_DIM:
+                logger.error(
+                    f"provider {provider_name} returned {len(vec)} dims < required {COLLECTION_DIM}; dropping batch"
+                )
+                return [], provider_name
+            cleaned.append(normalize_dims(vec))
+        vectors = cleaned
 
         # Cache results
         for text, vec in zip(to_embed, texts, strict=False):
@@ -586,17 +542,35 @@ class EmbeddingDispatcher:
             data = r.json()
             return [e.get("embedding", []) for e in data.get("data", [])]
 
-    async def _embed_local(self, texts: list[str]) -> list[list[float]] | None:
-        if not self._local_model:
-            try:
-                import sentence_transformers
+    async def _embed_local(self, texts: list[str], provider_id: str = "qwen3_4b_local") -> list[list[float]] | None:
+        """Embed via the self-hosted Qwen3 llama.cpp servers (:8004 deep /
+        :8007 fast). OpenAI-compatible /v1/embeddings; output already
+        1024-dim matching our collections."""
+        import os as _os
 
-                self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
-            except (AttributeError, ImportError):
-                return None
-        loop = asyncio.get_event_loop()
-        vecs = await loop.run_in_executor(None, lambda: self._local_model.encode(texts, normalize_embeddings=True))
-        return vecs.tolist() if hasattr(vecs, "tolist") else [[float(x) for x in v] for v in vecs]
+        if provider_id == "qwen3_06b_local":
+            base = _os.getenv("QWEN_FAST_URL", "http://172.22.0.1:8007/v1")
+            model = "qwen3-embedding-0.6b"
+        else:
+            base = _os.getenv("QWEN_EMBED_URL", "http://172.22.0.1:8004/v1")
+            model = "qwen3-embedding-4b"
+        try:
+            import httpx as _httpx
+
+            async with _httpx.AsyncClient(timeout=60) as client:
+                r = await client.post(
+                    f"{base.rstrip('/')}/embeddings",
+                    json={"input": texts, "model": model},
+                )
+                r.raise_for_status()
+                data = r.json()
+            out = []
+            for item in sorted(data.get("data", []), key=lambda d: d.get("index", 0)):
+                out.append([float(x) for x in item["embedding"]])
+            return out or None
+        except Exception as e:
+            logger.warning(f"Local embed ({provider_id}): {e}")
+            return None
 
     def _embed_hash(self, texts: list[str]) -> list[list[float]]:
         import numpy as np
@@ -627,7 +601,7 @@ class EmbeddingDispatcher:
         return {
             "providers": len(self._providers),
             "free_providers": available,
-            "local_model_loaded": self._local_model is not None,
+            "local_embedders": ["qwen3_4b_local", "qwen3_06b_local"],
         }
 
 
