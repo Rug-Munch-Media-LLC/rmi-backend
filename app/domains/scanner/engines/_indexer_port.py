@@ -84,11 +84,16 @@ def default_port() -> IndexerPort:
             lite_chain_indexer as _provider,
         )
 
+        # NB: resolve provider attributes LAZILY (lambda indirection), NOT by
+        # reference. Binding `_provider._get_ch_client` directly would freeze
+        # whatever object was in place at first call — a mock patched in an
+        # earlier test (or any runtime rebinding) would be served forever,
+        # silently poisoning every later caller's ClickHouse reads.
         _adapter = _ProviderAdapter(
-            _ch_client=_provider._get_ch_client,
-            _new_ch_client=getattr(_provider, "_new_ch_client", _provider._get_ch_client),
-            _normalize_chain=_provider._normalize_chain,
-            _clear_caches=getattr(_provider, "_common_clear_cache", lambda: None),
+            _ch_client=lambda: _provider._get_ch_client(),
+            _new_ch_client=lambda: getattr(_provider, "_new_ch_client", _provider._get_ch_client)(),
+            _normalize_chain=lambda chain: _provider._normalize_chain(chain),
+            _clear_caches=lambda: getattr(_provider, "_common_clear_cache", lambda: None)(),
         )
     return _adapter
 
