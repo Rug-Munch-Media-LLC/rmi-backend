@@ -125,7 +125,7 @@ should be provided via environment variables or Docker secrets.
 
 This repo follows the open-core model. The publicly visible scanner modules,
 API patterns, and database schemas are open source. The core admin backend,
-proprietary scoring algorithms, and production infrastructure are private.
+advanced scoring algorithms and production infrastructure remain private.
 
 See [OPEN-CORE.md](OPEN-CORE.md) for details.
 
@@ -143,3 +143,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practice
 ## License
 
 Source Available — Rug Munch Media LLC. See [LICENSE](LICENSE).
+
+## FAQ
+
+See [docs/FAQ.md](docs/FAQ.md) for frequently asked questions.
