@@ -214,6 +214,7 @@ class DataBus:
         tool_id: str = "",
         x402_tier: str = "",
         request=None,
+        service_key: str | None = "",
         **kwargs,
     ) -> dict[str, Any] | None:
         """
@@ -234,12 +235,13 @@ class DataBus:
 
         # ── 1. SECURITY CHECK ──
         access_level = self.security.get_access_level(data_type)
-        if not self.security.check_access(data_type, admin_key=admin_key):
+        if not self.security.check_access(data_type, admin_key=admin_key, service_key=service_key):
             consumer = access_controller.identify_consumer(
                 admin_key=admin_key,
                 consumer_type=consumer_type,
                 tool_id=tool_id,
                 x402_tier=x402_tier,
+                service_key=service_key,
             )
             packaging = access_controller.check_access(data_type, consumer)
             if packaging == "denied":
@@ -384,6 +386,7 @@ class DataBus:
             consumer_type=consumer_type,
             tool_id=tool_id,
             x402_tier=x402_tier,
+            service_key=service_key,
         )
 
         if "data" in result and isinstance(result["data"], dict):

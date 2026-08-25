@@ -48,6 +48,7 @@ async def databus_fetch(request: Request) -> Any:
     consumer_type = body.pop("consumer_type", "")
     tool_id = body.pop("tool_id", "")
     x402_tier = body.pop("x402_tier", "")
+    service_key = request.headers.get("X-RMI-Key", "")
 
     result = await databus.fetch(
         data_type=data_type,
@@ -58,6 +59,7 @@ async def databus_fetch(request: Request) -> Any:
         tool_id=tool_id,
         x402_tier=x402_tier,
         request=request,
+        service_key=service_key,
         **body,
     )
     if result is None:
@@ -79,7 +81,13 @@ async def databus_fetch_get(
         if key not in ("admin_key", "force_fresh"):
             kwargs[key] = value
 
-    result = await databus.fetch(data_type=data_type, admin_key=admin_key, force_fresh=force_fresh, **kwargs)
+    result = await databus.fetch(
+        data_type=data_type,
+        admin_key=admin_key,
+        force_fresh=force_fresh,
+        service_key=request.headers.get("X-RMI-Key", ""),
+        **kwargs,
+    )
     if result is None:
         raise HTTPException(502, f"No data available for {data_type}")
     return result
