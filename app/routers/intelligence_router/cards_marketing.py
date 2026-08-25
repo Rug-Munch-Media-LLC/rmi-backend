@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.core.errors import AppError, ValidationError
 from app.core.logging import get_logger
@@ -18,10 +18,37 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
+def _require_service_key(request: Request) -> None:
+    """Gate generation endpoints behind the fleet service key.
+
+    Card/marketing generation invokes paid AI/image pipelines. Zero
+    legitimate anonymous callers exist (frontend + bots verified 2026-08-25),
+    so these fail closed: X-API-Key / X-RMI-Key / Bearer carrying
+    RMI_AUTH_TOKEN or RMI_INTERNAL_KEY required.
+    """
+    from app.config import settings
+
+    accepted = {
+        token
+        for token in (
+            getattr(settings, "rmi_auth_token", None),
+            getattr(settings, "rmi_internal_key", None),
+        )
+        if token
+    }
+    token = (
+        request.headers.get("X-API-Key", "")
+        or request.headers.get("X-RMI-Key", "")
+        or request.headers.get("Authorization", "").replace("Bearer ", "")
+    )
+    if not accepted or token not in accepted:
+        raise HTTPException(status_code=401, detail="Unauthorized — invalid service key")
+
+
 # ── Card Generation Endpoints ─────────────────────────────────
 
 
-@router.post("/cards/generate")
+@router.post("/cards/generate", dependencies=[Depends(_require_service_key)])
 async def generate_card(card_type: str, data: dict[str, Any]) -> Any:
     """Generate shareable card (win, loss, KOL, rug, etc.)."""
     try:
@@ -97,7 +124,7 @@ async def list_marketing_templates_endpoint() -> dict[str, Any]:
         raise AppError(message=str(e)[:200]) from e
 
 
-@router.post("/marketing/generate")
+@router.post("/marketing/generate", dependencies=[Depends(_require_service_key)])
 async def generate_marketing_graphic(graphic_type: str, data: dict[str, Any] | None = None) -> Any:
     """Generate marketing graphic (banner, feature card, stats, etc.)."""
     try:
@@ -117,7 +144,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict[str, Any] | N
         raise AppError(message=str(e)[:200]) from e
 
 
-@router.post("/marketing/generate/feature-cards")
+@router.post("/marketing/generate/feature-cards", dependencies=[Depends(_require_service_key)])
 async def generate_all_feature_cards_endpoint() -> dict[str, Any]:
     """Generate feature showcase cards for all features."""
     try:
@@ -131,6 +158,7 @@ async def generate_all_feature_cards_endpoint() -> dict[str, Any]:
 
 @router.post(
     "/marketing/generate/stats",
+    dependencies=[Depends(_require_service_key)],
     summary="Generate Stats Graphic",
     description="Generate a stats/metrics marketing graphic from the provided stat value, label, and context. Returns a rendered image URL.",
 )
@@ -154,6 +182,7 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
 
 @router.post(
     "/marketing/generate/pricing",
+    dependencies=[Depends(_require_service_key)],
     summary="Generate Pricing Graphic",
     description="Generate a pricing tier marketing graphic with the given tier name, price, and feature list. Returns a rendered image URL.",
 )

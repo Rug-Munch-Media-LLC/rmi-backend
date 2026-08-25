@@ -19,10 +19,11 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from app.core.rate_limiter import get_rate_limit_dependency
 from app.core.redis import get_redis_async
 
 logger = get_logger(__name__)
@@ -96,7 +97,6 @@ async def _fetch_trades_from_sources(address: str, chain: str, limit: int) -> li
 
     # 1. Try Birdeye API (works — we have API key)
     try:
-
         from app.birdeye_client import BirdeyeClient
 
         birdeye = BirdeyeClient()
@@ -186,7 +186,11 @@ async def _fetch_trades_from_sources(address: str, chain: str, limit: int) -> li
 # ── Routes ──
 
 
-@router.get("/{chain}/{address}", summary="Get recent trades for a token")
+@router.get(
+    "/{chain}/{address}",
+    summary="Get recent trades for a token",
+    dependencies=[Depends(get_rate_limit_dependency("trades1", rate=1.0, burst=3))],
+)
 async def get_token_trades(
     chain: str,
     address: str,
@@ -255,7 +259,11 @@ async def get_token_trades(
     }
 
 
-@router.get("/{chain}/{address}/stats", summary="Get trade statistics for a token")
+@router.get(
+    "/{chain}/{address}/stats",
+    summary="Get trade statistics for a token",
+    dependencies=[Depends(get_rate_limit_dependency("trades2", rate=1.0, burst=3))],
+)
 async def get_trade_stats(
     chain: str,
     address: str,
@@ -301,7 +309,11 @@ async def get_trade_stats(
     }
 
 
-@router.get("/feed", summary="Live trade feed for monitored tokens")
+@router.get(
+    "/feed",
+    summary="Live trade feed for monitored tokens",
+    dependencies=[Depends(get_rate_limit_dependency("trades3", rate=1.0, burst=3))],
+)
 async def get_trade_feed(
     chain: str = Query(default="solana", description="Blockchain to monitor"),
     min_amount: float = Query(default=1000, ge=0, description="Minimum USD trade to show"),

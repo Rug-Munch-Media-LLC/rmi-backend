@@ -37,9 +37,10 @@ def _L(module_path) -> Any:
 
 
 # Lightweight imports (eager - these are fast)
-from fastapi import APIRouter  # noqa: E402 — module docstring precedes import block
+from fastapi import APIRouter, Depends  # noqa: E402 — module docstring precedes import block
 from pydantic import BaseModel, Field  # noqa: E402 — module docstring precedes import block
 
+from app.core.rate_limiter import get_rate_limit_dependency  # noqa: E402
 from app.cross_chain_correlator import (  # noqa: E402 — module docstring precedes import block
     ChainFingerprint,
     CrossChainCorrelator,
@@ -135,6 +136,7 @@ class AlertAckRequest(BaseModel):
     "/contract/{address}",
     summary="Get Contract Intelligence",
     description="Get contract security intelligence including Mythril and Slither analysis results, known vulnerabilities, and risk scoring.",
+    dependencies=[Depends(get_rate_limit_dependency("secint1", rate=2.0, burst=5))],
 )
 async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = False) -> Any:
     """Analyze contract - bytecode scan + optional Slither/Mythril deep scan."""
@@ -181,7 +183,7 @@ async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = 
     return response
 
 
-@router.post("/scan/batch")
+@router.post("/scan/batch", dependencies=[Depends(get_rate_limit_dependency("secint2", rate=2.0, burst=5))])
 async def batch_contract_scan(req: BatchContractRequest) -> dict[str, Any]:
     """Batch contract scan - fast or deep."""
     if req.deep:
@@ -219,7 +221,7 @@ async def batch_contract_scan(req: BatchContractRequest) -> dict[str, Any]:
 # ─── WALLET / THREAT INTEL ──────────────────────────────────
 
 
-@router.get("/wallet/{address}")
+@router.get("/wallet/{address}", dependencies=[Depends(get_rate_limit_dependency("secint3", rate=2.0, burst=5))])
 async def wallet_security_check(address: str, chain: str = "auto") -> dict[str, Any]:
     """Full wallet security check: reputation + threat intel."""
     _cg = _L("app.crypto_guard")
@@ -247,7 +249,7 @@ async def wallet_security_check(address: str, chain: str = "auto") -> dict[str, 
     }
 
 
-@router.post("/wallet/analyze")
+@router.post("/wallet/analyze", dependencies=[Depends(get_rate_limit_dependency("secint4", rate=2.0, burst=5))])
 async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict[str, Any]:
     """ML behavioral analysis of wallet transactions."""
     # TODO(security-intel): endpoints in this module call APIs that do not match
@@ -280,7 +282,7 @@ async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict[str, Any]:
     }
 
 
-@router.post("/threat/check")
+@router.post("/threat/check", dependencies=[Depends(get_rate_limit_dependency("secint5", rate=2.0, burst=5))])
 async def batch_threat_check(req: ThreatBatchRequest) -> dict[str, Any]:
     """Batch threat intel lookup."""
     _ti = _L("app.threat_intel")
@@ -300,7 +302,7 @@ async def batch_threat_check(req: ThreatBatchRequest) -> dict[str, Any]:
 # ─── GRAPH ANALYSIS ─────────────────────────────────────────
 
 
-@router.post("/graph/analyze")
+@router.post("/graph/analyze", dependencies=[Depends(get_rate_limit_dependency("secint6", rate=2.0, burst=5))])
 async def graph_analyze(req: GraphAnalyzeRequest) -> Any:
     """Transaction graph: clusters, flows, anomalies."""
     _tga = _L("app.tx_graph_analyzer")
@@ -359,7 +361,7 @@ async def graph_analyze(req: GraphAnalyzeRequest) -> Any:
 # ─── CROSS-CHAIN ────────────────────────────────────────────
 
 
-@router.post("/crosschain/correlate")
+@router.post("/crosschain/correlate", dependencies=[Depends(get_rate_limit_dependency("secint7", rate=2.0, burst=5))])
 async def crosschain_correlate(req: CrossChainRequest) -> dict[str, Any]:
     """Find cross-chain wallet correlations."""
     correlator = CrossChainCorrelator(confidence_threshold=0.6)  # type: ignore[call-arg]
@@ -394,7 +396,7 @@ async def crosschain_correlate(req: CrossChainRequest) -> dict[str, Any]:
 # ─── ML / ANOMALY ───────────────────────────────────────────
 
 
-@router.post("/ml/token/anomaly")
+@router.post("/ml/token/anomaly", dependencies=[Depends(get_rate_limit_dependency("secint8", rate=2.0, burst=5))])
 async def token_metric_anomaly(req: TokenMetricRequest) -> Any:
     """Detect token metric anomalies vs baseline."""
     detector = await get_token_detector()
@@ -406,7 +408,7 @@ async def token_metric_anomaly(req: TokenMetricRequest) -> Any:
 # ─── MEMPOOL ────────────────────────────────────────────────
 
 
-@router.get("/mempool/status")
+@router.get("/mempool/status", dependencies=[Depends(get_rate_limit_dependency("secint9", rate=2.0, burst=5))])
 async def mempool_status() -> dict[str, Any]:
     """Mempool sentinel status + recent detections."""
     sentinel = await get_sentinel()
@@ -424,6 +426,7 @@ async def mempool_status() -> dict[str, Any]:
     "/mempool/start",
     summary="Mempool Start",
     description="Start monitoring the mempool for suspicious transactions on a specified chain.",
+    dependencies=[Depends(get_rate_limit_dependency("secint10", rate=2.0, burst=5))],
 )
 async def mempool_start(chain: str = "ethereum") -> dict[str, str]:
     sentinel = await get_sentinel()
@@ -431,7 +434,12 @@ async def mempool_start(chain: str = "ethereum") -> dict[str, str]:
     return {"status": "started", "chain": chain}
 
 
-@router.post("/mempool/stop", summary="Mempool Stop", description="Stop monitoring the mempool for a specified chain.")
+@router.post(
+    "/mempool/stop",
+    summary="Mempool Stop",
+    description="Stop monitoring the mempool for a specified chain.",
+    dependencies=[Depends(get_rate_limit_dependency("secint11", rate=2.0, burst=5))],
+)
 async def mempool_stop() -> dict[str, str]:
     sentinel = await get_sentinel()
     await sentinel.stop()  # type: ignore[attr-defined]
@@ -441,7 +449,7 @@ async def mempool_stop() -> dict[str, str]:
 # ─── DASHBOARD ──────────────────────────────────────────────
 
 
-@router.get("/dashboard/stats")
+@router.get("/dashboard/stats", dependencies=[Depends(get_rate_limit_dependency("secint12", rate=2.0, burst=5))])
 async def dashboard_stats() -> Any:
     """Security dashboard statistics."""
     _sd = _L("app.security_dashboard")
@@ -449,7 +457,7 @@ async def dashboard_stats() -> Any:
     return dash.get_stats()
 
 
-@router.get("/dashboard/alerts")
+@router.get("/dashboard/alerts", dependencies=[Depends(get_rate_limit_dependency("secint13", rate=2.0, burst=5))])
 async def dashboard_alerts(
     severity: str | None = None,
     source: str | None = None,
@@ -462,7 +470,7 @@ async def dashboard_alerts(
     return dash.get_alerts(severity, source, limit, unacknowledged)
 
 
-@router.post("/dashboard/acknowledge")
+@router.post("/dashboard/acknowledge", dependencies=[Depends(get_rate_limit_dependency("secint14", rate=2.0, burst=5))])
 async def dashboard_acknowledge(req: AlertAckRequest) -> dict[str, Any]:
     """Acknowledge an alert."""
     _sd = _L("app.security_dashboard")
@@ -471,7 +479,7 @@ async def dashboard_acknowledge(req: AlertAckRequest) -> dict[str, Any]:
     return {"acknowledged": success}
 
 
-@router.get("/dashboard/score")
+@router.get("/dashboard/score", dependencies=[Depends(get_rate_limit_dependency("secint15", rate=2.0, burst=5))])
 async def dashboard_score(hours: int = 24) -> dict[str, Any]:
     """Get rolling security score."""
     _sd = _L("app.security_dashboard")
@@ -483,7 +491,9 @@ async def dashboard_score(hours: int = 24) -> dict[str, Any]:
     }
 
 
-@router.get("/dashboard/timeline/{target}")
+@router.get(
+    "/dashboard/timeline/{target}", dependencies=[Depends(get_rate_limit_dependency("secint16", rate=2.0, burst=5))]
+)
 async def dashboard_timeline(target: str) -> dict[str, Any]:
     """Get incident timeline for a target."""
     _sd = _L("app.security_dashboard")
@@ -494,7 +504,7 @@ async def dashboard_timeline(target: str) -> dict[str, Any]:
 # ─── ENTITY LABELING ─────────────────────────────────────────
 
 
-@router.get("/entity/label/{address}")
+@router.get("/entity/label/{address}", dependencies=[Depends(get_rate_limit_dependency("secint17", rate=2.0, burst=5))])
 async def entity_label(address: str) -> dict[str, Any]:
     """Lookup entity label for an address."""
     _el = _L("app.entity_labeler")
@@ -504,14 +514,14 @@ async def entity_label(address: str) -> dict[str, Any]:
     return {"address": address, "entity": entity.to_dict(), "known": True}
 
 
-@router.post("/entity/batch")
+@router.post("/entity/batch", dependencies=[Depends(get_rate_limit_dependency("secint18", rate=2.0, burst=5))])
 async def entity_batch_label(addresses: list[str]) -> Any:
     """Batch entity label lookup."""
     _el = _L("app.entity_labeler")
     return await _el.batch_label_addresses(addresses)
 
 
-@router.get("/entity/search")
+@router.get("/entity/search", dependencies=[Depends(get_rate_limit_dependency("secint19", rate=2.0, burst=5))])
 async def entity_search(q: str = "", category: str | None = None, limit: int = 50) -> dict[str, Any]:
     """Search entity database."""
     _el = _L("app.entity_labeler")
@@ -520,7 +530,7 @@ async def entity_search(q: str = "", category: str | None = None, limit: int = 5
     return {"results": [r.to_dict() for r in results], "count": len(results)}
 
 
-@router.get("/entity/stats")
+@router.get("/entity/stats", dependencies=[Depends(get_rate_limit_dependency("secint20", rate=2.0, burst=5))])
 async def entity_stats() -> Any:
     """Entity database statistics."""
     _el = _L("app.entity_labeler")
@@ -528,7 +538,7 @@ async def entity_stats() -> Any:
     return await db.get_stats()
 
 
-@router.get("/entity/{entity_id}")
+@router.get("/entity/{entity_id}", dependencies=[Depends(get_rate_limit_dependency("secint21", rate=2.0, burst=5))])
 async def entity_detail(entity_id: str) -> Any:
     """Full entity graph with addresses and relationships."""
     _el = _L("app.entity_labeler")
@@ -539,7 +549,7 @@ async def entity_detail(entity_id: str) -> Any:
 # ─── PORTFOLIO TRACKER ──────────────────────────────────────
 
 
-@router.get("/portfolio/{wallet}")
+@router.get("/portfolio/{wallet}", dependencies=[Depends(get_rate_limit_dependency("secint22", rate=2.0, burst=5))])
 async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get portfolio for a single wallet."""
     _pt = _L("app.portfolio_tracker")
@@ -547,7 +557,7 @@ async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict[str, An
     return portfolio.to_dict()
 
 
-@router.post("/portfolio/multi")
+@router.post("/portfolio/multi", dependencies=[Depends(get_rate_limit_dependency("secint23", rate=2.0, burst=5))])
 async def portfolio_multi(wallets: list[dict[str, str]]) -> dict[str, Any]:
     """Aggregate portfolio across multiple wallets/chains."""
     _pt = _L("app.portfolio_tracker")
@@ -555,7 +565,9 @@ async def portfolio_multi(wallets: list[dict[str, str]]) -> dict[str, Any]:
     return result.to_dict()
 
 
-@router.get("/portfolio/history/{wallet}")
+@router.get(
+    "/portfolio/history/{wallet}", dependencies=[Depends(get_rate_limit_dependency("secint24", rate=2.0, burst=5))]
+)
 async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 24) -> dict[str, Any]:
     """Historical net worth chart data."""
     _pt = _L("app.portfolio_tracker")
@@ -572,7 +584,7 @@ async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 2
 # ─── WALLET MONITOR ─────────────────────────────────────────
 
 
-@router.post("/monitor/watch")
+@router.post("/monitor/watch", dependencies=[Depends(get_rate_limit_dependency("secint25", rate=2.0, burst=5))])
 async def monitor_watch(address: str, chain: str = "ethereum", tags: str = "") -> dict[str, Any]:
     """Add a wallet to the watchlist."""
     _wm = _L("app.domains.wallet.wallet_monitor")
@@ -581,7 +593,7 @@ async def monitor_watch(address: str, chain: str = "ethereum", tags: str = "") -
     return {"watched": True, "address": address, "chain": chain}
 
 
-@router.post("/monitor/unwatch")
+@router.post("/monitor/unwatch", dependencies=[Depends(get_rate_limit_dependency("secint26", rate=2.0, burst=5))])
 async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Remove a wallet from the watchlist."""
     _wm = _L("app.domains.wallet.wallet_monitor")
@@ -590,7 +602,7 @@ async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, An
     return {"unwatched": True, "address": address, "chain": chain}
 
 
-@router.get("/monitor/watches")
+@router.get("/monitor/watches", dependencies=[Depends(get_rate_limit_dependency("secint27", rate=2.0, burst=5))])
 async def monitor_list() -> dict[str, Any]:
     """List all watched wallets."""
     _wm = _L("app.domains.wallet.wallet_monitor")
@@ -602,7 +614,7 @@ async def monitor_list() -> dict[str, Any]:
 # ─── EXCHANGE FLOW ANALYZER ─────────────────────────────────
 
 
-@router.post("/flows/analyze")
+@router.post("/flows/analyze", dependencies=[Depends(get_rate_limit_dependency("secint28", rate=2.0, burst=5))])
 async def flows_analyze(
     entity_addresses: list[str],
     entity_name: str,
@@ -616,7 +628,7 @@ async def flows_analyze(
     return await _efa.analyze_entity_flows(entity_addresses, entity_name, entity_id, chain, transactions, hours)
 
 
-@router.post("/flows/reserves")
+@router.post("/flows/reserves", dependencies=[Depends(get_rate_limit_dependency("secint29", rate=2.0, burst=5))])
 async def flows_reserves(
     entity_addresses: list[str],
     entity_name: str,
@@ -628,7 +640,7 @@ async def flows_reserves(
     return await _efa.get_reserves(entity_addresses, entity_name, entity_id, chain)
 
 
-@router.post("/flows/compare")
+@router.post("/flows/compare", dependencies=[Depends(get_rate_limit_dependency("secint30", rate=2.0, burst=5))])
 async def flows_compare(
     entity_a: dict[str, Any],
     entity_b: dict[str, Any],
@@ -642,7 +654,7 @@ async def flows_compare(
 # ─── HEALTH ────────────────────────────────────────────────
 
 
-@router.get("/health")
+@router.get("/health", dependencies=[Depends(get_rate_limit_dependency("secint31", rate=2.0, burst=5))])
 async def security_health() -> dict[str, Any]:
     """Full subsystem health check."""
 
