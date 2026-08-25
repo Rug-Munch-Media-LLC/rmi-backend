@@ -165,3 +165,32 @@ async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
             r.bundle_analysis["same_slot"] = same_slot
     except Exception as exc:
         logger.debug("bundle_analysis_failed", error=str(exc)[:120])
+
+
+#: First-buyers sample size per scan tier (2026-08-25 quality push):
+#: quick/basic scans surface the top 25 earliest buyers; deep/elite scans
+#: get the full top-200 breakdown.
+FIRST_BUYERS_LIMIT_QUICK = 25
+FIRST_BUYERS_LIMIT_DEEP = 200
+
+
+async def run_first_buyers(r: ScanResult, address: str, chain: str, tier: str) -> None:
+    """Run first-buyers analysis from own indexer data (best-effort).
+
+    Ranks the earliest distinct buyers and classifies each wallet (fresh /
+    new / established age buckets, same-window bundling) — see
+    ``engines/first_buyers.py``. Sample size scales with tier: 25 on
+    quick scans, 200 on deep/elite. Never raises; a ClickHouse outage or
+    unindexed token leaves ``r.first_buyers`` as None.
+    """
+    try:
+        from app.domains.scanner.engines.first_buyers import get_first_buyers
+
+        limit = FIRST_BUYERS_LIMIT_DEEP if (tier or "").lower() in ("elite", "admin") else FIRST_BUYERS_LIMIT_QUICK
+        result = await get_first_buyers(address, chain, limit=limit)
+        if isinstance(result, dict) and result.get("buyers"):
+            r.first_buyers = result
+            r.modules_run.append("first_buyers")
+            r.enrichment_sources.append("first_buyers:own")
+    except Exception as exc:
+        logger.debug("first_buyers_failed", error=str(exc)[:120])

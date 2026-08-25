@@ -276,14 +276,44 @@ _register_analyzer_override("dev_reputation", _ovr_dev_reputation)
 _register_analyzer_override("cross_chain_trace", _ovr_cross_chain_trace)
 
 
-async def _resolve_deployer(address: str, chain: str) -> str | None:
-    """Best-effort deployer resolution via DexScreener (free, no API key).
+async def _resolve_deployer_from_indexer(address: str, chain: str) -> str | None:
+    """Resolve the deployer from OUR OWN indexer (ground truth, no external API).
 
-    Routes through ``unified._data_sources.get_dexscreener_pairs`` — the
-    single shared entry point for raw DexScreener pair payloads (the DataBus
-    provider, memoized). Returns the first ``creatorAddress`` found for the
-    token's pairs, or ``None`` when the lookup fails/times out. Never raises.
+    2026-08-25 quality push — Leg 0 of deployer resolution. Queries the
+    lite-chain-indexer contract-creation facts (``wallet_memory.deployer_events``)
+    which cover self-deploys AND factory/pump.fun launches across every
+    indexed chain. Runs the blocking ClickHouse query in a worker thread,
+    bounded by ``DEPLOYER_TIMEOUT_S``; fail-open (None on any miss).
     """
+    try:
+        from app.domains.scanner.engines.own_deployer_reputation import (
+            _query_deployer_for_token,
+        )
+
+        deployer = await asyncio.wait_for(
+            asyncio.to_thread(_query_deployer_for_token, address, chain),
+            timeout=DEPLOYER_TIMEOUT_S,
+        )
+        if deployer:
+            return deployer
+    except (TimeoutError, OSError, ValueError, TypeError, RuntimeError, ImportError):
+        logger.debug("deployer_indexer_resolve_failed", address=address[:16], chain=chain)
+    return None
+
+
+async def _resolve_deployer(address: str, chain: str) -> str | None:
+    """Best-effort deployer resolution — OWN INDEXER first, DexScreener fallback.
+
+    Leg 0: our lite-chain-indexer contract-creation facts (see
+    ``_resolve_deployer_from_indexer``) — on-chain ground truth, works when
+    no DEX pair exists yet. Leg 1: DexScreener ``creatorAddress`` via
+    ``unified._data_sources.get_dexscreener_pairs`` (the single shared entry
+    point for raw pair payloads, memoized). Returns None when both miss.
+    Never raises.
+    """
+    indexer_hit = await _resolve_deployer_from_indexer(address, chain)
+    if indexer_hit:
+        return indexer_hit
     try:
         from app.domains.scanner.unified._data_sources import get_dexscreener_pairs
 
@@ -427,7 +457,13 @@ async def run_sentinel_for_result(
     the overall scan.
     """
     try:
-        deployer = extract_deployer_from_security(r.security)
+        # Resolution order (2026-08-25): OWN INDEXER ground truth → security
+        # payload creator → DexScreener creatorAddress (inside the phase's
+        # fallback resolver). The indexer leg wins because it records the
+        # actual contract-creation fact even when no DEX pair exists yet.
+        deployer = await _resolve_deployer_from_indexer(address, chain)
+        if not deployer:
+            deployer = extract_deployer_from_security(r.security)
         sentinel = await asyncio.wait_for(
             run_sentinel_phase(address=address, chain=chain, tier=tier, deployer=deployer),
             timeout=30,

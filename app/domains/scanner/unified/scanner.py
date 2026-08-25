@@ -30,7 +30,11 @@ from app.domains.scanner.unified._finalize_helpers import (
 )
 from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
 from app.domains.scanner.unified._merge_helpers import merge_core
-from app.domains.scanner.unified._phase_helpers import run_bundle_analysis, run_wallet_analysis
+from app.domains.scanner.unified._phase_helpers import (
+    run_bundle_analysis,
+    run_first_buyers,
+    run_wallet_analysis,
+)
 from app.domains.scanner.unified.deep_profile import collect_deep_profile
 from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.persistence import read_stability
@@ -401,6 +405,11 @@ class UnifiedTokenScanner:
             # Exchange-funded %, wallet freshness, holder overlap vs scam tokens.
             # Runs after deep because it reuses the top-holder list from holder_data.
             await self._run_wallet_analysis(result, address, chain)
+
+            # ── Phase 2b-2: First-buyers analysis (own indexer data, free) ──
+            # Top-25 earliest buyers on quick scans, top-200 on deep/elite
+            # (2026-08-25 quality push). Wallet age buckets + bundling flags.
+            await run_first_buyers(result, address, chain, tier)
 
             # ── Phase 2c: Bundle-launch detection (own ClickHouse data, free) ──
             # Coordinated sniper/bot buys in the first blocks after deployment.
