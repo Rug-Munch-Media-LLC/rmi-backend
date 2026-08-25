@@ -25,7 +25,7 @@ logger = get_logger("databus.security")
 # Data type → minimum access level
 ACCESS_LEVELS = {
     # ── PUBLIC (anyone) ──
-    "token_price": "public",
+    "token_price": "public",  # nosec B105 — access-tier name, not a secret
     "tvl": "public",
     "news": "public",
     "market_overview": "public",
@@ -36,7 +36,7 @@ ACCESS_LEVELS = {
     "defi_protocols": "public",
     "prediction_markets": "public",
     "prediction_signals": "public",
-    "spl_token_metadata": "public",  # Raw SPL token decoder (free, no 3rd-party API)
+    "spl_token_metadata": "public",  # Raw SPL token decoder (free, no 3rd-party API)  # nosec B105 — access-tier name, not a secret
     # ── AUTHENTICATED (logged in) ──
     "wallet_labels": "authenticated",
     "wallet_balance": "authenticated",
@@ -52,7 +52,7 @@ ACCESS_LEVELS = {
     "wallet_cluster": "authenticated",
     "bundle_detect": "authenticated",
     "wallet_tokens": "authenticated",
-    "token_detail": "authenticated",
+    "token_detail": "authenticated",  # nosec B105 — access-tier name, not a secret
     "wallet_pnl": "authenticated",
     "gmgn_smart_money": "authenticated",
     "threat_check": "authenticated",
