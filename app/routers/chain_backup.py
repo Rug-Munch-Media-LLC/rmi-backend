@@ -29,7 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
@@ -37,6 +37,36 @@ from app.core.logging import get_logger
 logger = get_logger("chain_backup")
 
 router = APIRouter(prefix="/api/v1/system", tags=["system", "backup"])
+
+
+# ── Auth ─────────────────────────────────────────────────────────────
+
+
+def _require_service_key(request: Request) -> None:
+    """Validate X-API-Key / X-RMI-Key against fleet internal tokens.
+
+    This router discloses infrastructure internals (backup state, B2
+    connectivity, disk usage, archive listings) — it must never be
+    anonymously readable. Mirrors degenfeed_storage's dual-token model.
+    """
+    from app.config import settings
+
+    accepted = {
+        token
+        for token in (
+            getattr(settings, "rmi_auth_token", None),
+            getattr(settings, "rmi_internal_key", None),
+        )
+        if token
+    }
+    token = (
+        request.headers.get("X-API-Key", "")
+        or request.headers.get("X-RMI-Key", "")
+        or request.headers.get("Authorization", "").replace("Bearer ", "")
+    )
+    if not accepted or token not in accepted:
+        raise HTTPException(status_code=401, detail="Unauthorized — invalid service key")
+
 
 # ── Configuration paths ──────────────────────────────────────
 BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/path/to/backups"))
@@ -189,7 +219,7 @@ def _human_bytes(b: float) -> str:
 # ── Endpoints ────────────────────────────────────────────────
 
 
-@router.get("/backup-status")
+@router.get("/backup-status", dependencies=[Depends(_require_service_key)])
 async def backup_status() -> JSONResponse:
     """Full backup pipeline status.
 
@@ -243,7 +273,7 @@ async def backup_status() -> JSONResponse:
     )
 
 
-@router.get("/backup-config")
+@router.get("/backup-config", dependencies=[Depends(_require_service_key)])
 async def backup_config() -> JSONResponse:
     """Current backup configuration values.
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 
 from app.core.errors import AuthError, ServiceUnavailableError
 from app.core.logging import get_logger
@@ -22,6 +22,33 @@ from app.routers.intelligence_router.supabase import (
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+def _require_premium_access(request: Request) -> None:
+    """Gate premium intelligence data behind the fleet service key.
+
+    These endpoints expose paid-tier intel (smart money, exchange flows).
+    Until a user-tier/x402 gate is wired, they fail CLOSED: only callers
+    presenting RMI_AUTH_TOKEN / RMI_INTERNAL_KEY (X-API-Key / X-RMI-Key /
+    Bearer) may read them. Anonymous access was silent data leakage.
+    """
+    from app.config import settings
+
+    accepted = {
+        token
+        for token in (
+            getattr(settings, "rmi_auth_token", None),
+            getattr(settings, "rmi_internal_key", None),
+        )
+        if token
+    }
+    token = (
+        request.headers.get("X-API-Key", "")
+        or request.headers.get("X-RMI-Key", "")
+        or request.headers.get("Authorization", "").replace("Bearer ", "")
+    )
+    if not accepted or token not in accepted:
+        raise AuthError("Premium intelligence requires an authenticated tier")
 
 
 # ── Market Intelligence Endpoints ─────────────────────────────
@@ -115,7 +142,7 @@ async def get_volume_spikes(
 # ── Premium Intelligence Endpoints ───────────────────────────
 
 
-@router.get("/premium/smart-money")
+@router.get("/premium/smart-money", dependencies=[Depends(_require_premium_access)])
 async def get_smart_money_activities(
     wallet_category: str | None = None,
     chain: str = Query("solana"),
@@ -139,7 +166,7 @@ async def get_smart_money_activities(
     return {"activities": result or []}
 
 
-@router.get("/premium/exchange-flows")
+@router.get("/premium/exchange-flows", dependencies=[Depends(_require_premium_access)])
 async def get_exchange_flows(
     exchange_name: str | None = None,
     flow_type: str | None = None,
