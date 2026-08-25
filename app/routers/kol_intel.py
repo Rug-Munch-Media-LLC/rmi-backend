@@ -25,11 +25,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
 from app.core.logging import get_logger
+from app.core.rate_limiter import get_rate_limit_dependency
 from app.databus import kol_scoring as ks, kol_wallet_linker as kwl, kol_wallets as kw, shill_detector as sd
 from app.domains.shill_alert.call_store import CallStore
 
@@ -203,7 +204,12 @@ def _error(status_code: int, error: str, detail: str) -> JSONResponse:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/health", response_model=HealthResponse, summary="KOL Intel Health")
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    summary="KOL Intel Health",
+    dependencies=[Depends(get_rate_limit_dependency("kol1", rate=2.0, burst=5))],
+)
 def health_check() -> HealthResponse:
     """Counts of the bundled KOL data files (never raises)."""
     try:
@@ -215,7 +221,11 @@ def health_check() -> HealthResponse:
         return HealthResponse(status="degraded", scammers=0, wallets=0)
 
 
-@router.get("/scammers", summary="List Known Scammers")
+@router.get(
+    "/scammers",
+    summary="List Known Scammers",
+    dependencies=[Depends(get_rate_limit_dependency("kol2", rate=2.0, burst=5))],
+)
 def list_scammers(
     severity: str = Query(default="", description="Filter by severity (e.g. high|medium|low)"),
 ) -> dict[str, Any]:
@@ -236,7 +246,12 @@ def list_scammers(
         return {"scammers": [], "total": 0, "severity": severity.strip() or None, "source": "known_scammers"}
 
 
-@router.get("/kol/{handle}", response_model=None, summary="KOL Profile (score + rug history + wallets)")
+@router.get(
+    "/kol/{handle}",
+    response_model=None,
+    summary="KOL Profile (score + rug history + wallets)",
+    dependencies=[Depends(get_rate_limit_dependency("kol3", rate=2.0, burst=5))],
+)
 def kol_profile(handle: str) -> dict[str, Any] | JSONResponse:
     """Compose trust score, documented rug history and attributed wallets."""
     key = handle.strip().lstrip("@").lower()
@@ -263,7 +278,11 @@ def kol_profile(handle: str) -> dict[str, Any] | JSONResponse:
         return _error(500, "internal_error", f"KOL profile lookup failed: {e}")
 
 
-@router.get("/leaderboard", summary="KOL Trust-Score Leaderboard")
+@router.get(
+    "/leaderboard",
+    summary="KOL Trust-Score Leaderboard",
+    dependencies=[Depends(get_rate_limit_dependency("kol4", rate=2.0, burst=5))],
+)
 def leaderboard(limit: int = Query(default=20, ge=1, le=200)) -> dict[str, Any]:
     """Rank tracked KOLs by trust score (descending)."""
     try:
@@ -300,7 +319,11 @@ def leaderboard(limit: int = Query(default=20, ge=1, le=200)) -> dict[str, Any]:
         return {"leaderboard": [], "total_tracked": 0, "source": "kol_scoring"}
 
 
-@router.get("/wallets/{handle}", summary="Attributed Wallets for a KOL")
+@router.get(
+    "/wallets/{handle}",
+    summary="Attributed Wallets for a KOL",
+    dependencies=[Depends(get_rate_limit_dependency("kol5", rate=2.0, burst=5))],
+)
 def wallets(handle: str) -> dict[str, Any]:
     """Attributed wallets for a handle (200 with empty list when unknown)."""
     key = handle.strip().lstrip("@").lower()
@@ -312,7 +335,11 @@ def wallets(handle: str) -> dict[str, Any]:
         return {"handle": key, "wallets": [], "total": 0, "source": "verified_kol_wallets"}
 
 
-@router.get("/cross-chain/{handle}", summary="Cross-Chain Wallet Links for a KOL")
+@router.get(
+    "/cross-chain/{handle}",
+    summary="Cross-Chain Wallet Links for a KOL",
+    dependencies=[Depends(get_rate_limit_dependency("kol6", rate=2.0, burst=5))],
+)
 def cross_chain(handle: str) -> dict[str, Any]:
     """Cross-chain wallet links for a handle (200 with empty list when none)."""
     key = handle.strip().lstrip("@").lower()
@@ -324,7 +351,11 @@ def cross_chain(handle: str) -> dict[str, Any]:
         return {"handle": key, "links": [], "total": 0, "source": "kol_wallet_linker"}
 
 
-@router.get("/shill-signals", summary="Detected Shill Signals")
+@router.get(
+    "/shill-signals",
+    summary="Detected Shill Signals",
+    dependencies=[Depends(get_rate_limit_dependency("kol7", rate=2.0, burst=5))],
+)
 def shill_signals() -> dict[str, Any]:
     """Run the shill detector over the (currently empty) live signal set.
 
@@ -351,7 +382,11 @@ def shill_signals() -> dict[str, Any]:
         return {"count": 0, "alerts": [], "patterns": {}, "severity": {}, "source": "shill_detector"}
 
 
-@router.get("/scammer-calls", summary="Captured Scammer-Call Posts")
+@router.get(
+    "/scammer-calls",
+    summary="Captured Scammer-Call Posts",
+    dependencies=[Depends(get_rate_limit_dependency("kol8", rate=2.0, burst=5))],
+)
 def scammer_calls(
     limit: int = Query(default=50, ge=1, le=500),
     severity: str = Query(default="", description="Filter by severity (e.g. critical|high|medium|low)"),
@@ -370,7 +405,11 @@ def scammer_calls(
         return {"calls": [], "total": 0}
 
 
-@router.get("/profiles", summary="Enriched KOL Profiles (avatar/category/rating/calls)")
+@router.get(
+    "/profiles",
+    summary="Enriched KOL Profiles (avatar/category/rating/calls)",
+    dependencies=[Depends(get_rate_limit_dependency("kol9", rate=2.0, burst=5))],
+)
 def kol_profiles(
     limit: int = Query(default=50, ge=1, le=500),
     category: str = Query(default="", description="Filter by category (trader|alpha|influencer|analyst)"),
@@ -422,7 +461,10 @@ def kol_profiles(
 
 
 @router.get(
-    "/profiles/{handle}", response_model=None, summary="Full Enriched KOL Profile (calls + performance + wallets)"
+    "/profiles/{handle}",
+    response_model=None,
+    summary="Full Enriched KOL Profile (calls + performance + wallets)",
+    dependencies=[Depends(get_rate_limit_dependency("kol10", rate=2.0, burst=5))],
 )
 def kol_profile_detail(handle: str) -> dict[str, Any] | JSONResponse:
     """Full enriched profile for a handle: metadata, historical calls,
