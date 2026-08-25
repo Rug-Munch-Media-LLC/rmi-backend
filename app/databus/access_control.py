@@ -50,6 +50,21 @@ class ConsumerType(Enum):
     ADMIN = "admin"  # Internal admin / darkroom
     MCP_TOOL = "mcp_tool"  # MCP server tools (scoped per tool)
     X402_PAID = "x402_paid"  # x402 paid API calls (scoped per tier)
+    SERVICE = "service"  # First-party internal services (verified X-RMI-Key)
+
+
+def _is_valid_service_key(service_key: str | None) -> bool:
+    """Constant-time check of a supplied service key against RMI_INTERNAL_KEY."""
+    if not service_key:
+        return False
+    try:
+        import hmac
+
+        from app.core.internal_key import get_internal_key
+
+        return hmac.compare_digest(service_key.encode(), get_internal_key().encode())
+    except Exception:  # key not configured → no service access
+        return False
 
 
 # ── DATA TYPE → RESPONSE PACKAGING PER CONSUMER ──────────────────────────────
@@ -122,6 +137,7 @@ DATA_ACCESS_MATRIX = {
         ConsumerType.ADMIN: "full",
         ConsumerType.MCP_TOOL: "scoped",
         ConsumerType.X402_PAID: "full",
+        ConsumerType.SERVICE: "full",
     },
     "wallet_balance": {
         ConsumerType.PUBLIC_WEB: "denied",
@@ -179,6 +195,7 @@ DATA_ACCESS_MATRIX = {
         ConsumerType.ADMIN: "full",
         ConsumerType.MCP_TOOL: "scoped",
         ConsumerType.X402_PAID: "summary",
+        ConsumerType.SERVICE: "full",
     },
     "arkham_portfolio": {
         ConsumerType.PUBLIC_WEB: "denied",
@@ -629,12 +646,14 @@ class AccessController:
         consumer_type: str = "",
         tool_id: str = "",
         x402_tier: str = "",
+        service_key: str | None = "",
     ) -> ConsumerType:
         """Identify who's making the request."""
         # SECURITY: consumer_type from request is IGNORED — it was a bypass
         # allowing any client to declare consumer_type=admin. Consumer type
         # is derived ONLY from verified credentials (admin key, MCP tool_id,
-        # x402 tier, or JWT claims). Never trust client-declared values.
+        # x402 tier, service key, or JWT claims). Never trust client-declared
+        # values.
 
         # MCP tool
         if tool_id and tool_id in MCP_TOOL_SCOPES:
@@ -648,6 +667,10 @@ class AccessController:
         configured_admin_key = os.getenv("ADMIN_API_KEY", "")
         if configured_admin_key and admin_key == configured_admin_key:
             return ConsumerType.ADMIN
+
+        # First-party service key (X-RMI-Key) — verified against RMI_INTERNAL_KEY
+        if _is_valid_service_key(service_key):
+            return ConsumerType.SERVICE
 
         # Auth header check
         if request:
@@ -668,7 +691,7 @@ class AccessController:
         """
         if data_type not in DATA_ACCESS_MATRIX:
             # Unknown data type - authenticated minimum
-            if consumer in (ConsumerType.ADMIN, ConsumerType.MCP_TOOL):
+            if consumer in (ConsumerType.ADMIN, ConsumerType.MCP_TOOL, ConsumerType.SERVICE):
                 return "full"
             if consumer == ConsumerType.PREMIUM:
                 return "full"

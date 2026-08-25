@@ -82,7 +82,12 @@ class SecurityGate:
         return ACCESS_LEVELS.get(data_type, "authenticated")
 
     @staticmethod
-    def check_access(data_type: str, request: Request | None = None, admin_key: str | None = "") -> bool:
+    def check_access(
+        data_type: str,
+        request: Request | None = None,
+        admin_key: str | None = "",
+        service_key: str | None = "",
+    ) -> bool:
         """
         Check if the requester has access to this data type.
         Returns True if access is allowed, raises HTTPException if not.
@@ -91,6 +96,13 @@ class SecurityGate:
 
         if level == "public":
             return True
+
+        # Verified first-party service key (X-RMI-Key) — trusted internal caller
+        if service_key:
+            from app.databus.access_control import _is_valid_service_key
+
+            if _is_valid_service_key(service_key):
+                return True
 
         if level == "authenticated":
             # In production, verify JWT/session here
