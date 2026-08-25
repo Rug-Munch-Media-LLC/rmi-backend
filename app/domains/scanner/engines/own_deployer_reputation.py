@@ -52,12 +52,12 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_pools_for_token,
     _load_pair_cache,
@@ -142,6 +142,64 @@ def _get_ch_client() -> Any | None:
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+def _query_deployer_for_token(token_address: str, chain: str = "") -> str | None:
+    """Reverse lookup: which wallet deployed THIS token (own-indexer ground truth).
+
+    2026-08-25 quality push — the missing leg that made every deployer-
+    dependent SENTINEL module skip with "no deployer address resolved" when
+    DexScreener had no ``creatorAddress``. Our lite-chain-indexer records
+    contract-creation facts in ``wallet_memory.deployer_events`` for BOTH
+    self-deploys and factory/pump.fun launches; ``deployer_eoa`` carries the
+    resolved signing EOA (the real human wallet) while ``deployer`` may be a
+    factory contract. Prefer the EOA, fall back to the raw deployer.
+
+    Sync (clickhouse_driver is blocking) — callers wrap in ``asyncio.to_thread``
+    + a timeout. Fail-open: returns None on any miss so downstream resolution
+    legs (security payload creator, DexScreener creatorAddress) still run.
+    """
+    if not token_address:
+        return None
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        # EVM addresses may arrive checksummed — match both casings. Solana
+        # addresses are case-sensitive and never differ from their lowercase.
+        candidates = [token_address]
+        lowered = token_address.lower()
+        if lowered != token_address:
+            candidates.append(lowered)
+        params: dict[str, Any] = {"addrs": candidates}
+        chain_norm = _normalize_chain(chain) if chain else ""
+        if chain_norm:
+            # Literal-SQL branches only (S608): the WHERE clause is picked
+            # from two hardcoded strings; values bind via %(addrs)s/%(chain)s.
+            query = (
+                "SELECT deployer_eoa, deployer FROM deployer_events "
+                "WHERE token_address IN %(addrs)s AND chain = %(chain)s "
+                "ORDER BY block_timestamp DESC LIMIT 1"
+            )
+            params["chain"] = chain_norm
+        else:
+            query = (
+                "SELECT deployer_eoa, deployer FROM deployer_events "
+                "WHERE token_address IN %(addrs)s "
+                "ORDER BY block_timestamp DESC LIMIT 1"
+            )
+        rows = client.execute(query, params)
+        if not rows:
+            return None
+        eoa, deployer = (rows[0][0] or ""), (rows[0][1] or "")
+        for candidate in (eoa, deployer):
+            addr = str(candidate).strip()
+            if len(addr) >= 32 and addr.lower() not in ("", "unknown", "null", "none"):
+                return addr
+        return None
+    except Exception as exc:
+        logger.debug("deployer_for_token_lookup_failed %s: %s", token_address[:16], exc)
+        return None
 
 
 async def get_own_deployer_reputation(

@@ -137,6 +137,11 @@ class ScanResult:
     # ``detect_bundled_launch``): coordinated sniper/bot buys at launch.
     bundle_analysis: dict[str, Any] | None = None
 
+    # First-buyers analysis (engines/first_buyers.py, 2026-08-25 quality
+    # push): earliest N buyers with own-data wallet classification —
+    # top-25 on quick scans, top-200 on deep/elite.
+    first_buyers: dict[str, Any] | None = None
+
     # News-event-to-price correlation (own-data engine — event_correlation.py)
     event_correlation: dict[str, Any] | None = None  # which news events moved the price
 

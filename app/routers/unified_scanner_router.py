@@ -157,6 +157,40 @@ async def _run_scan(
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
 
+def _top_level_deployer(result: Any) -> dict[str, Any] | None:
+    """Best-effort top-level deployer address for thin clients (bot + site).
+
+    2026-08-25 quality push — "we always know the deployer": every scan
+    response carries ONE canonical ``deployer_address`` field so consumers
+    never dig through sentinel blobs / evidence nesting. Checked in order:
+    dev_reputation evidence → SENTINEL free dev_reputation → SENTINEL
+    metadata_fingerprint creator → deep_profile.deployer_profile.
+    """
+    candidates: list[tuple[str, Any]] = []
+    dev = getattr(result, "dev_reputation", None)
+    if isinstance(dev, dict):
+        candidates.append(("dev_reputation", dev.get("deployer_address") or dev.get("address")))
+    sent = getattr(result, "sentinel", None)
+    if isinstance(sent, dict):
+        free = sent.get("free") if isinstance(sent.get("free"), dict) else {}
+        dr = free.get("dev_reputation")
+        if isinstance(dr, dict):
+            candidates.append(("dev_reputation", dr.get("deployer_address") or dr.get("address")))
+        mf = free.get("metadata_fingerprint")
+        if isinstance(mf, dict):
+            candidates.append(("metadata_fingerprint", mf.get("creator")))
+    dp = getattr(result, "deep_profile", None)
+    dpp = getattr(dp, "deployer_profile", None) if dp is not None else None
+    if dpp is not None:
+        addr = getattr(dpp, "address", None) if not isinstance(dpp, dict) else dpp.get("address")
+        candidates.append(("deployer_profile", addr))
+    _empty = ("", "unknown", "null", "none", "0x", "0x0")
+    for source, addr in candidates:
+        if isinstance(addr, str) and len(addr) >= 32 and addr.strip().lower() not in _empty:
+            return {"address": addr.strip(), "source": source}
+    return None
+
+
 def _format_scan_response(result: Any) -> dict[str, Any]:
     """Format a ScanResult into the API response dict."""
     # Track which sources were own data vs external API fallback
@@ -168,6 +202,7 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
     )
     total_with_source = len(result.enrichment_sources)
     fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
+    deployer_top = _top_level_deployer(result)
 
     return {
         "status": "ok",
@@ -197,6 +232,10 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "data_source": "databus",
         "freshness": result.scanned_at,
         "fallback_used": fallback_used,
+        # Canonical top-level deployer (2026-08-25 quality push) — one field
+        # every surface can render without nested digging.
+        "deployer_address": (deployer_top or {}).get("address"),
+        "deployer_source": (deployer_top or {}).get("source"),
         "data_sources": {
             "own_data_modules": own_data_modules,
             "external_fallback_modules": fallback_modules,
@@ -208,6 +247,7 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "sentinel": result.sentinel,
         "wallet_metrics": result.wallet_metrics,
         "bundle_analysis": result.bundle_analysis,
+        "first_buyers": result.first_buyers,
         "deployer_profile": (
             asdict(result.deep_profile.deployer_profile)
             if result.deep_profile
