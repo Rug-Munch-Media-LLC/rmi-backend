@@ -231,7 +231,16 @@ pre-push:
       glob: "*.py"
       run: |
         if command -v pyright >/dev/null 2>&1; then
-          pyright . 2>/dev/null || true
+          # Scoped + bounded (2026-08-25): bare `pyright .` re-analyzed the
+          # whole repo and stalled every push 15-20+ min. Match the mypy
+          # block: pushed-files scope, hard timeout, advisory output —
+          # CI remains the blocking gate.
+          PYFILES=$(printf '%s\n' {all_files} | grep '\.py$' | grep -v '^tests/' | tr '\n' ' ' || true)
+          if [ -n "$PYFILES" ]; then
+            timeout 240 pyright $PYFILES 2>/dev/null || echo "[pyright] skipped/slow — enforced in CI"
+          else
+            echo "[pyright] no pushed python files — deferring to CI gate"
+          fi
         fi
 
     # -- Python security scan (PYTHON repos) ------------------
