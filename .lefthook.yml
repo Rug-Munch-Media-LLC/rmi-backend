@@ -319,9 +319,16 @@ pre-push:
     test:
       run: |
         if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "setup.cfg" ]; then
-          # Benchmarks excluded: latency asserts are flaky on a busy shared box
-          # (584ms vs 500ms threshold under load-38). They run in CI/nightly.
-          python3 -m pytest tests/ -x -q -m "not integration and not benchmark" 2>/dev/null || true
+          # Scoped + bounded (2026-08-25): full-suite pytest on every push
+          # stalled pushes 15-20+ min (~200 test files). Pre-push now runs
+          # ONLY test files touched by this push; CI runs the full suite
+          # as the blocking gate.
+          TESTFILES=$(printf '%s\n' {all_files} | grep -E '^tests/.*\.py$' | tr '\n' ' ' || true)
+          if [ -n "$TESTFILES" ]; then
+            timeout 300 python3 -m pytest $TESTFILES -x -q -m "not integration and not benchmark" 2>/dev/null || true
+          else
+            echo "[test] no test files in push — deferring to CI gate"
+          fi
         elif [ -f "vitest.config.ts" ] || [ -f "vitest.config.js" ]; then
           npx vitest run --reporter=verbose 2>/dev/null || true
         elif [ -f "jest.config.ts" ] || [ -f "jest.config.js" ]; then
