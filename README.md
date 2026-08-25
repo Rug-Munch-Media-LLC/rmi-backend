@@ -1,5 +1,9 @@
 # RMI Backend — Rug Munch Intelligence
 
+> The intelligence engine behind [rugmunch.io](https://rugmunch.io): scan any
+> token or wallet across 96 chains, detect rugs before they happen, and pay
+> per call via x402.
+
 **Docs:** `/docs` (Swagger) | `/redoc` (ReDoc) | `/openapi.json`
 
 ## What It Is
