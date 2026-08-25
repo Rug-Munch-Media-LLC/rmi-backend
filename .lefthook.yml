@@ -214,18 +214,24 @@ pre-push:
     # Prefer the project's venv mypy (matches CI) so a stale global
     # /usr/local/bin/mypy with older type stubs can't disagree with the
     # version pinned in pyproject.toml.
+    #
+    # MEGA-PUSH GUARD (2026-08-25): {all_files} spans EVERY commit in the
+    # push — infrequent pushes accumulate hundreds of files and the
+    # "scoped" gates silently degrade into full-repo scans (the real
+    # "pushes take forever" root cause). >30 py files → defer to CI.
     mypy:
       glob: "*.py"
       run: |
         MYPY_BIN="mypy"
         if [ -x ".venv/bin/mypy" ]; then MYPY_BIN=".venv/bin/mypy"; fi
-        # Incremental: only .py files in this push ({all_files} = lefthook template).
-        # Full-src has 1.6k pre-existing errors — full-dir gate can never pass.
         PYFILES=$(printf '%s\n' {all_files} | grep '\.py$' | grep -v '^tests/' || true)
-        if [ -n "$PYFILES" ]; then
+        COUNT=$(printf '%s' "$PYFILES" | grep -c . || true)
+        if [ "$COUNT" -gt 30 ]; then
+          echo "[mypy] ${COUNT} py files in push — too big for pre-push, deferring to CI"
+        elif [ -n "$PYFILES" ]; then
           # Advisory at pre-push — repo carries large pre-existing type debt;
           # CI mypy gate is the blocker.
-          "$MYPY_BIN" $PYFILES --ignore-missing-imports --follow-imports=skip || echo "[mypy] findings above — enforced in CI"
+          timeout 120 "$MYPY_BIN" $PYFILES --ignore-missing-imports --follow-imports=skip || echo "[mypy] findings above — enforced in CI"
         fi
 
     # -- Python type check via pyright (PYTHON repos, faster alternative) --
@@ -233,12 +239,11 @@ pre-push:
       glob: "*.py"
       run: |
         if command -v pyright >/dev/null 2>&1; then
-          # Scoped + bounded (2026-08-25): bare `pyright .` re-analyzed the
-          # whole repo and stalled every push 15-20+ min. Match the mypy
-          # block: pushed-files scope, hard timeout, advisory output —
-          # CI remains the blocking gate.
           PYFILES=$(printf '%s\n' {all_files} | grep '\.py$' | grep -v '^tests/' | tr '\n' ' ' || true)
-          if [ -n "$PYFILES" ]; then
+          COUNT=$(printf '%s\n' {all_files} | grep '\.py$' | grep -cv '^tests/' || true)
+          if [ "$COUNT" -gt 30 ]; then
+            echo "[pyright] ${COUNT} py files in push — too big for pre-push, deferring to CI"
+          elif [ -n "$PYFILES" ]; then
             timeout 240 pyright $PYFILES 2>/dev/null || echo "[pyright] skipped/slow — enforced in CI"
           else
             echo "[pyright] no pushed python files — deferring to CI gate"
@@ -249,16 +254,18 @@ pre-push:
     bandit:
       glob: "*.py"
       run: |
-        # Incremental: only .py files in this push ({all_files} = lefthook template).
         PYFILES=$(printf '%s\n' {all_files} | grep '\.py$' | tr '\n' ' ' || true)
-        if [ -n "$PYFILES" ]; then
+        COUNT=$(printf '%s\n' {all_files} | grep '\.py$' | grep -c . || true)
+        if [ "$COUNT" -gt 30 ]; then
+          echo "[bandit] ${COUNT} py files in push — too big for pre-push, deferring to CI"
+        elif [ -n "$PYFILES" ]; then
           # Advisory at pre-push (CI bandit gate is the blocker). Pre-existing
           # B608 string-SQL patterns in historical commits must not wedge pushes.
-          bandit -r $PYFILES -ll || echo "[bandit] findings above — enforced in CI"
+          timeout 90 bandit -r $PYFILES -ll || echo "[bandit] findings above — enforced in CI"
         elif [ -d "app/" ]; then
-          bandit -r app/ -ll
+          timeout 90 bandit -r app/ -ll
         elif [ -d "src/" ]; then
-          bandit -r src/ -ll
+          timeout 90 bandit -r src/ -ll
         fi
 
     # -- Python dep freshness (PYTHON repos) ------------------
@@ -302,7 +309,10 @@ pre-push:
       run: |
         if [ -f ".semgrep.yml" ] || [ -f ".semgrep.toml" ]; then
           SEMFILES=$(printf '%s\n' {all_files} | grep -E '\.(py|ts|tsx|js)$' | tr '\n' ' ' || true)
-          if [ -n "$SEMFILES" ]; then
+          COUNT=$(printf '%s\n' {all_files} | grep -E '\.(py|ts|tsx|js)$' | grep -c . || true)
+          if [ "$COUNT" -gt 30 ]; then
+            echo "[semgrep] ${COUNT} source files in push — too big for pre-push, deferring to CI"
+          elif [ -n "$SEMFILES" ]; then
             timeout 120 semgrep --config=.semgrep.yml --metrics=off $SEMFILES 2>/dev/null || echo "[semgrep] skipped/slow — enforced in CI"
           else
             echo "[semgrep] no pushed source files — deferring to CI gate"
