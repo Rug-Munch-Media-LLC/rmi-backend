@@ -244,8 +244,14 @@ async def list_news(
 async def trending_news(
     window_hours: int = Query(168, ge=1, le=720),
     limit: int = Query(20, ge=1, le=100),
+    include_telegram: bool = Query(False, description="Include raw Telegram-channel wire items"),
 ) -> NewsListResponse:
-    """Time-decay trending. Reads from news_items (new) primary, falls back to crypto_news (legacy)."""
+    """Time-decay trending. Reads from news_items (new) primary, falls back to crypto_news (legacy).
+
+    Raw Telegram-channel dumps (``tg:`` ids / t.me URLs) are excluded by
+    default — they are wire noise, not headlines. Opt in with
+    ``include_telegram=true``.
+    """
     catalog = get_catalog()
     await catalog._init_stores()
     if not catalog._health.postgres:
@@ -329,6 +335,8 @@ async def trending_news(
             get_logger(__name__).warning(f"trending_legacy_fail: {e}")
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
+    if not include_telegram:
+        items = [i for i in items if not (str(i.news_id).startswith("tg:") or "t.me/" in str(i.url))]
     return NewsListResponse(items=items[:limit], total=len(items), offset=0)
 
 

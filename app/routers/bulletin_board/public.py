@@ -71,6 +71,11 @@ async def public_list_posts(
 
     # Return public-safe versions
     posts = []
+    r = None
+    try:
+        r = await BulletinBoardManager._get_redis()
+    except Exception:  # pragma: no cover — stats enrichment is best-effort
+        r = None
     for p in result["posts"]:
         # Remove internal fields
         safe = {
@@ -86,6 +91,26 @@ async def public_list_posts(
                 "version",
             ]
         }
+        # Frontend contract fields (additive — see community.py)
+        safe.setdefault("id", p.get("post_id", ""))
+        safe["author"] = {
+            "username": p.get("author_name", "Community Member"),
+            "avatar_url": "",
+            "reputation": 0,
+            "level": 1,
+            "is_bot": str(p.get("author_id", "")).startswith("bot_"),
+        }
+        up, down = 0, 0
+        if r is not None:
+            try:
+                votes = await r.hgetall(f"bulletin:votes:{p.get('post_id', '')}") or {}
+                up = sum(1 for v in votes.values() if v == "up")
+                down = sum(1 for v in votes.values() if v == "down")
+            except Exception:  # pragma: no cover
+                up, down = 0, 0
+        safe["upvotes"] = p.get("upvotes", up)
+        safe["downvotes"] = p.get("downvotes", down)
+        safe["comment_count"] = p.get("comments_count", 0)
         posts.append(safe)
 
     return {
