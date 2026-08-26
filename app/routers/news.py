@@ -201,64 +201,102 @@ async def get_news_feed(
     include_rss: bool = Query(True),
     include_reddit: bool = Query(True),
     include_internal: bool = Query(True),
+    include_market: bool = Query(False, description="Include synthetic market-data items (CoinGecko/CryptoPanic)"),
     refresh: bool = Query(False, description="Force refresh, bypass cache"),
 ) -> Any:
-    """Full aggregated news feed from all sources."""
+    """Full aggregated news feed from all sources.
+
+    Fast path: reads the Redis-backed aggregate that the background
+    refresher maintains every ~5 min — instant, zero upstream calls.
+    Cold-cache fallback: inline legacy fetch time-boxed to 12s.
+    Empty results are never memoized (a failed fetch must not poison
+    the cache for the TTL window).
+    """
     global _NEWS_CACHE, _CACHE_TS
 
-    # Return cache if fresh
-    if not refresh and _NEWS_CACHE and _CACHE_TS and (datetime.now(UTC) - _CACHE_TS) < _CACHE_TTL:
-        result = _NEWS_CACHE
-    else:
-        # Serve stale cache immediately while refreshing in background
-        if _NEWS_CACHE and not refresh:
-            result = _NEWS_CACHE
-            # Background refresh
-            _ = asyncio.create_task(_refresh_cache(include_rss, include_reddit, include_internal))
-        else:
-            # First load or forced refresh - fetch inline but with timeout
-            try:
-                from app.domains.news.news_service import get_news_service
+    result: dict[str, Any] | None = None
 
-                svc = get_news_service()
-                # Time-box the inline fetch so a slow external RSS feed
-                # (170+ sources) cannot stall the request. RSS/Reddit are
-                # the heaviest sources; if one of them hangs the gather
-                # blocks the entire request. 12s gives enough time for
-                # fast sources (CoinGecko, CryptoPanic, Ghost, scanner)
-                # while cutting off hung RSS fetches.
-                result = await asyncio.wait_for(
-                    svc.fetch_all(
-                        limit=200,
-                        include_rss=include_rss,
-                        include_reddit=include_reddit,
-                        include_internal=include_internal,
-                    ),
-                    timeout=12.0,
-                )
-                _NEWS_CACHE = result
-                _CACHE_TS = datetime.now(UTC)
-            except TimeoutError:
-                logger.warning("News fetch_all timed out after 12s — serving empty feed")
-                result = {
-                    "status": "success",
-                    "articles": [],
-                    "total": 0,
-                    "sources": [],
-                    "source_count": 0,
-                    "sentiment_summary": {},
-                    "tiers": [],
-                    "cached": False,
-                    "fetched_at": datetime.now(UTC).isoformat(),
-                }
+    if not refresh:
+        # ── 1) In-process memo (3 min TTL) ──
+        if _NEWS_CACHE and _CACHE_TS and (datetime.now(UTC) - _CACHE_TS) < _CACHE_TTL:
+            result = _NEWS_CACHE
+        else:
+            # ── 2) Redis aggregate — instant read of the background refresh ──
+            try:
+                from app.databus.news_provider import get_aggregated_news
+
+                agg = await get_aggregated_news(limit=200)
+                agg_articles = (agg or {}).get("articles") or []
+                if agg_articles:
+                    result = {
+                        "status": "success",
+                        "articles": agg_articles,
+                        "total": len(agg_articles),
+                        "sources": sorted({str(a.get("source", "")) for a in agg_articles}),
+                        "source_count": len({a.get("source", "") for a in agg_articles}),
+                        "sentiment_summary": {},
+                        "tiers": sorted({str(a.get("tier") or "news") for a in agg_articles}),
+                    }
+                    _NEWS_CACHE = result
+                    _CACHE_TS = datetime.now(UTC)
             except Exception as e:
-                logger.error(f"News fetch failed: {e}")
-                if _NEWS_CACHE:
-                    result = _NEWS_CACHE
-                else:
-                    raise AppError(f"News aggregation failed: {e!s}") from e
+                logger.warning(f"Redis aggregate read failed: {e}")
+
+    if result is None:
+        # ── 3) Cold cache / forced refresh — inline legacy fetch, time-boxed ──
+        try:
+            from app.domains.news.news_service import get_news_service
+
+            svc = get_news_service()
+            fetched = await asyncio.wait_for(
+                svc.fetch_all(
+                    limit=200,
+                    include_rss=include_rss,
+                    include_reddit=include_reddit,
+                    include_internal=include_internal,
+                ),
+                timeout=12.0,
+            )
+            if fetched.get("articles"):
+                result = fetched
+                _NEWS_CACHE = fetched
+                _CACHE_TS = datetime.now(UTC)
+            elif _NEWS_CACHE:
+                result = _NEWS_CACHE
+        except TimeoutError:
+            logger.warning("News fetch_all timed out after 12s")
+            if _NEWS_CACHE:
+                result = _NEWS_CACHE
+        except Exception as e:
+            logger.error(f"News fetch failed: {e}")
+            if _NEWS_CACHE:
+                result = _NEWS_CACHE
+            else:
+                raise AppError(f"News aggregation failed: {e!s}") from e
+
+    if result is None:
+        # Nothing anywhere — explicit empty (never cached).
+        result = {
+            "status": "success",
+            "articles": [],
+            "total": 0,
+            "sources": [],
+            "source_count": 0,
+            "sentiment_summary": {},
+            "tiers": [],
+            "cached": False,
+            "fetched_at": datetime.now(UTC).isoformat(),
+        }
 
     articles = result.get("articles", [])
+
+    # News feed carries journalism only — synthetic market-data items
+    # (CoinGecko trending/price "articles", kind="api") belong to the
+    # markets widgets, not the news feed. Opt back in with include_market.
+    if not include_market:
+        articles = [
+            a for a in articles if not (a.get("kind") == "api" and a.get("source", "") in {"CoinGecko", "CryptoPanic"})
+        ]
 
     # Apply filters
     if sentiment:
