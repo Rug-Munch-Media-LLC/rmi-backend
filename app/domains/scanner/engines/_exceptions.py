@@ -11,6 +11,7 @@ from __future__ import annotations
 class RAGUnavailableError(Exception):
     """RAG system is unavailable."""
 
+
 # ── Redis access port (phase 1b) ──────────────────────────────────────
 # The scanner needs ONE thing from the backend redis pool: an async
 # client. Binding it through this module keeps engines free of
@@ -28,10 +29,20 @@ def set_redis_port(factory: Callable[[], Any]) -> None:
 
 
 def get_redis_async() -> Any:
-    """Return the async redis client via the bound factory."""
-    if _redis_factory is None:
-        # Lazy default binding to the backend pool (pre-split behavior).
-        from app.domains.scanner.engines._exceptions import get_redis_async as _backend_get
+    """Return the async redis client via the bound factory.
 
-        set_redis_port(_backend_get)
+    2026-08-26 FIX: the lazy default imported THIS function from this same
+    module and bound it as its own factory → infinite recursion on first
+    call (RecursionError swallowed upstream → every funding/freshness
+    engine silently returned nulls). Bind the real backend pool instead.
+    """
+    if _redis_factory is None:
+        try:
+            # ASYNC pool — engines await this client (scoring.py, scanner.py,
+            # persistence.py all `await r.exists(...)` etc.).
+            from app.core.redis import get_redis_async as _backend_async_get
+
+            set_redis_port(_backend_async_get)
+        except Exception:
+            return None
     return _redis_factory()
