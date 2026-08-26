@@ -204,7 +204,7 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
     fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
     deployer_top = _top_level_deployer(result)
 
-    return {
+    payload: dict[str, Any] = {
         "status": "ok",
         "token": result.token_address,
         "chain": result.chain,
@@ -248,6 +248,7 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "wallet_metrics": result.wallet_metrics,
         "bundle_analysis": result.bundle_analysis,
         "first_buyers": result.first_buyers,
+        "ai_verdict": None,  # filled below (fail-open)
         "deployer_profile": (
             asdict(result.deep_profile.deployer_profile)
             if result.deep_profile
@@ -260,6 +261,13 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
             )
         ),
     }
+    # AI narrative verdict — fail-open: never blocks or fails a scan.
+    try:
+        from app.services.scan_verdict_ai import synthesize_scan_verdict
+
+        payload["ai_verdict"] = await synthesize_scan_verdict(payload)
+    except Exception:
+        payload["ai_verdict"] = None
 
 
 @router.get(
