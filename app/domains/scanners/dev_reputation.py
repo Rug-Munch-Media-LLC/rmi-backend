@@ -107,6 +107,7 @@ class TokenLaunch:
     dev_holds_percentage: float = 0.0  # Dev's holding at time of outcome
     is_renounced: bool = False  # Did dev renounce ownership?
     has_locked_liquidity: bool = False
+    is_scam_related: bool = False
 
 
 @dataclass
@@ -460,17 +461,87 @@ class DevReputationEngine:
 
         return report
 
+    async def _fetch_launches_clickhouse(self, dev_wallet: str) -> list[TokenLaunch]:
+        """Strategy 0 (2026-08-26): indexer-first launch lookup.
+
+        wallet_memory.deployer_history already stores every launch the
+        lite-chain-indexer observed for this deployer (15k+ rows, 10k+
+        deployers) — instant and free, vs rate-limited DexScreener/
+        Etherscan calls. Returns [] on any failure so callers fall
+        through to the API strategies unchanged.
+        """
+        import os as _os
+
+        try:
+            from clickhouse_driver import Client as CHClient
+
+            client = CHClient(
+                host=_os.getenv("CH_HOST") or _os.getenv("CLICKHOUSE_HOST", "127.0.0.1"),
+                port=int(_os.getenv("CH_PORT") or _os.getenv("CLICKHOUSE_PORT", "9000")),
+                user=_os.getenv("CH_USER") or _os.getenv("CLICKHOUSE_USER", "rmi"),
+                password=_os.getenv("CH_PASSWORD") or _os.getenv("CLICKHOUSE_PASSWORD") or "",
+                database="wallet_memory",
+                connect_timeout=3,
+                send_receive_timeout=10,
+            )
+            rows = client.execute(
+                """
+                SELECT token_address, chain_id, token_name, token_symbol,
+                       toUnixTimestamp(deployed_at), outcome, lifespan_days,
+                       max_market_cap, is_scam_related
+                FROM deployer_history
+                WHERE lower(deployer_address) = lower(%(w)s)
+                ORDER BY deployed_at DESC
+                LIMIT 50
+                """,
+                {"w": dev_wallet},
+            )
+        except Exception as exc:
+            logger.debug("deployer_history_lookup_failed: %s", str(exc)[:120])
+            return []
+
+        launches: list[TokenLaunch] = []
+        for addr, chain_id, name, symbol, ts, outcome, lifespan, mcap, scam in rows:
+            launches.append(
+                TokenLaunch(
+                    address=addr,
+                    chain=chain_id,
+                    name=name or "",
+                    symbol=symbol or "",
+                    launch_timestamp=int(ts),
+                    max_market_cap=float(mcap or 0),
+                    lifespan_days=float(lifespan or 0),
+                    outcome=str(outcome or "unknown"),
+                    dev_holds_percentage=0,
+                    is_renounced=False,
+                    has_locked_liquidity=False,
+                    is_scam_related=bool(scam),
+                )
+            )
+        logger.info(
+            "dev_reputation_indexer_first wallet=%s launches=%d",
+            dev_wallet[:10],
+            len(launches),
+        )
+        return launches
+
     async def _fetch_launches(self, dev_wallet: str, chain: str) -> list[TokenLaunch]:
         """Fetch all tokens launched by dev on a specific chain.
 
-        Uses DexScreener to find pairs where the deployer matches.
-        DexScreener's /latest/dex/search?q=<address> returns pairs
-        whose baseToken or quoteToken involves the address. We filter
-        for pairs where the creator/deployer matches.
+        Strategy 0 (indexer-first): wallet_memory.deployer_history via
+        ClickHouse — instant, free, already populated by the indexer.
+        Strategy 1: DexScreener search (rate-limited). Strategy 2:
+        Etherscan contract creation (EVM only). Results merge dedup by
+        address; indexer hits win over API heuristics because the
+        indexer's outcome/scam flags are computed from full history.
         """
-        launches = []
+        launches = await self._fetch_launches_clickhouse(dev_wallet)
 
         # ── Strategy 1: DexScreener search by deployer address ──
+        # (skipped when the indexer already knows this deployer — saves
+        # rate-limited API budget; indexer outcomes are authoritative)
+        if launches:
+            return launches
         search_data = await self._dexscreener_search(dev_wallet)
         if search_data and search_data.get("pairs"):
             chain_id = DEXSCREENER_CHAIN_MAP.get(chain, chain)
