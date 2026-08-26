@@ -13,7 +13,7 @@ Routes:
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -286,7 +286,7 @@ async def trending_news(
                 "SELECT count(*) AS c FROM news_items WHERE published_at > $1"
                 if include_telegram
                 else "SELECT count(*) AS c FROM news_items WHERE published_at > $1 "
-                "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%')"
+                "AND NOT (news_id LIKE 'tg:%' OR url LIKE '%t.me/%')"
             )
             rows = await conn.fetch(_count_sql, cutoff)
 
@@ -362,6 +362,40 @@ async def trending_news(
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"trending_legacy_fail: {e}")
+
+    # Fallback: news_items has no qualifying coverage (e.g. only Telegram
+    # wire in window) — serve from the Redis aggregate so the surface never
+    # goes dark. Fail-open to empty.
+    if not items:
+        try:
+            from app.databus.news_provider import get_aggregated_news
+
+            agg = await get_aggregated_news(limit=max(limit * 2, 20))
+            now_dt = utcnow()
+            for a in (agg or {}).get("articles", [])[:limit]:
+                published = a.get("published_at") or now_dt.isoformat()
+                try:
+                    pub_dt = datetime.fromisoformat(str(published).replace("Z", "+00:00"))
+                except ValueError:
+                    pub_dt = now_dt
+                hours_old = max(0.0, (now_dt - pub_dt).total_seconds() / 3600)
+                item = NewsItemOut(
+                    news_id=str(a.get("id") or a.get("url") or ""),
+                    url=a.get("url") or "",
+                    title=a.get("title") or "",
+                    summary=(a.get("description") or "")[:300],
+                    image_url=a.get("image_url"),
+                    source=a.get("source") or "unknown",
+                    published_at=pub_dt,
+                    tokens_mentioned=list(a.get("tokens_mentioned") or []),
+                    chains_mentioned=list(a.get("chains_mentioned") or []),
+                )
+                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
+                items.append(item)
+        except Exception as e:  # fallback must never break the route
+            from app.core.logging import get_logger
+
+            get_logger(__name__).warning("trending_redis_fallback_fail: %s", e)
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     if not include_telegram:
