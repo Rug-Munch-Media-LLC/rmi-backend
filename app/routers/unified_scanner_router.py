@@ -102,6 +102,19 @@ def _serialize_rag_context(rag_ctx: Any) -> dict[str, Any] | None:
         return None
 
 
+async def _attach_ai_verdict(payload: dict[str, Any]) -> dict[str, Any]:
+    """Attach the AI narrative verdict (fail-open) — async context required."""
+    try:
+        from app.services.scan_verdict_ai import synthesize_scan_verdict
+
+        verdict = await synthesize_scan_verdict(payload)
+        if verdict:
+            payload["ai_verdict"] = verdict
+    except Exception:
+        payload["ai_verdict"] = None
+    return payload
+
+
 @router.post(
     "/token/scan",
     summary="Scan Token",
@@ -137,7 +150,7 @@ async def deepscan_token(
     admin_key = _get_admin_key(request)
     try:
         result = await scanner.scan(address=body.address, chain=body.chain, tier="elite", admin_key=admin_key)
-        return _format_scan_response(result)
+        return await _attach_ai_verdict(_format_scan_response(result))
     except Exception as e:
         raise HTTPException(500, f"Deep scan failed: {str(e)[:200]}") from e
 
@@ -152,7 +165,7 @@ async def _run_scan(
     admin_key = _get_admin_key(request)
     try:
         result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
-        return _format_scan_response(result)
+        return await _attach_ai_verdict(_format_scan_response(result))
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
