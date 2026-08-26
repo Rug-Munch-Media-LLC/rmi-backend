@@ -403,10 +403,15 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
 
 async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """SENTINEL scanner - our own token security analysis."""
+    # No address = nothing to scan. Short-circuit instead of self-POSTing
+    # an empty scan against a stale route (observed 21s of dead provider
+    # chain walking before returning an all-zeros payload).
+    if not address:
+        return None
     try:
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.post(
-                "http://localhost:8000/api/v1/token/scan",
+                "http://localhost:8000/api/v2/scanner/token/scan",
                 json={"address": address, "chain": chain},
             )
             if r.status_code == 200:
