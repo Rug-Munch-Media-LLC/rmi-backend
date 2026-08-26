@@ -21,6 +21,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.catalog.llm_router import LLMRouter
 from app.catalog.models import utcnow
 from app.catalog.service import get_catalog
+from app.core.logging import get_logger
 from app.domains.news.routes.schemas import (
     NewsAnalysisResponse,
     NewsItemOut,
@@ -29,6 +30,8 @@ from app.domains.news.routes.schemas import (
     _adapt_legacy_row,
     trend_score,
 )
+
+log = get_logger(__name__)
 
 router = APIRouter(tags=["news"])
 
@@ -263,6 +266,22 @@ async def trending_news(
     try:
         engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
+            # DEBUG probe (trending-empty investigation): dsn + raw count
+            # through THIS pool/connection before the full select.
+            import hashlib as _hashlib
+
+            _dsn = str(catalog.config.get("postgres", {}).get("database", "?"))
+            _probe = await conn.fetchval(
+                "SELECT count(*) FROM news_items WHERE published_at > $1",
+                cutoff,
+            )
+            log.info(
+                "TRENDING_DEBUG db=%s dsn_hash=%s cutoff=%s probe_rows=%s",
+                _dsn,
+                _hashlib.sha256(_dsn.encode()).hexdigest()[:8],
+                cutoff.isoformat(),
+                _probe,
+            )
             rows = await conn.fetch(
                 # nosec B608 — engagement fragments are internal; params bound
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
@@ -273,7 +292,8 @@ async def trending_news(
                 "FROM news_items n "
                 f"{engagement_join}"
                 "WHERE n.published_at > $1 "
-                "ORDER BY n.published_at DESC LIMIT 500",
+                + ("" if include_telegram else "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%') ")
+                + "ORDER BY n.published_at DESC LIMIT 500",
                 cutoff,
             )
         for r in rows:
