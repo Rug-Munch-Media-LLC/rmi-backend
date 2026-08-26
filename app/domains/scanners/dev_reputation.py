@@ -486,12 +486,16 @@ class DevReputationEngine:
             )
             rows = client.execute(
                 """
-                SELECT token_address, chain_id, token_name, token_symbol,
-                       toUnixTimestamp(deployed_at), outcome, lifespan_days,
-                       max_market_cap, is_scam_related
+                SELECT
+                       token_address, any(chain_id), any(token_name),
+                       any(token_symbol),
+                       toUnixTimestamp(max(deployed_at)),
+                       any(outcome), max(lifespan_days),
+                       max(max_market_cap), max(is_scam_related)
                 FROM deployer_history
                 WHERE lower(deployer_address) = lower(%(w)s)
-                ORDER BY deployed_at DESC
+                GROUP BY token_address
+                ORDER BY 5 DESC
                 LIMIT 50
                 """,
                 {"w": dev_wallet},
