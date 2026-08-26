@@ -99,6 +99,7 @@ class CatalogService:
         self._health = StoreHealth()
         self._redis: Any = None
         self._pg_pool: Any = None
+        self._pg_loop: asyncio.AbstractEventLoop | None = None
         self._neo_driver: Any = None
         self._qdrant: Any = None  # httpx.AsyncClient
         self._init_lock = asyncio.Lock()
@@ -106,8 +107,14 @@ class CatalogService:
     # ── Store init (lazy) ────────────────────────────────────────────
     async def _init_stores(self) -> None:
         async with self._init_lock:
-            if self._redis is not None and self._health.postgres:
-                return  # fully initialized
+            current_loop = asyncio.get_running_loop()
+            if (
+                self._redis is not None
+                and self._health.postgres
+                and self._pg_pool is not None
+                and self._pg_loop is current_loop
+            ):
+                return  # fully initialized on THIS loop
             # Redis (always try first - used for everything)
             if self._redis is None:
                 try:
@@ -132,6 +139,18 @@ class CatalogService:
             # race (pg briefly down while Redis was fine) used to latch
             # _health.postgres=False forever, silently emptying every
             # news/trending query until the next restart.
+            #
+            # ALSO loop-safe: asyncpg pools bind to the creating event loop.
+            # The singleton catalog may be initialized on one loop (import-
+            # time probe, worker thread) while requests run on the lifespan
+            # loop — acquisition then fails silently and consumers return
+            # empty. Detect a foreign-loop pool and rebuild on this loop.
+            if self._pg_pool is not None and self._pg_loop is not current_loop:
+                with contextlib.suppress(Exception):
+                    await self._pg_pool.close()
+                self._pg_pool = None
+                self._health.postgres = False
+                log.warning("catalog_pg_pool_rebuilt_loop_mismatch")
             if not self._health.postgres or self._pg_pool is None:
                 try:
                     import asyncpg
@@ -152,6 +171,7 @@ class CatalogService:
                             ),
                         )
                         self._health.postgres = True
+                        self._pg_loop = current_loop
                         log.info("catalog_postgres_ok")
                         with contextlib.suppress(Exception):
                             if old_pool is not None:

@@ -300,10 +300,10 @@ async def trending_news(
             )
             item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
             items.append(item)
-    except (KeyError, ValueError, TypeError) as e:
+    except Exception as e:  # loud fallback — empty trending must never be silent
         from app.core.logging import get_logger
 
-        get_logger(__name__).warning(f"trending_new_fail: {e}")
+        get_logger(__name__).warning("trending_new_fail: %s: %s", type(e).__name__, str(e)[:200])
 
     # Fallback: crypto_news (legacy) if no new items
     if not items and await _legacy_news_available():
