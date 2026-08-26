@@ -719,75 +719,103 @@ async def refresh_news_cache() -> dict[str, Any]:
 
     all_articles.sort(key=_sort_key, reverse=True)
 
-    # ── Relevance pass: embedding-cosine rerank (fail-open) ──
-    # The CPU rerankers can't absorb feed-sized batches inside the refresh
-    # budget, so rank via the batch embedder instead: one query vector vs
-    # one batched titles matrix, cosine-sorted. Same infra (:8004), seconds
-    # not minutes. Empty/failure -> keep recency order.
+    # ── Relevance pass (fail-open): Qwen3-4B rerank first, embed-cosine
+    # as fallback while the embed migration cooks. Same-provider cosine
+    # keeps every tier dimension-correct. ──
+    _rerank_done = False
     try:
-        import math
+        from app.rag.rerank import rerank_results
 
-        import httpx
-
-        candidates = all_articles[:40]
-        if candidates:
-            query_text = (
+        _rerank_cands = all_articles[:24]
+        ranked = await asyncio.wait_for(
+            rerank_results(
                 "major market-moving crypto news: regulation, hacks, ETFs, "
-                "protocol exploits, macro events affecting bitcoin ethereum solana"
-            )
-            docs = [f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in candidates]
-
-            async def _embed_batch(client: httpx.AsyncClient, url: str, inputs: list[str], model: str | None = None) -> list[list[float]]:
-                payload: dict[str, object] = {"input": inputs}
-                if model:
-                    payload["model"] = model
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-                return [d["embedding"] for d in resp.json()["data"]]
-
-            # Provider chain: local CPU embedder -> NVIDIA NIM free tier
-            # (bge-m3, same model family/dims as ours) until the local
-            # embed migration completes; then local serves directly.
-            q_vec = d_vecs = None
-            async with httpx.AsyncClient(timeout=45) as client:
-                try:
-                    embed_url = "http://172.22.0.1:8004/v1/embeddings"
-                    q_vec = (await _embed_batch(client, embed_url, [query_text]))[0]
-                    d_vecs = await _embed_batch(client, embed_url, docs)
-                except Exception:
-                    logger.debug("local embedder unavailable — falling back to NVIDIA NIM")
-                # Migration bridge 1: Mistral mistral-embed — 1024 dims,
-                # SAME as news_v2's dense vector, so these vectors are even
-                # safe to persist into RAG collections while :8004/:8007
-                # are down.
-                if q_vec is None or d_vecs is None:
-                    _mkey = os.getenv("MISTRAL_API_KEY", "").strip()
-                    if not _mkey:
-                        raise RuntimeError("no MISTRAL_API_KEY for embed fallback")
-                    _murl = "https://api.mistral.ai/v1/embeddings"
-                    _mh = {"Authorization": f"Bearer {_mkey}"}
-                    q_resp = await client.post(_murl, json={"model": "mistral-embed", "input": [query_text]}, headers=_mh)
-                    q_resp.raise_for_status()
-                    q_vec = q_resp.json()["data"][0]["embedding"]
-                    d_resp = await client.post(_murl, json={"model": "mistral-embed", "input": docs}, headers=_mh)
-                    d_resp.raise_for_status()
-                    d_vecs = [d["embedding"] for d in d_resp.json()["data"]]
-
-            def _cos(a: list[float], b: list[float]) -> float:
-                num = sum(x * y for x, y in zip(a, b, strict=False))
-                da = math.sqrt(sum(x * x for x in a)) or 1.0
-                db = math.sqrt(sum(y * y for y in b)) or 1.0
-                return num / (da * db)
-
-            scored = sorted(
-                range(len(candidates)),
-                key=lambda i: _cos(q_vec, d_vecs[i]),
-                reverse=True,
-            )
-            all_articles = [candidates[i] for i in scored] + all_articles[len(candidates) :]
-            logger.info(f"Relevance-ranked {len(candidates)} articles via embedding cosine")
+                "protocol exploits, macro events affecting bitcoin ethereum solana",
+                documents=[
+                    f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}"
+                    for a in _rerank_cands
+                ],
+                top_n=len(_rerank_cands),
+                tier="deep",
+            ),
+            timeout=45.0,
+        )
+        if ranked:
+            order = {r["index"]: r["relevance_score"] for r in ranked}
+            _rerank_cands.sort(key=lambda a: order.get(_rerank_cands.index(a), 0.0), reverse=True)
+            all_articles = _rerank_cands + all_articles[len(_rerank_cands) :]
+            logger.info(f"Reranked {len(_rerank_cands)} articles via qwen3-reranker-4b")
+            _rerank_done = True
     except Exception as e:
-        logger.debug(f"Relevance pass skipped: {e}")
+        logger.debug(f"4B rerank unavailable this cycle: {e}")
+
+    if not _rerank_done:
+        try:
+            import math
+
+            import httpx
+
+            candidates = all_articles[:40]
+            if candidates:
+                query_text = (
+                    "major market-moving crypto news: regulation, hacks, ETFs, "
+                    "protocol exploits, macro events affecting bitcoin ethereum solana"
+                )
+                docs = [
+                    f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}"
+                    for a in candidates
+                ]
+
+                async def _embed_batch(
+                    client: httpx.AsyncClient, url: str, inputs: list[str], model: str | None = None
+                ) -> list[list[float]]:
+                    payload: dict[str, object] = {"input": inputs}
+                    if model:
+                        payload["model"] = model
+                    resp = await client.post(url, json=payload)
+                    resp.raise_for_status()
+                    return [d["embedding"] for d in resp.json()["data"]]
+
+                q_vec = d_vecs = None
+                async with httpx.AsyncClient(timeout=45) as client:
+                    try:
+                        embed_url = "http://172.22.0.1:8004/v1/embeddings"
+                        q_vec = (await _embed_batch(client, embed_url, [query_text]))[0]
+                        d_vecs = await _embed_batch(client, embed_url, docs)
+                    except Exception:
+                        logger.debug("local embedder unavailable - trying API fallbacks")
+                    if q_vec is None or d_vecs is None:
+                        _mkey = os.getenv("MISTRAL_API_KEY", "").strip()
+                        if not _mkey:
+                            raise RuntimeError("no MISTRAL_API_KEY for embed fallback")
+                        _murl = "https://api.mistral.ai/v1/embeddings"
+                        _mh = {"Authorization": f"Bearer {_mkey}"}
+                        q_resp = await client.post(
+                            _murl, json={"model": "mistral-embed", "input": [query_text]}, headers=_mh
+                        )
+                        q_resp.raise_for_status()
+                        q_vec = q_resp.json()["data"][0]["embedding"]
+                        d_resp = await client.post(
+                            _murl, json={"model": "mistral-embed", "input": docs}, headers=_mh
+                        )
+                        d_resp.raise_for_status()
+                        d_vecs = [d["embedding"] for d in d_resp.json()["data"]]
+
+                def _cos(a: list[float], b: list[float]) -> float:
+                    num = sum(x * y for x, y in zip(a, b, strict=False))
+                    da = math.sqrt(sum(x * x for x in a)) or 1.0
+                    db = math.sqrt(sum(y * y for y in b)) or 1.0
+                    return num / (da * db)
+
+                scored = sorted(
+                    range(len(candidates)),
+                    key=lambda i: _cos(q_vec, d_vecs[i]),
+                    reverse=True,
+                )
+                all_articles = [candidates[i] for i in scored] + all_articles[len(candidates) :]
+                logger.info(f"Relevance-ranked {len(candidates)} articles via embed cosine")
+        except Exception as e:
+            logger.debug(f"Relevance pass skipped: {e}")
 
     # Build the full news data
     market_brief = await get_market_brief()
