@@ -266,22 +266,6 @@ async def trending_news(
     try:
         engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
-            # DEBUG probe (trending-empty investigation): dsn + raw count
-            # through THIS pool/connection before the full select.
-            import hashlib as _hashlib
-
-            _dsn = str(catalog.config.get("postgres", {}).get("database", "?"))
-            _probe = await conn.fetchval(
-                "SELECT count(*) FROM news_items WHERE published_at > $1",
-                cutoff,
-            )
-            log.info(
-                "TRENDING_DEBUG db=%s dsn_hash=%s cutoff=%s probe_rows=%s",
-                _dsn,
-                _hashlib.sha256(_dsn.encode()).hexdigest()[:8],
-                cutoff.isoformat(),
-                _probe,
-            )
             _count_sql = (
                 "SELECT count(*) AS c FROM news_items WHERE published_at > $1"
                 if include_telegram
@@ -290,7 +274,6 @@ async def trending_news(
             )
             rows = await conn.fetch(_count_sql, cutoff)
 
-            log.info("TRENDING_DEBUG2 nontg_rows=%s", rows[0]["c"] if rows else None)
             rows = await conn.fetch(
                 # nosec B608 — engagement fragments are internal; params bound
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
@@ -396,6 +379,38 @@ async def trending_news(
             from app.core.logging import get_logger
 
             get_logger(__name__).warning("trending_redis_fallback_fail: %s", e)
+
+    # Second fallback: Qdrant news_v2 (persistent, rated) when the Redis
+    # aggregate is mid-refresh (TTL gap).
+    if not items:
+        try:
+            from app.routers.news import _point_to_article, _scroll_news_v2 as _scroll
+
+            points = await _scroll(limit=max(limit * 2, 20))
+            now_dt = utcnow()
+            for p_ in points:
+                a = _point_to_article(p_)
+                published = a.get("published_at") or now_dt.isoformat()
+                try:
+                    pub_dt = datetime.fromisoformat(str(published).replace("Z", "+00:00"))
+                except ValueError:
+                    pub_dt = now_dt
+                hours_old = max(0.0, (now_dt - pub_dt).total_seconds() / 3600)
+                item = NewsItemOut(
+                    news_id=str(a.get("id") or ""),
+                    url=a.get("url") or "",
+                    title=a.get("title") or "",
+                    summary=(a.get("description") or "")[:300],
+                    image_url=a.get("image_url"),
+                    source=a.get("source") or "unknown",
+                    published_at=pub_dt,
+                )
+                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
+                items.append(item)
+        except Exception as e:  # fail-open
+            from app.core.logging import get_logger
+
+            get_logger(__name__).warning("trending_qdrant_fallback_fail: %s", e)
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     if not include_telegram:
