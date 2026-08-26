@@ -282,6 +282,15 @@ async def trending_news(
                 cutoff.isoformat(),
                 _probe,
             )
+            _count_sql = (
+                "SELECT count(*) AS c FROM news_items WHERE published_at > $1"
+                if include_telegram
+                else "SELECT count(*) AS c FROM news_items WHERE published_at > $1 "
+                "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%')"
+            )
+            rows = await conn.fetch(_count_sql, cutoff)
+
+            log.info("TRENDING_DEBUG2 nontg_rows=%s", rows[0]["c"] if rows else None)
             rows = await conn.fetch(
                 # nosec B608 — engagement fragments are internal; params bound
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
