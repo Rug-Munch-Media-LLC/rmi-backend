@@ -529,21 +529,33 @@ async def _fetch_rss_articles(
         """Pull the best article image from an RSS entry.
 
         Order: media:content → media:thumbnail → enclosure link → first
-        <img> in summary/description HTML. Most major crypto feeds
-        (CoinDesk, Cointelegraph, Decrypt, The Block) expose one of these.
+        <img> in summary/description/content:encoded HTML. Most major
+        crypto feeds (CoinDesk, Cointelegraph, Decrypt, The Block) expose
+        one of these. Widget/embed URLs (e.g. stock chart iframes) are
+        rejected — they render as broken images in cards.
         """
         import re as _re
+
+        def _acceptable(url: str) -> bool:
+            lowered = url.lower()
+            return not any(marker in lowered for marker in ("/embed", "embed?", "&embed", "/widget", "/chart/"))
 
         for media in getattr(entry, "media_content", None) or []:
             if isinstance(media, dict) and media.get("url"):
                 mtype = str(media.get("type") or "image")
-                if "image" in mtype or mtype.startswith("http"):
-                    return str(media["url"])
+                url = str(media["url"])
+                if _acceptable(url) and ("image" in mtype or mtype.startswith("http")):
+                    return url
         for thumb in getattr(entry, "media_thumbnail", None) or []:
-            if isinstance(thumb, dict) and thumb.get("url"):
+            if isinstance(thumb, dict) and thumb.get("url") and _acceptable(str(thumb["url"])):
                 return str(thumb["url"])
         for link in getattr(entry, "links", None) or []:
-            if isinstance(link, dict) and link.get("rel") == "enclosure" and "image" in str(link.get("type") or ""):
+            if (
+                isinstance(link, dict)
+                and link.get("rel") == "enclosure"
+                and "image" in str(link.get("type") or "")
+                and _acceptable(str(link.get("href") or ""))
+            ):
                 return str(link.get("href") or "")
         html = f"{entry.get('summary', '') or ''}{entry.get('description', '') or ''}"
         # content:encoded — most crypto feeds embed the lead image here
@@ -553,9 +565,9 @@ async def _fetch_rss_articles(
                 if isinstance(c, dict) and c.get("value"):
                     html += str(c["value"])
         if "<img" in html:
-            match = _re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html)
-            if match:
-                return match.group(1)
+            for match in _re.finditer(r'<img[^>]+src=["\']([^"\']+)["\']', html):
+                if _acceptable(match.group(1)):
+                    return match.group(1)
         return None
 
     async def _fetch_one(url: str, source_name: str) -> list[dict[str, Any]]:
