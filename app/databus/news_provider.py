@@ -525,6 +525,39 @@ async def _fetch_rss_articles(
     articles: list[dict[str, Any]] = []
     seen_titles: set[str] = set()
 
+    def _extract_image(entry: Any) -> str | None:
+        """Pull the best article image from an RSS entry.
+
+        Order: media:content → media:thumbnail → enclosure link → first
+        <img> in summary/description HTML. Most major crypto feeds
+        (CoinDesk, Cointelegraph, Decrypt, The Block) expose one of these.
+        """
+        import re as _re
+
+        for media in getattr(entry, "media_content", None) or []:
+            if isinstance(media, dict) and media.get("url"):
+                mtype = str(media.get("type") or "image")
+                if "image" in mtype or mtype.startswith("http"):
+                    return str(media["url"])
+        for thumb in getattr(entry, "media_thumbnail", None) or []:
+            if isinstance(thumb, dict) and thumb.get("url"):
+                return str(thumb["url"])
+        for link in getattr(entry, "links", None) or []:
+            if isinstance(link, dict) and link.get("rel") == "enclosure" and "image" in str(link.get("type") or ""):
+                return str(link.get("href") or "")
+        html = f"{entry.get('summary', '') or ''}{entry.get('description', '') or ''}"
+        # content:encoded — most crypto feeds embed the lead image here
+        content = getattr(entry, "content", None) or []
+        if isinstance(content, list):
+            for c in content:
+                if isinstance(c, dict) and c.get("value"):
+                    html += str(c["value"])
+        if "<img" in html:
+            match = _re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html)
+            if match:
+                return match.group(1)
+        return None
+
     async def _fetch_one(url: str, source_name: str) -> list[dict[str, Any]]:
         try:
             async with httpx.AsyncClient(
@@ -566,6 +599,7 @@ async def _fetch_rss_articles(
                         "description": desc[:300],
                         "source": source_name,
                         "published_at": published,
+                        "image_url": _extract_image(entry),
                         "category": "news",
                         "sentiment": "neutral",
                         "kind": "external",
