@@ -429,6 +429,56 @@ class BlockZeroSniperAnalyzer:
         """
         transactions: list[dict[str, Any]] = []
 
+        # Indexer-first (2026-08-26): wallet_memory.dex_events stores every
+        # swap with block numbers — earliest txs are ONE indexed query vs
+        # DexScreener+Helius+Etherscan rate-limited chains. Solana keeps
+        # its Helius path (SPL balance changes live in a different table).
+        if is_evm(chain):
+            import os as _os
+
+            try:
+                from clickhouse_driver import Client as CHClient
+
+                client = CHClient(
+                    host=_os.getenv("CH_HOST") or _os.getenv("CLICKHOUSE_HOST", "127.0.0.1"),
+                    port=int(_os.getenv("CH_PORT") or _os.getenv("CLICKHOUSE_PORT", "9000")),
+                    user=_os.getenv("CH_USER") or _os.getenv("CLICKHOUSE_USER", "rmi"),
+                    password=_os.getenv("CH_PASSWORD") or _os.getenv("CLICKHOUSE_PASSWORD") or "",
+                    database="wallet_memory",
+                    connect_timeout=3,
+                    send_receive_timeout=10,
+                )
+                rows = client.execute(
+                    """
+                    SELECT sender, recipient, block_number, tx_hash
+                    FROM dex_events
+                    WHERE chain = %(chain)s
+                      AND (token0 = %(token)s OR token1 = %(token)s)
+                      AND type = 'swap'
+                    ORDER BY block_number ASC, log_index ASC
+                    LIMIT 60
+                    """,
+                    {"chain": chain.lower(), "token": token_address.lower()},
+                )
+                for sender, recipient, blk, tx in rows:
+                    transactions.append(
+                        {
+                            "from": sender or "",
+                            "to": recipient or "",
+                            "block_number": int(blk),
+                            "hash": tx or "",
+                        }
+                    )
+                if transactions:
+                    logger.info(
+                        "block_zero_indexer_first token=%s txs=%d",
+                        token_address[:10],
+                        len(transactions),
+                    )
+                    return transactions
+            except Exception as exc:
+                logger.debug("earliest_txs_indexer_failed: %s", str(exc)[:120])
+
         if is_solana(chain):
             transactions = await self._fetch_solana_earliest(token_address)
         elif is_evm(chain):
