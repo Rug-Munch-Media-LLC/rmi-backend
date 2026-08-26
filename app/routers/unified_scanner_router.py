@@ -260,13 +260,9 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
             )
         ),
     }
-    # AI narrative verdict — fail-open: never blocks or fails a scan.
-    try:
-        from app.services.scan_verdict_ai import synthesize_scan_verdict
-
-        payload["ai_verdict"] = await synthesize_scan_verdict(payload)
-    except Exception:
-        payload["ai_verdict"] = None
+    # ai_verdict: wired at the ASYNC route layer (see scan_verdict_ai.py) —
+    # this formatter is sync and cannot await.
+    return payload
 
 
 @router.get(
