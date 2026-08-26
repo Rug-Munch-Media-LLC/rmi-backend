@@ -14,13 +14,13 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from datetime import datetime
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 
 # Query timeout shared with funding_analysis (time-boxed queries).
-_QUERY_TIMEOUT_SECONDS = 20
+_QUERY_TIMEOUT_SECONDS = 60  # 2026-08-26: 20s killed first-tx scans on 1.3B-row evm_transfers (Code 159); engine is async/best-effort so a slower correct answer beats "unavailable"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CLICKHOUSE QUERIES (all sync, bounded by max_execution_time)
