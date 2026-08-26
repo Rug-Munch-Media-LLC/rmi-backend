@@ -106,48 +106,59 @@ class CatalogService:
     # ── Store init (lazy) ────────────────────────────────────────────
     async def _init_stores(self) -> None:
         async with self._init_lock:
-            if self._redis is not None:
-                return  # already init
+            if self._redis is not None and self._health.postgres:
+                return  # fully initialized
             # Redis (always try first - used for everything)
-            try:
-                import redis.asyncio as aioredis
+            if self._redis is None:
+                try:
+                    import redis.asyncio as aioredis
 
-                cfg = self.config["redis"]
-                self._redis = aioredis.Redis(
-                    host=cfg["host"],
-                    port=cfg["port"],
-                    password=cfg["password"],
-                    db=cfg["db"],
-                    decode_responses=True,
-                )
-                await self._redis.ping()
-                self._health.redis = True
-                log.info("catalog_redis_ok")
-            except Exception as e:
-                log.warning("catalog_redis_fail: %s", e)
-                self._health.redis = False
-
-            # Postgres
-            try:
-                import asyncpg
-
-                cfg = self.config["postgres"]
-                if cfg["password"]:
-                    self._pg_pool = await asyncpg.create_pool(
+                    cfg = self.config["redis"]
+                    self._redis = aioredis.Redis(
                         host=cfg["host"],
                         port=cfg["port"],
-                        user=cfg["user"],
                         password=cfg["password"],
-                        database=cfg["database"],
-                        min_size=1,
-                        max_size=8,
-                        command_timeout=10,
+                        db=cfg["db"],
+                        decode_responses=True,
                     )
-                    self._health.postgres = True
-                    log.info("catalog_postgres_ok")
-            except Exception as e:
-                log.warning("catalog_postgres_fail: %s", e)
-                self._health.postgres = False
+                    await self._redis.ping()
+                    self._health.redis = True
+                    log.info("catalog_redis_ok")
+                except Exception as e:
+                    log.warning("catalog_redis_fail: %s", e)
+                    self._health.redis = False
+
+            # Postgres — retried on later calls when unhealthy: a boot-time
+            # race (pg briefly down while Redis was fine) used to latch
+            # _health.postgres=False forever, silently emptying every
+            # news/trending query until the next restart.
+            if not self._health.postgres or self._pg_pool is None:
+                try:
+                    import asyncpg
+
+                    cfg = self.config["postgres"]
+                    if cfg["password"]:
+                        old_pool, self._pg_pool = (
+                            self._pg_pool,
+                            await asyncpg.create_pool(
+                                host=cfg["host"],
+                                port=cfg["port"],
+                                user=cfg["user"],
+                                password=cfg["password"],
+                                database=cfg["database"],
+                                min_size=1,
+                                max_size=8,
+                                command_timeout=10,
+                            ),
+                        )
+                        self._health.postgres = True
+                        log.info("catalog_postgres_ok")
+                        with contextlib.suppress(Exception):
+                            if old_pool is not None:
+                                await old_pool.close()
+                except Exception as e:
+                    log.warning("catalog_postgres_fail: %s", e)
+                    self._health.postgres = False
 
             # Neo4j (NEO4J_AUTH=none means no password)
             try:
