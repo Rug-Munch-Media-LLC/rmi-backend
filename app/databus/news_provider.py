@@ -646,10 +646,16 @@ async def _fetch_rss_articles(
 
 
 async def refresh_news_cache() -> dict[str, Any]:
-    """Full background refresh: API news + top RSS feeds → Redis.
+    """Full background refresh: API news + RSS feeds → Redis.
 
     Called on startup and every 5 minutes by the background task.
     Returns the cached data dict.
+
+    Pipeline (RAG-benefits-news): pull from the merged master registry
+    (~200 sources) → fuzzy-dedupe near-identical wire copies → rerank the
+    freshest candidates with the local Qwen3-Reranker-4B so the feed is
+    ordered by market relevance, not just recency. Fail-open everywhere:
+    rerank/dedup degradation never empties the feed.
     """
     logger.info("Starting background news cache refresh...")
 
@@ -657,13 +663,24 @@ async def refresh_news_cache() -> dict[str, Any]:
     api_articles = await _fetch_fast_api_news(limit=25)
     logger.info(f"API news: {len(api_articles)} articles")
 
+    # Merge curated fast list with the master registry (200+ sources),
+    # dedupe by URL, cap for the refresh budget.
+    try:
+        from app.domains.news.news_service.sources import RSS_FEEDS as MASTER_FEEDS
+
+        seen_urls = {u for u, _ in TOP_50_FEEDS}
+        merged_feeds = list(TOP_50_FEEDS) + [(u, n) for u, n in MASTER_FEEDS if u not in seen_urls]
+        rss_registry = merged_feeds[:140]
+    except Exception:
+        rss_registry = TOP_50_FEEDS
+
     # RSS feeds in background (with generous timeout per batch)
     try:
         rss_articles = await asyncio.wait_for(
-            _fetch_rss_articles(TOP_50_FEEDS, limit_per_source=3, timeout=8.0),
+            _fetch_rss_articles(rss_registry, limit_per_source=3, timeout=8.0),
             timeout=60.0,
         )
-        logger.info(f"RSS news: {len(rss_articles)} articles")
+        logger.info(f"RSS news: {len(rss_articles)} articles from {len(rss_registry)} feeds")
     except TimeoutError:
         logger.warning("RSS fetch timed out after 60s — using partial results")
         rss_articles = []
@@ -671,23 +688,58 @@ async def refresh_news_cache() -> dict[str, Any]:
         logger.warning(f"RSS fetch failed: {e}")
         rss_articles = []
 
-    # Merge and dedupe by title
+    # Merge and dedupe: exact-title pass, then fuzzy near-dup collapse
+    # (wire services syndicate the same headline with tiny edits).
+    import difflib
+
+    def _norm_title(t: str) -> str:
+        return "".join(ch for ch in t.lower() if ch.isalnum())
+
     seen_titles: set[str] = set()
+    seen_norms: list[str] = []
     all_articles: list[dict[str, Any]] = []
     for art in api_articles + rss_articles:
         title = art.get("title", "")
-        if title and title not in seen_titles:
-            seen_titles.add(title)
+        if not title:
             all_articles.append(art)
-        elif not title:
-            # Allow articles without title (unusual but safe)
-            all_articles.append(art)
+            continue
+        if title in seen_titles:
+            continue
+        norm = _norm_title(title)[:120]
+        if norm and any(difflib.SequenceMatcher(None, norm, prev).ratio() > 0.88 for prev in seen_norms[-200:]):
+            continue
+        seen_titles.add(title)
+        if norm:
+            seen_norms.append(norm)
+        all_articles.append(art)
 
     # Sort by published_at (newest first)
     def _sort_key(a: dict[str, Any]) -> str:
         return a.get("published_at", "")
 
     all_articles.sort(key=_sort_key, reverse=True)
+
+    # ── Qwen3-Reranker-4B relevance pass (fail-open) ──
+    # Score the freshest 80 candidates against a standing "market-moving
+    # crypto events" query and reorder. Empty result → keep recency order.
+    try:
+        from app.rag.rerank import rerank_results
+
+        candidates = all_articles[:80]
+        ranked = await rerank_results(
+            "major market-moving crypto news: regulation, hacks, ETFs, "
+            "protocol exploits, macro events affecting bitcoin ethereum solana",
+            documents=[f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in candidates],
+            top_n=len(candidates),
+            tier="deep",
+        )
+        if ranked:
+            order = {r["index"]: r["relevance_score"] for r in ranked}
+            candidates.sort(key=lambda a: order.get(candidates.index(a), 0.0), reverse=True)
+            all_articles = candidates + all_articles[80:]
+            logger.info(f"Reranked {len(candidates)} articles via qwen3-reranker-4b")
+    except Exception as e:
+        logger.debug(f"Rerank skipped: {e}")
 
     # Build the full news data
     market_brief = await get_market_brief()
