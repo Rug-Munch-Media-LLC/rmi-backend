@@ -248,7 +248,6 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "wallet_metrics": result.wallet_metrics,
         "bundle_analysis": result.bundle_analysis,
         "first_buyers": result.first_buyers,
-        "ai_verdict": None,  # filled below (fail-open)
         "deployer_profile": (
             asdict(result.deep_profile.deployer_profile)
             if result.deep_profile
