@@ -224,6 +224,61 @@ class BundleDetector:
                         )
                     )
 
+        # EVM path (2026-08-26): the lite-chain-indexer already stores every
+        # DEX swap in wallet_memory.dex_events — early buyers are a single
+        # indexed query instead of per-wallet API calls. Solana keeps the
+        # Helius path above.
+        if not is_solana(chain) and deploy_block > 0:
+            import os as _os
+
+            try:
+                from clickhouse_driver import Client as CHClient
+
+                client = CHClient(
+                    host=_os.getenv("CH_HOST") or _os.getenv("CLICKHOUSE_HOST", "127.0.0.1"),
+                    port=int(_os.getenv("CH_PORT") or _os.getenv("CLICKHOUSE_PORT", "9000")),
+                    user=_os.getenv("CH_USER") or _os.getenv("CLICKHOUSE_USER", "rmi"),
+                    password=_os.getenv("CH_PASSWORD") or _os.getenv("CLICKHOUSE_PASSWORD") or "",
+                    database="wallet_memory",
+                    connect_timeout=3,
+                    send_receive_timeout=10,
+                )
+                rows = client.execute(
+                    """
+                    SELECT recipient, any(tx_hash), min(block_number), count() AS buys
+                    FROM dex_events
+                    WHERE chain = %(chain)s
+                      AND block_number BETWEEN %(b0)s AND %(b1)s
+                      AND (token0 = %(token)s OR token1 = %(token)s)
+                      AND type = 'swap'
+                    GROUP BY recipient
+                    ORDER BY buys DESC
+                    LIMIT 25
+                    """,
+                    {
+                        "chain": chain.lower(),
+                        "b0": deploy_block,
+                        "b1": deploy_block + 10,
+                        "token": token.lower(),
+                    },
+                )
+                for recipient, tx, blk, _buys in rows:
+                    if recipient:
+                        early_buyers.append(
+                            _EarlyBuyer(
+                                address=recipient,
+                                first_buy_tx=tx or "",
+                                first_buy_block=int(blk),
+                            )
+                        )
+                logger.info(
+                    "bundle_detector_indexer_first token=%s buyers=%d",
+                    token[:10],
+                    len(early_buyers),
+                )
+            except Exception as exc:
+                logger.debug("early_buyers_indexer_failed: %s", str(exc)[:120])
+
         return early_buyers
 
     async def _trace_funding_chain(
