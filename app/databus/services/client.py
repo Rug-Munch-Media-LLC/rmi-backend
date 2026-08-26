@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import time
 from typing import Any
 
@@ -32,6 +33,12 @@ from app.databus.services.health import ProviderHealthTracker
 from app.databus.vault import DataBusVault, get_vault
 
 logger = get_logger("databus.client")
+
+# Hard wall-clock budget for one full provider-chain walk. Chains that
+# burn through every provider (dead upstreams, 30s client timeouts) were
+# observed taking 20s+ per fetch; this caps the damage. Tune with
+# DATABUS_FETCH_TIMEOUT (seconds).
+FETCH_TIMEOUT_S = float(os.getenv("DATABUS_FETCH_TIMEOUT", "12"))
 
 
 class DataBus:
@@ -301,7 +308,10 @@ class DataBus:
         # ── 6. PROVIDER CHAIN ──
         result = None
         try:
-            result = await chain.fetch(vault=self.vault, cache=self.cache, **kwargs)
+            result = await asyncio.wait_for(
+                chain.fetch(vault=self.vault, cache=self.cache, **kwargs),
+                timeout=FETCH_TIMEOUT_S,
+            )
             if result:
                 source = result.get("source", "unknown")
                 latency = result.get("latency_ms", 0)
