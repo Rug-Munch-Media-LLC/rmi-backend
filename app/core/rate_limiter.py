@@ -574,18 +574,19 @@ def get_rate_limit_dependency(
 
 
 def _extract_client_id(request: Request) -> str:
-    """Extract client identifier: API key > X-Forwarded-For > remote IP."""
+    """Extract client identifier: API key > trusted real connection IP.
+
+    Rate-limit identity MUST be keyed on the real peer IP (request.client.host),
+    which uvicorn/Starlette derives from the trusted proxy chain. Never trust the
+    raw X-Forwarded-For header — it is client-controlled and lets an attacker
+    rotate identities to bypass per-IP rate limits.
+    """
     # Prefer API key for authenticated users
     api_key = request.headers.get("X-API-Key", "")
     if api_key:
         return _hash_identifier(api_key)
 
-    # Check forwarded header
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-
-    # Fallback to client IP
+    # Key on the real connection IP, never on client-supplied X-Forwarded-For.
     if request.client:
         return request.client.host
     return "unknown"

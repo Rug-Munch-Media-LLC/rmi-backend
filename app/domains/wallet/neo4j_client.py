@@ -25,7 +25,7 @@ log = get_logger(__name__)
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "rugmunch-neo4j-2026")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 _driver: Any = None
 
@@ -35,6 +35,10 @@ def get_neo4j_driver() -> Any:
     global _driver
     if _driver is not None:
         return _driver
+
+    if not NEO4J_PASSWORD:
+        log.warning("NEO4J_PASSWORD not set — Neo4j entity resolution disabled")
+        return None
 
     try:
         from neo4j import GraphDatabase

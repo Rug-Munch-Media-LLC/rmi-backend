@@ -202,13 +202,13 @@ def get_pryscraper_client() -> PryscraperClient:
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract the real client IP from headers or the raw socket."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+    """Extract the real client IP from the connection peer.
+
+    request.client.host is resolved by uvicorn/Starlette from the trusted proxy
+    (nginx) via proxy-headers. The raw X-Forwarded-For header is client-controlled
+    and must not be used for identity, rate-limiting or logging decisions.
+    """
+    return request.client.host if request.client else "unknown"
 
 
 # ── Module-level sentinel cleanup (called from tests) ────────────────────────
