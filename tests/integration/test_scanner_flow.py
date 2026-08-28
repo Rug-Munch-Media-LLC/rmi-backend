@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -249,7 +250,7 @@ class TestScannerRateLimit:
         from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
-            headers = {}
+            headers: ClassVar[dict[str, str]] = {}
             client = None
 
         # Anonymous request
@@ -259,7 +260,8 @@ class TestScannerRateLimit:
         identity = _extract_client_id(req)
         assert identity == "1.2.3.4"
 
-        # With X-Forwarded-For
+        # X-Forwarded-For is client-controlled and MUST be ignored: the
+        # real connection IP wins.
         req.headers = {"X-Forwarded-For": "5.6.7.8, 9.10.11.12"}
         identity = _extract_client_id(req)
-        assert identity == "5.6.7.8"
+        assert identity == "1.2.3.4"

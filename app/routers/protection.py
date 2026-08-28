@@ -11,7 +11,9 @@ Dependency injection: all external clients are injected via FastAPI's
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
+import socket
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -52,10 +54,11 @@ async def _check_rate_limit(
 
 
 def get_client_id(request: Request) -> str:
-    """Extract client identifier for rate limiting."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Extract client identifier for rate limiting.
+
+    Uses the real connection IP. X-Forwarded-For is client-controlled (spoofable)
+    and is ignored so attackers cannot rotate identity to bypass per-IP limits.
+    """
     return request.client.host if request.client else "unknown"
 
 
@@ -139,13 +142,45 @@ async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
     return None
 
 
+def _validate_public_url(url: str) -> str:
+    """SSRF guard: only public http/https URLs may be fetched.
+
+    Resolves the hostname and requires every resolved address to be a global
+    (public) unicast address. Blocks loopback, private (RFC1918), link-local,
+    metadata, multicast, reserved and unspecified ranges. Raises ValidationError
+    on violation. Callers must ALSO disable redirect-following so a crafted
+    2xx->internal redirect cannot bypass this check.
+    """
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in {"http", "https"}:
+        raise ValidationError("Only http/https URLs are allowed")
+    host = parsed.hostname
+    if not host:
+        raise ValidationError("URL must include a host")
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise ValidationError(f"Unable to resolve host {host}: {exc}") from exc
+    if not infos:
+        raise ValidationError(f"Host {host} does not resolve")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        if not ip.is_global:
+            raise ValidationError("Only public hosts are allowed")
+    return url
+
+
 async def scan_url_content(url: str, client: httpx.AsyncClient) -> dict[str, Any] | None:
     """Scan URL content for malicious patterns (simple check)."""
     try:
+        _validate_public_url(str(url))
         resp = await asyncio.wait_for(
             client.get(
                 str(url),
-                follow_redirects=True,
+                follow_redirects=False,
                 headers={"User-Agent": "RMI-Protection-Bot"},
                 timeout=1.5,
             ),
@@ -212,6 +247,7 @@ async def check_url(
         url = request.url.strip()
         if not url:
             raise ValidationError("URL is required")
+        _validate_public_url(url)
 
         blocklist_task = asyncio.create_task(check_blocklist_for_url(url))
         rag_task = asyncio.create_task(check_rag_for_url(url))

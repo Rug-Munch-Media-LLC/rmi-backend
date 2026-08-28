@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -298,30 +299,30 @@ class TestScannerRateLimiter:
         from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
-            headers = {}
+            headers: ClassVar[dict[str, str]] = {}
             client = type("obj", (object,), {"host": "192.168.1.1"})()
 
         assert _extract_client_id(MockRequest()) == "192.168.1.1"
 
-    def test_identity_from_x_forwarded_for(self):
-        """_extract_client_id should prefer X-Forwarded-For header."""
+    def test_identity_ignores_x_forwarded_for(self):
+        """X-Forwarded-For is client-controlled and MUST be ignored; identity is keyed on the real connection IP."""
         from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
-            headers = {"X-Forwarded-For": "10.0.0.1, 192.168.1.1"}
+            headers: ClassVar[dict[str, str]] = {"X-Forwarded-For": "10.0.0.1, 192.168.1.1"}
             client = type("obj", (object,), {"host": "192.168.1.1"})()
 
-        assert _extract_client_id(MockRequest()) == "10.0.0.1"
+        assert _extract_client_id(MockRequest()) == "192.168.1.1"
 
     def test_identity_with_both_headers(self):
-        """When both X-Forwarded-For and client.host exist, forwarded wins."""
+        """When both X-Forwarded-For and client.host exist, the real connection IP wins."""
         from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
-            headers = {"X-Forwarded-For": "5.5.5.5"}
+            headers: ClassVar[dict[str, str]] = {"X-Forwarded-For": "5.5.5.5"}
             client = type("obj", (object,), {"host": "1.2.3.4"})()
 
-        assert _extract_client_id(MockRequest()) == "5.5.5.5"
+        assert _extract_client_id(MockRequest()) == "1.2.3.4"
 
     @pytest.mark.asyncio
     async def test_rate_limiter_returns_bool_when_redis_unavailable(self):
@@ -340,7 +341,7 @@ class TestScannerRateLimiter:
 class TestScannerEndpoints:
     """Scanner HTTP endpoint reachability tests."""
 
-    _AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
+    _AUTH: ClassVar[dict[str, str]] = {"X-API-Key": "test-auth-token-32-chars-long!!"}
 
     @pytest.fixture(scope="module")
     def app(self):
