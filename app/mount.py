@@ -163,6 +163,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.chain_comparability",  # /api/v1/chain-compare/*  (2 routes, multi-chain)
     "app.routers.honeypot_map",  # /api/v1/honeypot-map/*  (3 routes, unique viz)
     "app.routers.label_lookup",  # /api/v1/labels/*  (1 route, CF worker enrichment)
+    "app.routers.eth_labels",  # /api/v1/eth-labels/*  (2 routes, 115K labeled addresses)
     "app.routers.whale_alerts",  # /api/v1/whale-alerts/*  (5 routes, whale tracker)
     "app.routers.lp_health",  # /api/v1/lp-health/*  (5 routes, LP monitor)
     "app.routers.ai_stream",  # /api/v1/ai/*  (3 routes, SSE infra)

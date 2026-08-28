@@ -13,6 +13,7 @@ DB_PATH = os.environ.get("ETH_LABELS_DB", os.path.join(os.path.dirname(__file__)
 # Fallback paths for different environments
 if not os.path.exists(DB_PATH):
     alt_paths = [
+        "/srv/rmi/eth-labels.db",
         os.path.expanduser("~/rmi/eth-labels.db"),
         "/app/eth-labels.db",
         os.path.join(os.path.dirname(__file__), "eth-labels.db"),
