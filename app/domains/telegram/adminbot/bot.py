@@ -16,6 +16,7 @@ import contextlib
 import logging
 from typing import Any
 
+import httpx
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -24,6 +25,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.request import HTTPXRequest
 
 from app.domains.telegram.adminbot.ai_gateway import cmd_ai
 from app.domains.telegram.adminbot.callbacks import handle_callback
@@ -47,6 +49,7 @@ from app.domains.telegram.adminbot.commands import (
     cmd_certs,
     cmd_chain,
     cmd_cleanup,
+    cmd_commands,
     cmd_deploy,
     cmd_digest,
     cmd_disk,
@@ -140,7 +143,19 @@ async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
 
 def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
-    app = Application.builder().token(ADMIN_BOT_TOKEN).post_init(_post_init).build()
+    # Force IPv4 for api.telegram.org: this host's IPv6 route is broken and
+    # resolves AAAA first, which caused repeated Bad Gateway / timeout errors
+    # on every get_updates poll (same fix the main rugmunchbot applies in its
+    # entry point). S104: binding the outbound source to 0.0.0.0 (all IPv4)
+    # is intentional — it forces IPv4 and avoids the broken IPv6 route.
+    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")  # noqa: S104  # nosec B104 - forces IPv4 to avoid broken IPv6 route (documented above)
+    request = HTTPXRequest(
+        connection_pool_size=4,
+        read_timeout=20,
+        write_timeout=20,
+        httpx_kwargs={"transport": transport},
+    )
+    app = Application.builder().token(ADMIN_BOT_TOKEN).request(request).post_init(_post_init).build()
 
     # ── DM-only gate (group=-1: evaluated before every group-0 handler) ──
     # Any message from a group/supergroup/channel is silently consumed here so
@@ -153,6 +168,7 @@ def main() -> None:
     # ── Core Commands ──
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("commands", cmd_commands))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("docker", cmd_docker))
     app.add_handler(CommandHandler("sh", cmd_shell))

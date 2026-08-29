@@ -135,8 +135,11 @@ class TestMemorySteadyState:
             patch("app.core.health_route._check_clickhouse") as mc,
             patch("app.core.health_route._check_minio") as mm,
             patch("app.core.health_route._check_reth") as me,
+            patch("app.core.health_route._check_degenfeed") as md,
+            patch("app.core.health_route._check_phoenix") as mh,
+            patch("app.core.health_route._check_rag_pipeline") as mrp,
         ):
-            for m in (mr, mp, mn, mq, mc, mm, me):
+            for m in (mr, mp, mn, mq, mc, mm, me, md, mh, mrp):
                 m.return_value = {"healthy": True, "latency_ms": 0}
             for _ in range(200):
                 resp = benchmark_client.get("/health")

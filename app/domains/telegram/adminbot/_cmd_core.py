@@ -52,6 +52,118 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await cmd_start(update, ctx)
 
 
+#: Command reference for /commands — grouped by category. Every entry here
+#: is registered in ``bot.py`` (kept in sync with the CommandHandler list).
+_COMMANDS_REFERENCE: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    (
+        "Core",
+        (
+            ("start", "Control panel"),
+            ("help", "Control panel (alias)"),
+            ("commands", "This command list"),
+            ("menu", "Categorized menu"),
+            ("status", "Host status"),
+            ("health", "Fleet health dashboard"),
+            ("alerts", "Health dashboard (alias)"),
+            ("quick", "Quick operations"),
+        ),
+    ),
+    (
+        "System",
+        (
+            ("disk", "Disk usage"),
+            ("mem", "Memory report"),
+            ("top", "Top CPU"),
+            ("uptime", "Uptime"),
+            ("net", "Network"),
+            ("certs", "SSL certificates"),
+            ("pressure", "Pressure / load"),
+            ("logins", "Login sessions"),
+            ("cleanup", "System cleanup"),
+            ("digest", "System digest"),
+        ),
+    ),
+    (
+        "Docker / Deploy",
+        (
+            ("docker", "Docker management"),
+            ("dps", "Docker PS"),
+            ("dstats", "Docker stats"),
+            ("dlogs", "Container logs"),
+            ("dprune", "Prune docker"),
+            ("drestart", "Restart container"),
+            ("deploy", "Deploy"),
+        ),
+    ),
+    (
+        "Services / Backups",
+        (
+            ("services", "Fleet services"),
+            ("svc", "Service control"),
+            ("svc_list", "Service list"),
+            ("svc_logs", "Service logs"),
+            ("backup", "Backup menu"),
+            ("backup_status", "Backup status"),
+            ("backup_run", "Run backup"),
+            ("backup_verify", "Verify backup"),
+            ("admin_backups", "Backup admin"),
+        ),
+    ),
+    (
+        "Ops / Intelligence",
+        (
+            ("oc", "OpenCode"),
+            ("chain", "Chain status"),
+            ("alert", "Send alert"),
+            ("ragstats", "RAG stats"),
+            ("news", "News feed"),
+            ("scanstats", "Scanner stats"),
+            ("indexer", "Indexer status"),
+            ("repair", "Repair"),
+            ("restart", "Restart services"),
+            ("reboot", "Reboot host (2-step confirm)"),
+            ("logs", "Service logs"),
+            ("sh", "Read-only shell (allowlist)"),
+            ("term", "Terminal mode"),
+            ("ai", "AI query"),
+        ),
+    ),
+    (
+        "Git",
+        (
+            ("git", "Git status"),
+            ("push", "Push repos"),
+        ),
+    ),
+    (
+        "Bot admin (alias group)",
+        (
+            ("admin_bot_stats", "RugMunchBot stats"),
+            ("admin_bot_status", "Bot status"),
+            ("admin_bot_toggle", "Toggle bot"),
+            ("admin_bot_broadcast", "Broadcast"),
+            ("admin_bot_users", "Bot users"),
+            ("admin_scanner", "Scanner admin"),
+            ("admin_logs", "Admin logs"),
+        ),
+    ),
+)
+
+
+@owner_only
+async def cmd_commands(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """List every admin command grouped by category."""
+    if update.message is None:
+        return
+    lines = ["🛡️ *RMI Admin Bot — Commands*\n"]
+    for section, cmds in _COMMANDS_REFERENCE:
+        lines.append(f"*{section}*")
+        for name, desc in cmds:
+            lines.append(f"  `/{name}` — {desc}")
+        lines.append("")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+
+
 @owner_only
 async def cmd_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:

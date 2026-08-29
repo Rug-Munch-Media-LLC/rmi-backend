@@ -141,7 +141,6 @@ class TestRagStats:
         """
         import httpx
 
-        import app.api.v1.rag.search as rag_router
 
         class FakeResp:
             def __init__(self, payload):

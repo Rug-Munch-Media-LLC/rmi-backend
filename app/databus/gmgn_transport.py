@@ -20,10 +20,17 @@ def _normalize_chain(chain: str) -> str:
     """Normalize chain names to GMGN slugs."""
     return (chain or "ethereum").strip().lower()
 
+
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 
 GMGN_BASE = "https://gmgn.ai"
 GMGN_OPENAPI_BASE = "https://openapi.gmgn.ai"
+
+# Cache TTLs (seconds) — shared by gmgn_provider + endpoint mixins.
+TRADE_CACHE_TTL = 30
+TOKEN_CACHE_TTL = 120
+HOLDER_CACHE_TTL = 300
+TRENDING_CACHE_TTL = 60
 
 _BROWSER_HEADERS = {
     "accept": "application/json, text/plain, */*",
@@ -37,6 +44,17 @@ _BROWSER_HEADERS = {
 
 
 class TransportMixin:
+    # Attributes provided by the composing GMGNProvider (declared here so
+    # mypy can type-check mixin methods that reference them).
+    api_key: str
+    headers: dict[str, str]
+    client: httpx.AsyncClient
+    _rotator: Any
+    _proxy_url: str | None
+    _proxy_client: httpx.AsyncClient | None
+    _next_allowed_at: float
+    _banned_until: float
+
     def _agent_params(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Merge caller params with the Agent API exist-auth query params."""
         merged = dict(params or {})
@@ -83,7 +101,7 @@ class TransportMixin:
                 f"{GMGN_BASE}{path}",
                 headers=self.headers,
                 params=self._agent_params(params),
-                body=body,
+                json=body,
             )
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.debug("GMGN Agent API POST %s failed: %s", path, e)
@@ -184,6 +202,7 @@ class TransportMixin:
         if self._proxy_client is not None:
             await self._proxy_client.aclose()
 
+
 def _f(value: Any) -> float:
     """Best-effort float coercion (strings from the API included)."""
     try:
@@ -212,9 +231,3 @@ def _sum_top_pct(rows: list[dict[str, Any]], cap: int = 10) -> float | None:
         except (TypeError, ValueError):
             continue
     return total if seen else None
-
-
-# ── Singleton ──────────────────────────────────────────────────────
-
-_gmgn_provider: GMGNProvider | None = None
-

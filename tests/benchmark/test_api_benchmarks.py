@@ -88,7 +88,7 @@ class TestHealthEndpointBenchmarks:
     def test_health_endpoint_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /health should respond in < 250ms (with mocked store checks).
 
-        Mocks the 7 store health checks so the benchmark measures only
+        Mocks all store health checks so the benchmark measures only
         the handler + serialization overhead. Real health endpoint
         latency depends on store response times.
         """
@@ -100,8 +100,11 @@ class TestHealthEndpointBenchmarks:
             patch("app.core.health_route._check_clickhouse") as mock_c,
             patch("app.core.health_route._check_minio") as mock_m,
             patch("app.core.health_route._check_reth") as mock_e,
+            patch("app.core.health_route._check_degenfeed") as mock_d,
+            patch("app.core.health_route._check_phoenix") as mock_h,
+            patch("app.core.health_route._check_rag_pipeline") as mock_rp,
         ):
-            for m in (mock_r, mock_p, mock_n, mock_q, mock_c, mock_m, mock_e):
+            for m in (mock_r, mock_p, mock_n, mock_q, mock_c, mock_m, mock_e, mock_d, mock_h, mock_rp):
                 m.return_value = {"healthy": True, "latency_ms": 0}
 
             # Warm up the exact endpoint under test: the shared fixture only

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter
@@ -90,7 +89,7 @@ async def _stream_response(prompt: str, task: str, disable_rag: bool = False) ->
                 chat_with_context(prompt, tool_result=tool_result, intent=intent, tier=rag_tier),
                 timeout=120.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("rag_stream_timeout prompt=%r", prompt[:60])
             yield f"data: {json.dumps({'error': 'Analysis timed out. Please try a simpler question.'})}\n\n"
             yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"

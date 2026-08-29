@@ -1,23 +1,28 @@
 """intel"""
 
 from __future__ import annotations
+
 """Holder/funder classification + CEX-funding intel (de-godding 2026-08-23)."""
 
 
-from app.domains.scanner.engines._logging import get_logger
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from app.domains.scanner.engines._logging import get_logger
+
+logger = get_logger(__name__)
 
 from app.domains.scanner.engines.own_wallet_map_support import (
     _CEX_DISPLAY,
     _FISH_PCT,
     _FRESH_WALLET_DAYS,
     _KNOWN_ROUTER_WALLETS,
-    ROLE_EMOJI,
     _WHALE_PCT,
+    ROLE_EMOJI,
     _is_fresh,
     _to_iso,
 )
+
 
 def _cex_display_name(key: str | None) -> str:
     """Human display name for a CEX registry key (binance -> Binance)."""
@@ -27,6 +32,7 @@ def _cex_display_name(key: str | None) -> str:
     if norm in _CEX_DISPLAY:
         return _CEX_DISPLAY[norm]
     return " ".join(w.capitalize() for w in norm.split())
+
 
 def _classify_holders(holders: list[dict[str, Any]], deployer: str | None = None) -> list[dict[str, Any]]:
     """Assign exactly one role per holder (first match wins by precedence).
@@ -71,6 +77,7 @@ def _classify_holders(holders: list[dict[str, Any]], deployer: str | None = None
         )
     return classified
 
+
 def _bundle_funders(holders: list[dict[str, Any]]) -> set[str]:
     """Funding sources shared by >= 2 of the classified holders.
 
@@ -84,6 +91,7 @@ def _bundle_funders(holders: list[dict[str, Any]]) -> set[str]:
         if funder and funder not in _KNOWN_ROUTER_WALLETS:
             counts[funder] = counts.get(funder, 0) + 1
     return {funder for funder, n in counts.items() if n >= 2}
+
 
 def _classify_funder_cex(funder_addr: str | None, chain_norm: str) -> str | None:
     """Exchange display name when the funder is a known CEX hot wallet.
@@ -117,6 +125,7 @@ def _classify_funder_cex(funder_addr: str | None, chain_norm: str) -> str | None
         logger.debug("wallet_map_cex_known_entities_failed: %s", exc)
     return None
 
+
 def _classify_funder_mixer(funder_addr: str | None, chain_norm: str) -> str | None:
     """Mixer name when the funder is a known mixer (Tornado Cash, ...)."""
     if not funder_addr:
@@ -138,6 +147,7 @@ def _classify_funder_mixer(funder_addr: str | None, chain_norm: str) -> str | No
     except Exception as exc:
         logger.debug("wallet_map_mixer_known_entities_failed: %s", exc)
     return None
+
 
 def _compute_cex_funding(
     classified: list[dict[str, Any]],
@@ -167,6 +177,7 @@ def _compute_cex_funding(
         else:
             unknown += 1
     return breakdown, unknown, total
+
 
 def _build_cex_funding_line(breakdown: dict[str, int], unknown: int, total: int) -> str:
     """Compact funding line, e.g. ``🏦 CEX funding: Binance 38% · Coinbase 12% · unknown 50%``.
