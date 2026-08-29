@@ -167,6 +167,14 @@ class ScanResult:
     # ``sentinel`` dict above.
     deep_profile: DeepScanProfile | None = None
 
+    # Structured RiskReport (unified/risk_report.py, Phase 5b) — deployer /
+    # holders / first-buyer / top-25 / fresh% / CEX-funded% / bundle /
+    # beyond-market wallet-cluster graph (risk_cluster.py, 8 structures) /
+    # honeypot / liquidity + ~30 explainable factors + composite score +
+    # rug/scam determination. Serialized dict (RiskReport.to_dict) or None
+    # when the phase didn't run / had no data (fail-open).
+    risk_report: dict[str, Any] | None = None
+
     # Market conditions that influenced this scan (Part 1 — market-aware
     # scanning). Populated by the scanner before scoring from RugBrain's
     # /api/v1/fear-index and /api/v1/market/mood endpoints (cached 5 min).

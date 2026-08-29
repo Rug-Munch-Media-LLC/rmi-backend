@@ -1,29 +1,40 @@
 """First-buyers analysis — earliest buyers of a token from OWN indexer data.
 
-2026-08-25 quality push ("top 25 on basic, top 200 on advanced"): ranks the
-earliest distinct buyers of a token and classifies each wallet from our own
+2026-08-29 depth push (synced with the private scanner's
+``rugmunch_scanner/unified/engines/first_buyers.py``): ranks the earliest
+distinct buyers of a token and classifies each wallet from our own
 ClickHouse facts — wallet age at buy time (fresh/new/established) and
 same-window bundling. Powers the 🛒 First Buyers block on the bot's basic
-card (``limit=25``) and the full breakdown in deep scans (``limit=200``).
+card (``limit=25``) and the deep 250-wallet breakdown (``limit=250``,
+raised from 200 — deep scans go deeper).
 
-Data sources (own lite-chain-indexer ClickHouse, no external APIs):
+Data sources (own lite-chain-indexer ClickHouse + on-demand Solana RPC):
   * EVM     — ``wallet_memory.evm_transfers`` (token transfers; a buy is the
               wallet's earliest incoming transfer of the token).
   * Solana  — ``wallet_memory.solana_spl_balance_changes`` (signed balance
               deltas; a buy is the earliest positive delta per owner).
+              2026-08-29 pump.fun path: when the indexer has no rows for the
+              mint (pump.fun bonding-curve tokens are NOT in the indexer's
+              hardcoded tracked-mint list), falls back to an on-demand RPC
+              parse — ``getSignaturesForAddress(mint)`` → ``getTransaction``
+              (jsonParsed) → pre/post token-balance deltas. This is the
+              exact same signal the indexer would write, captured for ANY
+              mint (pump.fun bonding-curve buys, Raydium migrations,
+              LaunchLab, Bonk.fun): a buy = earliest positive balance delta
+              for the buyer's owner wallet.
 
 Fail-open by contract: ClickHouse unreachable / empty data → ``None`` so the
 scan never degrades because of this engine. Sync queries run via
-``asyncio.to_thread`` and are bounded by ``max_execution_time``.
+``run_sync`` (asyncio.to_thread) and are bounded by ``max_execution_time``.
 """
 
 from __future__ import annotations
 
-import asyncio
 import statistics
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any
 
+from app.domains.scanner.engines._common import run_sync
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
 from app.domains.scanner.engines._logging import get_logger
 
@@ -38,6 +49,35 @@ _BUNDLE_MIN_WALLETS = 3
 _FRESH_MAX_AGE_S = 24 * 3600  # born <24h before its first buy of this token
 _NEW_MAX_AGE_S = 7 * 24 * 3600  # born <7d before its first buy
 
+#: Sample size per scan tier (mirrors ``unified/_phase_helpers.py``):
+#: quick/basic scans surface the top 25 earliest buyers; deep scans get the
+#: full 250-wallet breakdown (raised from 200 on 2026-08-29 — deep scans go
+#: deeper).
+FIRST_BUYERS_LIMIT_QUICK = 25
+FIRST_BUYERS_LIMIT_DEEP = 250
+
+# On-demand RPC budget (pump.fun path): signatures fetched + txs parsed per
+# mint. Bounded so a deep 250-wallet cohort stays within a few seconds.
+_RPC_SIG_LIMIT = 300
+_RPC_TX_LIMIT = 120
+
+_rpc_call_impl: Any | None = None
+
+
+def _get_rpc_call() -> Any | None:
+    """Lazy-init the Solana RPC callable (fail-open on import errors)."""
+    global _rpc_call_impl
+    if _rpc_call_impl is not None:
+        return _rpc_call_impl
+    try:
+        from app.domains.scanner.engines.rpc_router import rpc_call
+
+        _rpc_call_impl = rpc_call
+        return _rpc_call_impl
+    except ImportError:  # pragma: no cover
+        logger.debug("first_buyers_solana_rpc_import_failed")
+        return None
+
 
 def _iso(ts: Any) -> str | None:
     """Best-effort datetime → ISO-8601 (UTC). Returns None when unparsable."""
@@ -47,8 +87,8 @@ def _iso(ts: Any) -> str | None:
         if ts is None:
             return None
         if hasattr(ts, "tzinfo") and ts.tzinfo is None:
-            return ts.replace(tzinfo=UTC).isoformat()
-        return ts.isoformat()  # type: ignore[union-attr]
+            return str(ts.replace(tzinfo=UTC).isoformat())
+        return str(ts.isoformat())
     except (ValueError, TypeError, AttributeError):
         return None
 
@@ -64,7 +104,7 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
     if client is None:
         return None
     try:
-        return client.execute(  # type: ignore[no-any-return]
+        return client.execute(
             """
             SELECT
                 to_address AS buyer,
@@ -88,20 +128,26 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
 
 
 def _query_first_buyers_solana(mint: str, limit: int) -> list[tuple[Any, ...]] | None:
-    """Earliest N distinct buyers from SPL balance deltas — same row shape."""
+    """Earliest N distinct buyers from SPL balance deltas — same row shape.
+
+    Uses the real ``solana_spl_balance_changes`` schema (``delta`` /
+    ``token_account`` — see lite-chain-indexer bootstrap + migration 006;
+    the legacy ``amount`` column does not exist). A buy is the earliest
+    positive ``delta`` per resolved owner wallet.
+    """
     client = _get_ch_client()
     if client is None:
         return None
     try:
-        return client.execute(  # type: ignore[no-any-return]
+        return client.execute(
             """
             SELECT
-                owner AS buyer,
+                if(owner != '', owner, token_account) AS buyer,
                 min(block_timestamp) AS first_buy_ts,
-                sum(toFloat64OrZero(amount)) AS tokens_in
+                sum(toFloat64OrZero(delta)) AS tokens_in
             FROM wallet_memory.solana_spl_balance_changes
             WHERE mint = %(mint)s
-              AND toFloat64OrZero(amount) > 0
+              AND toFloat64OrZero(delta) > 0
               AND owner != ''
             GROUP BY buyer
             ORDER BY first_buy_ts ASC
@@ -160,7 +206,146 @@ def _query_wallet_births_solana(buyers: tuple[str, ...]) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CLASSIFICATION + AGGREGATION
+# ON-DEMAND SOLANA RPC PATH (pump.fun first buyers)
+# ═══════════════════════════════════════════════════════════════════════════
+# The lite-chain-indexer only tracks a hardcoded list of ~10 major Solana
+# mints (USDC/USDT/SOL/BONK/...). pump.fun bonding-curve tokens are NOT in
+# that list, so ``solana_spl_balance_changes`` has no rows for them. This
+# path falls back to on-demand RPC: ``getSignaturesForAddress(mint)`` →
+# ``getTransaction`` (jsonParsed) → pre/post token-balance deltas per owner
+# (the same signal the indexer's parser would write). Bounded + fail-open.
+
+
+def _parse_solana_balance_deltas(tx_data: dict[str, Any], mint: str) -> list[tuple[str, int]]:
+    """Parse (owner, delta) pairs for a mint from a jsonParsed transaction.
+
+    Mirrors lite-chain-indexer ``parse_solana_transfer_events``: scans
+    ``meta.preTokenBalances`` / ``postTokenBalances`` and emits the signed
+    balance change for every account of the mint. Returns [(owner, delta)]
+    with non-zero deltas only. Pure + unit-tested.
+    """
+    meta = tx_data.get("meta") or {}
+    pre_balances: list[dict[str, Any]] = meta.get("preTokenBalances") or []
+    post_balances: list[dict[str, Any]] = meta.get("postTokenBalances") or []
+    if not pre_balances and not post_balances:
+        return []
+
+    def _idx(bal: dict[str, Any]) -> int:
+        try:
+            return int(bal.get("accountIndex", -1))
+        except (TypeError, ValueError):
+            return -1
+
+    pre_map = {_idx(b): b for b in pre_balances if b.get("mint") == mint}
+    post_map = {_idx(b): b for b in post_balances if b.get("mint") == mint}
+
+    deltas: list[tuple[str, int]] = []
+    for idx in sorted(set(pre_map) | set(post_map)):
+        pre = pre_map.get(idx, {})
+        post = post_map.get(idx, {})
+        owner = str(post.get("owner") or pre.get("owner") or "")
+        if not owner:
+            continue
+
+        def _amount(bal: dict[str, Any]) -> int:
+            try:
+                return int((bal.get("uiTokenAmount") or {}).get("amount") or 0)
+            except (TypeError, ValueError):
+                return 0
+
+        change = _amount(post) - _amount(pre)
+        if change != 0:
+            deltas.append((owner, change))
+    return deltas
+
+
+def _ts_to_dt(epoch: float) -> Any:
+    """Epoch float → tz-aware datetime (or None when 0/unparsable)."""
+    if not epoch:
+        return None
+    try:
+        return datetime.fromtimestamp(epoch, tz=UTC)
+    except (OverflowError, OSError, ValueError, TypeError):
+        return None
+
+
+async def _rpc_first_buyers_solana(mint: str, limit: int) -> list[tuple[Any, ...]] | None:
+    """Earliest distinct buyers via on-demand Solana RPC (pump.fun path).
+
+    Fetches up to ``_RPC_SIG_LIMIT`` recent signatures for the mint, walks
+    them oldest→newest, parses pre/post balance deltas, and keeps the first
+    positive delta per owner. Returns ``(buyer, first_buy_ts, tokens_in)``
+    rows (same shape as the ClickHouse query) or None on any failure.
+
+    Pure-RPC + fail-open: never raises, never blocks longer than the
+    per-call timeouts. The walk stops once ``limit`` distinct buyers are
+    found (the signature list is newest-first so earlier slots are always
+    walked before we break).
+    """
+    rpc_call = _get_rpc_call()
+    if rpc_call is None:
+        return None
+
+    try:
+        data = await rpc_call(
+            "solana",
+            "getSignaturesForAddress",
+            [mint, {"limit": _RPC_SIG_LIMIT}],
+            timeout=_QUERY_TIMEOUT_S,
+        )
+    except Exception as exc:  # fail-open by contract
+        logger.debug("first_buyers_solana_rpc_sigs_failed: %s", str(exc)[:120])
+        return None
+    if not isinstance(data, dict):
+        return None
+    sigs = data.get("result") or []
+    if not isinstance(sigs, list) or not sigs:
+        return None
+
+    # Oldest-first (getSignaturesForAddress returns newest first).
+    sigs = [s for s in sigs if isinstance(s, dict) and s.get("signature")]
+    sigs = sorted(sigs, key=lambda s: int(s.get("slot") or 0))
+
+    buys: dict[str, dict[str, Any]] = {}  # owner -> {ts, tokens, slot}
+    for sig_info in sigs[:_RPC_TX_LIMIT]:
+        try:
+            tx_data = await rpc_call(
+                "solana",
+                "getTransaction",
+                [sig_info["signature"], {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}],
+                timeout=_QUERY_TIMEOUT_S,
+            )
+        except Exception as exc:  # fail-open per tx
+            logger.debug("first_buyers_solana_rpc_tx_failed: %s", str(exc)[:120])
+            continue
+        if not isinstance(tx_data, dict) or not isinstance(tx_data.get("result"), dict):
+            continue
+        tx = tx_data["result"]
+        slot = int(sig_info.get("slot") or 0)
+        try:
+            ts = float(tx.get("blockTime") or 0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        for owner, change in _parse_solana_balance_deltas(tx, mint):
+            if change <= 0:
+                continue
+            cur = buys.get(owner)
+            if cur is None or ts < cur["ts"] or (ts == cur["ts"] and slot < cur.get("slot", 0)):
+                buys[owner] = {"ts": ts, "tokens": float(change), "slot": slot}
+        if len(buys) >= limit:
+            break
+
+    if not buys:
+        return None
+    rows = [
+        (owner, _ts_to_dt(info["ts"]), info["tokens"])
+        for owner, info in sorted(buys.items(), key=lambda kv: kv[1]["ts"])
+    ]
+    return rows[:limit]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLASSIFICATION + AGGREGATION (pure, unit-tested)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -246,24 +431,28 @@ def analyze_first_buyers_rows(rows: list[tuple[Any, ...]], births: dict[str, Any
     }
 
 
-async def get_first_buyers(address: str, chain: str, limit: int = 25) -> dict[str, Any] | None:
+async def get_first_buyers(address: str, chain: str, limit: int = FIRST_BUYERS_LIMIT_QUICK) -> dict[str, Any] | None:
     """Top-N earliest buyers with own-data wallet classification.
 
     Fail-open: returns ``None`` when ClickHouse is unreachable or the token
     has no indexed buys yet — callers render nothing rather than fabricate.
+    Deep scans pass ``limit=FIRST_BUYERS_LIMIT_DEEP`` (250).
     """
     chain_norm = (chain or "").strip().lower()
     if not address or not chain_norm:
         return None
     if chain_norm == "solana":
-        rows = await asyncio.to_thread(_query_first_buyers_solana, address, limit)
-        births = (
-            await asyncio.to_thread(_query_wallet_births_solana, tuple(str(r[0]) for r in rows or [])) if rows else {}
-        )
+        rows = await run_sync(_query_first_buyers_solana, address, limit)
+        # pump.fun path: the indexer only tracks a handful of hardcoded
+        # mints, so bonding-curve tokens have no balance-change rows. Fall
+        # back to on-demand RPC when ClickHouse is empty (fail-open).
+        if not rows:
+            rows = await _rpc_first_buyers_solana(address, limit)
+        births = await run_sync(_query_wallet_births_solana, tuple(str(r[0]) for r in rows or [])) if rows else {}
     else:
-        rows = await asyncio.to_thread(_query_first_buyers_evm, address, chain_norm, limit)
+        rows = await run_sync(_query_first_buyers_evm, address, chain_norm, limit)
         births = (
-            await asyncio.to_thread(
+            await run_sync(
                 _query_wallet_births_evm,
                 tuple(str(r[0]) for r in rows or []),
                 chain_norm,
@@ -277,3 +466,12 @@ async def get_first_buyers(address: str, chain: str, limit: int = 25) -> dict[st
     result["limit"] = limit
     result["chain"] = chain_norm
     return result
+
+
+__all__ = [
+    "FIRST_BUYERS_LIMIT_DEEP",
+    "FIRST_BUYERS_LIMIT_QUICK",
+    "_parse_solana_balance_deltas",
+    "analyze_first_buyers_rows",
+    "get_first_buyers",
+]

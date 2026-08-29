@@ -436,6 +436,12 @@ class UnifiedTokenScanner:
             await _status("sentinel")
             await self._run_sentinel_phase(result, address, chain, tier)
 
+            # ── Phase 5b: Structured RiskReport (deployer fingerprint,
+            #    holder clusters, wallet-cluster graph, ~30 factors, composite
+            #    score + rug/scam determination). Best-effort: a missing own-
+            #    data engine leaves the affected factors at "unknown". ──
+            await self._run_risk_report(result, address, chain)
+
             # ── Score + finalize (recomputed with all modules; news/RAG
             #    enrichment, persist, publish, Telegram alert, deployer
             #    auto-label) — lives in ``unified/_finalize_helpers.py``
@@ -735,3 +741,21 @@ class UnifiedTokenScanner:
             tier,
             free_modules=self.SENTINEL_FREE_MODULES,
         )
+
+    async def _run_risk_report(self, r: ScanResult, address: str, chain: str) -> None:
+        """Run Phase 5b — structured RiskReport (own-data engines, free).
+
+        Thin delegate — the logic lives in ``unified/risk_report.py``
+        (``run_risk_report_phase``): resolves the deployer, runs the own-data
+        engines (deployer fingerprint, holder clusters, the beyond-market
+        wallet-cluster graph with its 8 structures) and attaches
+        ``ScanResult.risk_report`` (RiskReport.to_dict). Kept as a method so
+        tests can ``patch.object`` it, matching the other phase delegates.
+
+        Best-effort: a missing own-data engine leaves the affected factors at
+        "unknown"; a total failure leaves ``r.risk_report`` as None and never
+        fails the scan.
+        """
+        from app.domains.scanner.unified.risk_report import run_risk_report_phase
+
+        await run_risk_report_phase(r, address, chain)
