@@ -156,3 +156,46 @@ class TestSettingsOverrides:
 
         settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!")
         assert settings.jwt_algorithm == "RS256"
+
+
+class TestBuildDbUrlFromEnv:
+    """Confirm _build_db_url_from_env URL-encodes the password.
+
+    Production secrets contain '/' and '=' which break the URL path/query
+    otherwise (asyncpg rejects the malformed URL). This guards the fix in
+    app/config.py:_build_db_url_from_env (quote(password, safe="")).
+    """
+
+    def test_password_with_slash_and_equals_is_url_encoded(self, monkeypatch):
+        from app.config import _build_db_url_from_env
+
+        monkeypatch.setenv("POSTGRES_HOST", "rmi-postgres")
+        monkeypatch.setenv("POSTGRES_USER", "rmi")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "p/ass=word")
+        monkeypatch.setenv("POSTGRES_PORT", "5432")
+        monkeypatch.setenv("POSTGRES_DB", "rmi")
+        url = _build_db_url_from_env()
+        assert url is not None
+        # '/' -> %2F , '=' -> %3D  (quote with safe="")
+        assert "p%2Fass%3Dword" in url
+        # The raw password must NOT leak unencoded into the URL.
+        assert "p/ass=word" not in url
+
+    def test_returns_none_when_host_unset(self, monkeypatch):
+        from app.config import _build_db_url_from_env
+
+        monkeypatch.delenv("POSTGRES_HOST", raising=False)
+        monkeypatch.delenv("DB_HOST", raising=False)
+        assert _build_db_url_from_env() is None
+
+    def test_settings_uses_encoded_password_from_postgres_env(self, monkeypatch):
+        """Settings.database_url must carry the URL-encoded password when
+        built from POSTGRES_* env (DATABASE_URL unset)."""
+        from app.config import Settings
+
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.setenv("POSTGRES_HOST", "rmi-postgres")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "sec/ret=pwd")
+        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!")
+        assert "sec%2Fret%3Dpwd" in settings.database_url
+        assert "sec/ret=pwd" not in settings.database_url

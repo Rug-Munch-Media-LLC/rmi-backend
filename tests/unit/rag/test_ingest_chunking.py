@@ -8,8 +8,6 @@ no I/O, no Redis.
 
 from __future__ import annotations
 
-import pytest
-
 from app.rag.ingest._chunking import (
     _doc_payload,
     _normalize_doc_headings,

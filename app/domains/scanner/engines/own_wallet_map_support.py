@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 _WALLET_MAP_CACHE_TTL = 300  # 5 minutes — holder data changes slowly
 
@@ -63,9 +64,11 @@ _KNOWN_ROUTER_WALLETS: frozenset[str] = frozenset(
     }
 )
 
+
 def _normalize_chain(chain: str) -> str:
     """Normalize chain name to the format used in ClickHouse tables."""
     return (chain or "").lower().strip()
+
 
 def _is_fresh(first_ts: Any, cutoff: datetime) -> bool:
     """True when the wallet's first on-chain tx is newer than ``cutoff``."""
@@ -79,6 +82,7 @@ def _is_fresh(first_ts: Any, cutoff: datetime) -> bool:
     except (TypeError, ValueError):
         return False
 
+
 def _to_iso(value: Any) -> str | None:
     """ISO string for datetime values, else None (graceful)."""
     if value is None:
@@ -86,6 +90,7 @@ def _to_iso(value: Any) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
+
 
 def _to_naive_dt(value: Any) -> datetime | None:
     """Normalize a ClickHouse/ISO datetime to naive UTC (None on garbage)."""
@@ -99,6 +104,7 @@ def _to_naive_dt(value: Any) -> datetime | None:
     except (TypeError, ValueError):
         return None
 
+
 def _hours_between(earlier: Any, later: Any) -> float | None:
     """Whole hours from ``earlier`` to ``later`` (None when either is missing)."""
     a, b = _to_naive_dt(earlier), _to_naive_dt(later)
@@ -108,6 +114,7 @@ def _hours_between(earlier: Any, later: Any) -> float | None:
         return (b - a).total_seconds() / 3600.0
     except (TypeError, ValueError):
         return None
+
 
 _CEX_DISPLAY: dict[str, str] = {
     "binance": "Binance",

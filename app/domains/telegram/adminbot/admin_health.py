@@ -35,7 +35,6 @@ CERT_CRIT_DAYS = 14
 
 # Containers that must be up for the fleet to be considered healthy.
 CRITICAL_SERVICES: tuple[str, ...] = (
-
     "rmi-backend",
     "rmi-clickhouse",
     "rmi-postgres",
@@ -44,7 +43,6 @@ CRITICAL_SERVICES: tuple[str, ...] = (
 
 # Human-readable labels for the control-panel health summary.
 SERVICE_LABELS: dict[str, str] = {
-
     "rmi-backend": "Backend",
     "rmi-clickhouse": "ClickHouse",
     "rmi-postgres": "Postgres",
@@ -64,7 +62,6 @@ FLEET_CONTAINERS: tuple[tuple[str, str], ...] = (
     ("rmi-redis", "Redis"),
     ("rmi-qdrant", "Qdrant"),
     ("degenfeed-meilisearch", "Meilisearch"),
-    ( "Infinity"),
 )
 
 # Backup sentinel files written by /root/scripts/backup-*.sh on success.

@@ -4,7 +4,7 @@ Continuous RAG News Ingestion
 Ingests ALL 200+ DataBus news sources into Qdrant news_v2 in real-time.
 
 Runs every 30 minutes via the app lifespan background loop.
-Feeds: aggregate_all_news (RSS × 200+), CryptoPanic, domains news service,
+Feeds: aggregate_all_news (RSS x 200+), CryptoPanic, domains news service,
 X/Crypto Twitter, Telegram news sweep — all already consolidated into a
 single news_intel pipeline.
 

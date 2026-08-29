@@ -1,10 +1,13 @@
-"""Embed tier system — Qwen3 dual-tier + OpenRouter fallback contracts.
+"""Embed tier system — Qwen3 4B-only + OpenRouter fallback contracts
+(2026-08-29 consolidation: the 0.6B fast tier is RETIRED).
 
 Offline (no network). Verifies the FINAL configuration:
 
 * provider registry: local-first priorities, gemini/mistral/nvidia/bge
-  museum fully removed, OR paid 8B on backup key, free LFM on main key
-* tier mapping: corpus tasks → deep; utility tasks → fast; unknown → deep
+  museum fully removed, no qwen3_06b_local anywhere, OR paid 8B on
+  backup key, free LFM on main key
+* tier mapping: corpus tasks → deep; utility tasks → fast (now an alias
+  of deep); unknown → deep
 * fast-tier guard: corpus task through fast tier raises loudly
 * dim normalization: MRL truncate+renormalize to collection dim (1024),
   undersized vectors rejected
@@ -38,18 +41,40 @@ def get_dispatcher_sync():
     return asyncio.get_event_loop().run_until_complete(get_dispatcher())
 
 
+def test_no_fast_tier_remains():
+    """Structural guard: the retired 0.6B tier must not reappear anywhere.
+
+    A 0.6B query against a 4B-embedded collection is a cross-model space
+    mismatch — Qdrant rejects it and search silently returns empty. The
+    0.6B embed (:8007) lane was retired 2026-08-29.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    offenders = []
+    for p in (root / "app").rglob("*.py"):
+        src = p.read_text()
+        if (
+            "qwen3_06b_local" in src
+            or "QWEN_FAST_URL" in src
+            or "127.0.0.1:8007" in src
+            or "qwen3-embedding-0.6b" in src
+        ):
+            offenders.append(str(p.relative_to(root)))
+    assert not offenders, f"retired 0.6B embed tier leaked back in: {offenders}"
+
+
 def test_local_first_priorities():
     configure_providers(True)
     d = get_dispatcher_sync()
     by_id = {p.id: p for p in d._providers}
     assert by_id["qwen3_4b_local"].priority > by_id["qwen3_8b_openrouter_paid"].priority
     assert by_id["qwen3_4b_local"].priority > by_id["qwen3_free_openrouter"].priority
-    assert by_id["qwen3_06b_local"].priority > by_id["qwen3_8b_openrouter_paid"].priority
     # locals are free-flagged and use no API key
     assert by_id["qwen3_4b_local"].free
     assert not by_id["qwen3_4b_local"].key_env
-    assert by_id["qwen3_06b_local"].free
-    assert not by_id["qwen3_06b_local"].key_env
+    # 2026-08-29: the 0.6B provider is gone from the registry
+    assert "qwen3_06b_local" not in by_id
 
 
 def test_backup_account_separation():
@@ -99,11 +124,14 @@ def test_fast_guard_blocks_corpus_tasks():
     et.assert_fast_tier_safe("dedup")
 
 
-def test_deep_never_includes_fast_only_server_for_corpus():
+def test_fast_tier_routes_to_4b():
+    """2026-08-29: the 0.6B fast lane is retired — every tier resolves to
+    the canonical 4B providers, so fast == deep."""
     allowed = et.get_allowed_providers("user_search")
     assert "qwen3_06b_local" not in allowed
     fast_allowed = et.get_allowed_providers("dedup")
-    assert "qwen3_06b_local" in fast_allowed
+    assert "qwen3_06b_local" not in fast_allowed
+    assert fast_allowed == allowed, "fast tier must alias the deep (4B) providers"
 
 
 # ── Dim normalization ─────────────────────────────────────────────────

@@ -6,14 +6,39 @@ Methods operate on ``self`` state initialized by ``GMGNProvider.__init__``.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from app.databus._gmgn_fallbacks import (
+    agent_auth_params,
+    agent_headers,
+    cached_or_fetch,
+    cached_or_fetch_list,
+    fallback_birdeye_holders,
+)
+from app.databus.gmgn_transport import (
+    GMGN_OPENAPI_BASE,
+    HOLDER_CACHE_TTL,
+    TOKEN_CACHE_TTL,
+    TRADE_CACHE_TTL,
+    _f,
+    _normalize_chain,
+    _sum_top_pct,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class WalletEndpointsMixin:
+    # Attributes/methods provided by the composing GMGNProvider / TransportMixin.
+    api_key: str
+    _available: bool
+    _request: Any  # Callable[..., Coroutine] — declared on TransportMixin
+    _agent_get: Any
+    get_token_security: Any  # declared on MarketEndpointsMixin
+
     async def get_wallet_intelligence(self, wallet: str, chain: str = "solana") -> dict[str, Any]:
         """Wallet insider/sniper/wash/PnL signals for the unified scanner.
 
@@ -244,6 +269,7 @@ class WalletEndpointsMixin:
 
         # Fallback: Birdeye holder data
         return await fallback_birdeye_holders(self._request, address)
+
     async def _fetch_holder_analysis(self, address: str, chain: str) -> dict[str, Any] | None:
         if not self._available:
             return None
@@ -320,6 +346,7 @@ class WalletEndpointsMixin:
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.debug("GMGN holders failed: %s", e)
         return None
+
     async def get_smart_money(self, address: str, chain: str = "solana") -> dict[str, Any]:
         """Get smart money/KOL activity for a token."""
         result = await cached_or_fetch(
@@ -332,6 +359,7 @@ class WalletEndpointsMixin:
         if result:
             return result
         return {"address": address, "smart_money_activity": [], "source": "none"}
+
     async def _fetch_smart_money(self, address: str, chain: str) -> dict[str, Any] | None:
         holders = await self.get_holder_analysis(address, chain)
         security = await self.get_token_security(address, chain)

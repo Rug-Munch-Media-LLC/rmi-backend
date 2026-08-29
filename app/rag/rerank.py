@@ -1,20 +1,23 @@
-"""Cross-encoder reranking for the RAG pipeline (Qwen3 Reranker dual-tier).
+"""Cross-encoder reranking for the RAG pipeline (Qwen3 Reranker 4B).
 
-Two serving tiers on Talos (llama.cpp systemd services):
+Single serving tier on Talos (llama.cpp systemd service):
 
-* ``deep``  — Qwen3-Reranker-4B Q6_K  on 127.0.0.1:8003 (background,
-  ingestion scoring, graph enrichment — quality first, latency tolerant)
-* ``live``  — Qwen3-Reranker-0.6B     on 127.0.0.1:8008 (consumer-facing
-  search/news — latency first). Cross-encoders need no shared vector space,
-  so the live tier pairs safely with 4B-embedded corpora.
+* ``deep``  — Qwen3-Reranker-4B Q6_K  on 127.0.0.1:8003 (ingestion scoring,
+  graph enrichment, consumer search/news — quality first).
 
-Live strain ladder: 0.6B strained/unreachable → one capped retry on the 4B
-→ fail-open (caller keeps pre-rerank order = BM25/semantic ranking).
-A per-endpoint strain breaker (3 failures / 2min window) stops us hammering
-a server that is already under load.
+2026-08-29 CONSOLIDATION: the 0.6B fast server (:8008) is RETIRED. The
+``live`` tier now routes directly to the 4B (:8003) — the same endpoint as
+``deep`` — with a candidate cap for consumer latency. ``RERANK_URL_LIVE``
+is kept as an env-overridable alias (``RERANK_URL_FAST``) for
+compatibility with existing deployments.
 
-Fail-open: if every tier is unavailable, callers keep the pre-rerank order
-so search never breaks because a reranker is unavailable.
+Live strain ladder: 4B strained/unreachable → fail-open (caller keeps
+pre-rerank order = BM25/semantic ranking). A per-endpoint strain breaker
+(3 failures / 2min window) stops us hammering a server that is already
+under load.
+
+Fail-open: if the reranker is unavailable, callers keep the pre-rerank
+order so search never breaks because a reranker is unavailable.
 """
 
 from __future__ import annotations
@@ -34,11 +37,16 @@ log = get_logger(__name__)
 # ── Tier endpoints ──────────────────────────────────────────────────────────
 # deep: Qwen3 Reranker 4B Q6_K via llama.cpp (systemd qwen-reranker.service)
 RERANK_URL: str = os.getenv("RERANK_URL", "http://127.0.0.1:8003")
-# live: Qwen3 Reranker 0.6B fast tier (systemd qwen-reranker-fast.service)
-RERANK_URL_LIVE: str = os.getenv("RERANK_URL_FAST", "http://127.0.0.1:8008")
+# live: 2026-08-29 consolidation — the 0.6B fast server (:8008) is RETIRED.
+# The 'live' tier routes directly to qwen3-reranker-4B (:8003) — the same
+# endpoint as 'deep'. RERANK_URL_LIVE is kept as an env-overridable alias
+# (RERANK_URL_FAST) for compatibility with existing deployments.
+RERANK_URL_LIVE: str = os.getenv("RERANK_URL_FAST", RERANK_URL)
 
 # ── Live-path budgets (Netcup RS: CPU-only, protect the vCPU budget) ───────
 LIVE_CANDIDATE_CAP: int = int(os.getenv("RERANK_LIVE_CANDIDATE_CAP", "40"))
+# DEEP_FALLBACK_CAP is retained for compatibility (2026-08-29): the live
+# ladder collapsed to a single 4B call, so it is no longer used at runtime.
 DEEP_FALLBACK_CAP: int = int(os.getenv("RERANK_DEEP_FALLBACK_CAP", "24"))
 LIVE_TIMEOUT_S: float = float(os.getenv("RERANK_LIVE_TIMEOUT", "6.0"))
 DEEP_TIMEOUT_S: float = float(os.getenv("RERANK_DEEP_TIMEOUT", "30.0"))
@@ -231,8 +239,10 @@ async def rerank_results(
         query: The user query string.
         documents: Candidate document texts (same order as retrieval).
         top_n: Maximum number of ranked results to return.
-        tier: ``"live"`` (0.6B fast path, candidate-capped, strain ladder
-            into the 4B) or ``"deep"`` (4B only — background quality path).
+        tier: ``"live"`` (4B candidate-capped consumer path) or ``"deep"``
+            (4B full-budget background path). Both tiers hit the same
+            Qwen3-Reranker-4B (:8003); the 0.6B lane was retired
+            2026-08-29.
 
     Returns:
         List of ``{"index": int, "relevance_score": float}`` dicts ordered
@@ -249,25 +259,17 @@ async def rerank_results(
             "rag.rerank.qwen3_live",
             {
                 "openinference.span.kind": "RERANKER",
-                "openinference.embedding.model": "Qwen3-Reranker-0.6B",
+                "openinference.embedding.model": "Qwen3-Reranker-4B",
                 "rerank.input_count": len(capped),
                 "rerank.top_n": top_n,
                 "rerank.tier": "live",
             },
         ) as span:
-            # 1st rung: 0.6B fast server.
-            kept = await _post_rerank(RERANK_URL_LIVE, query, capped, top_n, LIVE_TIMEOUT_S, "0.6B")
-            if kept is not None:
-                span.set_attribute("rerank.served_by", "0.6B")
-                span.set_attribute("rerank.result_count", len(kept))
-                span.set_attribute("rerank.vertical", detect_vertical(query) or "default")
-                return kept
-            # 2nd rung: 4B deep server with a tighter candidate cap (it is
-            # slower; keep its budget bounded even under live latency).
-            kept = await _post_rerank(
-                RERANK_URL, query, capped[:DEEP_FALLBACK_CAP], top_n, DEEP_TIMEOUT_S, "4B-fallback"
-            )
-            span.set_attribute("rerank.served_by", "4B-fallback" if kept is not None else "none")
+            # Single rung: 4B (:8003) with a candidate cap — same endpoint
+            # as deep. The 0.6B fast server (:8008) is retired (2026-08-29);
+            # the old live→4B-fallback ladder collapsed into one call.
+            kept = await _post_rerank(RERANK_URL_LIVE, query, capped, top_n, LIVE_TIMEOUT_S, "4B")
+            span.set_attribute("rerank.served_by", "4B" if kept is not None else "none")
             span.set_attribute("rerank.result_count", len(kept or []))
             span.set_attribute("rerank.vertical", detect_vertical(query) or "default")
             return kept or []

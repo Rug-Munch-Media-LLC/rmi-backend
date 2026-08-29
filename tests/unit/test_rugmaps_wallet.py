@@ -15,8 +15,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
 import app.rugmaps_wallet as wallet_module
 from app.rugmaps_wallet import (
     _merge_label_sources,

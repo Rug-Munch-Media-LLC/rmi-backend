@@ -1,11 +1,12 @@
-"""Unit tests — Qwen3 reranker dual-tier routing + strain breaker.
+"""Unit tests — Qwen3 reranker 4B-only lanes (2026-08-29 consolidation).
 
 Offline: all HTTP is stubbed at ``_post_rerank``'s httpx boundary via
 monkeypatching :func:`app.rag.rerank._post_rerank` (or httpx itself for
 the single-shot paths). Contracts:
 
-* live tier caps candidates at LIVE_CANDIDATE_CAP
-* live ladder: 0.6B first → 4B fallback (tighter cap) → fail-open []
+* live tier caps candidates at LIVE_CANDIDATE_CAP and routes to the 4B
+  (:8003) — the 0.6B lane (:8008) is retired, so live == deep endpoint
+* live lane down → single-shot fail-open [] (no second rung anymore)
 * strain breaker opens after _STRAIN_THRESHOLD failures in window,
   clears on success / clear_strain()
 * deep tier unchanged single-shot behavior (default arg compat)
@@ -34,7 +35,7 @@ def _ok_results(n: int, score: float = 0.9) -> list[dict]:
 
 
 @pytest.mark.asyncio
-async def test_live_tier_hits_fast_server_first(monkeypatch) -> None:
+async def test_live_tier_caps_candidates_and_hits_4b(monkeypatch) -> None:
     calls: list[tuple[str, int]] = []
 
     async def fake_post(url, query, documents, top_n, timeout, model_label):
@@ -46,32 +47,32 @@ async def test_live_tier_hits_fast_server_first(monkeypatch) -> None:
     out = await rr.rerank_results("rug pull", docs, top_n=5, tier="live")
     assert out
     assert calls[0][0] == rr.RERANK_URL_LIVE
-    # Candidate cap enforced on the fast path.
+    # Live routes to the 4B endpoint (0.6B :8008 retired 2026-08-29).
+    assert calls[0][0] == rr.RERANK_URL
+    # Candidate cap enforced on the live path.
     assert calls[0][1] == rr.LIVE_CANDIDATE_CAP
 
 
 @pytest.mark.asyncio
-async def test_live_ladder_falls_back_to_deep(monkeypatch) -> None:
+async def test_live_lane_down_fails_open_single_shot(monkeypatch) -> None:
     calls: list[tuple[str, int]] = []
 
     async def fake_post(url, query, documents, top_n, timeout, model_label):
         calls.append((url, len(documents)))
-        if url == rr.RERANK_URL_LIVE:
-            return None  # 0.6B strained/unreachable
-        return _ok_results(len(documents))
+        return None  # 4B strained/unreachable
 
     monkeypatch.setattr(rr, "_post_rerank", fake_post)
     docs = [f"doc{i}" for i in range(60)]
     out = await rr.rerank_results("honeypot check", docs, top_n=5, tier="live")
-    assert out, "4B fallback must serve"
-    assert calls[0][0] == rr.RERANK_URL_LIVE
-    assert calls[1][0] == rr.RERANK_URL
-    # Deep fallback runs a TIGHTER cap than the live cap.
-    assert calls[1][1] == min(rr.LIVE_CANDIDATE_CAP, rr.DEEP_FALLBACK_CAP)
+    # Fail-open: caller keeps pre-rerank order.
+    assert out == []
+    # Single rung on the 4B — no second fallback call (live == deep
+    # endpoint since the 0.6B lane was retired).
+    assert calls == [(rr.RERANK_URL_LIVE, rr.LIVE_CANDIDATE_CAP)]
 
 
 @pytest.mark.asyncio
-async def test_live_fail_open_when_both_tiers_down(monkeypatch) -> None:
+async def test_live_fail_open_when_tier_down(monkeypatch) -> None:
     async def fake_post(url, query, documents, top_n, timeout, model_label):
         return None
 
@@ -100,20 +101,11 @@ async def test_deep_tier_default_single_shot(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_strain_breaker_opens_after_threshold(monkeypatch) -> None:
-    """Full-stack: real _post_rerank + httpx stubbed. Live URL always fails,
-    deep URL succeeds. After _STRAIN_THRESHOLD failures the breaker opens
-    and the live server is never contacted again."""
+    """Full-stack: real _post_rerank + httpx stubbed. The shared 4B
+    endpoint (:8003, also the live URL) always fails. After
+    _STRAIN_THRESHOLD failures the breaker opens and the server is never
+    contacted again (live fails open to [] each time)."""
     http_calls: list[str] = []
-
-    class FakeResponse:
-        def __init__(self, results: list[dict]) -> None:
-            self._results = results
-
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict:
-            return {"results": self._results}
 
     class FakeClient:
         def __init__(self, *a, **k) -> None:
@@ -127,23 +119,19 @@ async def test_strain_breaker_opens_after_threshold(monkeypatch) -> None:
 
         async def post(self, url, json=None):
             http_calls.append(url)
-            if rr.RERANK_URL_LIVE in url:
-                raise httpx.ConnectError("0.6B down")
-            return FakeResponse([{"index": 0, "relevance_score": 0.9}])
+            raise httpx.ConnectError("4B down")
 
     monkeypatch.setattr(rr.httpx, "AsyncClient", FakeClient)
     for _ in range(rr._STRAIN_THRESHOLD):
         out = await rr.rerank_results("q", ["a"], top_n=1, tier="live")
-        assert out, "4B fallback must serve while ladder degrades"
-    live_calls = [u for u in http_calls if rr.RERANK_URL_LIVE in u]
-    assert len(live_calls) == rr._STRAIN_THRESHOLD
+        assert out == [], "fail-open while the 4B is down"
+    assert len(http_calls) == rr._STRAIN_THRESHOLD
     assert rr._is_strained(rr.RERANK_URL_LIVE)
 
-    # Breaker open → live endpoint skipped at the HTTP layer entirely.
+    # Breaker open → endpoint skipped at the HTTP layer entirely.
     http_calls.clear()
     await rr.rerank_results("q", ["a"], top_n=1, tier="live")
-    assert not [u for u in http_calls if rr.RERANK_URL_LIVE in u]
-    assert any(rr.RERANK_URL in u for u in http_calls), "deep fallback still serves"
+    assert not http_calls, "strained endpoint must be skipped without HTTP"
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,6 @@ legacy shim (app.wallet_manager_v2) must import cleanly.
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest

@@ -120,6 +120,13 @@ def test_dry_run_skips_publish(monkeypatch) -> None:
     monkeypatch.setattr(dp, "review_briefing", fake_review)
     monkeypatch.setattr(dp, "publish_briefing", fake_publish)
 
+    async def fake_publish_tg(draft: str, client: Any = None) -> dict[str, Any]:
+        return {"skipped": 0, "sent": 0, "errors": []}
+
+    # Must be patched: without it the live-run branch dials the real Telegram
+    # headless client (network) and the test hangs until pytest-timeout fires.
+    monkeypatch.setattr(dp, "publish_briefing_telegram", fake_publish_tg)
+
     # dry-run: assembled but never published
     summary = asyncio.run(dp.run_daily_pipeline(dry_run=True))
     assert calls == []

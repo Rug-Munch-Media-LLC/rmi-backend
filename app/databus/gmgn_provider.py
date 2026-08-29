@@ -53,7 +53,6 @@ from app.databus.proxy_rotator import get_proxy_rotator
 
 logger = get_logger(__name__)
 
-GMGN_BASE = "https://gmgn.ai"
 # Official GMGN Agent API (used by the gmgn-cli SDK / openapi.gmgn.ai).
 # Auth: X-APIKEY header + timestamp (unix seconds) + client_id (UUID) query
 # params — see OpenApiClient.ts / signer.ts in GMGNAI/gmgn-skills.
@@ -62,26 +61,24 @@ GMGN_BASE = "https://gmgn.ai"
 # (DexScreener/Birdeye). The Agent API is not Cloudflare-gated on its data
 # routes; a clean UA is still sent.
 
-# Cache TTLs (seconds)
-TRADE_CACHE_TTL = 30
-TOKEN_CACHE_TTL = 120
-HOLDER_CACHE_TTL = 300
-TRENDING_CACHE_TTL = 60
-
-
-# Constants live in gmgn_transport (single source); re-exported here because tests and callers read them from this module (import-time env contract).
+# Cache TTLs now live in gmgn_transport (shared with the endpoint mixins);
+# re-imported here because tests and callers read them from this module.
 from app.databus.gmgn_transport import (  # noqa: E402,F401
     _BROWSER_HEADERS,
     GMGN_API_KEY,
     GMGN_BASE,
     GMGN_OPENAPI_BASE,
+    HOLDER_CACHE_TTL,
+    TOKEN_CACHE_TTL,
+    TRADE_CACHE_TTL,
+    TRENDING_CACHE_TTL,
     _f,
     _sum_top_pct,
 )
 
 # Read env DIRECTLY here (not via transport import): tests reload this
 # module to observe env changes; transport is not reloaded alongside.
-GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
+GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")  # noqa: F811 — intentional env re-read for test reloads
 from app.databus.gmgn_endpoints_market import MarketEndpointsMixin  # noqa: E402
 from app.databus.gmgn_endpoints_wallet import WalletEndpointsMixin  # noqa: E402
 from app.databus.gmgn_transport import TransportMixin  # noqa: E402
@@ -114,23 +111,18 @@ class GMGNProvider(TransportMixin, MarketEndpointsMixin, WalletEndpointsMixin):
     # CORE: Token Info
     # ═══════════════════════════════════════════════════════════════
 
-
-
     # ═══════════════════════════════════════════════════════════════
     # WALLET INTELLIGENCE (derived — feeds the unified scanner)
     # ═══════════════════════════════════════════════════════════════
-
-
 
     # ═══════════════════════════════════════════════════════════════
     # SMART MONEY
     # ═══════════════════════════════════════════════════════════════
 
-
-
     # ═══════════════════════════════════════════════════════════════
     # NEW PAIRS / TOKEN LAUNCHES
     # ═══════════════════════════════════════════════════════════════
+
 
 _gmgn_provider: GMGNProvider | None = None
 

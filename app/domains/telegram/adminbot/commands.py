@@ -32,6 +32,7 @@ from app.domains.telegram.adminbot._cmd_control import (
 )
 from app.domains.telegram.adminbot._cmd_core import (
     cmd_alerts,
+    cmd_commands,
     cmd_disk,
     cmd_health,
     cmd_help,
@@ -108,6 +109,7 @@ __all__ = [
     "cmd_certs",
     "cmd_chain",
     "cmd_cleanup",
+    "cmd_commands",
     "cmd_deploy",
     "cmd_digest",
     "cmd_disk",

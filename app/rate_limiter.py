@@ -77,18 +77,8 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             free=True,
             priority=120,
         ),
-        ProviderLimit(
-            id="qwen3_06b_local",
-            name="Qwen3-Embedding-0.6B local (fast tier)",
-            model="qwen3-embedding-0.6b",
-            dims=1024,
-            base_url=os.getenv("QWEN_FAST_URL", "http://127.0.0.1:8007/v1") + "/embeddings",
-            key_env="",
-            rpm=99999,
-            rpd=99999,
-            free=True,
-            priority=110,
-        ),
+        # 2026-08-29 consolidation: the qwen3_06b_local provider (:8007)
+        # is RETIRED — every tier now routes through the 4B (:8004).
         # ── Tier 2: OpenRouter PAID backup (backup account) ──
         ProviderLimit(
             id="qwen3_8b_openrouter_paid",
@@ -375,9 +365,9 @@ class EmbeddingDispatcher:
         await self.tracker._connect()
         # Restore cache from Redis if available
         self.cache.load_from_redis()
-        # Local embedders are the self-hosted Qwen3 llama.cpp servers
-        # (:8004 deep / :8007 fast) — no in-process model to preload.
-        logger.info("Embed providers: local Qwen3 4B+0.6B first, OR paid 8B backup, OR free LFM")
+        # Local embedders are the self-hosted Qwen3 llama.cpp server
+        # (:8004) — no in-process model to preload.
+        logger.info("Embed providers: local Qwen3 4B first, OR paid 8B backup, OR free LFM")
 
     async def embed(self, texts: list[str], task: str = "default") -> tuple[list[list[float]], str]:
         """Smart embed with quality-tier routing.
@@ -413,17 +403,17 @@ class EmbeddingDispatcher:
         for p in sorted(self._providers, key=lambda x: -x.priority):
             # Tier filter: only use providers allowed for this task
             # Local/hash always available as fallback
-            if allowed and p.id not in allowed and p.id not in ("qwen3_4b_local", "qwen3_06b_local", "hash"):
+            if allowed and p.id not in allowed and p.id not in ("qwen3_4b_local", "hash"):
                 continue
             # Dimension filter
-            if p.dims < min_dims and p.id not in ("qwen3_4b_local", "qwen3_06b_local", "hash"):
+            if p.dims < min_dims and p.id not in ("qwen3_4b_local", "hash"):
                 continue
 
             if not await self.tracker.can_call(p):
                 continue
 
             # ── Local ──
-            if p.id in ("qwen3_4b_local", "qwen3_06b_local"):
+            if p.id == "qwen3_4b_local":
                 try:
                     vecs = await self._embed_local(to_embed, provider_id=p.id)
                     if vecs:
@@ -543,17 +533,14 @@ class EmbeddingDispatcher:
             return [e.get("embedding", []) for e in data.get("data", [])]
 
     async def _embed_local(self, texts: list[str], provider_id: str = "qwen3_4b_local") -> list[list[float]] | None:
-        """Embed via the self-hosted Qwen3 llama.cpp servers (:8004 deep /
-        :8007 fast). OpenAI-compatible /v1/embeddings; output already
-        1024-dim matching our collections."""
+        """Embed via the self-hosted Qwen3-Embedding-4B llama.cpp server
+        (:8004). OpenAI-compatible /v1/embeddings; output already 1024-dim
+        matching our collections. 2026-08-29: the 0.6B fast lane (:8007) is
+        retired — this is the only local embedder."""
         import os as _os
 
-        if provider_id == "qwen3_06b_local":
-            base = _os.getenv("QWEN_FAST_URL", "http://127.0.0.1:8007/v1")
-            model = "qwen3-embedding-0.6b"
-        else:
-            base = _os.getenv("QWEN_EMBED_URL", "http://127.0.0.1:8004/v1")
-            model = "qwen3-embedding-4b"
+        base = _os.getenv("QWEN_EMBED_URL", "http://127.0.0.1:8004/v1")
+        model = "qwen3-embedding-4b"
         try:
             import httpx as _httpx
 
@@ -601,7 +588,7 @@ class EmbeddingDispatcher:
         return {
             "providers": len(self._providers),
             "free_providers": available,
-            "local_embedders": ["qwen3_4b_local", "qwen3_06b_local"],
+            "local_embedders": ["qwen3_4b_local"],
         }
 
 
