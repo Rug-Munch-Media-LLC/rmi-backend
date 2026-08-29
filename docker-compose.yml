@@ -268,6 +268,9 @@ services:
       POSTGRES_HOST: rmi-postgres
       # RAG embeddings/reranking (Infinity OpenAI-compatible server)
       INFINITY_URL: http://infinity-rag:8001
+      # RAG vector store: point at the populated rmi-qdrant-v2 instance
+      # (rmi-qdrant v1 is an empty 4-collection shell; v2 holds the live data).
+      QDRANT_URL: http://rmi-qdrant-v2:6333
     depends_on:
       rmi-redis:
         condition: service_healthy
