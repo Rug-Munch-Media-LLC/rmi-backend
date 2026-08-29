@@ -472,6 +472,7 @@ async def test_pipeline_module_failure_does_not_crash_scan() -> None:
     assert len(report.modules_run) >= 29  # every non-failing module ran
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_pipeline_graceful_when_all_modules_fail() -> None:
     """Even a total module failure returns a report instead of raising."""

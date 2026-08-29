@@ -19,6 +19,12 @@ import pytest
 # Ensure repo root on path so app.* imports work
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+# Genuine integration test: boots the full FastAPI app factory (loads every
+# router + heavy model dep). Lives in tests/integration/ — mark it so the
+# default fast lane (-m "not integration") excludes it. Run explicitly with
+# `pytest -m integration` or `pytest -m ""` (full matrix).
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(scope="module")
 def app():

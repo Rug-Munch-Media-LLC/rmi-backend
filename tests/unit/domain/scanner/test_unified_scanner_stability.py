@@ -69,6 +69,7 @@ def _patch_redis(fake: FakeRedis):
 
 
 class TestResultCaching:
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_cache_hit_returns_cached_result_with_flag(self) -> None:
         """A token scanned within the hour is served from cache (cached=True)."""
@@ -178,6 +179,7 @@ class TestDeterministicScoring:
 
 
 class TestStabilityField:
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_cache_hit_attaches_stability_summary(self) -> None:
         """Stability (recent-scan agreement) rides along on cache hits."""
@@ -203,6 +205,7 @@ class TestStabilityField:
         assert result.stability["agreeing"] == 2
         assert result.stability["agree_pct"] == 67
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_no_stability_history_returns_none(self) -> None:
         """No recorded history → stability is None (graceful)."""
