@@ -565,6 +565,104 @@ class TestFormatter:
         assert "deployer" in text.lower()
 
 
+# ── Honest output (insufficient data / determinations) ──────────────────
+
+
+class TestHonestOutput:
+    """A composite built from too few known factors must NOT be presented as a
+    clean "0/100 OK" verdict — that self-contradictory headline is what made a
+    thin scan's output misleading. When < ``_MIN_KNOWN_FOR_DETERMINATION``
+    factors are known, the formatter omits the verdict block and says the scan
+    is pending. A confirmed honeypot still forces the SCAM verdict (it is a
+    decisive signal even on a thin scan)."""
+
+    def test_composite_does_not_declare_ok_from_thin_data(self) -> None:
+        from app.domains.scanner.unified.risk_report import _composite_and_determination
+
+        factors = [
+            RiskFactor(key="honeypot", label="Honeypot (cannot sell)", risk_score=None),
+            RiskFactor(key="mintable", label="Mintable", risk_score=None),
+            RiskFactor(key="bundle", label="Bundled launch", risk_score=None),
+            RiskFactor(key="holder_concentration", label="Concentration", risk_score=10.0),
+            RiskFactor(key="liquidity", label="Liquidity", risk_score=None),
+        ]
+        _composite, determination, summary = _composite_and_determination(
+            factors, honeypot={}, deployer_section={}, bundle={}
+        )
+        # Only ONE known factor -> cannot safely declare "ok".
+        assert determination == "unknown"
+        # The summary must not present a composite score as a verdict.
+        assert "Composite risk" not in summary
+        assert "Insufficient data" in summary
+
+    def test_honeypot_forces_scam_on_thin_scan(self) -> None:
+        from app.domains.scanner.unified.risk_report import _composite_and_determination
+
+        factors = [
+            RiskFactor(key="honeypot", label="Honeypot (cannot sell)", risk_score=None),
+            RiskFactor(key="mintable", label="Mintable", risk_score=None),
+        ]
+        _composite, determination, summary = _composite_and_determination(
+            factors, honeypot={"is_honeypot": True}, deployer_section={}, bundle={}
+        )
+        assert determination == "scam"
+        assert "SCAM" in summary
+
+    def test_formatter_omits_verdict_block_when_thin(self) -> None:
+        report = RiskReport(
+            token_address="0xthin000000000000000000000000000000000000",
+            chain="solana",
+            composite_score=0,
+            determination="unknown",
+            summary="Insufficient data — 1/30 factors known, a verdict needs at least 6. Scan pending; re-run or use a deeper tier.",
+            factors=[
+                RiskFactor(key="only_one", label="Only one", risk_score=0.0, status="ok"),
+            ],
+            data_quality={"factors_known": 1, "factors_total": 30, "coverage_pct": 3.3},
+            honeypot={"is_honeypot": None},
+        )
+        text = format_risk_report(report)
+        # The self-contradictory verdict block must be gone.
+        assert "COMPOSITE RISK SCORE" not in text
+        assert "DETERMINATION        :" not in text
+        assert "INSUFFICIENT DATA — SCAN PENDING" in text
+
+    def test_formatter_keeps_verdict_block_when_enough(self) -> None:
+        report = RiskReport(
+            token_address="0xfull000000000000000000000000000000000000",
+            chain="ethereum",
+            composite_score=12,
+            determination="ok",
+            summary="Composite risk 12/100 from 30/30 known factors. DETERMINATION: OK — no dominant scam/rug signal detected.",
+            factors=[RiskFactor(key=f"f{i}", label=f"F{i}", risk_score=0.0) for i in range(30)],
+            data_quality={"factors_known": 30, "factors_total": 30, "coverage_pct": 100.0},
+            honeypot={"is_honeypot": False},
+        )
+        text = format_risk_report(report)
+        assert "COMPOSITE RISK SCORE" in text
+        assert "DETERMINATION        : OK" in text
+
+    def test_formatter_renders_honeypot_honestly(self) -> None:
+        def _text(hp: bool | None) -> str:
+            report = RiskReport(
+                token_address="0xh00000000000000000000000000000000000000",
+                chain="ethereum",
+                composite_score=0,
+                determination="unknown",
+                factors=[],
+                data_quality={"factors_known": 0, "factors_total": 30, "coverage_pct": 0.0},
+                honeypot={"is_honeypot": hp},
+            )
+            return format_risk_report(report)
+
+        # Never a bare bool/"✗" — always an honest label.
+        assert "🚨 HONEYPOT" in _text(True)
+        assert "Not a honeypot" in _text(False)
+        assert "unknown" in _text(None)
+        # The raw truthy/bare-✗ forms must never leak through.
+        assert "\u2717" not in _text(True)
+
+
 # ── Cluster pure functions ─────────────────────────────────────────────
 
 

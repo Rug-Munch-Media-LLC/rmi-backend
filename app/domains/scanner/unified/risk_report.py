@@ -1311,6 +1311,11 @@ def _composite_and_determination(
     """Weighted-average composite over KNOWN factors + high-level verdict."""
     known = [f for f in factors if f.risk_score is not None]
     if not known:
+        # A confirmed honeypot is a decisive scam vector and must be reported
+        # even when no other factor managed to score (thin scan). Otherwise the
+        # scan is genuinely indeterminate.
+        if bool(honeypot.get("is_honeypot")):
+            return None, "scam", _summary_text("scam", None, 0, len(factors))
         return None, "unknown", "Insufficient data to score this token."
 
     total_w = 0.0
@@ -1334,9 +1339,12 @@ def _composite_and_determination(
         determination = "rug"
     elif composite >= _RISKY_MIN:
         determination = "risky"
-    elif composite < _RISKY_MIN:
+    elif composite < _RISKY_MIN and len(known) >= _MIN_KNOWN_FOR_DETERMINATION:
         determination = "ok"
     else:
+        # Too few known factors to declare a clean "ok" verdict — a low
+        # composite built from e.g. 1/30 known factors is not evidence of a
+        # safe token (the reader must not mistake "0/100 OK" for a clean bill).
         determination = "unknown"
 
     summary = _summary_text(determination, composite, len(known), len(factors))
@@ -1344,17 +1352,28 @@ def _composite_and_determination(
 
 
 def _summary_text(determination: str, composite: int | None, known: int, total: int) -> str:
-    """Human-readable one-line summary of the verdict."""
-    base = f"Composite risk {composite}/100 from {known}/{total} known factors."
+    """Human-readable one-line summary of the verdict.
+
+    When a determination cannot be made (too few known factors), the summary
+    must NOT present a composite score — a "Composite risk 0/100 … OK · 1/30
+    factors known" headline is self-contradictory and misleads readers.
+    """
+    if determination == "unknown":
+        return (
+            f"Insufficient data — {known}/{total} factors known, a verdict needs "
+            f"at least {_MIN_KNOWN_FOR_DETERMINATION}. Scan pending; re-run or use a deeper tier."
+        )
+    if composite is not None:
+        base = f"Composite risk {composite}/100 from {known}/{total} known factors."
+    else:
+        base = f"Decisive vector detected from {known}/{total} known factors."
     if determination == "scam":
         return f"{base} DETERMINATION: SCAM — decisive scam vectors detected; do not trade."
     if determination == "rug":
         return f"{base} DETERMINATION: RUG — strong rug-pull signals; extreme caution."
     if determination == "risky":
         return f"{base} DETERMINATION: RISKY — elevated risk; only trade with full awareness."
-    if determination == "ok":
-        return f"{base} DETERMINATION: OK — no dominant scam/rug signal detected."
-    return f"{base} Determination: UNKNOWN — insufficient data."
+    return f"{base} DETERMINATION: OK — no dominant scam/rug signal detected."
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1689,16 +1708,37 @@ def format_risk_report(report: RiskReport, detailed: bool = False) -> str:
     lines.append("")
 
     # ── Composite + determination ──
-    comp = report.composite_score if report.composite_score is not None else "unknown"
-    lines.append(f"COMPOSITE RISK SCORE : {comp}/100")
-    lines.append(f"DETERMINATION        : {report.determination.upper()}")
-    lines.append(
-        f"DATA QUALITY         : {report.data_quality.get('factors_known', 0)}/"
-        f"{report.data_quality.get('factors_total', 0)} factors known "
-        f"({report.data_quality.get('coverage_pct', 0.0)}%)"
-    )
-    if report.summary:
-        lines.append(f"SUMMARY              : {report.summary}")
+    # Honest-output guard: a composite/verdict built from too few known factors
+    # ("0/100 OK · 1/30 factors known") is self-contradictory and misleads the
+    # reader. OMIT the verdict block unless enough factors are known to declare
+    # a determination, or a decisive scam (confirmed honeypot) is present.
+    dq = report.data_quality or {}
+    try:
+        _factors_known = int(dq.get("factors_known", 0))
+    except (TypeError, ValueError):
+        _factors_known = 0
+    try:
+        _factors_total = int(dq.get("factors_total", 0))
+    except (TypeError, ValueError):
+        _factors_total = 0
+    _verdict_solid = _factors_known >= _MIN_KNOWN_FOR_DETERMINATION or report.determination == "scam"
+    if _verdict_solid:
+        comp = report.composite_score if report.composite_score is not None else "unknown"
+        lines.append(f"COMPOSITE RISK SCORE : {comp}/100")
+        lines.append(f"DETERMINATION        : {report.determination.upper()}")
+        lines.append(
+            f"DATA QUALITY         : {dq.get('factors_known', 0)}/"
+            f"{dq.get('factors_total', 0)} factors known "
+            f"({dq.get('coverage_pct', 0.0)}%)"
+        )
+        if report.summary:
+            lines.append(f"SUMMARY              : {report.summary}")
+    else:
+        lines.append("⚠  INSUFFICIENT DATA — SCAN PENDING")
+        lines.append(
+            f"    Only {_factors_known}/{_factors_total or '?'} factors known; a composite verdict "
+            f"requires ≥ {_MIN_KNOWN_FOR_DETERMINATION}. Re-scan or run a deeper tier."
+        )
     lines.append("")
 
     # ── Deployer ──
@@ -1846,9 +1886,14 @@ def format_risk_report(report: RiskReport, detailed: bool = False) -> str:
     # ── Honeypot / contract ──
     hp = report.honeypot
     lines.append("── HONEYPOT + RUG VECTORS ───────────────────────────────")
-    lines.append(
-        f"  Honeypot        : {hp.get('is_honeypot', 'unknown')}  ·  can_sell: {hp.get('can_sell', 'unknown')}"
-    )
+    _hp = hp.get("is_honeypot")
+    if _hp is True:
+        hp_label = "🚨 HONEYPOT"
+    elif _hp is False:
+        hp_label = "Not a honeypot"
+    else:
+        hp_label = "unknown"
+    lines.append(f"  Honeypot        : {hp_label}  ·  can_sell: {hp.get('can_sell', 'unknown')}")
     lines.append(f"  Buy/Sell tax    : {hp.get('buy_tax', 'unknown')}% / {hp.get('sell_tax', 'unknown')}%")
     lines.append(
         f"  Mint authority  : {hp.get('mintable', 'unknown')}"
