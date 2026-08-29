@@ -9,6 +9,7 @@ injects its own ``_get_http_client`` so existing monkeypatches of
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +19,34 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     import httpx
+
+logger = logging.getLogger(__name__)
+
+
+def _deepinfra_key() -> str:
+    """Resolve the DeepInfra API key (env var first, secrets-file fallback).
+
+    Sync helper so the async probe doesn't block the event loop with a file
+    open (mirrors app.rag.embeddings / crypto_embeddings providers).
+    """
+    val = os.getenv("DEEPINFRA_API_KEY", "").strip()
+    if val:
+        return val
+    for path in (
+        os.getenv("DEEPINFRA_KEY_FILE", ""),
+        "/run/secrets/deepinfra_api_key",
+        "/srv/secrets/deepinfra_api_key",
+    ):
+        if not path:
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                k = fh.read().strip()
+            if k:
+                return k
+        except OSError:
+            continue
+    return ""
 
 
 async def check_rag_pipeline(
@@ -71,29 +100,39 @@ async def check_rag_pipeline(
     except Exception as exc:
         stats["error"] = f"redis: {str(exc)[:120]}"
 
-    # ── Embedder health (Qwen3) ──
-    # Try to reach the Qwen3 embedder and confirm the model
-    # and the reranker are loaded. Without an
-    # embed model, rmi-rag cannot index findings even if consumers run.
+    # ── Embedder health (DeepInfra primary, 2026-08-29) ──
+    # The canonical embedder is DeepInfra Qwen/Qwen3-Embedding-4B (2560d) with a
+    # local :8004 fallback. DeepInfra has no in-container routing problem, so
+    # availability is keyed on the resolved API key + a reachable API. The local
+    # llama.cpp lane (EMBEDDER_URL) is probed for the reranker only.
+    embedding_available = False
+    reranker_available = False
     try:
         import httpx
 
+        key = _deepinfra_key()
+        if key:
+            async with httpx.AsyncClient() as http_client:
+                di_resp = await http_client.get(
+                    "https://api.deepinfra.com/v1/models",
+                    headers={"Authorization": f"Bearer {key}"},
+                    timeout=5,
+                )
+                embedding_available = di_resp.status_code == 200
+        # Reranker is only local (:8003) — probe the llama.cpp lane for it.
         embedder_base_url = _get_url(
             "EMBEDDER_URL",
             "http://127.0.0.1:8004/v1",
             "http://127.0.0.1:8001",
         ).rstrip("/")
         async with httpx.AsyncClient() as http_client:
-            hresp = await http_client.get(f"{embedder_base_url}/health", timeout=5)
-            if hresp.status_code != 200:
-                raise RuntimeError(f"embedder_health_http_{hresp.status_code}")
             mresp = await http_client.get(f"{embedder_base_url}/models", timeout=5)
             model_ids = [m.get("id", "") for m in mresp.json().get("data", [])]
-            embedding_available = any("qwen3" in mid or "embedding" in mid for mid in model_ids)
             reranker_available = any("qwen3-reranker" in mid or "reranker" in mid for mid in model_ids)
-    except Exception:
-        embedding_available = False
-        reranker_available = False
+    except Exception as exc:
+        # embedding_available / reranker_available stay False — observability,
+        # not a liveness gate. Degrade, don't raise.
+        logger.debug("rag_embed_health_probe_failed: %s", exc)
     stats["embedding_available"] = embedding_available
     stats["reranker_available"] = reranker_available
 

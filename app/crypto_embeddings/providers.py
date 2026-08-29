@@ -50,19 +50,91 @@ class LocalBGEEmbedder:
         return results[0]
 
 
+# Back-compat alias: embedder.py imports LocalEmbedder (hard-disabled local
+# path, always None). Renamed to LocalBGEEmbedder for clarity; keep the old
+# name so `from app.crypto_embeddings.embedder import CryptoEmbedder` and any
+# importer of LocalEmbedder keeps resolving.
+LocalEmbedder = LocalBGEEmbedder
+
+
 class Qwen3Embedder:
-    """Qwen3-Embedding-4B via llama.cpp (OpenAI-compatible /v1/embeddings). 2560d, zero cost."""
+    """Qwen3-Embedding-4B — DeepInfra PRIMARY, local llama.cpp fallback.
+
+    2026-08-29 embed consolidation: DeepInfra hosts the exact same
+    Qwen3-Embedding-4B the local :8004 serves — native 2560-dim, same vector
+    space, always warm, no local CPU contention. This class tries DeepInfra
+    first, then the local llama.cpp lane; both emit the SAME 2560-dim space so
+    a fallback never breaks index compatibility.
+
+    DIMS was fixed from a stale 1024 (the retired 0.6B SPEED-tier dim) to the
+    canonical 4B native 2560 — every rmi-qdrant-v2 collection is 2560-dim.
+    """
 
     EMBEDDER_URL = os.getenv("EMBEDDER_URL", "http://127.0.0.1:8004/v1")
     MODEL = "qwen3-embedding-4b"
-    DIMS = 1024
+    DIMS = int(os.getenv("RAG_EMBEDDING_DIM", "2560"))
+    # DeepInfra primary lane (same model family as local :8004).
+    DEEPINFRA_EMBED_URL = os.getenv("DEEPINFRA_EMBED_URL", "https://api.deepinfra.com/v1/embeddings")
+    DEEPINFRA_EMBED_MODEL = os.getenv("DEEPINFRA_EMBED_MODEL", "Qwen/Qwen3-Embedding-4B")
 
     def __init__(self, qwen3_url: str | None = None) -> None:
         self.url = qwen3_url or os.getenv("EMBEDDER_URL", self.EMBEDDER_URL)
 
+    @staticmethod
+    def _deepinfra_key() -> str:
+        """DeepInfra API key: env var first, secrets-file fallback."""
+        val = os.getenv("DEEPINFRA_API_KEY", "").strip()
+        if val:
+            return val
+        for path in (
+            os.getenv("DEEPINFRA_KEY_FILE", ""),
+            "/run/secrets/deepinfra_api_key",
+            "/srv/secrets/deepinfra_api_key",
+        ):
+            if not path:
+                continue
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    key = fh.read().strip()
+                if key:
+                    return key
+            except OSError:
+                continue
+        return ""
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import httpx
 
+        # ── DeepInfra PRIMARY (2026-08-29) ──────────────────────────
+        key = self._deepinfra_key()
+        if key:
+            try:
+                out: list[list[float]] = []
+                async with httpx.AsyncClient(timeout=120) as client:
+                    for s in range(0, len(texts), 32):
+                        batch = texts[s : s + 32]
+                        r = await client.post(
+                            self.DEEPINFRA_EMBED_URL,
+                            json={"model": self.DEEPINFRA_EMBED_MODEL, "input": [t[:8000] for t in batch]},
+                            headers={"Authorization": f"Bearer {key}"},
+                        )
+                        if r.status_code != 200:
+                            raise httpx.HTTPError(f"deepinfra_http_{r.status_code}")
+                        data = sorted(r.json().get("data", []), key=lambda i: i.get("index", 0))
+                        for vec in (d.get("embedding", []) for d in data):
+                            if len(vec) == self.DIMS:
+                                out.append(vec)
+                            elif len(vec) > self.DIMS:
+                                cut = vec[: self.DIMS]
+                                norm = sum(x * x for x in cut) ** 0.5
+                                out.append([x / norm for x in cut] if norm else cut)
+                            else:
+                                raise httpx.HTTPError(f"deepinfra dim mismatch: got {len(vec)}, want {self.DIMS}")
+                return out
+            except Exception as exc:
+                logger.warning("deepinfra_embed_failed (%s) — falling back to local :8004", exc)
+
+        # ── Local llama.cpp fallback lane ────────────────────────────
         results = []
         async with httpx.AsyncClient(timeout=120) as client:
             for text in texts:

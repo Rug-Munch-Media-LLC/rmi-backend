@@ -15,7 +15,7 @@ import os
 import socket
 from functools import lru_cache
 from typing import Literal
-from urllib.parse import urlparse, quote
+from urllib.parse import quote, urlparse
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -296,6 +296,24 @@ class Settings(BaseSettings):
             "4B-only (:8004). "
             "Set EMBEDDER_URL env var. Default auto-resolves: Docker-compose name inside "
             "the network, host-mapped localhost on host-side systemd runs."
+        ),
+    )
+    # DeepInfra PRIMARY embedder (2026-08-29 consolidation). Same model family
+    # as qwen_embed_url (:8004) ⇒ same 2560-dim vector space; fallback stays
+    # index-compatible. Set DEEPINFRA_EMBED_URL / DEEPINFRA_EMBED_MODEL env vars.
+    deepinfra_embed_url: str = Field(
+        default="https://api.deepinfra.com/v1/embeddings",
+        description="DeepInfra Qwen3-Embedding-4B embeddings endpoint (PRIMARY embed lane).",
+    )
+    deepinfra_embed_model: str = Field(
+        default="Qwen/Qwen3-Embedding-4B",
+        description="DeepInfra embedding model id (native 2560-dim).",
+    )
+    embedding_dim: int = Field(
+        default=2560,
+        description=(
+            "Canonical corpus embedding dimension — 4B native 2560. Every "
+            "rmi-qdrant-v2 collection is 2560-dim Cosine. Set RAG_EMBEDDING_DIM."
         ),
     )
     openrouter_api_key: str = ""
