@@ -80,7 +80,7 @@ async def check_rag_pipeline(
 
         embedder_base_url = _get_url(
             "EMBEDDER_URL",
-            "http://172.22.0.1:8004/v1",
+            "http://127.0.0.1:8004/v1",
             "http://127.0.0.1:8001",
         ).rstrip("/")
         async with httpx.AsyncClient() as http_client:

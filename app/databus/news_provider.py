@@ -779,7 +779,7 @@ async def refresh_news_cache() -> dict[str, Any]:
                 q_vec = d_vecs = None
                 async with httpx.AsyncClient(timeout=45) as client:
                     try:
-                        embed_url = "http://172.22.0.1:8004/v1/embeddings"
+                        embed_url = "http://127.0.0.1:8004/v1/embeddings"
                         q_vec = (await _embed_batch(client, embed_url, [query_text]))[0]
                         d_vecs = await _embed_batch(client, embed_url, docs)
                     except Exception:

@@ -116,7 +116,7 @@ def test_build_ai_client_direct_when_disabled() -> None:
 
 def test_build_ai_client_skips_proxy_for_private_host() -> None:
     rotator = _FakeRotator(enabled=True)
-    client, proxy_url = _build_ai_client(rotator, "http://172.22.0.1:9999/v1/chat/completions")
+    client, proxy_url = _build_ai_client(rotator, "http://127.0.0.1:9999/v1/chat/completions")
     assert proxy_url is None
     assert rotator.client_calls == [None]
     assert client.proxy is None
@@ -225,7 +225,7 @@ async def test_post_chat_direct_passthrough_no_proxy_logic() -> None:
     rotator = _FakeRotator(enabled=False)
     result = await _post_chat(
         rotator._direct,
-        "http://172.22.0.1:9999/v1/chat/completions",
+        "http://127.0.0.1:9999/v1/chat/completions",
         "deepseek-v4-flash-free",
         [{"role": "user", "content": "hi"}],
         0.7,

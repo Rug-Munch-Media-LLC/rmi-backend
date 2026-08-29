@@ -135,7 +135,7 @@ async def seed_wallets(
     embed_url = (
         embed_url
         if embed_url is not None
-        else resolve_service_url("EMBEDDER_URL", docker="http://172.22.0.1:8004/v1", local="http://127.0.0.1:8005/v1")
+        else resolve_service_url("EMBEDDER_URL", docker="http://127.0.0.1:8004/v1", local="http://127.0.0.1:8005/v1")
     ).rstrip("/")
     table = os.getenv("RGM_SEED_TABLE", "wallet_memory.wallet_labels")
 

@@ -70,7 +70,7 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             name="Qwen3-Embedding-4B local",
             model="qwen3-embedding-4b",
             dims=1024,
-            base_url=os.getenv("QWEN_EMBED_URL", "http://172.22.0.1:8004/v1") + "/embeddings",
+            base_url=os.getenv("QWEN_EMBED_URL", "http://127.0.0.1:8004/v1") + "/embeddings",
             key_env="",
             rpm=99999,
             rpd=99999,
@@ -82,7 +82,7 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             name="Qwen3-Embedding-0.6B local (fast tier)",
             model="qwen3-embedding-0.6b",
             dims=1024,
-            base_url=os.getenv("QWEN_FAST_URL", "http://172.22.0.1:8007/v1") + "/embeddings",
+            base_url=os.getenv("QWEN_FAST_URL", "http://127.0.0.1:8007/v1") + "/embeddings",
             key_env="",
             rpm=99999,
             rpd=99999,
@@ -549,10 +549,10 @@ class EmbeddingDispatcher:
         import os as _os
 
         if provider_id == "qwen3_06b_local":
-            base = _os.getenv("QWEN_FAST_URL", "http://172.22.0.1:8007/v1")
+            base = _os.getenv("QWEN_FAST_URL", "http://127.0.0.1:8007/v1")
             model = "qwen3-embedding-0.6b"
         else:
-            base = _os.getenv("QWEN_EMBED_URL", "http://172.22.0.1:8004/v1")
+            base = _os.getenv("QWEN_EMBED_URL", "http://127.0.0.1:8004/v1")
             model = "qwen3-embedding-4b"
         try:
             import httpx as _httpx

@@ -282,7 +282,7 @@ class Settings(BaseSettings):
     qwen_embed_url: str = Field(
         default_factory=lambda: resolve_service_url(
             "EMBEDDER_URL",
-            docker="http://172.22.0.1:8004/v1",
+            docker="http://127.0.0.1:8004/v1",
             local="http://127.0.0.1:8005/v1",
         ),
         description=(
