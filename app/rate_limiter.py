@@ -69,7 +69,7 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             id="qwen3_4b_local",
             name="Qwen3-Embedding-4B local",
             model="qwen3-embedding-4b",
-            dims=1024,
+            dims=2560,
             base_url=os.getenv("QWEN_EMBED_URL", "http://127.0.0.1:8004/v1") + "/embeddings",
             key_env="",
             rpm=99999,
@@ -84,7 +84,10 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             id="qwen3_8b_openrouter_paid",
             name="Qwen3-Embedding-8B via OpenRouter (paid backup)",
             model="qwen/qwen3-embedding-8b",
-            dims=1024,
+            # Native qwen3-embedding-8b output is 4096d; normalize_dims() in
+            # embed_tiers truncates to the 2560d collection contract on the
+            # way in. Declared >=2560 so the min_dims filter keeps it eligible.
+            dims=4096,
             base_url="https://openrouter.ai/api/v1/embeddings",
             key_env="OPENROUTER_BACKUP_API_KEY",
             rpm=60,
@@ -534,7 +537,7 @@ class EmbeddingDispatcher:
 
     async def _embed_local(self, texts: list[str], provider_id: str = "qwen3_4b_local") -> list[list[float]] | None:
         """Embed via the self-hosted Qwen3-Embedding-4B llama.cpp server
-        (:8004). OpenAI-compatible /v1/embeddings; output already 1024-dim
+        (:8004). OpenAI-compatible /v1/embeddings; output already 2560-dim
         matching our collections. 2026-08-29: the 0.6B fast lane (:8007) is
         retired — this is the only local embedder."""
         import os as _os
