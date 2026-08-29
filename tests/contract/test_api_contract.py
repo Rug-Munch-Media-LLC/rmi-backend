@@ -180,6 +180,7 @@ class TestWalletEndpointContract:
 class TestScannerEndpointContract:
     """Verify POST /api/v1/public/scanner/scan response shape."""
 
+    @pytest.mark.slow  # 34s: boots full app (TestClient) + heavy model imports
     def test_scan_endpoint_returns_structured_error(self, client):
         """Stub scanner returns 501 with detail field."""
         resp = client.post(
@@ -194,6 +195,7 @@ class TestScannerEndpointContract:
         body = resp.json()
         assert "scan_id" in body
         assert "risk_score" in body
+
     def test_scan_result_model_validates_good_data(self):
         """ScanResult accepts valid scan output."""
         data = {

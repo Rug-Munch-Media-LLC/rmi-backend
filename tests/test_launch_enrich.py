@@ -24,6 +24,8 @@ from contextlib import ExitStack, contextmanager
 from typing import Any
 from unittest import mock
 
+import pytest
+
 from app.databus import token_launch_detector as tld
 from app.databus.token_launch_detector import TokenLaunchDetector, enrich_launches_security
 from app.domains.chat_tools import _exec_suspicious, _launch_suspicion_score
@@ -162,6 +164,7 @@ async def test_enrich_never_raises_when_detector_construction_fails() -> None:
 # ── 3. Capping: only the top-N launches get network checks ───────────────
 
 
+@pytest.mark.slow  # 34s: heavy transitive imports (torch/faiss/guardrails) on first call
 async def test_enrich_caps_network_checks_to_top_n() -> None:
     seen: list[str] = []
 

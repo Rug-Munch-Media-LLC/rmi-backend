@@ -72,6 +72,11 @@ dev = [
     "mypy>=1.13.0",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
+    # pytest plugins required by pytest.ini addopts + CI --cov gate.
+    # Previously referenced but undeclared → suite was un-runnable (2026-08-29).
+    "pytest-timeout>=2.3.0",   # pytest.ini --timeout=60 --timeout-method=thread
+    "pytest-cov>=5.0.0",       # CI: --cov=app --cov-fail-under=60
+    "pytest-xdist>=3.5.0",     # pytest.ini -n auto (parallel collection+run)
     "pre-commit>=4.0.0",
     # gitleaks is a Go binary installed via lefthook/system, not pip — excluded
     # from dev extras so `uv lock` can resolve the dependency graph.
