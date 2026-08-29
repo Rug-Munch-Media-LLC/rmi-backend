@@ -119,12 +119,14 @@ backup_redis_ann() {
 backup_qdrant() {
   log "Backing up Qdrant snapshots..."
 
-  # Discover Qdrant endpoint
+  # Discover Qdrant endpoint — 2026-08-29: production is rmi-qdrant-v2
+  # (host port 6334 -> container 6333). :6333 is the DECOMMISSIONED legacy
+  # v1 instance (empty); snapshotting it produced empty backups.
   QDRANT_URL=""
-  if curl -s -o /dev/null -w '%{http_code}' http://localhost:6333/collections 2>/dev/null | grep -q '^2'; then
-    QDRANT_URL="http://localhost:6333"
-  elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q rmi-qdrant; then
-    QDRANT_URL="http://rmi-qdrant:6333"
+  if curl -s -o /dev/null -w '%{http_code}' http://localhost:6334/collections 2>/dev/null | grep -q '^2'; then
+    QDRANT_URL="http://localhost:6334"
+  elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q rmi-qdrant-v2; then
+    QDRANT_URL="http://rmi-qdrant-v2:6333"
   fi
 
   if [ -z "${QDRANT_URL}" ]; then
