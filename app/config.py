@@ -283,12 +283,14 @@ class Settings(BaseSettings):
         default_factory=lambda: resolve_service_url(
             "EMBEDDER_URL",
             docker="http://127.0.0.1:8004/v1",
-            local="http://127.0.0.1:8005/v1",
+            local="http://127.0.0.1:8004/v1",
         ),
         description=(
             "Qwen3 (OpenAI-compatible embedding/rerank server) base URL for the "
-            "RugBrain (crypto-native RAG) pipeline: POST /v1/embeddings (qwen3-embedding-4b "
-            "deep / qwen3-embedding-0.6b fast) and POST /rerank (qwen3-reranker-4b). "
+            "RugBrain (crypto-native RAG) pipeline: POST /v1/embeddings "
+            "(qwen3-embedding-4b) and POST /rerank (qwen3-reranker-4b). "
+            "2026-08-29: the 0.6B fast tier is retired — embeddings are "
+            "4B-only (:8004). "
             "Set EMBEDDER_URL env var. Default auto-resolves: Docker-compose name inside "
             "the network, host-mapped localhost on host-side systemd runs."
         ),
@@ -481,8 +483,9 @@ class Settings(BaseSettings):
         default="qwen3-embedding-4b",
         description=(
             "Model used by the primary embedder when EMBEDDER_PRIMARY=qwen3 "
-            "(qwen3-embedding-4b = deep 2560-dim; qwen3-embedding-0.6b = fast tier "
-            "under strain). Set EMBEDDER_PRIMARY_MODEL."
+            "(qwen3-embedding-4b, 2560-dim native — 2026-08-29: the 0.6B fast "
+            "tier is retired; this is the only local embedding model). "
+            "Set EMBEDDER_PRIMARY_MODEL."
         ),
     )
     embedder_fallback: str = Field(

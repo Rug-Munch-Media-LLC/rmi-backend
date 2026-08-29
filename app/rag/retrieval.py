@@ -730,9 +730,9 @@ class HybridRetriever:
 
         Reorders hits by Qwen3 relevance (updating ``final_score``) and
         truncates to *top_n*. Fail-open: on any error or empty response the
-        original ordering is returned unchanged. ``tier="live"`` routes
-        through the 0.6B fast server with a candidate cap (consumer paths);
-        ``"deep"`` uses the 4B server (background quality path).
+        original ordering is returned unchanged. ``tier="live"`` and
+        ``"deep"`` both route through the Qwen3-Reranker-4B server (:8003)
+        — the 0.6B fast tier was retired 2026-08-29.
         """
         if len(scored) < 2:
             return scored
