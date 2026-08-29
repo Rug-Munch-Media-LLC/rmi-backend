@@ -20,10 +20,11 @@ Fail-open by design: Qdrant down, embedding backend down or ClickHouse
 unavailable never raise into the webhook engine poll loop — the event is
 dropped with a warning and the cursor still advances.
 
-Vector size is 1024 to match every existing Qdrant collection in this repo
-(verified: scam_patterns, news_articles, wallet_embeddings, scam_intel_v2
-are all 1024-dim Cosine) and the primary embedder (``qwen3-embedding-4b`` →
-``EMBEDDING_DIM == 1024``). Search flows through the existing Qdrant
+Vector size is 2560 to match every existing Qdrant collection in this repo
+(verified 2026-08-29: scam_patterns, news_articles, wallet_embeddings, scam_intel_v2,
+whale_transfers, and every other rmi-qdrant-v2 collection are 2560-dim Cosine)
+and the primary embedder (``qwen3-embedding-4b`` →
+``EMBEDDING_DIM == 2560``). Search flows through the existing Qdrant
 fallback in ``app/rag/engine.py`` (``three_pillar_search`` with
 ``collection="whale_transfers"``), which reads ``content`` / ``metadata``
 payload keys — the same convention used here.
@@ -47,9 +48,9 @@ log = get_logger(__name__)
 # ── Collection configuration ───────────────────────────────────────────
 COLLECTION = "whale_transfers"
 
-# All existing Qdrant collections in this repo are 1024-dim Cosine
+# All existing Qdrant collections in this repo are 2560-dim Cosine
 # (nomic embeddings are NOT used here — the primary embedder is qwen3-embedding-4b).
-VECTOR_SIZE = 1024
+VECTOR_SIZE = 2560
 DISTANCE = "Cosine"
 
 # Resolved via app.config (env var wins; Docker-compose name inside the

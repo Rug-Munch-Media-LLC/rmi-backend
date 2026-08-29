@@ -14,9 +14,12 @@ deep  — Qwen3-Embedding-4B local (:8004). Corpus search queries +
         ingestion + anything feeding Qdrant collections. The ONLY tier
         allowed to touch corpus vector spaces.
         Fallback ladder: local 4B → OpenRouter ``qwen/qwen3-embedding-8b``
-        (PAID backup account — heavier docs, higher detail) → OpenRouter
-        ``liquid/lfm-2.5-embedding-350m:free`` (MAIN account free tier,
-        native 1024-dim).
+        (PAID backup account — heavier docs, higher detail; native 4096d,
+        truncated to the 2560d contract by normalize_dims) →
+        OpenRouter ``liquid/lfm-2.5-embedding-350m:free`` (MAIN account
+        free tier, native 1024-dim — BELOW the 2560 collection contract,
+        so it is dropped by the min-dims guard and only ever a last resort
+        for non-corpus utility tasks).
 
 fast  — Alias of deep (2026-08-29): utility jobs (near-duplicate
         detection, clustering, cache keys, internal similarity tools)
@@ -27,10 +30,10 @@ Gemini is NOT part of this system. Never was an option.
 
 Dims
 ----
-All Qdrant collections run 1024-dim. The 4B model serves MRL-truncated
-1024-dim vectors (verified live). :meth:`normalize_dims` enforces the
-collection dim on every vector that passes through, so any provider
-output dim is handled.
+All Qdrant collections run 2560-dim (Unity vector size — verified live
+2026-08-29 on every rmi-qdrant-v2 collection). The 4B model serves native
+2560-dim vectors. :meth:`normalize_dims` enforces the collection dim on
+every vector that passes through, so any provider output dim is handled.
 """
 
 from __future__ import annotations
@@ -39,7 +42,7 @@ import math
 from typing import Final
 
 # ── Collection contract ────────────────────────────────────────────────
-COLLECTION_DIM: Final = 1024
+COLLECTION_DIM: Final = 2560
 
 # ── Tier → allowed provider ids (must match rate_limiter PROVIDERS) ───
 # 2026-08-29 consolidation: the 0.6B fast tier (:8007) is retired. Every
@@ -53,9 +56,9 @@ TIER_PROVIDERS: dict[str, set[str]] = {
 }
 
 TIER_MIN_DIMS: dict[str, int] = {
-    "deep": 1024,
-    "fast": 1024,
-    "default": 1024,
+    "deep": 2560,
+    "fast": 2560,
+    "default": 2560,
 }
 
 # ── Task → tier mapping ────────────────────────────────────────────────
@@ -92,7 +95,7 @@ def get_allowed_providers(task: str) -> set[str]:
 
 
 def get_min_dims(task: str) -> int:
-    return TIER_MIN_DIMS.get(get_tier(task), 1024)
+    return TIER_MIN_DIMS.get(get_tier(task), 2560)
 
 
 def is_corpus_task(task: str) -> bool:
