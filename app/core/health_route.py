@@ -41,6 +41,7 @@ import time
 from typing import Any
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.core import health_rag
@@ -174,16 +175,19 @@ async def liveness() -> LivenessResponse:
     "/ready",
     response_model=ReadinessResponse,
     summary="Readiness",
-    description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable.",
+    description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable; 503 otherwise.",
 )
-async def readiness() -> ReadinessResponse:
+async def readiness() -> JSONResponse:
     r1 = await _check_store("redis", _check_redis())
     r2 = await _check_store("postgres", _check_postgres())
     redis_ok = r1 if not isinstance(r1, Exception) else {"healthy": False}
     pg_ok = r2 if not isinstance(r2, Exception) else {"healthy": False}
     checks = {"redis": redis_ok.get("healthy", False), "postgres": pg_ok.get("healthy", False)}
     all_ok = all(checks.values())
-    return ReadinessResponse(status="ready" if all_ok else "not_ready", checks=checks)
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content={"status": "ready" if all_ok else "not_ready", "checks": checks},
+    )
 
 
 @router.get(

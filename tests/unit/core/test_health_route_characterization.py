@@ -17,7 +17,6 @@ module's public import surface so the structural decomposition into
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI

@@ -72,11 +72,13 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     register_middleware(app)
 
-    # Liveness (/healthz) + readiness (/readyz) — registered BEFORE mount_all
-    # so orchestrator probes work even if a router mount fails.
-    from app.core.health import register_health_routes
+    # Canonical health probes (/live liveness, /ready readiness, /health deep
+    # diagnostic) — registered BEFORE mount_all so orchestrator probes work
+    # even if a router mount fails. health_route is intentionally excluded
+    # from mount.ROUTER_MODULES to avoid double-registration.
+    from app.core.health_route import router as health_router
 
-    register_health_routes(app)
+    app.include_router(health_router)
 
     mounted = mount_all(app)
 
