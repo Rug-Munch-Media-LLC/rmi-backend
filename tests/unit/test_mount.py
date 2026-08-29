@@ -69,7 +69,7 @@ class TestMountAll:
             ROUTER_MODULES[:] = original
 
 
-class TestROUTER_MODULES:
+class TestROUTER_MODULES:  # noqa: N801 - named after the ROUTER_MODULES constant under test
     """Tests for the ROUTER_MODULES list."""
 
     def test_contains_core_routers(self):
@@ -77,10 +77,11 @@ class TestROUTER_MODULES:
         from app.mount import ROUTER_MODULES
 
         core_paths = [
-            "app.core.health_route",
             "app.homepage",
             "app.api.v1.public.wallet",
         ]
+        # NOTE: app.core.health_route is registered EARLY in app.factory
+        # (before mount_all), so it is deliberately absent from ROUTER_MODULES.
         for path in core_paths:
             assert path in ROUTER_MODULES, f"Missing: {path}"
 

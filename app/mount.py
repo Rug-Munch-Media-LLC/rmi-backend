@@ -105,9 +105,11 @@ ROOT_LEVEL_ROUTES: Final[list[dict[str, str]]] = [
 # Canonical router list (single source of truth)
 # Order matters for path resolution. v1 routers are mounted at /api/v1/*.
 # Domain routers (news, reports, x402) self-prefix.
+# NOTE: app.core.health_route (/live, /ready, /health) is registered EARLY in
+# app.factory (before mount_all) so orchestrator probes survive a mount
+# failure — it is deliberately NOT in this list (avoids double-registration).
 ROUTER_MODULES: Final[list[str]] = [
     # Core system routes
-    "app.core.health_route",  # /health, /live, /ready
     "app.core.metrics",  # /metrics
     "app.homepage",  # /, /version
     "app.routers.jwks",  # /.well-known/jwks.json, /api/v1/auth/jwks
