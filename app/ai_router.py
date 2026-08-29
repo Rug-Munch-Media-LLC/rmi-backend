@@ -7,8 +7,8 @@ the free remote LLM providers configured in ``app.llm_config``. The former
 local model defaults were decommissioned 2026-08-16.
 
 Provider tiers:
-  - snappy  → ``get_snappy_config()`` — OpenRouter (laguna snappy), fast
-              short chat answers.
+  - snappy  → ``get_snappy_config()`` — DeepInfra Qwen3.5-9B (cheap, ~3s,
+              RAG-friendly), fast short chat answers.
   - long    → ``get_long_config()`` — OpenRouter (nemotron long), deep
               reasoning / analysis answers.
   - fallback→ ``get_fast_config()`` — direct DeepSeek API, last resort.
@@ -69,7 +69,7 @@ logger = get_logger("ai_router")
 
 # Model tiers (compat shim for /ai/models — reflects the remote reality)
 MODEL_TIERS = {
-    **{f"T{i}": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0} for i in range(3)},
+    **{f"T{i}": {"name": "Snappy", "models": ["Qwen/Qwen3.5-9B"], "max_cost_per_1k": 0.0} for i in range(3)},
     **{
         f"T{i}": {"name": "Long", "models": ["nvidia/nemotron-3-ultra-550b-a55b:free"], "max_cost_per_1k": 0.0}
         for i in (3, 4)
@@ -244,6 +244,10 @@ async def _post_chat(
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        # DeepInfra Qwen3.5-9B defaults to a THINKING mode when this is omitted
+        # -> slow + degenerate/empty output. Disable chain-of-thought so chat
+        # stays fast and answers directly (ignored by providers that don't use it).
+        "reasoning": {"enabled": False},
     }
 
     _headers = {"Content-Type": "application/json"}
@@ -534,6 +538,8 @@ async def _stream_from(
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            # DeepInfra Qwen3.5-9B: disable reasoning (see _post_chat note).
+            "reasoning": {"enabled": False},
         }
         headers = {"Content-Type": "application/json"}
         if api_key:

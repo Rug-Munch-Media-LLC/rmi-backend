@@ -136,6 +136,9 @@ async def test_chat_completion_builds_client_via_rotator_when_enabled(monkeypatc
     # key or chat_completion fails open before building any client.
     monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
     monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
+    # snappy is DeepInfra Qwen3.5-9B (2026-08-30) — needs the DeepInfra key too.
+    monkeypatch.setenv("DEEPINFRA_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "DEEPINFRA_API_KEY", "test")
 
     result = await app.ai_router.chat_completion(
         messages=[{"role": "user", "content": "hello"}],
@@ -155,6 +158,9 @@ async def test_chat_completion_direct_when_rotator_disabled(monkeypatch: pytest.
     monkeypatch.setattr(app.ai_router, "get_proxy_rotator", lambda: rotator)
     monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
     monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
+    # snappy is DeepInfra Qwen3.5-9B (2026-08-30) — needs the DeepInfra key too.
+    monkeypatch.setenv("DEEPINFRA_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "DEEPINFRA_API_KEY", "test")
 
     result = await app.ai_router.chat_completion(
         messages=[{"role": "user", "content": "hello"}],
