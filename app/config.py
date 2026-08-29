@@ -15,7 +15,7 @@ import os
 import socket
 from functools import lru_cache
 from typing import Literal
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -72,6 +72,9 @@ def _build_db_url_from_env() -> str | None:
     password = os.getenv("POSTGRES_PASSWORD", "rmi")
     port = os.getenv("POSTGRES_PORT", "5432")
     db = os.getenv("POSTGRES_DB", "rmi")
+    # URL-encode the password — production secrets contain '/' and '=' which
+    # break the URL path/query otherwise (asyncpg rejects the malformed URL).
+    password = quote(password, safe="")
     return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
 
