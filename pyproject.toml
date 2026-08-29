@@ -168,6 +168,12 @@ ignore = ["ASYNC109"]
 "app/middleware_setup.py" = ['N806', 'SIM102']
 # Postiz simulated analytics: random.random/randint for demo metrics, not crypto
 "app/domains/postiz/services/templates.py" = ['S311']
+# Mirror-ported from the private rugmunch-scanner repo (unified/risk_report.py +
+# engines/risk_cluster.py) — kept byte-identical to the canonical source except
+# the import adapters, so its lint surface matches the scanner repo's ruff select
+# (E/F/W/I/UP/B/S/ASYNC/SIM/C4 — no N/RUF). Do not "fix" these style nits here.
+"app/domains/scanner/unified/risk_report.py" = ['RUF046']
+"app/domains/scanner/engines/risk_cluster.py" = ['N806', 'RUF001', 'RUF003', 'RUF005', 'RUF046']
 
 # Pre-existing violations surfaced by tech-debt sweep (will be cleaned separately)
 "app/domains/scanner/data_access.py" = ['S603', 'ASYNC240']

@@ -261,6 +261,12 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "wallet_metrics": result.wallet_metrics,
         "bundle_analysis": result.bundle_analysis,
         "first_buyers": result.first_buyers,
+        # v2 structured RiskReport (unified/risk_report.py — Phase 5b): the
+        # ~30-factor explainable report + beyond-market wallet-cluster graph
+        # (8-leg risk_cluster engine) serialized for thin clients (bot +
+        # site). The bot renders this block directly and falls back to
+        # synthesizing the same shape only when it is absent (older backend).
+        "risk_report": result.risk_report,
         "deployer_profile": (
             asdict(result.deep_profile.deployer_profile)
             if result.deep_profile

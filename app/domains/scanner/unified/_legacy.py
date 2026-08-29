@@ -82,6 +82,10 @@ def _to_legacy_dict(result: ScanResult) -> dict[str, Any]:
         "wallet_metrics": result.wallet_metrics,
         "bundle_analysis": result.bundle_analysis,
         "first_buyers": result.first_buyers,
+        # v2 structured RiskReport (unified/risk_report.py) — carried on the
+        # /status payload too so the bot's ``_merge_completed_scan`` can
+        # upgrade a fast-path response that predates the risk_report phase.
+        "risk_report": result.risk_report,
         "news_sentiment": result.news_sentiment,
         "news_card": result.news_card,
         "event_correlation": result.event_correlation,

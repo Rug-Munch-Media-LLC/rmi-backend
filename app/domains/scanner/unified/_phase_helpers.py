@@ -167,11 +167,12 @@ async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
         logger.debug("bundle_analysis_failed", error=str(exc)[:120])
 
 
-#: First-buyers sample size per scan tier (2026-08-25 quality push):
-#: quick/basic scans surface the top 25 earliest buyers; deep/elite scans
-#: get the full top-200 breakdown.
+#: First-buyers sample size per scan tier (2026-08-29 depth push — synced
+#: with the private scanner's FIRST_BUYERS_LIMIT_DEEP): quick/basic scans
+#: surface the top 25 earliest buyers; deep/elite scans get the full
+#: 250-wallet breakdown (raised from 200 — deep scans go deeper).
 FIRST_BUYERS_LIMIT_QUICK = 25
-FIRST_BUYERS_LIMIT_DEEP = 200
+FIRST_BUYERS_LIMIT_DEEP = 250
 
 
 async def run_first_buyers(r: ScanResult, address: str, chain: str, tier: str) -> None:
@@ -180,7 +181,7 @@ async def run_first_buyers(r: ScanResult, address: str, chain: str, tier: str) -
     Ranks the earliest distinct buyers and classifies each wallet (fresh /
     new / established age buckets, same-window bundling) — see
     ``engines/first_buyers.py``. Sample size scales with tier: 25 on
-    quick scans, 200 on deep/elite. Never raises; a ClickHouse outage or
+    quick scans, 250 on deep/elite. Never raises; a ClickHouse outage or
     unindexed token leaves ``r.first_buyers`` as None.
     """
     try:
