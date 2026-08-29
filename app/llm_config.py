@@ -9,7 +9,8 @@ Provider chain:
   CONTENT:   NVIDIA Nemotron 3 Super (free) - reports, briefings, writeups
   ANALYSIS:  DeepSeek v4 Pro (promo pricing) - agentic investigation
   FALLBACK:  OpenRouter (auto-routes to best available free model)
-  SNAPPY:    Poolside Laguna S 2.1 (free) via OpenRouter - fast short chat answers
+  SNAPPY:    DeepInfra Qwen3.5-9B (cheap, ~3s, RAG-friendly) - fast short chat answers
+  VISION:   DeepInfra Qwen3-VL-30B-A3B-Instruct - image+text understanding
   LONG:      NVIDIA Nemotron 3 Ultra 550B (free) via OpenRouter - longer/reasoning answers
 """
 
@@ -38,6 +39,16 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")  # optional, for direct NVIDIA 
 # OpenRouter backup account (free tier for community chat) — falls back to the
 # primary OPENROUTER_KEY if the backup key is not provisioned.
 OPENROUTER_BACKUP_API_KEY = os.getenv("OPENROUTER_BACKUP_API_KEY") or OPENROUTER_KEY
+
+# ── DeepInfra (cheap primary chat + vision) ────────────────────────────────
+# 2026-08-30: website + bot chat move to DeepInfra Qwen3.5-9B (~$0.08/Mtok,
+# ~3s, RAG-friendly, reasoning disabled). The DeepSeek/OpenRouter free tiers
+# stay as fallback lanes. Vision uses Qwen3-VL (30B-A3B — DeepInfra does NOT
+# host a 4B VL checkpoint as of 2026-08-30).
+DEEPINFRA_BASE = os.getenv("DEEPINFRA_BASE", "https://api.deepinfra.com/v1/openai")
+DEEPINFRA_API_KEY = os.getenv("DEEPINFRA_API_KEY", "")
+DEEPINFRA_CHAT_MODEL = os.getenv("DEEPINFRA_CHAT_MODEL", "Qwen/Qwen3.5-9B")
+DEEPINFRA_VISION_MODEL = os.getenv("DEEPINFRA_VISION_MODEL", "Qwen/Qwen3-VL-30B-A3B-Instruct")
 
 # Hugging Face Inference API (free hosted tier — community chat fallback).
 # Reads HUGGINGFACE_API_KEY first, then HUGGINGFACE_TOKEN (legacy name used by
@@ -113,13 +124,23 @@ def get_analysis_config() -> dict[str, Any]:
 
 
 def get_snappy_config() -> dict[str, Any]:
-    """Config for fast short chat answers (Poolside Laguna S 2.1, FREE via OpenRouter)."""
+    """Config for fast short chat answers — DeepInfra Qwen3.5-9B PRIMARY.
+
+    2026-08-30: the website's chat/copilot now answers on DeepInfra Qwen3.5-9B
+    (cheap, ~3s, RAG-friendly, reasoning disabled). Falls back to the OpenRouter
+    free tier (``poolside/laguna-s-2.1:free``) when DeepInfra is down. Raises
+    the token cap to 2000 so a grounded RAG answer isn't truncated mid-sentence
+    (the old 256 cut full answers off).
+    """
     return {
-        "model": "poolside/laguna-s-2.1:free",
-        "base_url": f"{OPENROUTER_BASE}/chat/completions",
-        "api_key": OPENROUTER_BACKUP_API_KEY,
-        "max_tokens": 256,
-        "temperature": 0.4,
+        "model": DEEPINFRA_CHAT_MODEL,
+        "base_url": f"{DEEPINFRA_BASE}/chat/completions",
+        "api_key": DEEPINFRA_API_KEY,
+        "fallback_model": "poolside/laguna-s-2.1:free",
+        "fallback_base_url": f"{OPENROUTER_BASE}/chat/completions",
+        "fallback_api_key": OPENROUTER_BACKUP_API_KEY,
+        "max_tokens": 2000,
+        "temperature": 0.3,
     }
 
 
@@ -235,6 +256,8 @@ async def _chat_once(
         "messages": messages,
         "max_tokens": max_tokens if max_tokens is not None else int(config.get("max_tokens") or 512),
         "temperature": float(config.get("temperature") or 0.5),
+        # DeepInfra Qwen3.5-9B defaults to reasoning when omitted -> slow/empty.
+        "reasoning": {"enabled": False},
     }
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0, read=10.0, write=10.0)) as client:

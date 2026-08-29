@@ -114,6 +114,9 @@ async def test_stream_chat_completion_yields_tokens(monkeypatch: pytest.MonkeyPa
     # with [ERROR ...] before any provider is contacted.
     monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
     monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
+    # snappy is DeepInfra Qwen3.5-9B (2026-08-30) — needs the DeepInfra key too.
+    monkeypatch.setenv("DEEPINFRA_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "DEEPINFRA_API_KEY", "test")
 
     tokens = [
         t
