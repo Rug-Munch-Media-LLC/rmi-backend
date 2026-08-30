@@ -68,13 +68,50 @@ async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dic
 
 
 @router.get("/entity/{address}")
-async def get_entity_info(address: str) -> dict[str, Any]:
-    """Get entity information for an address."""
+async def get_entity_info(address: str, chain: str = Query("solana")) -> dict[str, Any]:
+    """Entity resolution for an address (wallet-cluster flow).
+
+    Scanner-engine entity info first; when the engine has none (common for
+    wallets outside its tx-graph cache), fall back to OUR wallet-label stack
+    (wallet_v2 Qdrant + ClickHouse ``wallet_memory.wallet_labels`` + DataBus
+    wallet scanner) so the map never renders an unexplained node when we
+    hold label data the engine lacks. ``entity_source`` reports which path
+    resolved; ``entity`` stays null when neither has data — never fabricated.
+    """
     rm = _get_rm()
     info = await rm._get_entity_info(address)
     txs = await rm._get_transactions(address)
     risk, level = rm._calculate_risk(txs, node_count=1)
-    return {"address": address, "entity": info, "risk_score": risk, "risk_level": level}
+
+    entity = info
+    entity_source = "scanner_engine"
+    if not entity:
+        try:
+            from app.rugmaps_wallet import batch_lookup_wallet_labels
+
+            labeled = await batch_lookup_wallet_labels([address], chain=chain)
+            rec = (labeled.get("labels") or {}).get(address.strip().lower()) or {}
+            if rec.get("label") or rec.get("entity_type") or rec.get("labels"):
+                entity = {
+                    "name": rec.get("label") or None,
+                    "type": rec.get("entity_type") or rec.get("class") or None,
+                    "tags": rec.get("labels") or [],
+                    "risk_score": rec.get("risk_score"),
+                    "class": rec.get("class"),
+                }
+                source = rec.get("source") or "wallet_labels"
+                entity["source"] = source
+                entity_source = source
+        except Exception as e:
+            logger.debug(f"wallet-label entity fallback failed for {address[:12]}: {e}")
+
+    return {
+        "address": address,
+        "entity": entity,
+        "entity_source": entity_source,
+        "risk_score": risk,
+        "risk_level": level,
+    }
 
 
 @router.get(

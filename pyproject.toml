@@ -152,6 +152,10 @@ ignore = ["ASYNC109"]
 # Bot admin API: trusted internal SQL — where-clause fragments are fixed constants,
 # user input is always bound via parameters; temp fallback path mirrors bot runtime
 "app/routers/admin/bot_admin.py" = ['S608', 'S108', 'S110']
+# KOL bot store bridge: same contract as bot_admin.py — read-only sqlite
+# (mode=ro), order-by fragment is a fixed internal constant, user input always
+# bound via parameters; /tmp mirror path is the bot's stable inter-process lookup
+"app/databus/kol_bot_store.py" = ['S608', 'S108']
 # Pre-existing: SQL injection warning in passthrough ClickHouse queries (sanitized, trusted internal traffic)
 "app/databus/provider_implementations/passthrough.py" = ['S608']
 "app/domains/databus/providers/chains/local.py" = ['S608']
