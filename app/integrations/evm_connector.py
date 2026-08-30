@@ -111,7 +111,7 @@ CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
 
 # Env-gated: empty default is harmless — callers fall back to public RPCs when
 # no key is set. Prefer the MORALIS_API_KEY env var (consistent with
-# app/moralis_connector.py); the legacy secrets file is only a fallback.
+# app/integrations/moralis_connector.py); the legacy secrets file is only a fallback.
 MORALIS_API_KEY = os.getenv("MORALIS_API_KEY", "")
 
 if not MORALIS_API_KEY:

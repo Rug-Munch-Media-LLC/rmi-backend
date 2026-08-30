@@ -342,9 +342,3 @@ async def test_websocket_alerts() -> None:
 
     # Run test
     await mock_client()
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(test_websocket_alerts())

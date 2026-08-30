@@ -61,7 +61,7 @@ class UnifiedProvider:
     def gmgn(self) -> Any:
         if self._gmgn is None:
             try:
-                from app.gmgn_client import GMGNClient
+                from app.integrations.gmgn_client import GMGNClient
 
                 self._gmgn = GMGNClient()
             except ImportError:

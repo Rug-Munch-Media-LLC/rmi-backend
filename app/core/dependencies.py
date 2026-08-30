@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from app.chain_client import ChainClient
     from app.core.rate_limiter import UnifiedRateLimiter
-    from app.evm_connector import EVMClient
+    from app.integrations.evm_connector import EVMClient
     from app.services.pryscraper_client import PryscraperClient
 
 logger = get_logger(__name__)
@@ -151,7 +151,7 @@ def get_chain_client() -> ChainClient:
 def get_evm_client(chain: str = "base") -> EVMClient:
     """EVM blockchain client for the given *chain*.
 
-    Wraps ``app.evm_connector.get_evm_client``.  Callers remain free
+    Wraps ``app.integrations.evm_connector.get_evm_client``.  Callers remain free
     to pass the ``chain`` parameter; the underlying singleton ensures
     one client per chain.
 
@@ -159,7 +159,7 @@ def get_evm_client(chain: str = "base") -> EVMClient:
 
         app.dependency_overrides[get_evm_client] = lambda: mock_client
     """
-    from app.evm_connector import get_evm_client as _get_evm_client
+    from app.integrations.evm_connector import get_evm_client as _get_evm_client
 
     return _get_evm_client(chain=chain)
 

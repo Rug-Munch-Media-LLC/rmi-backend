@@ -185,7 +185,9 @@ class MoralisConnector:
 
     # ── Auth API (Key 2) ──────────────────────────────────
 
-    async def request_evm_challenge(self, address: str, chain: str = "eth", domain: str = "rugmunch.io") -> dict[str, Any] | None:
+    async def request_evm_challenge(
+        self, address: str, chain: str = "eth", domain: str = "rugmunch.io"
+    ) -> dict[str, Any] | None:
         """Request SIWE (Sign-In With Ethereum) challenge for MetaMask etc."""
         chain_id = self._chain_id(chain)
         url = f"{AUTH_URL}/challenge/request/evm"
@@ -301,7 +303,9 @@ class MoralisConnector:
         url = f"{DATA_URL}/{address}/balance?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_wallet_token_transfers(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict[str, Any]]:
+    async def get_wallet_token_transfers(
+        self, address: str, chain: str = "eth", limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Get token transfer history for whale tracking."""
         url = f"{DATA_URL}/{address}/erc20/transfers?chain={self._chain_param(chain)}&limit={limit}"
         result = await self._get(url)
