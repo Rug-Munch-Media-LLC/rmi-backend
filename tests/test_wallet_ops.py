@@ -41,7 +41,7 @@ class TestLabelImporter:
 
         with (
             patch(
-                "app.wallet_memory.label_importer.download._get_http",
+                "rugmunch_scanner.wallet_memory.label_importer.download._get_http",
                 AsyncMock(return_value=mock_client),
             ),
             patch("builtins.open", mock_open()),
@@ -61,7 +61,7 @@ class TestLabelImporter:
         mock_client.get = AsyncMock(return_value=mock_resp)
 
         with patch(
-            "app.wallet_memory.label_importer.download._get_http",
+            "rugmunch_scanner.wallet_memory.label_importer.download._get_http",
             AsyncMock(return_value=mock_client),
         ):
             result = await _download_file("https://example.com/missing.csv", "/tmp/missing.csv")
@@ -80,7 +80,7 @@ class TestLabelImporter:
         mock_client.get = AsyncMock(return_value=mock_resp)
 
         with patch(
-            "app.wallet_memory.label_importer.download._get_http",
+            "rugmunch_scanner.wallet_memory.label_importer.download._get_http",
             AsyncMock(return_value=mock_client),
         ):
             result = await _download_json("https://example.com/data.json")
@@ -97,7 +97,7 @@ class TestLabelImporter:
         mock_client.get = AsyncMock(return_value=mock_resp)
 
         with patch(
-            "app.wallet_memory.label_importer.download._get_http",
+            "rugmunch_scanner.wallet_memory.label_importer.download._get_http",
             AsyncMock(return_value=mock_client),
         ):
             result = await _download_json("https://example.com/bad.json")
