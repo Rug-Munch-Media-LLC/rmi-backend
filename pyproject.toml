@@ -10,6 +10,10 @@ readme = "DESIGN.md"
 # dependency list. `pip install -e .` works in dev; production uses
 # `pip install -r requirements.txt`.
 dependencies = [
+    # Canonical scanner engine (PRIVATE methodology repo). Thin adapters under
+    # app/scoring/* re-export from here; the scanner is the single source of truth.
+    # Requires forgejo auth (same trust boundary as this repo).
+    "rugmunch-scanner @ git+https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",
