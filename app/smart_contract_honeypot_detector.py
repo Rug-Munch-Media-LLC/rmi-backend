@@ -1,53 +1,9 @@
-"""
-Smart Contract Honeypot Detector
-================================
-Detects honeypot smart contracts across EVM chains - tokens that appear
-tradeable but prevent selling through hidden mechanisms.
-
-DEPRECATED: backward-compatibility shim — canonical implementation lives in
-``app.domains.detectors.smart_contract_honeypot_detector`` (package). Import
-from there instead:
-
-    from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
-
-This shim is kept only for legacy imports (e.g. tests) and will be removed.
-
-Usage (legacy):
-    from app.smart_contract_honeypot_detector import HoneypotDetector
-"""
+"""Backward-compatibility shim — implementation moved to :mod:`app.detectors.smart_contract_honeypot_detector`."""
 
 from __future__ import annotations
 
-from app.domains.detectors.smart_contract_honeypot_detector import (
-    BENIGN_SELECTORS,
-    EVM_CHAINS,
-    HONEYPOT_THRESHOLDS,
-    KNOWN_MALICIOUS_SELECTORS,
-    FindingSeverity,
-    HoneypotAnalysisResult,
-    HoneypotDetector,
-    HoneypotType,
-    SecurityFinding,
-    TokenInfo,
-    fetch_with_fallback,
-)
+import sys
 
-if __name__ == "__main__":
-    from app.domains.detectors.smart_contract_honeypot_detector.cli import main as _main
+from app.detectors import smart_contract_honeypot_detector as _impl
 
-    _main()
-
-
-__all__ = [
-    "BENIGN_SELECTORS",
-    "EVM_CHAINS",
-    "HONEYPOT_THRESHOLDS",
-    "KNOWN_MALICIOUS_SELECTORS",
-    "FindingSeverity",
-    "HoneypotAnalysisResult",
-    "HoneypotDetector",
-    "HoneypotType",
-    "SecurityFinding",
-    "TokenInfo",
-    "fetch_with_fallback",
-]
+sys.modules[__name__] = _impl
