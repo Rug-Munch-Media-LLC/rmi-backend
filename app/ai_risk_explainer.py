@@ -175,17 +175,3 @@ def classify_news(title: str, content: str = "") -> str:
         if any(w in t for w in ["sec ", "regulation", "ban", "law", "legal"]):
             return "REGULATION"
         return "GENERAL"
-
-
-if __name__ == "__main__":
-    # Test
-    test = {
-        "safety_score": 23,
-        "risk_flags": ["LP_LOCK_LOW", "DEV_HIGH_RISK", "HONEYPOT_DETECTED"],
-        "green_flags": [],
-        "name": "SCAMCOIN",
-        "modules_run": ["security", "holders", "liquidity"],
-    }
-    print(explain_risks(test))
-    print()
-    print(classify_news("$4M rug pull on Solana - deployer drained LP", ""))

@@ -141,6 +141,35 @@ app/domains/
 └── x402/        → x402 payment-gated API middleware
 ```
 
+## External Integrations
+
+Third-party data/AI provider connectors and thin client wrappers live in
+`app/integrations/` (single package), never as flat modules at `app/` root.
+Each module is a leaf — it calls an external API and is imported through the
+dynamic provider registry (`app/routers/v1/providers.py`) or via typed
+dependencies (`app/core/dependencies.py`).
+
+| Module | Capability |
+|--------|-----------|
+| `coingecko_connector.py` | CoinGecko prices, market data, trending |
+| `etherscan_connector.py` | EVM block explorers (ETH, BSC, Polygon, ...) |
+| `alchemy_connector.py` | Alchemy NFT / Enhanced / multi-chain RPC |
+| `birdeye_client.py` | Solana token data, holders |
+| `moralis_connector.py` | Wallet/token/NFT + Auth API |
+| `arkham_connector.py` | Entity labeling, sanctions screening |
+| `alibaba_connector.py` / `alibaba_dashscope_connector.py` | Alibaba image gen + Qwen LLM |
+| `defillama_connector.py` | TVL, yields, stablecoins |
+| `blockchair_connector.py` | Bitcoin/Litecoin/Ethereum explorer |
+| `nansen_connector.py` | Wallet labels, smart-money tracking |
+| `free_solscan_client.py` | Solana explorer (free reverse-engineered API) |
+| `solana_connector.py` / `evm_connector.py` | solana-py / web3.py chain access |
+| `gmgn_client.py` | Smart-money, social metrics |
+| `rugbrain_client.py` | Product-boundary RAG client (see ADR-007) |
+
+External providers are also aggregated behind the DataBus layer where a shared
+data path is required. Rule: at most one flat connector module per external
+provider; new connectors go in `app/integrations/`.
+
 ## DataBus Architecture
 
 ```
@@ -212,13 +241,14 @@ app/domains/
 
 ## Architecture Decision Records
 
-`docs/adr/` contains 6 ADRs covering:
+`docs/adr/` contains 7 ADRs covering:
 - ADR-001: DataBus as Single Data Layer (accepted)
 - ADR-002: Monolith over Microservices (accepted)
 - ADR-003: Redis for Hot Cache, Postgres for Cold (accepted)
 - ADR-004: Multi-Source Data Fusion for Risk Scoring (accepted)
 - ADR-005: x402 Payment-Gated API Access (accepted)
 - ADR-006: CI Quality Gates (accepted)
+- ADR-007: Product Code Lives in Its Own Repo; Backend Imports It (accepted)
 
 ---
 

@@ -26,7 +26,7 @@ from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from app.chain_client import ChainClient
-    from app.evm_connector import EVMClient
+    from app.integrations.evm_connector import EVMClient
 
 logger = get_logger(__name__)
 

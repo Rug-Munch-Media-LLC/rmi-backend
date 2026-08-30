@@ -17,8 +17,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
-from app.evm_connector import EVMClient
-from app.solana_connector import SolanaClient
+from app.integrations.evm_connector import EVMClient
+from app.integrations.solana_connector import SolanaClient
 
 logger = get_logger(__name__)
 

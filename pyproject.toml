@@ -191,7 +191,7 @@ ignore = ["ASYNC109"]
 "app/domains/scanners/decompiler_analyzer.py" = ['ASYNC230']
 "app/domains/scanners/sentinel_pipeline/runners.py" = ['TC003']
 "app/domains/telegram/rugmunchbot/config.py" = ['S603', 'S607']
-"app/evm_connector.py" = ['N813']
+"app/integrations/evm_connector.py" = ['N813']
 "app/wash_trading_detector.py" = ['RUF001']
 
 

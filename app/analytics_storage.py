@@ -417,35 +417,3 @@ def initialize_analytics() -> None:
     # db.redis.client.flushdb()
 
     logger.info("Analytics database initialized")
-
-
-if __name__ == "__main__":
-    # Test the analytics database
-    db = get_analytics_database()
-
-    # Create a test transaction
-    tx = TransactionRecord(
-        tx_hash="0x" + "a" * 64,
-        chain="ethereum",
-        from_address="0x1234567890123456789012345678901234567890",
-        to_address="0xabcdef1234567890abcdef1234567890abcdef12",
-        value=1.5,
-        gas_used=21000,
-        block_number=1000000,
-        function_name="transfer",
-    )
-
-    db.store_transaction(tx)
-
-    # Get the transaction back
-    stored = db.get_transaction(tx.tx_hash)
-    print(f"Stored transaction: {stored}")
-
-    # Get wallet history
-    history = db.get_wallet_history(tx.from_address, "ethereum")
-    if history:
-        print(f"Wallet history: {history.total_tx_count} transactions")
-
-    # Get activity summary
-    summary = db.get_wallet_activity_summary(tx.from_address, "ethereum")
-    print(f"Activity summary: {summary}")

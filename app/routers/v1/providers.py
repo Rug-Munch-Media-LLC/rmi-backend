@@ -49,7 +49,7 @@ PROVIDERS: list[ProviderDef] = [
     },
     {
         "name": "etherscan",
-        "module": "app.etherscan_connector",
+        "module": "app.integrations.etherscan_connector",
         "cb_var": "_etherscan_cb",
         "description": "Etherscan family — EVM block explorers (ETH, BSC, Polygon, etc.)",
         "tier": "free",
@@ -70,28 +70,28 @@ PROVIDERS: list[ProviderDef] = [
     },
     {
         "name": "moralis",
-        "module": "app.moralis_connector",
+        "module": "app.integrations.moralis_connector",
         "cb_var": "_moralis_cb",
         "description": "Moralis — wallet/token/NFT data API + Auth API",
         "tier": "free",
     },
     {
         "name": "arkham",
-        "module": "app.arkham_connector",
+        "module": "app.integrations.arkham_connector",
         "cb_var": "_arkham_cb",
         "description": "Arkham Intelligence — entity labeling, sanctions screening",
         "tier": "free",
     },
     {
         "name": "alibaba",
-        "module": "app.alibaba_connector",
+        "module": "app.integrations.alibaba_connector",
         "cb_var": "_alibaba_cb",
         "description": "Alibaba Cloud — Tongyi Wanxiang image generation",
         "tier": "free",
     },
     {
         "name": "dashscope",
-        "module": "app.alibaba_dashscope_connector",
+        "module": "app.integrations.alibaba_dashscope_connector",
         "cb_var": "_dashscope_cb",
         "description": "Alibaba DashScope — Qwen LLM models (qwen-max, qwen-plus, etc.)",
         "tier": "free",
@@ -99,21 +99,21 @@ PROVIDERS: list[ProviderDef] = [
     # ── SimpleCircuitBreaker providers (sync) ──────────────────────
     {
         "name": "defillama",
-        "module": "app.defillama_connector",
+        "module": "app.integrations.defillama_connector",
         "cb_var": "_defillama_cb",
         "description": "DeFiLlama — TVL, yields, stablecoins, protocol data",
         "tier": "free",
     },
     {
         "name": "blockchair",
-        "module": "app.blockchair_connector",
+        "module": "app.integrations.blockchair_connector",
         "cb_var": "_blockchair_cb",
         "description": "Blockchair — Bitcoin/Litecoin/Ethereum blockchain explorer",
         "tier": "free",
     },
     {
         "name": "nansen",
-        "module": "app.nansen_connector",
+        "module": "app.integrations.nansen_connector",
         "cb_var": "_nansen_cb",
         "description": "Nansen — wallet labels, smart money tracking",
         "tier": "free",
@@ -156,14 +156,14 @@ PROVIDERS: list[ProviderDef] = [
     },
     {
         "name": "solana_rpc",
-        "module": "app.solana_connector",
+        "module": "app.integrations.solana_connector",
         "cb_var": None,
         "description": "Solana RPC — native solana-py client (publicnode, devnet, testnet)",
         "tier": "free",
     },
     {
         "name": "evm_web3",
-        "module": "app.evm_connector",
+        "module": "app.integrations.evm_connector",
         "cb_var": None,
         "description": "Web3.py EVM — Ethereum, Base, Arbitrum contract interaction",
         "tier": "free",
@@ -171,7 +171,7 @@ PROVIDERS: list[ProviderDef] = [
     # ── Data / intelligence providers ──────────────────────────────
     {
         "name": "gmgn",
-        "module": "app.gmgn_client",
+        "module": "app.integrations.gmgn_client",
         "cb_var": None,
         "description": "GMGN — Smart money, token intelligence, social metrics",
         "tier": "free",
