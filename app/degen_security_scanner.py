@@ -1,41 +1,9 @@
-"""
-Degen Security Scanner
-======================
-Comprehensive security scanning for meme coins, degen tokens, and high-risk
-assets across EVM chains and Solana.
-
-Backward-compatibility shim: this module now lives in ``app.domains.scanner``.
-
-Usage:
-    from app.degen_security_scanner import DegenSecurityScanner
-"""
+"""Backward-compatibility shim — implementation moved to :mod:`app.detectors.degen_security_scanner`."""
 
 from __future__ import annotations
 
-from app.domains.scanner.degen_security_scanner import (
-    BUNDLER_PROGRAMS,
-    MIXER_PROGRAMS,
-    DegenSecurityScanner,
-    FundingTrace,
-    HolderProfile,
-    LPAnalysis,
-    SecurityReport,
-    SniperProfile,
-    WashTradeCluster,
-    format_report,
-    scan_token,
-)
+import sys
 
-__all__ = [
-    "BUNDLER_PROGRAMS",
-    "MIXER_PROGRAMS",
-    "DegenSecurityScanner",
-    "FundingTrace",
-    "HolderProfile",
-    "LPAnalysis",
-    "SecurityReport",
-    "SniperProfile",
-    "WashTradeCluster",
-    "format_report",
-    "scan_token",
-]
+from app.detectors import degen_security_scanner as _impl
+
+sys.modules[__name__] = _impl

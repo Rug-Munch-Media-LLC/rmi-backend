@@ -20,3 +20,18 @@ ignore_imports =
     # TODO(degodding-phase-4): lifespan databus init + middleware x402 mount.
     app.core.lifespan -> app.databus.core
     app.core.middleware -> app.routers.x402_advanced_tools
+
+# Wire-in from standards/import-linter.contract.yaml (2026-08-30).
+# NOTE: the standards file also defines `rag-via-client-only` (forbids
+# rugbrain.chunking/embeddings/qdrant_store/retrieval). Import-linter does NOT
+# accept external-package SUBPACKAGES as forbidden modules (raising "subpackages
+# of external packages are not valid"), so that contract was NOT wired here.
+# [REVIEW] needs import-linter-compatible rework (e.g. forbid the whole `rugbrain`
+# package or restructure as an illegal-imports contract).
+[importlinter:contract:scanner-via-adapter-only]
+name = Backend re-exports scanner adapters, never re-implements
+type = forbidden
+source_modules =
+    app.domains.scanner
+forbidden_modules =
+ignore_imports =

@@ -1,13 +1,9 @@
-"""Backward compatibility shim for app/token_scanner.py.
-
-The token scanner has been refactored to app/domains/scanner/*.py for
-better organization (per architecture standard: NO file > 500 lines).
-
-This file re-exports the main API from the new modules.
-"""
+"""Backward-compatibility shim — implementation moved to :mod:`app.detectors.token_scanner`."""
 
 from __future__ import annotations
 
-from app.domains.scanner import ScanResult, quick_scan_text, scan_token
+import sys
 
-__all__ = ["ScanResult", "quick_scan_text", "scan_token"]
+from app.detectors import token_scanner as _impl
+
+sys.modules[__name__] = _impl

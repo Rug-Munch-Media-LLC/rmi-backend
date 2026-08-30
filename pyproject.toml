@@ -160,6 +160,9 @@ ignore = ["ASYNC109"]
 # (mode=ro), order-by fragment is a fixed internal constant, user input always
 # bound via parameters; /tmp mirror path is the bot's stable inter-process lookup
 "app/databus/kol_bot_store.py" = ['S608', 'S108']
+# Shill evidence store bridge: same read-only sqlite contract as kol_bot_store;
+# the /tmp bot DB mirror path is the bot's stable inter-process lookup
+"app/domains/shill/evidence.py" = ['S608', 'S108']
 # Pre-existing: SQL injection warning in passthrough ClickHouse queries (sanitized, trusted internal traffic)
 "app/databus/provider_implementations/passthrough.py" = ['S608']
 "app/domains/databus/providers/chains/local.py" = ['S608']
@@ -200,7 +203,7 @@ ignore = ["ASYNC109"]
 "app/domains/scanners/sentinel_pipeline/runners.py" = ['TC003']
 "app/domains/telegram/rugmunchbot/config.py" = ['S603', 'S607']
 "app/integrations/evm_connector.py" = ['N813']
-"app/wash_trading_detector.py" = ['RUF001']
+ "app/detectors/wash_trading_detector.py" = ['RUF001']
 
 
 # Pre-existing violations surfaced by tech-debt sweep (batch 8) — documented, not
@@ -336,9 +339,9 @@ ignore = ["ASYNC109"]
 "app/threat_intel.py" = ['B019']
 "app/token_watch.py" = ['RUF012']
 "app/tools_integration.py" = ['ASYNC240', 'S603', 'S607']
-"app/trufflehog_scanner.py" = ['S603', 'S607']
+ "app/detectors/trufflehog_scanner.py" = ['S603', 'S607']
 "app/unified_scanner/scanner.py" = ['RUF006']
-"app/unified_token_scanner.py" = ['F403']
+ "app/detectors/unified_token_scanner.py" = ['F403']
 "app/wallet_memory/clustering.py" = ['B007']
 "app/wallet_memory/label_importer/__init__.py" = ['ASYNC240']
 "app/wallet_memory/label_importer/bsc.py" = ['ASYNC230', 'ASYNC240']
