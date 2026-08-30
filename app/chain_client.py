@@ -7,7 +7,6 @@ Free tier: ~5 req/sec. Caching layer in unified_provider.
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from typing import Any
 
@@ -15,6 +14,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -29,13 +29,13 @@ _chain_cb = AsyncCircuitBreaker(
 # ── Provider Keys ──────────────────────────────────────────
 
 HELIUS_KEYS = [
-    os.getenv("HELIUS_API_KEY", ""),
-    os.getenv("HELIUS_API_KEY_2", ""),
-    os.getenv("HELIUS_API_KEY_3", ""),
+    resolve_key("HELIUS_API_KEY"),
+    resolve_key("HELIUS_API_KEY_2"),
+    resolve_key("HELIUS_API_KEY_3"),
 ]
 HELIUS_KEYS = [k for k in HELIUS_KEYS if k and k != "your_helius_key_here"]
 
-QUICKNODE_KEY = os.getenv("QUICKNODE_KEY", "")
+QUICKNODE_KEY = resolve_key("QUICKNODE_KEY")
 
 # ── Rate Limiter ───────────────────────────────────────────
 

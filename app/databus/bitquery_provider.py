@@ -40,6 +40,7 @@ import httpx
 
 from app.core.logging import get_logger
 from app.databus.cache import CacheLayer, get_cache
+from app.databus.vault import resolve_key
 
 logger = get_logger("databus.bitquery")
 
@@ -84,10 +85,9 @@ class BitqueryProvider:
         """Load Bitquery credentials - env vars first, vault as fallback."""
         if self._loaded:
             return
-        import os
 
-        self._api_key = os.getenv("BITQUERY_API_KEY", "")
-        self._oauth_token = os.getenv("BITQUERY_OAUTH_TOKEN", "")
+        self._api_key = resolve_key("BITQUERY_API_KEY")
+        self._oauth_token = resolve_key("BITQUERY_OAUTH_TOKEN")
         if self._api_key:
             self._loaded = True
             logger.info(

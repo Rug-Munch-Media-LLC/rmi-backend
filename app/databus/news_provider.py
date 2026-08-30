@@ -26,6 +26,7 @@ import httpx
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("news_provider")
 
@@ -34,8 +35,8 @@ logger = get_logger("news_provider")
 COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 FEAR_GREED_URL = "https://api.alternative.me/fng/?limit=1"
 POLYMARKET_URL = "https://gamma-api.polymarket.com/events"
-COINGECKO_KEY = os.getenv("COINGECKO_API_KEY", "")
-CRYPTOPANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY", "").strip()
+COINGECKO_KEY = resolve_key("COINGECKO_API_KEY")
+CRYPTOPANIC_API_KEY = resolve_key("CRYPTOPANIC_API_KEY").strip()
 
 # ── Redis config ───────────────────────────────────────────────────
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
@@ -785,7 +786,7 @@ async def refresh_news_cache() -> dict[str, Any]:
                     except Exception:
                         logger.debug("local embedder unavailable - trying API fallbacks")
                     if q_vec is None or d_vecs is None:
-                        _mkey = os.getenv("MISTRAL_API_KEY", "").strip()
+                        _mkey = resolve_key("MISTRAL_API_KEY").strip()
                         if not _mkey:
                             raise RuntimeError("no MISTRAL_API_KEY for embed fallback")
                         _murl = "https://api.mistral.ai/v1/embeddings"

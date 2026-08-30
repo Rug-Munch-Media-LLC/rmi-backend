@@ -22,6 +22,7 @@ import httpx
 import redis
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("webhooks")
 
@@ -279,7 +280,7 @@ async def setup_webhook(service: str, webhook_url: str, events: list[str] | None
 
     if service == "helius":
         if not api_key:
-            api_key = os.getenv("HELIUS_API_KEY", "")
+            api_key = resolve_key("HELIUS_API_KEY")
         if not api_key:
             return {"error": "HELIUS_API_KEY required"}
         try:
@@ -299,7 +300,7 @@ async def setup_webhook(service: str, webhook_url: str, events: list[str] | None
 
     elif service == "moralis":
         if not api_key:
-            api_key = os.getenv("MORALIS_API_KEY", "")
+            api_key = resolve_key("MORALIS_API_KEY")
         if not api_key:
             return {"error": "MORALIS_API_KEY required"}
         try:

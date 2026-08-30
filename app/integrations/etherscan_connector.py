@@ -14,7 +14,6 @@ Supports:
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from typing import Any
 
@@ -22,6 +21,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -35,11 +35,11 @@ _etherscan_cb = AsyncCircuitBreaker(
 
 # ── API Keys ────────────────────────────────────────────────
 
-ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
-BSCSCAN_API_KEY = os.getenv("BSCSCAN_API_KEY", "")
-POLYGONSCAN_API_KEY = os.getenv("POLYGONSCAN_API_KEY", "")
-SNOWTRACE_API_KEY = os.getenv("SNOWTRACE_API_KEY", "")  # Avalanche
-FTMSCAN_API_KEY = os.getenv("FTMSCAN_API_KEY", "")  # Fantom
+ETHERSCAN_API_KEY = resolve_key("ETHERSCAN_API_KEY")
+BSCSCAN_API_KEY = resolve_key("BSCSCAN_API_KEY")
+POLYGONSCAN_API_KEY = resolve_key("POLYGONSCAN_API_KEY")
+SNOWTRACE_API_KEY = resolve_key("SNOWTRACE_API_KEY")  # Avalanche
+FTMSCAN_API_KEY = resolve_key("FTMSCAN_API_KEY")  # Fantom
 
 # Network configurations
 NETWORKS = {

@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
 
 async def _messari_news(limit: int = 20, **kw) -> dict[str, Any] | None:
     """Messari News API - curated crypto news with per-asset sentiment scores."""
-    api_key = kw.get("api_key", "") or os.getenv("MESSARI_API_KEY", "")
+    api_key = kw.get("api_key", "") or resolve_key("MESSARI_API_KEY")
     if not api_key:
         return None
     try:
@@ -51,7 +51,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict[str, Any] | None:
 
 async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
     """CoinDesk News API - institutional-grade crypto news with categorization."""
-    api_key = kw.get("api_key", "") or os.getenv("COINDESK_API_KEY", "")
+    api_key = kw.get("api_key", "") or resolve_key("COINDESK_API_KEY")
     if not api_key:
         return None
     try:
@@ -88,7 +88,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
 
 async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict[str, Any] | None:
     """Santiment - GitHub dev activity and social volume (free tier: 100 calls/day)."""
-    api_key = kw.get("api_key", "") or os.getenv("SANTIMENT_API_KEY", "")
+    api_key = kw.get("api_key", "") or resolve_key("SANTIMENT_API_KEY")
     if not api_key or not project_slug:
         return None
     try:
@@ -125,7 +125,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict[s
 
 async def _virustotal_url_scan(url: str, **kw) -> dict[str, Any] | None:
     """VirusTotal - scan token website URLs for phishing/malware (free: 500 req/day)."""
-    api_key = kw.get("api_key", "") or os.getenv("VIRUSTOTAL_API_KEY", "")
+    api_key = kw.get("api_key", "") or resolve_key("VIRUSTOTAL_API_KEY")
     if not api_key or not url:
         return None
     try:
@@ -153,8 +153,8 @@ async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", *
     """Dune Analytics - finds the first 5-minute buyers of a token.
     Uses dual-key fallback to double free tier capacity (10k CU/mo per key).
     """
-    primary_key = kw.get("api_key", "") or os.getenv("DUNE_API_KEY", "")
-    secondary_key = os.getenv("DUNE_API_KEY_2", "")
+    primary_key = kw.get("api_key", "") or resolve_key("DUNE_API_KEY")
+    secondary_key = resolve_key("DUNE_API_KEY_2")
     if not token_address:
         return None
     query_id = 3946245

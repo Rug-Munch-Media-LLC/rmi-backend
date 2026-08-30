@@ -24,6 +24,7 @@ import numpy as np
 import redis
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("volume_authenticity")
 
@@ -507,7 +508,7 @@ async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum"
     # If we have Helius/Moralis data, try to fetch transaction details
     if not trade_sizes and chain in ("solana", "ethereum", "bsc", "base"):
         try:
-            api_key = kw.get("api_key", "") or os.getenv("HELIUS_API_KEY", "")
+            api_key = kw.get("api_key", "") or resolve_key("HELIUS_API_KEY")
             if chain == "solana" and api_key:
                 async with httpx.AsyncClient(timeout=10) as c:
                     # Get recent transactions for the token

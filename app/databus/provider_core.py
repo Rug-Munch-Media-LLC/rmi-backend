@@ -105,10 +105,15 @@ class ProviderChain:
                     continue
 
             try:
-                # Get API key from env (vault is pool manager, use os.getenv for direct keys)
+                # Resolve API key from the vault pool (preferred) or env (documented fallback).
+                # The chain receives the loaded vault; use it so keys route through
+                # KEY_REGISTRY (gopass → pool) instead of reading .env directly.
                 api_key = None
                 if provider.requires_key and provider.key_env:
-                    api_key = os.getenv(provider.key_env, "")
+                    if vault is not None and hasattr(vault, "resolve_key"):
+                        api_key = vault.resolve_key(provider.key_env)
+                    else:
+                        api_key = os.getenv(provider.key_env, "")
 
                 result = await provider.fetch_fn(api_key=api_key, **kwargs)
 

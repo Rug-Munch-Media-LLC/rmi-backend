@@ -31,6 +31,7 @@ import httpx
 import redis
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("token_security")
 
@@ -466,7 +467,7 @@ class TokenSecurityScorer:
 async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[str, Any]:
     """Tier 1 quick scan - GoPlus + basic checks. <1s target."""
     results = {}
-    api_key = kw.get("api_key", "") or kw.get("goplus_key", "") or os.getenv("GOPLUS_API_KEY", "")
+    api_key = kw.get("api_key", "") or kw.get("goplus_key", "") or resolve_key("GOPLUS_API_KEY")
 
     try:
         # Map chain name to GoPlus chain ID
@@ -586,7 +587,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
     # ── Our DataBus checks ──
     # Age check
     try:
-        api_key = kw.get("api_key", "") or os.getenv("HELIUS_API_KEY", "") or os.getenv("ALCHEMY_API_KEY", "")
+        api_key = kw.get("api_key", "") or resolve_key("HELIUS_API_KEY") or resolve_key("ALCHEMY_API_KEY")
         if api_key and chain == "solana":
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.post(

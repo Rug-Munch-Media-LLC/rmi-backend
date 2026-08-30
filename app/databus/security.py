@@ -12,10 +12,10 @@ Never exposes API keys in responses. Never leaks internal data to public users.
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -71,7 +71,7 @@ ACCESS_LEVELS = {
     "arkham_labels": "admin",
 }
 
-ADMIN_KEY = os.getenv("ADMIN_API_KEY", "")
+ADMIN_KEY = resolve_key("ADMIN_API_KEY")
 
 
 class SecurityGate:

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
+from app.databus.vault import resolve_key
 
-BIRDEYE_API_KEY = os.getenv("BIRDEYE_API_KEY", "")
+BIRDEYE_API_KEY = resolve_key("BIRDEYE_API_KEY")
 BASE_URL = "https://public-api.birdeye.so"
 HEADERS = {"X-API-KEY": BIRDEYE_API_KEY, "accept": "application/json"}
 

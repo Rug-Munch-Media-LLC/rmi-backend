@@ -9,13 +9,13 @@ WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("arkham_ws")
 
@@ -35,7 +35,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
 
     Returns subscription status or cached data.
     """
-    ws_key = os.getenv("ARKHAM_WS_KEY", "") or kw.get("api_key", "")
+    ws_key = resolve_key("ARKHAM_WS_KEY") or kw.get("api_key", "")
 
     if action == "status":
         return {
@@ -58,7 +58,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
 
         # Also fetch current entity data via REST as seed
         try:
-            api_key = os.getenv("ARKHAM_API_KEY", "")
+            api_key = resolve_key("ARKHAM_API_KEY")
             if api_key:
                 async with httpx.AsyncClient(timeout=10) as c:
                     r = await c.get(

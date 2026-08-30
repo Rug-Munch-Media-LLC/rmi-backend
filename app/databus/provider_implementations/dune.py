@@ -18,7 +18,6 @@ Verified queries:
 
 from __future__ import annotations
 
-import os
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -26,6 +25,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ _CACHE: dict[str, tuple[float, Any]] = {}
 
 def _api_key() -> str:
     """Dune API key from env (seeded from secrets manager)."""
-    return os.getenv("DUNE_API_KEY", "").strip()
+    return resolve_key("DUNE_API_KEY").strip()
 
 
 def _iso() -> str:

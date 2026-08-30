@@ -21,6 +21,7 @@ import httpx
 import redis
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("data_quality")
 
@@ -205,7 +206,7 @@ async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
 
 async def enrich_with_arkham(address: str) -> dict[str, Any] | None:
     """Enrich an address with Arkham entity data."""
-    arkham_key = os.getenv("ARKHAM_API_KEY", "")
+    arkham_key = resolve_key("ARKHAM_API_KEY")
     if not arkham_key:
         return None
 

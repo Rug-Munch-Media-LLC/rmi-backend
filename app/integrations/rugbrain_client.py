@@ -18,10 +18,12 @@ from typing import Any
 
 import httpx
 
+from app.databus.vault import resolve_key
+
 logger = logging.getLogger(__name__)
 
 _RUGBRAIN_API_URL: str = os.getenv("RAG_API_URL", "http://rugbrain-api:8012/api/v1").rstrip("/")
-_RUGBRAIN_API_KEY: str = os.getenv("RMI_RAG_API_KEY", "")
+_RUGBRAIN_API_KEY: str = resolve_key("RMI_RAG_API_KEY")
 _HTTP_TIMEOUT: int = int(os.getenv("RAG_HTTP_TIMEOUT", "300"))
 
 # ── Key rotation + direct-Qdrant fallback (2026-08-30) ────────────────────
@@ -49,7 +51,7 @@ async def _deepinfra_embed(query: str) -> list[float] | None:
     """Embed ``query`` via DeepInfra Qwen3-Embedding-4B (2560-dim, matches Qdrant)."""
     url = os.getenv("DEEPINFRA_EMBED_URL", "https://api.deepinfra.com/v1/embeddings")
     model = os.getenv("DEEPINFRA_EMBED_MODEL", "Qwen/Qwen3-Embedding-4B")
-    key = _split_key_rotation(os.getenv("DEEPINFRA_API_KEY", ""))
+    key = _split_key_rotation(resolve_key("DEEPINFRA_API_KEY"))
     if not key:
         return None
     try:

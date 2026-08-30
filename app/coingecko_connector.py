@@ -20,7 +20,6 @@ Endpoints covered:
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from typing import Any
 
@@ -28,6 +27,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -44,7 +44,7 @@ _coingecko_cb = AsyncCircuitBreaker(
 
 def _load_key(filename: str) -> str:
     """Load API key from /root/.secrets/ or env var."""
-    env = os.getenv(filename.upper(), "")
+    env = resolve_key(filename.upper())
     if env:
         return env
     try:
