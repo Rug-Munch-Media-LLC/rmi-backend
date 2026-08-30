@@ -2,15 +2,21 @@
 
 Extracted from ``app/routers/news.py`` to keep the router focused on
 request handling. These helpers are pure (no module-global state): they
-only touch the Qdrant ``news_v2`` collection and the rating engine.
+turn raw Qdrant ``news_v2`` points into article dicts and compute the
+Ground News-style rating cards.
 
 The rated-article API is backed by the RAG ``news_v2`` collection
 (seeded by rmi-rag/scripts/news_to_rag.py). Each point payload:
   payload.content                    → article text
   payload.metadata.{title,source,url,published_at,category,
                     tokens_mentioned,chains_mentioned,news_id}
-Ratings are computed on the fly via app/rag/ratings.py so old
-articles (ingested before the rating engine existed) get a card too.
+
+**Boundary (ARCHITECTURE.md §2):** rugbrain-owned collections are read
+through ``app.integrations.rugbrain_client`` only — this module never opens
+its own Qdrant connection. ``_scroll_news_v2`` delegates to
+``rugbrain_news_scroll``; the client owns the direct-Qdrant fallback lane.
+Ratings are computed on the fly via app/rag/ratings.py so old articles
+(ingested before the rating engine existed) get a card too.
 """
 
 from __future__ import annotations
@@ -21,15 +27,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-_NEWS_QDRANT_COLLECTION = "news_v2"
 _NEWS_SCROLL_WINDOW = 100  # Qdrant scroll batch size
-
-
-def _news_qdrant_url() -> str:
-    """Resolve the Qdrant base URL (docker service name vs localhost)."""
-    from app.core.health_route import QDRANT_URL
-
-    return QDRANT_URL.rstrip("/")
 
 
 def _point_to_article(point: dict[str, Any]) -> dict[str, Any]:
@@ -68,25 +66,16 @@ async def _scroll_news_v2(
 ) -> list[dict[str, Any]]:
     """Scroll Qdrant `news_v2` points with optional metadata filters.
 
-    Returns raw point dicts (id + payload). Qdrant scroll returns points
-    in storage order; callers sort by ``published_at`` afterwards.
+    Delegates to ``app.integrations.rugbrain_client.rugbrain_news_scroll`` —
+    the thin-client lane for reading rugbrain-owned collections
+    (ARCHITECTURE.md §2: rugbrain via HTTP API / thin client only). The
+    client owns the Qdrant base URL, fail-open behavior and direct-Qdrant
+    fallback. Returns raw point dicts (id + payload); callers sort by
+    ``published_at`` afterwards. Never raises.
     """
-    import httpx
+    from app.integrations.rugbrain_client import rugbrain_news_scroll
 
-    base = _news_qdrant_url()
-    try:
-        async with httpx.AsyncClient(base_url=base, timeout=10.0) as client:
-            body: dict[str, Any] = {"limit": min(limit, 1000), "with_payload": True}
-            if filters:
-                body["filter"] = {"must": filters}
-            r = await client.post(f"/collections/{_NEWS_QDRANT_COLLECTION}/points/scroll", json=body)
-            if r.status_code != 200:
-                logger.warning("news_qdrant_scroll_failed status=%d body=%s", r.status_code, r.text[:200])
-                return []
-            return r.json().get("result", {}).get("points", []) or []
-    except (httpx.HTTPError, httpx.TimeoutException, OSError, ValueError) as e:
-        logger.debug("news_qdrant_scroll_error err=%s", e)
-        return []
+    return await rugbrain_news_scroll(filters=filters, limit=limit)
 
 
 def _rate_article_dict(article: dict[str, Any]) -> dict[str, Any]:
