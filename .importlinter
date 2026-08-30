@@ -1,4 +1,5 @@
 [importlinter]
+include_external_packages = True
 root_package = app
 
 [importlinter:contract:domains-independence]
@@ -22,16 +23,24 @@ ignore_imports =
     app.core.middleware -> app.routers.x402_advanced_tools
 
 # Wire-in from standards/import-linter.contract.yaml (2026-08-30).
-# NOTE: the standards file also defines `rag-via-client-only` (forbids
-# rugbrain.chunking/embeddings/qdrant_store/retrieval). Import-linter does NOT
-# accept external-package SUBPACKAGES as forbidden modules (raising "subpackages
-# of external packages are not valid"), so that contract was NOT wired here.
-# [REVIEW] needs import-linter-compatible rework (e.g. forbid the whole `rugbrain`
-# package or restructure as an illegal-imports contract).
+# `rag-via-client-only` is wired below (2026-08-30). Import-linter rejects
+# external-package SUBPACKAGES as forbidden modules, so it forbids the whole
+# top-level `rugbrain` package (which, being in the same wheel/tree, covers the
+# internal submodules) and requires `include_external_packages = True` above.
+# Verified green: app/rag consumes rugbrain via app.integrations.rugbrain_client only.
 [importlinter:contract:scanner-via-adapter-only]
 name = Backend re-exports scanner adapters, never re-implements
 type = forbidden
 source_modules =
     app.domains.scanner
 forbidden_modules =
+ignore_imports =
+
+[importlinter:contract:rag-via-client-only]
+name = Backend consumes rugbrain through the HTTP client only (never internals)
+type = forbidden
+source_modules =
+    app.rag
+forbidden_modules =
+    rugbrain
 ignore_imports =
