@@ -6,20 +6,19 @@ Direct API callers for OpenRouter, Groq, Mistral and the ai_call router.
 
 from __future__ import annotations
 
-import os
-
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 from .models import MODELS
 from .tracking import _can_use, _track_usage
 
 logger = get_logger("model_registry")
 
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
-GROQ_KEY = os.getenv("GROQ_API_KEY", "")
-MISTRAL_KEY = os.getenv("MISTRAL_API_KEY", "")
+OPENROUTER_KEY = resolve_key("OPENROUTER_API_KEY")
+GROQ_KEY = resolve_key("GROQ_API_KEY")
+MISTRAL_KEY = resolve_key("MISTRAL_API_KEY")
 OR_URL = "https://openrouter.ai/api/v1/chat/completions"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"

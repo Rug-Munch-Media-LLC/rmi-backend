@@ -18,6 +18,7 @@ import httpx
 
 from app.chain_registry import get_rpc_urls
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("databus.kol_wallets")
 
@@ -224,7 +225,7 @@ async def resolve_lens(client: httpx.AsyncClient, handle: str) -> list[dict[str,
 
     Disabled unless LENS_API_KEY is set (API may require auth).
     """
-    key = os.getenv("LENS_API_KEY", "")
+    key = resolve_key("LENS_API_KEY")
     if not key:
         return []
     try:
@@ -252,7 +253,7 @@ _ARKHAM_LABEL_URL = "https://api.arkhamintelligence.com/intelligence/address/{ad
 
 async def _arkham_labels(client: httpx.AsyncClient, address: str) -> list[dict[str, Any]]:
     """Arkham entity labels (requires ARKHAM_API_KEY; else [])."""
-    key = os.getenv("ARKHAM_API_KEY", "")
+    key = resolve_key("ARKHAM_API_KEY")
     if not key:
         return []
     try:
@@ -283,7 +284,7 @@ async def _lookonchain_labels(client: httpx.AsyncClient, address: str) -> list[d
     LOOKONCHAIN_API_URL + LOOKONCHAIN_API_KEY are both set.
     """
     base = os.getenv("LOOKONCHAIN_API_URL", "")
-    key = os.getenv("LOOKONCHAIN_API_KEY", "")
+    key = resolve_key("LOOKONCHAIN_API_KEY")
     if not base or not key:
         return []
     try:

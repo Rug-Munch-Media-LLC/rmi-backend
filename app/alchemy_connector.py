@@ -13,7 +13,6 @@ Key features:
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from typing import Any
 
@@ -21,6 +20,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -34,7 +34,7 @@ _alchemy_cb = AsyncCircuitBreaker(
 
 # ── API Keys ────────────────────────────────────────────────
 
-ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY", "")
+ALCHEMY_API_KEY = resolve_key("ALCHEMY_API_KEY")
 
 # Network endpoints
 NETWORKS = {

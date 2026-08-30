@@ -6,12 +6,13 @@ Methods operate on ``self`` state initialized by ``GMGNProvider.__init__``.
 from __future__ import annotations
 
 import logging
-import os
 import time
 import uuid
 from typing import Any
 
 import httpx
+
+from app.databus.vault import resolve_key
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def _normalize_chain(chain: str) -> str:
     return (chain or "ethereum").strip().lower()
 
 
-GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
+GMGN_API_KEY = resolve_key("GMGN_API_KEY")
 
 GMGN_BASE = "https://gmgn.ai"
 GMGN_OPENAPI_BASE = "https://openapi.gmgn.ai"

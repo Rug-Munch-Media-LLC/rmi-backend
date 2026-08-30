@@ -14,7 +14,6 @@ Features:
 from __future__ import annotations
 
 import hashlib
-import os
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
@@ -23,10 +22,11 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("social_intel")
 
-GROQ_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_KEY = resolve_key("GROQ_API_KEY")
 
 # ═══════════════════════════════════════════════════════════════════════
 # KOL PERFORMANCE TRACKER

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -123,9 +123,8 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
             "base": "api.basescan.org",
         }
         domain = domains.get(network, "api.etherscan.io")
-        import os as _os
 
-        api_key = _os.getenv("ETHERSCAN_API_KEY", "")
+        api_key = resolve_key("ETHERSCAN_API_KEY")
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
                 f"https://{domain}/api",
@@ -224,7 +223,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw: Any) -> dict[str, Any]
 
 async def _birdeye_overview(address: str = "", **kw: Any) -> dict[str, Any] | None:
     """Birdeye - token overview, liquidity, and holder stats (free tier)."""
-    api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
+    api_key = kw.get("api_key", "") or resolve_key("BIRDEYE_API_KEY")
     if not address:
         return None
     try:

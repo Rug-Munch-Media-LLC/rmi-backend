@@ -9,15 +9,15 @@ degen score, trending deep dive - powered by GMGN + Birdeye + AI.
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from app.birdeye_client import BirdeyeClient
+from app.databus.vault import resolve_key
 
-GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
+GMGN_API_KEY = resolve_key("GMGN_API_KEY")
 
 
 class GMGNClient:

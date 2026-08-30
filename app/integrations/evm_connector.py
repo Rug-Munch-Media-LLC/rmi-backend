@@ -13,10 +13,10 @@ Includes:
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -112,7 +112,7 @@ CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
 # Env-gated: empty default is harmless — callers fall back to public RPCs when
 # no key is set. Prefer the MORALIS_API_KEY env var (consistent with
 # app/integrations/moralis_connector.py); the legacy secrets file is only a fallback.
-MORALIS_API_KEY = os.getenv("MORALIS_API_KEY", "")
+MORALIS_API_KEY = resolve_key("MORALIS_API_KEY")
 
 if not MORALIS_API_KEY:
     try:

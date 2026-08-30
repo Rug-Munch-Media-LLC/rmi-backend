@@ -34,11 +34,11 @@ they're authorized for. The DataBus is the ONLY way to access external data.
 
 from __future__ import annotations
 
-import os
 from enum import Enum
 from typing import Any
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("databus.access_control")
 
@@ -664,7 +664,7 @@ class AccessController:
             return ConsumerType.X402_PAID
 
         # Admin key — only match when ADMIN_API_KEY is actually configured
-        configured_admin_key = os.getenv("ADMIN_API_KEY", "")
+        configured_admin_key = resolve_key("ADMIN_API_KEY")
         if configured_admin_key and admin_key == configured_admin_key:
             return ConsumerType.ADMIN
 

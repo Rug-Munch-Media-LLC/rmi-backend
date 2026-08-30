@@ -4,13 +4,13 @@ News Intelligence — Source Fetchers
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import feedparser
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("news_intel")
 
@@ -45,7 +45,7 @@ async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict
 
 async def _fetch_cryptopanic() -> list[dict[str, Any]]:
     """Fetch from CryptoPanic API."""
-    key = os.getenv("CRYPTOPANIC_API_KEY", "")
+    key = resolve_key("CRYPTOPANIC_API_KEY")
     if not key:
         return []
 
@@ -84,7 +84,7 @@ async def _fetch_cryptopanic() -> list[dict[str, Any]]:
 
 async def _fetch_x_crypto() -> list[dict[str, Any]]:
     """Fetch crypto news from X/Twitter search (if API key available)."""
-    x_key = os.getenv("X_API_KEY", "") or os.getenv("TWITTER_BEARER_TOKEN", "")
+    x_key = resolve_key("X_API_KEY") or resolve_key("TWITTER_BEARER_TOKEN")
     if not x_key:
         return []
 

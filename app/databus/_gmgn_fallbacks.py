@@ -10,7 +10,6 @@ cache) lives here.
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -18,6 +17,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("databus.gmgn_provider")
 
@@ -162,7 +162,7 @@ async def fallback_dexscreener_new_pairs(request: RequestFunc, chain: str, limit
 async def fallback_birdeye_holders(request: RequestFunc, address: str) -> dict[str, Any]:
     """Fallback holders from Birdeye."""
     try:
-        api_key = os.getenv("BIRDEYE_API_KEY", "")
+        api_key = resolve_key("BIRDEYE_API_KEY")
         if not api_key:
             return {"address": address, "total_holders": 0, "source": "none"}
         resp = await request(

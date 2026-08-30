@@ -44,12 +44,11 @@ bans). Falls back to DexScreener/Birdeye when GMGN is unavailable.
 
 from __future__ import annotations
 
-import os
-
 import httpx
 
 from app.core.logging import get_logger
 from app.databus.proxy_rotator import get_proxy_rotator
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -78,7 +77,7 @@ from app.databus.gmgn_transport import (  # noqa: E402,F401
 
 # Read env DIRECTLY here (not via transport import): tests reload this
 # module to observe env changes; transport is not reloaded alongside.
-GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")  # noqa: F811 — intentional env re-read for test reloads
+GMGN_API_KEY = resolve_key("GMGN_API_KEY")  # noqa: F811 — intentional env re-read for test reloads
 from app.databus.gmgn_endpoints_market import MarketEndpointsMixin  # noqa: E402
 from app.databus.gmgn_endpoints_wallet import WalletEndpointsMixin  # noqa: E402
 from app.databus.gmgn_transport import TransportMixin  # noqa: E402

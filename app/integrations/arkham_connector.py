@@ -16,6 +16,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -28,7 +29,7 @@ _arkham_cb = AsyncCircuitBreaker(
 )
 
 # ── Auth ────────────────────────────────────────────────────────────────────
-ARKHAM_API_KEY = os.getenv("ARKHAM_API_KEY", "").strip()
+ARKHAM_API_KEY = resolve_key("ARKHAM_API_KEY").strip()
 if not ARKHAM_API_KEY:
     # Fallback to reading from secrets file
     _secrets_paths = ["[SECRETS_PATH]/arkham_api_key"]

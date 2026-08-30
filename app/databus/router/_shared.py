@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -22,7 +22,7 @@ def verify_admin(request: Request) -> bool:
     Returns:
         True if admin key is valid, False otherwise
     """
-    admin_key = os.getenv("ADMIN_API_KEY", "")
+    admin_key = resolve_key("ADMIN_API_KEY")
     if not admin_key:
         logger.critical("ADMIN_API_KEY not configured — admin endpoints disabled")
         return False

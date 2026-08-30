@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -86,7 +87,7 @@ async def _moralis_price(**kwargs) -> dict[str, Any] | None:
 
 async def _birdeye_price(address: str = "", **kw) -> dict[str, Any] | None:
     """Birdeye - real-time token price (free tier)."""
-    api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
+    api_key = kw.get("api_key", "") or resolve_key("BIRDEYE_API_KEY")
     if not address:
         return None
     try:

@@ -5,13 +5,13 @@ Supports: qwen-max, qwen-plus, qwen-turbo, qwen-coder, qwen-vl-max
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -25,7 +25,7 @@ _dashscope_cb = AsyncCircuitBreaker(
 
 # ── Alibaba DashScope Config ─────────────────────────────────
 
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
+DASHSCOPE_API_KEY = resolve_key("DASHSCOPE_API_KEY")
 DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/api/v1"
 
 # Available Qwen models

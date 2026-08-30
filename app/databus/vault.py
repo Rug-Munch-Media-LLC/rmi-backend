@@ -61,6 +61,10 @@ KEY_REGISTRY = {
     ],
     "etherscan": [
         ("ETHERSCAN_API_KEY", "infra/etherscan_api_key"),
+        ("BSCSCAN_API_KEY", "api/bscscan_api_key"),
+        ("POLYGONSCAN_API_KEY", "api/polygonscan_api_key"),
+        ("SNOWTRACE_API_KEY", "api/snowtrace_api_key"),
+        ("FTMSCAN_API_KEY", "api/ftmscan_api_key"),
     ],
     "alchemy": [
         ("ALCHEMY_API_KEY", "infra/alchemy_api_key"),
@@ -78,6 +82,7 @@ KEY_REGISTRY = {
     # ── Intelligence ──
     "arkham": [
         ("ARKHAM_API_KEY", "infra/arkham_api_key"),
+        ("ARKHAM_WS_KEY", "infra/arkham_ws_key"),
     ],
     "goplus": [
         ("GOPLUS_API_KEY", "api/goplus_api_key"),
@@ -87,6 +92,7 @@ KEY_REGISTRY = {
     ],
     "dune": [
         ("DUNE_API_KEY", "infra/dune_api_key"),
+        ("DUNE_API_KEY_2", "infra/dune_api_key_2"),
     ],
     # ── LLM / AI ──
     "openrouter": [
@@ -104,6 +110,7 @@ KEY_REGISTRY = {
     ],
     "bitquery": [
         ("BITQUERY_API_KEY", "backend/bitquery_api_key"),
+        ("BITQUERY_OAUTH_TOKEN", "backend/bitquery_oauth_token"),
     ],
     # ── Social ──
     "lunarcrush": [
@@ -115,6 +122,66 @@ KEY_REGISTRY = {
     ],
     "apify": [
         ("APIFY_TOKEN", "infra/apify_token"),
+    ],
+    # ── GMGN ──
+    "gmgn": [
+        ("GMGN_API_KEY", "api/gmgn_api_key"),
+    ],
+    # ── Alibaba / DashScope LLM ──
+    "dashscope": [
+        ("DASHSCOPE_API_KEY", "api/dashscope_api_key"),
+    ],
+    # ── News / media data ──
+    "cryptopanic": [
+        ("CRYPTOPANIC_API_KEY", "api/cryptopanic_api_key"),
+    ],
+    "news_data": [
+        ("MESSARI_API_KEY", "api/messari_api_key"),
+        ("COINDESK_API_KEY", "api/coindesk_api_key"),
+        ("SANTIMENT_API_KEY", "api/santiment_api_key"),
+        ("VIRUSTOTAL_API_KEY", "api/virustotal_api_key"),
+    ],
+    "x_api": [
+        ("X_API_KEY", "api/x_api_key"),
+        ("TWITTER_BEARER_TOKEN", "api/twitter_bearer_token"),
+    ],
+    # ── Social attribution ──
+    "lens": [
+        ("LENS_API_KEY", "api/lens_api_key"),
+    ],
+    "lookonchain": [
+        ("LOOKONCHAIN_API_KEY", "api/lookonchain_api_key"),
+    ],
+    # ── LLM providers ──
+    "groq": [
+        ("GROQ_API_KEY", "backend/groq_api_key"),
+    ],
+    "mistral": [
+        ("MISTRAL_API_KEY", "backend/mistral_api_key"),
+    ],
+    # ── Farcaster / social ──
+    "neynar": [
+        ("NEYNAR_API_KEY", "api/neynar_api_key"),
+        ("FARCASTER_SIGNER_UUID", "api/farcaster_signer_uuid"),
+    ],
+    # ── CMS / bot ──
+    "ghost": [
+        ("GHOST_ADMIN_API_KEY", "api/ghost_admin_api_key"),
+        ("GHOST_CONTENT_API_KEY", "api/ghost_content_api_key"),
+    ],
+    "telegram": [
+        ("TELEGRAM_BOT_TOKEN", "infra/telegram_bot_token"),
+    ],
+    # ── RAG / embedding ──
+    "rugbrain": [
+        ("RMI_RAG_API_KEY", "backend/rmi_rag_api_key"),
+    ],
+    "deepinfra": [
+        ("DEEPINFRA_API_KEY", "backend/deepinfra_api_key"),
+    ],
+    # ── Internal admin ──
+    "admin": [
+        ("ADMIN_API_KEY", "infra/admin_api_key"),
     ],
 }
 
@@ -423,6 +490,20 @@ class DataBusVault:
             return None
         return await pool.acquire()
 
+    def resolve_key(self, key_name: str) -> str:
+        """Resolve a key value from the loaded vault pool (preferred) or env (fallback).
+
+        Searches every pool for a ManagedKey whose key_name matches. If found,
+        returns the decrypted value. Otherwise falls back to the documented env
+        var. Never logs the value. Safe to call when vault is not yet loaded —
+        it simply returns the env fallback.
+        """
+        for pool in self.pools.values():
+            for key in pool.keys:
+                if key.key_name == key_name:
+                    return key.value
+        return os.getenv(key_name, "")
+
     def get_pool(self, provider: str) -> VaultKeyPool | None:
         return self.pools.get(provider)
 
@@ -541,3 +622,16 @@ def get_vault_sync() -> DataBusVault:
     if _vault is None:
         _vault = DataBusVault()
     return _vault
+
+
+def resolve_key(key_name: str) -> str:
+    """Module-level key resolver: vault pool first, env as documented fallback.
+
+    Unlike ``get_vault_sync()`` this does NOT create the singleton — it only
+    consults the already-loaded vault (if any) so the deferred async ``load()``
+    in ``get_vault()`` is never skipped by an import-time access.
+    """
+    v = _vault
+    if v is not None and v._loaded:
+        return v.resolve_key(key_name)
+    return os.getenv(key_name, "")

@@ -29,10 +29,11 @@ import httpx
 from telegram.error import TelegramError
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("daily_intel")
 
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_KEY = resolve_key("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Free models for each phase
@@ -45,7 +46,7 @@ FALLBACK_WRITING = "google/gemma-4-31b-it:free"
 # Publishing targets
 X_ACCOUNT = "CryptoRugMunch"
 GHOST_URL = os.getenv("GHOST_URL", "http://172.19.0.3:2368")
-GHOST_KEY = os.getenv("GHOST_ADMIN_API_KEY", "") or os.getenv("GHOST_CONTENT_API_KEY", "")
+GHOST_KEY = resolve_key("GHOST_ADMIN_API_KEY") or resolve_key("GHOST_CONTENT_API_KEY")
 
 
 async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int = 1500, temperature: float = 0.5) -> str:
@@ -457,8 +458,8 @@ async def _publish_briefing(report: str, date_str: str) -> dict[str, Any]:
 
 async def _publish_to_farcaster(report: str, date_str: str) -> dict[str, Any]:
     """Post The Daily Rug to Farcaster via Neynar API."""
-    api_key = os.getenv("NEYNAR_API_KEY", "")
-    signer_uuid = os.getenv("FARCASTER_SIGNER_UUID", "")
+    api_key = resolve_key("NEYNAR_API_KEY")
+    signer_uuid = resolve_key("FARCASTER_SIGNER_UUID")
     if not api_key or not signer_uuid:
         return {"status": "skipped", "reason": "Farcaster not configured"}
 
@@ -596,7 +597,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict[str, Any]:
 
 async def _publish_to_telegram(report: str, date_str: str) -> dict[str, Any]:
     """Send briefing to Telegram channel with clean HTML formatting."""
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    bot_token = resolve_key("TELEGRAM_BOT_TOKEN")
     channel = os.getenv("CHANNEL_NEWS", "") or os.getenv("CHANNEL_ALERTS", "")
 
     if not bot_token or not channel:

@@ -23,6 +23,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("x_intel")
 
@@ -374,7 +375,7 @@ CT_HANDLES = [a["handle"].lower() for a in ALL_CT]
 # social_scraper / social_intel for post-scraping.
 TRACKED_ACCOUNTS: list[dict[str, Any]] = [dict(a) for a in ALL_CT]
 
-GROQ_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_KEY = resolve_key("GROQ_API_KEY")
 
 # ── Multi-Method X Access ─────────────────────────────────────────
 

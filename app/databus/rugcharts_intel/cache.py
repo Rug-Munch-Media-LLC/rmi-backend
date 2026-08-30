@@ -10,6 +10,7 @@ from typing import Any
 import redis
 
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger("rugcharts_intel")
 
@@ -17,9 +18,9 @@ REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
-HELIUS_KEY = os.getenv("HELIUS_API_KEY", "")
-ARKHAM_KEY = os.getenv("ARKHAM_API_KEY", "")
-MORALIS_KEY = os.getenv("MORALIS_API_KEY", "")
+HELIUS_KEY = resolve_key("HELIUS_API_KEY")
+ARKHAM_KEY = resolve_key("ARKHAM_API_KEY")
+MORALIS_KEY = resolve_key("MORALIS_API_KEY")
 
 CACHE_TTL = {
     "smart_money": 300,

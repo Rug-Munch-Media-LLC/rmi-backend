@@ -10,7 +10,6 @@ Rate-limited to 3 req/sec with caching.
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from typing import Any
 
@@ -18,6 +17,7 @@ import httpx
 
 from app.core.circuit_breaker import AsyncCircuitBreaker, CircuitBreakerOpenError
 from app.core.logging import get_logger
+from app.databus.vault import resolve_key
 
 logger = get_logger(__name__)
 
@@ -31,9 +31,9 @@ _moralis_cb = AsyncCircuitBreaker(
 
 # ── API Keys ────────────────────────────────────────────────
 
-MORALIS_API_KEY = os.getenv("MORALIS_API_KEY", "")
-MORALIS_API_KEY_2 = os.getenv("MORALIS_API_KEY_2", "")  # Data+Auth (org 510042)
-MORALIS_API_KEY_3 = os.getenv("MORALIS_API_KEY_3", "")  # Data+Auth (org 516732)
+MORALIS_API_KEY = resolve_key("MORALIS_API_KEY")
+MORALIS_API_KEY_2 = resolve_key("MORALIS_API_KEY_2")  # Data+Auth (org 510042)
+MORALIS_API_KEY_3 = resolve_key("MORALIS_API_KEY_3")  # Data+Auth (org 516732)
 
 DATA_URL = "https://deep-index.moralis.io/api/v2.2"
 AUTH_URL = "https://authapi.moralis.io"
