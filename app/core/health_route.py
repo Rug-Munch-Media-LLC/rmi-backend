@@ -80,7 +80,7 @@ from app.core.health_stores import (
 )
 
 # Public surface — re-exported so existing importers (app/routers/v1/health.py,
-# app/routers/news_helpers.py, app/mount.py, tests) keep working unchanged.
+# app/mount.py, tests) keep working unchanged.
 __all__ = [
     "CLICKHOUSE_URL",
     "MINIO_URL",

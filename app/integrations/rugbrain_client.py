@@ -138,6 +138,65 @@ async def _qdrant_direct_search(query: str, collections: list[str], limit: int) 
     return out
 
 
+async def _qdrant_scroll(
+    collection: str,
+    filters: list[dict[str, Any]] | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    """Scroll raw Qdrant points (``id`` + ``payload``) for a rugbrain collection.
+
+    This is the thin-client-owned read lane for rugbrain collections. It
+    mirrors ``_qdrant_direct_search``: same Qdrant base, same fail-open
+    (returns ``[]`` on any error). ``filters`` is a list of Qdrant ``must``
+    conditions (e.g. ``[{"key": "metadata.category", "match": {"value": x}}]``).
+    """
+    base = _qdrant_base()
+    body: dict[str, Any] = {"limit": min(limit, 1000), "with_payload": True}
+    if filters:
+        body["filter"] = {"must": filters}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                f"{base}/collections/{collection}/points/scroll",
+                json=body,
+                headers={"Content-Type": "application/json"},
+            )
+        if r.status_code != 200:
+            logger.warning(
+                "qdrant_scroll collection=%s status=%s body=%s",
+                collection,
+                r.status_code,
+                r.text[:200],
+            )
+            return []
+        result = r.json().get("result", {})
+        points = result.get("points", []) if isinstance(result, dict) else []
+        return points if isinstance(points, list) else []
+    except Exception as e:
+        logger.warning("qdrant_scroll collection=%s error=%s", collection, e)
+        return []
+
+
+async def rugbrain_news_scroll(
+    filters: list[dict[str, Any]] | None = None,
+    limit: int = 200,
+    collection: str = "news_v2",
+) -> list[dict[str, Any]]:
+    """Scroll rugbrain-owned news points (read-only) — the only sanctioned lane.
+
+    The Ground News-style article endpoints need a full collection listing
+    with optional Qdrant metadata filters, not a vector search. rugbrain
+    exposes no listing endpoint, so this thin client owns the Qdrant scroll
+    directly (ARCHITECTURE.md §2: rugbrain via HTTP API / thin client only).
+    Returns raw Qdrant point dicts (``{id, payload}``); ``[]`` on failure.
+    """
+    return await _qdrant_scroll(
+        collection=collection,
+        filters=filters,
+        limit=limit,
+    )
+
+
 async def rugbrain_search(
     query: str,
     collections: list[str] | None = None,
