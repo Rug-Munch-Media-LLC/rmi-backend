@@ -1,6 +1,15 @@
 """
 
-RugMaps API Router - RMI's interactive wallet visualization.
+RugMaps API Router — CANONICAL LIVE API for /api/v1/rugmaps/*.
+
+Canonical home (2026-08-30 clean-cut decision):
+  THIS router is the single live production API for RugMaps. The standalone
+  repo rugmaps/ is the PRODUCT HOME (frontend + standalone self-hosted
+  packaging); its thin backend serves standalone deployments only and must
+  NOT gain features that belong in this live API. One path per surface:
+  /api/v1/rugmaps — no duplicate prefixes anywhere.
+
+RMI's interactive wallet visualization.
 Self-contained engine, no RugMaps - no external API dependency.
 Connects to /api/v1/rugmaps/*
 """
