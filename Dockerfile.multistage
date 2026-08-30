@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # Dockerfile.multistage — Optimized multi-stage build for rmi-backend
 # Target: ≤800MB (from 2.98GB)
@@ -32,7 +33,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-RUN grep -vE '^flask|^flask-cors|^chromadb' requirements.txt > requirements-prod.txt && \
+# Private git+https deps (rugmunch-scanner) authenticate via a BuildKit secret
+# mounted as /root/.netrc (forgejo token). The secret is never baked into the
+# image layer — it exists only for the duration of this RUN.
+RUN --mount=type=secret,id=forgejo_netrc,target=/root/.netrc,mode=0600 \
+    grep -vE '^flask|^flask-cors|^chromadb' requirements.txt > requirements-prod.txt && \
     pip install --no-cache-dir --prefix=/install -r requirements-prod.txt && \
     pip install --no-cache-dir --prefix=/install slither-analyzer==0.11.5 && \
     rm -rf /install/lib/python3.12/site-packages/torch/test \
