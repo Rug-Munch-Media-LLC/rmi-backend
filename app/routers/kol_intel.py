@@ -12,6 +12,8 @@ logic, just composition + graceful degradation:
   GET  /api/v1/kol/scammer-calls    — Captured scammer-call posts (store-backed)
   GET  /api/v1/kol/profiles         — Enriched KOL profiles (avatar/category/calls/rating)
   GET  /api/v1/kol/profiles/{handle} — Full enriched profile + wallets + calls
+  GET  /api/v1/kol/scorecard       — Bot-tracked scorecard (wins/losses/trust)
+  GET  /api/v1/kol/wall-of-shame   — Wall of Shame (evidence-backed)
   GET  /api/v1/kol/health           — Service health
 
 Every handler is wrapped so an upstream databus failure degrades to a
@@ -31,7 +33,13 @@ from starlette.responses import JSONResponse
 
 from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
-from app.databus import kol_scoring as ks, kol_wallet_linker as kwl, kol_wallets as kw, shill_detector as sd
+from app.databus import (
+    kol_bot_store as kbs,
+    kol_scoring as ks,
+    kol_wallet_linker as kwl,
+    kol_wallets as kw,
+    shill_detector as sd,
+)
 from app.domains.shill_alert.call_store import CallStore
 
 logger = get_logger(__name__)
@@ -264,12 +272,14 @@ def kol_profile(handle: str) -> dict[str, Any] | JSONResponse:
             return _error(404, "not_found", f"KOL {handle!r} not found")
         score = ks.score_kol(handle, persist=False)
         profile = _load_kol_profiles().get(key)
+        bot_profile = kbs.load_bot_profile(key)
         return {
             "handle": key,
             "score": score,
             "rug_history": rug_history,
             "wallets": wallets,
             "profile": _profile_summary(profile, len(wallets)) if profile else None,
+            "bot_profile": bot_profile,
             "found": True,
             "source": "kol_intel",
         }
@@ -280,19 +290,78 @@ def kol_profile(handle: str) -> dict[str, Any] | JSONResponse:
 
 @router.get(
     "/leaderboard",
-    summary="KOL Trust-Score Leaderboard",
+    summary="KOL Leaderboard (handle, wallet, score, wins/losses, profit)",
     dependencies=[Depends(get_rate_limit_dependency("kol4", rate=2.0, burst=5))],
 )
-def leaderboard(limit: int = Query(default=20, ge=1, le=200)) -> dict[str, Any]:
-    """Rank tracked KOLs by trust score (descending)."""
+def leaderboard(
+    limit: int = Query(default=20, ge=1, le=200),
+    min_calls: int = Query(default=0, ge=0, description="Only KOLs with at least N tracked calls"),
+    order: str = Query(default="score", description="Rank by 'score' (trust) or 'calls' (activity)"),
+) -> dict[str, Any]:
+    """Ranked KOL leaderboard merged from three real sources (deduped by handle):
+
+      1. Bot DB scorecard (``kol_scores`` ⋈ ``kol_identities``) — wallet,
+         trust score, derived wins/losses, call-hygiene counters. Primary
+         ranked source. ``profit`` is always null — the bot DB does not
+         track per-KOL PnL and the API never fabricates it.
+      2. In-process ``kol_scoring`` registry — runtime-computed component
+         scores (win_rate, rug_rate, shill alerts) when the pipeline has
+         registered outcomes in this process lifetime.
+      3. ``kol_profiles.json`` — display metadata (avatar, category,
+         followers, wallet count).
+
+    Ranking: trust score desc (default) or total_calls desc. Never raises.
+    """
+    # FastAPI resolves Query() defaults to ints in production; plain-int
+    # defaults keep the handler callable outside the DI context (tests).
+    if not isinstance(limit, int):
+        limit = 20
+    if not isinstance(min_calls, int):
+        min_calls = 0
     try:
-        result = ks.get_kol_leaderboard(limit)
-        # Merge enriched profile metadata (avatar/category/followers/wallet count)
-        # into each entry — additive, never overwrites the score record.
+        merged: dict[str, dict[str, Any]] = {}
+
+        # 1) Bot DB scorecard — primary ranked source (handle, wallet, score,
+        #    wins/losses, profit). Fetch the full tracked universe (the loader
+        #    caps at 500 rows — cheap) so ranking and ``total_tracked`` are
+        #    global, then slice to ``limit``.
+        bot = kbs.load_scorecard(limit=500, min_calls=min_calls, order=order)
+        for e in bot.get("scorecard", []):
+            key = str(e.get("handle", "")).strip().lstrip("@").lower()
+            if key:
+                merged[key] = e
+
+        # 2) In-process kol_scoring registry overlay (runtime-computed
+        # component scores; usually empty until the pipeline registers
+        # outcomes in this process lifetime).
+        try:
+            registry = ks.get_kol_leaderboard(200)
+        except Exception as exc:  # registry is best-effort enrichment
+            logger.debug("kol_intel_leaderboard_registry_unavailable: %s", str(exc)[:120])
+            registry = {}
+        for reg_entry in registry.get("leaderboard", []):
+            key = str(reg_entry.get("handle", "")).strip().lstrip("@").lower()
+            if not key:
+                continue
+            entry = merged.setdefault(key, {"handle": key, "wallet": None, "wins": 0, "losses": 0, "profit": None})
+            entry.setdefault("profit", None)
+            entry.setdefault("wins", 0)
+            entry.setdefault("losses", 0)
+            entry.setdefault("total_calls", 0)
+            if entry.get("score") is None:
+                entry["score"] = reg_entry.get("score")
+            # Registry-only scoring components — additive, never overwrite
+            # the bot-DB hygiene record.
+            entry["registry_score"] = reg_entry.get("score")
+            for field in ("win_rate", "rug_rate", "known_scammer", "wallet_confidence"):
+                if entry.get(field) is None:
+                    entry[field] = reg_entry.get(field)
+
+        # 3) Enriched profile metadata (avatar/category/followers/wallet count)
+        # — additive, never overwrites the score record.
         profiles = _load_kol_profiles()
         wallet_counts = _wallet_counts()
-        for entry in result.get("leaderboard", []):
-            key = str(entry.get("handle", "")).strip().lstrip("@").lower()
+        for key, entry in merged.items():
             profile = profiles.get(key)
             if profile:
                 summary = _profile_summary(profile, wallet_counts.get(key, 0))
@@ -309,14 +378,33 @@ def leaderboard(limit: int = Query(default=20, ge=1, le=200)) -> dict[str, Any]:
                     "scammer_verified",
                     "wallet_count",
                 ):
-                    if field not in entry:
+                    if entry.get(field) is None:
                         entry[field] = summary.get(field)
-            else:
-                entry.setdefault("wallet_count", wallet_counts.get(key, 0))
-        return result
+            entry.setdefault("wallet_count", wallet_counts.get(key, 0))
+
+        # Rank: score desc (default) or activity desc.
+        if order == "calls":
+            ranked = sorted(
+                merged.values(),
+                key=lambda e: (-(e.get("total_calls") or 0), -(e.get("score") or 0), str(e.get("handle") or "")),
+            )
+        else:
+            ranked = sorted(
+                merged.values(),
+                key=lambda e: (-(e.get("score") or 0), -(e.get("total_calls") or 0), str(e.get("handle") or "")),
+            )
+        return {
+            "leaderboard": ranked[:limit],
+            "total_tracked": len(ranked),
+            "limit": limit,
+            "min_calls": min_calls,
+            "order": order,
+            "sources": ["bot_users_db", "kol_scoring", "kol_profiles"],
+            "source": "kol_leaderboard",
+        }
     except Exception as e:  # graceful degradation contract
         logger.warning("kol_intel_leaderboard_failed: %s", str(e)[:120])
-        return {"leaderboard": [], "total_tracked": 0, "source": "kol_scoring"}
+        return {"leaderboard": [], "total_tracked": 0, "source": "kol_leaderboard"}
 
 
 @router.get(
@@ -458,6 +546,49 @@ def kol_profiles(
             "category": category.strip().lower() or None,
             "source": "kol_profiles",
         }
+
+
+@router.get(
+    "/scorecard",
+    summary="KOL Scorecard (bot-tracked calls, wins/losses, trust score)",
+    dependencies=[Depends(get_rate_limit_dependency("kol11", rate=2.0, burst=5))],
+)
+def scorecard(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    min_calls: int = Query(default=0, ge=0, description="Only KOLs with at least N tracked calls"),
+    order: str = Query(default="score", description="Rank by 'score' (trust) or 'calls' (activity)"),
+) -> dict[str, Any]:
+    """Ranked KOL scorecard from the bot's ``bot_users.db`` (kol_scores ⋈
+    kol_identities): handle, wallet, trust score, derived wins/losses and
+    call-hygiene counters. ``profit`` is always null — the bot DB does not
+    track per-KOL PnL and the API never fabricates it. Never raises.
+    """
+    try:
+        return kbs.load_scorecard(limit=limit, offset=offset, min_calls=min_calls, order=order)
+    except Exception as e:  # graceful degradation contract
+        logger.warning("kol_intel_scorecard_failed: %s", str(e)[:120])
+        return {"scorecard": [], "total": 0, "limit": limit, "offset": offset, "source": "bot_users_db"}
+
+
+@router.get(
+    "/wall-of-shame",
+    summary="Wall of Shame (handle, wallet, evidence_url, type)",
+    dependencies=[Depends(get_rate_limit_dependency("kol12", rate=2.0, burst=5))],
+)
+def wall_of_shame(
+    severity: str = Query(default="", description="Filter by severity (e.g. critical|high|medium|low)"),
+) -> dict[str, Any]:
+    """Wall-of-Shame entries curated by the bot's kol_ingest pipeline:
+    rule-matched scammers, rug pullers, ponzi founders and celebrity touts,
+    each with an evidence URL. Never raises.
+    """
+    sev = severity if isinstance(severity, str) else ""
+    try:
+        return kbs.load_wall_of_shame(severity=sev)
+    except Exception as e:  # graceful degradation contract
+        logger.warning("kol_intel_wall_of_shame_failed: %s", str(e)[:120])
+        return {"wall_of_shame": [], "total": 0, "severity": sev.strip() or None, "source": "wall_of_shame_json"}
 
 
 @router.get(
