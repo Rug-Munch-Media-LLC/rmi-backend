@@ -201,6 +201,39 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("rag_news_background_start_failed err=%s", exc)
 
+    # 12. Background X (Twitter) shill ingest — pulls tracked-KOL tweets via
+    #     the ApiPass probe and writes shill evidence (Qdrant threat_intel_v2
+    #     + shill_evidence SQLite). Idempotent on tweet ID; budget-bounded by
+    #     the ApiPass governor inside apipass_x. Skipped entirely when no
+    #     ApiPass key is configured.
+    x_shill_task = None
+    try:
+        import asyncio as _asyncio
+        import os as _os
+
+        from app.domains.shill import apipass_x as _apipass
+        from app.domains.shill.x_ingest import ingest_x_shill
+
+        if _apipass.api_key_configured():
+            _x_interval = max(300, int(_os.getenv("RMI_X_SHILL_INGEST_INTERVAL", "3600")))
+
+            async def _x_shill_loop() -> None:
+                """Ingest KOL X tweets into shill evidence every interval."""
+                await _asyncio.sleep(60)  # Let app settle before first pull
+                while True:
+                    try:
+                        await ingest_x_shill()
+                    except Exception as exc:
+                        log.warning("x_shill_ingest_failed err=%s", exc)
+                    await _asyncio.sleep(_x_interval)
+
+            x_shill_task = _asyncio.create_task(_x_shill_loop())
+            log.info("x_shill_ingest_background_started interval_s=%d", _x_interval)
+        else:
+            log.info("x_shill_ingest_background_skipped no_apipass_key")
+    except Exception as exc:
+        log.warning("x_shill_ingest_background_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -235,6 +268,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.info("rag_news_ingest_background_cancelled")
         except Exception as exc:
             log.debug("rag_news_ingest_cancel_failed err=%s", exc)
+
+    # X shill ingest background task shutdown
+    if x_shill_task is not None:
+        try:
+            x_shill_task.cancel()
+            log.info("x_shill_ingest_background_cancelled")
+        except Exception as exc:
+            log.debug("x_shill_ingest_cancel_failed err=%s", exc)
 
     # Webhook engine shutdown (only if it was started)
     if webhook_engine is not None:

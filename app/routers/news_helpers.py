@@ -41,6 +41,7 @@ def _point_to_article(point: dict[str, Any]) -> dict[str, Any]:
         "url": meta.get("url") or "",
         "source": meta.get("source") or payload.get("source") or "",
         "published_at": meta.get("published_at") or meta.get("date") or "",
+        "image_url": meta.get("image_url") or None,
         "summary": (content or "")[:500],
         "description": (content or "")[:500],
         "category": meta.get("category") or "",
