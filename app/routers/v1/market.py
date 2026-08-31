@@ -689,12 +689,27 @@ async def get_whale_feed(
     min_usd: float = Query(default=100_000.0, ge=1.0),
     limit: int = Query(default=50, ge=1, le=500),
     chain: str = Query(default="", description="Optional chain filter"),
+    alpha_only: bool = Query(default=False, description="Only items flagged with an alpha signal"),
 ) -> dict[str, Any]:
-    """Whale swaps across all lite-indexer chains, formatted as news items."""
+    """Whale swaps across all lite-indexer chains, formatted as news items.
+
+    Each item carries an ``alpha_signal`` object (large_swap /
+    new_token_entry / exit_after_pump) with why-notable context and the
+    wallet's historical performance — the premium alpha content. Pass
+    ``alpha_only=true`` to get just the flagged moves.
+    """
     items = await asyncio.to_thread(_whale_feed_own_safe, min_usd, limit, chain)
     if items is None:
         items = []
-    return {"data": items, "source": "own_clickhouse", "count": len(items)}
+    if alpha_only:
+        items = [i for i in items if i.get("alpha_signal")]
+    alpha_count = sum(1 for i in items if i.get("alpha_signal"))
+    return {
+        "data": items,
+        "source": "own_clickhouse",
+        "count": len(items),
+        "alpha_signal_count": alpha_count,
+    }
 
 
 def _whale_feed_own_safe(min_usd: float, limit: int, chain: str) -> list[dict[str, Any]] | None:
