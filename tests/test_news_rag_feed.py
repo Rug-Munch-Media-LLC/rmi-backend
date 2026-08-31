@@ -17,8 +17,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.routers.news import (
+    _BRANDED_PLACEHOLDER_IMAGE,
     _COMMENTARY_CACHE,
     _attach_commentary,
+    _backfill_images,
     _generate_commentary,
     _is_own_source,
     _log_ingest_latency,
@@ -74,6 +76,17 @@ class TestOwnSource:
         ]
         out = _own_source_first(items)
         assert [i["news_id"] for i in out] == ["tg:2", "lookonchain:4", "rss:1", "rss:3"]
+
+
+@pytest.fixture(autouse=True)
+def _no_og_network(monkeypatch):
+    """Image doctrine backfill must be hermetic in tests: og:image fetches
+    resolve to "" (→ branded placeholder) unless a test overrides."""
+
+    async def _no_fetch(url: str, timeout: float = 6.0) -> str:
+        return ""
+
+    monkeypatch.setattr("app.domains.news.og_image.fetch_og_image", _no_fetch)
 
 
 class TestRagFeedRoute:
@@ -160,6 +173,69 @@ class TestRagFeedRoute:
         assert resp.total == 0
         assert resp.articles == []
         assert resp.status == "success"
+
+
+class TestImageBackfill:
+    """Image doctrine (2026-08-31): every rag-feed item carries an image."""
+
+    async def test_missing_image_gets_placeholder(self, monkeypatch):
+        items = [{"id": "a", "url": "https://example.com/a", "image_url": None}]
+        await _backfill_images(items)
+        assert items[0]["image_url"] == _BRANDED_PLACEHOLDER_IMAGE
+
+    async def test_carried_image_untouched(self):
+        items = [{"id": "a", "url": "https://example.com/a", "image_url": "https://img/x.jpg"}]
+        await _backfill_images(items)
+        assert items[0]["image_url"] == "https://img/x.jpg"
+
+    async def test_og_image_fetched_and_cached(self, monkeypatch):
+        calls: list[str] = []
+
+        async def _og(url: str, timeout: float = 6.0) -> str:
+            calls.append(url)
+            return "https://og.example/a.png"
+
+        monkeypatch.setattr("app.domains.news.og_image.fetch_og_image", _og)
+        items = [{"id": "a", "url": "https://example.com/a", "image_url": None}]
+        await _backfill_images(items)
+        assert items[0]["image_url"] == "https://og.example/a.png"
+        # Second pass: served from cache, no second network call.
+        items2 = [{"id": "a", "url": "https://example.com/a", "image_url": None}]
+        await _backfill_images(items2)
+        assert items2[0]["image_url"] == "https://og.example/a.png"
+        assert calls == ["https://example.com/a"]
+
+    async def test_og_failure_falls_back_to_placeholder(self, monkeypatch):
+        async def _boom(url: str, timeout: float = 6.0) -> str:
+            raise RuntimeError("down")
+
+        monkeypatch.setattr("app.domains.news.og_image.fetch_og_image", _boom)
+        items = [{"id": "a", "url": "https://example.com/a", "image_url": None}]
+        await _backfill_images(items)
+        assert items[0]["image_url"] == _BRANDED_PLACEHOLDER_IMAGE
+
+    async def test_no_url_gets_placeholder(self):
+        items = [{"id": "a", "url": "", "image_url": None}]
+        await _backfill_images(items)
+        assert items[0]["image_url"] == _BRANDED_PLACEHOLDER_IMAGE
+
+    async def test_feed_route_always_returns_images(self):
+        """End-to-end: fallback-lane items with image_url=None still ship images."""
+        with (
+            patch(
+                "app.integrations.rugbrain_client.rugbrain_news_rerank",
+                new=AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.routers.news._scroll_news_v2",
+                new=AsyncMock(return_value=POINTS),
+            ),
+        ):
+            resp = await get_news_rag_feed(limit=10, category=None, query=None)
+        assert resp.total == 3
+        for a in resp.articles:
+            assert a.image_url is not None
+            assert a.image_url.startswith("https://")
 
 
 class TestCommentary:

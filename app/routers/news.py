@@ -456,6 +456,56 @@ async def _attach_commentary(items: list[dict[str, Any]]) -> None:
         a["commentary"] = res if isinstance(res, str) and res else None
 
 
+# ─── Image doctrine (2026-08-31): every rag-feed item carries an image ──
+# News on the website must ALWAYS have an image. Items missing image_url
+# get an on-demand og:image fetch from the article URL (cached by URL so a
+# story is fetched at most once per process); a story with no resolvable
+# image lands on the branded RugMunch placeholder. Fail-open: fetch errors
+# never break the feed.
+_IMAGE_BACKFILL_CACHE: dict[str, str] = {}
+_IMAGE_BACKFILL_MAX = 20  # per request — bounded network spend
+_BRANDED_PLACEHOLDER_IMAGE = "https://rugmunch.io/og/rugmunch-intel.png"
+
+
+async def _backfill_images(items: list[dict[str, Any]]) -> None:
+    """Ensure every feed item has a usable ``image_url`` (in place).
+
+    Order: carried image → cached og:image → fresh og:image fetch (bounded,
+    concurrent) → branded placeholder. Never raises.
+    """
+    from app.domains.news.og_image import fetch_og_image
+
+    missing: list[int] = []
+    for i, a in enumerate(items):
+        img = str(a.get("image_url") or "").strip()
+        if img.startswith(("http://", "https://")):
+            continue
+        url = str(a.get("url") or "").strip()
+        cached = _IMAGE_BACKFILL_CACHE.get(url, "")
+        if cached:
+            a["image_url"] = cached
+            continue
+        if url.startswith(("http://", "https://")):
+            missing.append(i)
+        else:
+            a["image_url"] = _BRANDED_PLACEHOLDER_IMAGE
+    if missing:
+        bounded = missing[:_IMAGE_BACKFILL_MAX]
+        fetched = await asyncio.gather(
+            *(fetch_og_image(str(items[i].get("url") or "")) for i in bounded),
+            return_exceptions=True,
+        )
+        for i, res in zip(bounded, fetched, strict=True):
+            img = res if isinstance(res, str) and res.startswith(("http://", "https://")) else ""
+            if img:
+                _IMAGE_BACKFILL_CACHE[str(items[i].get("url") or "")] = img
+            items[i]["image_url"] = img or _BRANDED_PLACEHOLDER_IMAGE
+        # Anything beyond the bounded window gets the placeholder (never a
+        # naked card); the cache warms on the next request.
+        for i in missing[len(bounded) :]:
+            items[i]["image_url"] = _BRANDED_PLACEHOLDER_IMAGE
+
+
 # ─── Breaking-news latency observability ─────────────────────────
 # Ingest→available latency: time from the source's published_at to the
 # item appearing in /api/v1/news/rag-feed. Target < 5 min (300s).
@@ -572,7 +622,14 @@ async def get_news_rag_feed(
         aid = a.get("id", "")
         a["comment_count"] = len(_COMMENTS.get(aid, []))
 
-    # ── 5) RAG commentary (top items, cached by news_id) ────────────
+    # ── 5) Image doctrine: every item carries an image (og:image backfill,
+    #    cached; branded placeholder fallback) ─────────────────────────
+    try:
+        await _backfill_images(items)
+    except Exception as e:
+        logger.warning(f"rag-feed image backfill failed: {e}")
+
+    # ── 6) RAG commentary (top items, cached by news_id) ────────────
     try:
         await _attach_commentary(items)
     except Exception as e:

@@ -228,15 +228,21 @@ _WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
 
 def test_stablecoin_value_derivation():
-    row = ("ethereum", None, "0xtx", "uniswap", "v3", "0xpair", _USDC, "0xtok", "0xs", 250_000.0, 100.0, "USDC", "TOK")
-    usd, asset = _stablecoin_value(row, ["ethereum"])
+    # Raw on-chain units: 250,000 USDC = 250_000_000_000 raw (6 decimals).
+    usd, asset = _stablecoin_value(_USDC, "0xtok", 250_000_000_000.0, 100.0, 0.0, 0.0, 6, None)
     assert usd == 250_000.0
     assert asset == _USDC
-    # stablecoin on token1 side
-    row2 = ("ethereum", None, "0xtx", "uniswap", "v3", "0xpair", "0xtok", _USDC, "0xs", 100.0, 50_000.0, "TOK", "USDC")
-    usd2, asset2 = _stablecoin_value(row2, ["ethereum"])
+    # stablecoin on token1 side (raw 50,000 USDT = 50_000_000_000)
+    usd2, asset2 = _stablecoin_value("0xtok", _USDC, 100.0, 50_000_000_000.0, 0.0, 0.0, None, 6)
     assert usd2 == 50_000.0
     assert asset2 == _USDC
+    # OUT leg (sell side): stable exited the pair — still counted
+    usd3, _ = _stablecoin_value(_USDC, "0xtok", 0.0, 0.0, 300_000_000_000.0, 0.0, 6, None)
+    assert usd3 == 300_000.0
+    # unknown stable address → 0
+    usd4, asset4 = _stablecoin_value("0xa", "0xb", 1e12, 0, 0, 0, 6, 6)
+    assert usd4 == 0.0
+    assert asset4 == ""
 
 
 def test_whale_feed_news_item_shape(client):
@@ -254,12 +260,18 @@ def test_whale_feed_news_item_shape(client):
                     _USDC,
                     "0xtok",
                     "0xsender",
-                    250_000.0,
+                    250_000_000_000.0,  # raw USDC in (6 decimals) = $250k
                     100.0,
+                    0.0,
+                    0.0,
                     "USDC",
                     "PEPE",
+                    6,
+                    None,
                 )
-            ]
+            ],
+            [],  # labels query
+            [],  # history query
         ]
     )
     with _patch_ch(fake):
@@ -274,6 +286,11 @@ def test_whale_feed_news_item_shape(client):
     assert item["category"] == "whale"
     assert item["usd_value"] == 250_000.0
     assert "250,000" in item["title"]
+    # Enrichment contract: labels/context/smart-money fields always present
+    assert item["wallet_label"] == "unknown"
+    assert item["wallet_labels"] == []
+    assert item["is_smart_money"] is False
+    assert item["context"]["unusual"] is False
 
 
 def test_whale_feed_fail_open_empty(client):
