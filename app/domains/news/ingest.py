@@ -130,6 +130,18 @@ async def ingest_all(
             if i + 20 < len(feeds):
                 await asyncio.sleep(0.25)  # Polite delay between batches
     items_to_ingest: list[NewsItem] = []
+    # Thumbnail resolution: RSS media tags first, og:image fetch fallback
+    # (bounded, concurrent, fail-open) — see app.domains.news.og_image.
+    from app.domains.news.og_image import resolve_thumbnails
+
+    valid_results = [r for r in results if isinstance(r, list) and r]
+    thumb_entries = [(entry, entry.get("url", "")) for r in valid_results for entry in r if entry.get("url")]
+    try:
+        thumbnails = await resolve_thumbnails(thumb_entries)
+    except Exception:
+        logger.debug("thumbnail_resolution_failed", exc_info=True)
+        thumbnails = [""] * len(thumb_entries)
+    thumb_by_url = {url: img for (_e, url), img in zip(thumb_entries, thumbnails, strict=True) if img}
     for _i, r in enumerate(results):
         if isinstance(r, Exception) or not r:
             counts["feeds_fail"] += 1
@@ -170,6 +182,7 @@ async def ingest_all(
                     factual_rating=rating.factual_rating,
                     source_tier=rating.source_tier,
                     rating_confidence=rating.confidence,
+                    image_url=thumb_by_url.get(entry["url"]) or None,
                 )
                 items_to_ingest.append(ni)
             except (httpx.HTTPError, KeyError, TypeError) as e:
@@ -197,8 +210,8 @@ async def ingest_all(
                                 source, published_at, ingested_at,
                                 chains_mentioned, tokens_mentioned, sentiment_score,
                                 bias, sentiment_label, factual_rating, source_tier,
-                                rating_confidence
-                            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                                rating_confidence, image_url
+                            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                             """,
                             ni.news_id,
                             str(ni.url),
@@ -216,6 +229,7 @@ async def ingest_all(
                             ni.factual_rating,
                             ni.source_tier,
                             ni.rating_confidence,
+                            ni.image_url,
                         )
                         counts["ingested"] += 1
                         new_items.append(ni)

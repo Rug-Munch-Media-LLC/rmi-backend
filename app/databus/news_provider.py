@@ -587,6 +587,7 @@ async def _fetch_rss_articles(
             return []
 
         result = []
+        og_missing: list[int] = []
         for entry in feed.entries[:limit_per_source]:
             try:
                 title = entry.get("title", "")
@@ -604,6 +605,11 @@ async def _fetch_rss_articles(
                     published = pub_dt.isoformat()
                 else:
                     published = datetime.now(UTC).isoformat()
+                image_url = _extract_image(entry)
+                if not image_url and link:
+                    # og:image fallback (bounded, fail-open) — resolved after
+                    # the loop so the feed parse stays fast.
+                    og_missing.append(len(result))
                 result.append(
                     {
                         "id": f"rss-{hashlib_quick(title + link)}",
@@ -612,7 +618,7 @@ async def _fetch_rss_articles(
                         "description": desc[:300],
                         "source": source_name,
                         "published_at": published,
-                        "image_url": _extract_image(entry),
+                        "image_url": image_url,
                         "category": "news",
                         "sentiment": "neutral",
                         "kind": "external",
@@ -622,6 +628,16 @@ async def _fetch_rss_articles(
             except Exception:
                 logger.debug("RSS entry skipped source=%s title=%r", source_name, title[:80])
                 continue
+        if og_missing:
+            try:
+                from app.domains.news.og_image import gather_og_images
+
+                og_imgs = await gather_og_images([result[i]["url"] for i in og_missing])
+                for i, img in zip(og_missing, og_imgs, strict=True):
+                    if img:
+                        result[i]["image_url"] = img
+            except Exception:
+                logger.debug("og_image_fallback_failed source=%s", source_name)
         if result:
             logger.debug(f"RSS {source_name}: {len(result)} articles")
         return result
@@ -732,10 +748,7 @@ async def refresh_news_cache() -> dict[str, Any]:
             rerank_results(
                 "major market-moving crypto news: regulation, hacks, ETFs, "
                 "protocol exploits, macro events affecting bitcoin ethereum solana",
-                documents=[
-                    f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}"
-                    for a in _rerank_cands
-                ],
+                documents=[f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in _rerank_cands],
                 top_n=len(_rerank_cands),
                 tier="deep",
             ),
@@ -762,10 +775,7 @@ async def refresh_news_cache() -> dict[str, Any]:
                     "major market-moving crypto news: regulation, hacks, ETFs, "
                     "protocol exploits, macro events affecting bitcoin ethereum solana"
                 )
-                docs = [
-                    f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}"
-                    for a in candidates
-                ]
+                docs = [f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in candidates]
 
                 async def _embed_batch(
                     client: httpx.AsyncClient, url: str, inputs: list[str], model: str | None = None
@@ -796,9 +806,7 @@ async def refresh_news_cache() -> dict[str, Any]:
                         )
                         q_resp.raise_for_status()
                         q_vec = q_resp.json()["data"][0]["embedding"]
-                        d_resp = await client.post(
-                            _murl, json={"model": "mistral-embed", "input": docs}, headers=_mh
-                        )
+                        d_resp = await client.post(_murl, json={"model": "mistral-embed", "input": docs}, headers=_mh)
                         d_resp.raise_for_status()
                         d_vecs = [d["embedding"] for d in d_resp.json()["data"]]
 
