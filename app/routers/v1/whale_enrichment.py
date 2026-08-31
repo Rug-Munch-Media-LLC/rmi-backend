@@ -350,6 +350,158 @@ def _build_smart_money(swaps: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def build_alpha_signal(
+    item: dict[str, Any],
+    swaps: list[dict[str, Any]],
+    context: dict[str, Any],
+    smart: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Structured alpha signal for one whale feed item (None = not notable).
+
+    Signal types (the paid-product taxonomy):
+      - ``large_swap``      — trade is >= _UNUSUAL_MULTIPLIER x the wallet's
+        30d average size.
+      - ``new_token_entry`` — the token being bought does not appear anywhere
+        in the wallet's 30d swap history (first entry into a new position).
+      - ``exit_after_pump`` — the wallet is selling (stablecoin side received)
+        and this sale closes a profitable FIFO round trip on that token.
+
+    Pure — never raises. Returns ``None`` when nothing notable happened:
+    most whale swaps are routine and must NOT be flagged as alpha.
+    """
+    usd = float(item.get("usd_value") or 0)
+    if usd <= 0:
+        return None
+    avg = float(context.get("avg_trade_usd") or 0)
+    sender = str(item.get("sender") or "").lower()
+    token0 = str(item.get("token0") or "").lower()
+    token1 = str(item.get("token1") or "").lower()
+    stables = set(STABLECOIN_DECIMALS)
+
+    # Which asset side is the stablecoin leg, and which token is the asset?
+    asset_addr, asset_sym = "", ""
+    if token0 in stables:
+        asset_addr, asset_sym = token1, str(item.get("symbol1") or "")
+    elif token1 in stables:
+        asset_addr, asset_sym = token0, str(item.get("symbol0") or "")
+    else:
+        asset_addr, asset_sym = token0, str(item.get("symbol0") or "")
+
+    # Replay the wallet's recent swaps to learn its token universe.
+    seen_tokens: set[str] = set()
+    for s in swaps:
+        t0, t1 = s["token0"], s["token1"]
+        if t0 in stables:
+            seen_tokens.add(t1)
+        elif t1 in stables:
+            seen_tokens.add(t0)
+        else:
+            seen_tokens.update((t0, t1))
+
+    # Direction of THIS trade (sell = wallet received stables).
+    sell = is_sell_direction(swaps, item)
+    pnl = float(smart.get("realized_pnl_usd") or 0)
+
+    signal: dict[str, Any] | None = None
+
+    # 1) Large swap — size anomaly vs the wallet's own baseline.
+    if avg > 0 and usd >= _UNUSUAL_MULTIPLIER * avg:
+        signal = {
+            "type": "large_swap",
+            "wallet": sender,
+            "usd_value": usd,
+            "why_notable": (f"${usd:,.0f} swap is {usd / avg:.1f}x this wallet's 30d average trade size (${avg:,.0f})"),
+            "track_record": {
+                "round_trips": smart.get("round_trips", 0),
+                "win_rate": smart.get("win_rate", 0),
+                "realized_pnl_usd": smart.get("realized_pnl_usd", 0),
+                "is_smart_money": bool(smart.get("is_smart_money")),
+            },
+        }
+
+    # 2) New token entry — asset token absent from the wallet's 30d history.
+    if asset_addr and swaps and asset_addr not in seen_tokens and not sell and signal is None:
+        signal = {
+            "type": "new_token_entry",
+            "wallet": sender,
+            "usd_value": usd,
+            "token": asset_sym or _short_addr(asset_addr),
+            "why_notable": (
+                f"First position in {asset_sym or _short_addr(asset_addr)} in 30d — "
+                f"new entry by a wallet with {smart.get('round_trips', 0)} tracked round trips "
+                f"({win_rate_pct(smart)} win)"
+            ),
+            "track_record": {
+                "round_trips": smart.get("round_trips", 0),
+                "win_rate": smart.get("win_rate", 0),
+                "realized_pnl_usd": smart.get("realized_pnl_usd", 0),
+                "is_smart_money": bool(smart.get("is_smart_money")),
+            },
+        }
+
+    # 3) Exit after pump — selling into strength with a profitable track record.
+    if sell and pnl > 0 and smart.get("round_trips", 0) >= 1 and signal is None:
+        signal = {
+            "type": "exit_after_pump",
+            "wallet": sender,
+            "usd_value": usd,
+            "token": asset_sym or _short_addr(asset_addr),
+            "why_notable": (
+                f"Selling {asset_sym or 'position'} after gains — wallet has banked "
+                f"${pnl:,.0f} realized PnL at {win_rate_pct(smart)} win rate"
+            ),
+            "track_record": {
+                "round_trips": smart.get("round_trips", 0),
+                "win_rate": smart.get("win_rate", 0),
+                "realized_pnl_usd": smart.get("realized_pnl_usd", 0),
+                "is_smart_money": bool(smart.get("is_smart_money")),
+            },
+        }
+
+    if signal:
+        signal.setdefault("type", "large_swap")
+        signal["wallet_context"] = str(context.get("direction") or "")
+    return signal
+
+
+def win_rate_pct(smart: dict[str, Any]) -> str:
+    """Human win-rate string from a smart-money dict ('n/a' when unknown)."""
+    wr = smart.get("win_rate")
+    try:
+        return f"{float(wr):.0%}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _short_addr(addr: str) -> str:
+    return f"{addr[:6]}…{addr[-4:]}" if len(addr) > 12 else addr
+
+
+def is_sell_direction(swaps: list[dict[str, Any]], item: dict[str, Any]) -> bool:
+    """Best-effort buy/sell classification for THIS feed item.
+
+    A sell = the wallet received stablecoins. We match the item's pair
+    against the wallet's most recent swap on the same pair and check which
+    side flowed in. Defaults to False (buy) when history is missing. Pure.
+    """
+    pair = str(item.get("pair_address") or "").lower()
+    token0 = str(item.get("token0") or "").lower()
+    token1 = str(item.get("token1") or "").lower()
+    stables = set(STABLECOIN_DECIMALS)
+    for s in reversed(swaps):
+        s_pair = str(s.get("pair") or "").lower()
+        if pair and s_pair and s_pair != pair:
+            continue
+        if {s["token0"], s["token1"]} != {token0, token1}:
+            continue
+        if token0 in stables:
+            return s["a0_in"] > 0  # stable IN = wallet sold the asset
+        if token1 in stables:
+            return s["a1_in"] > 0
+        return False
+    return False
+
+
 def enrich_feed_items(
     client: Any,
     items: list[dict[str, Any]],
@@ -410,11 +562,19 @@ def enrich_feed_items(
         if context.get("direction") in ("accumulating", "distributing"):
             bits.append(str(context["direction"]))
         item["wallet_context_line"] = " · ".join(bits)
+
+        # Alpha signal (paid-product taxonomy) — pure, fail-open.
+        try:
+            item["alpha_signal"] = build_alpha_signal(item, hist.get("swaps") or [], context, smart)
+        except Exception as exc:
+            logger.debug("alpha signal build failed: %s", exc)
+            item["alpha_signal"] = None
     return items
 
 
 __all__ = [
     "STABLECOIN_DECIMALS",
+    "build_alpha_signal",
     "classify_labels",
     "enrich_feed_items",
     "label_wallets",

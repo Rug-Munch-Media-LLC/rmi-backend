@@ -195,6 +195,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.news",  # /api/v1/news/{feed,headlines,sources,sentiment,categories,stats,comment,comments,internal/scanner-alert}  (9 routes, news_service.py live). Wave 1 deferred; resolved by moving domain.news catch-all to /api/v1/articles/{news_id}.
     "app.routers.market_intel_router",  # /api/v1/market/*  (28 routes, CoinGecko + DexScreener + Polymarket). Uses LIVE app.services.prediction_market_intel.
     "app.routers.prediction_market_router",  # /api/v1/prediction-markets/*  (6 routes, prediction_market_service.py live)
+    "app.routers.alpha_router",  # /api/v1/alpha/*  (1 route, prediction-market insider detection — premium alpha)
     "app.routers.scam_school",  # /scam-school/*  (11 routes, education platform). No prefix — paths absolute. DEPRECATED — use /api/v1/scam-school/*.
     "app.routers.wallet_clustering_router",  # /api/v1/wallet-clusters/*  (8 routes, wallet_clustering.py live; depends on app.{ai_router,bundle_detector,cluster_detection,entity_registry,fraud_gnn,unified_provider,wallet_clustering,spam_registry,chain_cache})
     "app.routers.security_intel",  # /api/v1/security/*  (31 routes, crypto security stack). Depends on LIVE app.{cross_chain_correlator,ml_anomaly,onchain_analyzer}.
