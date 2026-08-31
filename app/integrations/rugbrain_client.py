@@ -260,6 +260,121 @@ async def rugbrain_search(
     return []
 
 
+async def _deepinfra_news_rerank(
+    query: str,
+    candidates: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]] | None:
+    """Rerank news candidates via DeepInfra Qwen3-Reranker-4B (fallback lane).
+
+    Used when the rugbrain HTTP rerank endpoint is unreachable from the
+    backend container (rag-api binds host-loopback). Same model family as
+    rugbrain's local :8003 lane — consistent provider, zero CPU cost.
+    Returns rugbrain-compatible ``items`` (score + reranked flags set), or
+    ``None`` on any failure so the caller degrades to recency ranking.
+    """
+    url = os.getenv("DEEPINFRA_RERANK_URL", "https://api.deepinfra.com/v1/inference")
+    model = os.getenv("DEEPINFRA_RERANK_MODEL", "Qwen/Qwen3-Reranker-4B")
+    key = _split_key_rotation(resolve_key("DEEPINFRA_API_KEY"))
+    if not key or not candidates:
+        return None
+    docs = [str((c.get("metadata") or {}).get("title") or c.get("content") or "")[:1200] for c in candidates]
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{url}/{model}",
+                json={"queries": [query], "documents": docs},
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            )
+        if r.status_code != 200:
+            logger.warning("deepinfra_news_rerank status=%s", r.status_code)
+            return None
+        scores = r.json().get("scores", [])
+        if not scores or len(scores) != len(candidates):
+            return None
+        for c, s in zip(candidates, scores, strict=True):
+            c["rerank_score"] = float(s)
+            c["reranked"] = True
+        candidates.sort(key=lambda c: c.get("rerank_score", 0.0), reverse=True)
+        # Flatten to the consumer item shape (same fields as the rugbrain
+        # HTTP endpoint returns) so callers need no lane-specific handling.
+        items: list[dict[str, Any]] = []
+        for c in candidates[:limit]:
+            raw_meta = c.get("metadata")
+            meta: dict[str, Any] = raw_meta if isinstance((raw_meta := c.get("metadata")), dict) else {}
+            items.append(
+                {
+                    "id": meta.get("news_id") or c.get("doc_id") or "",
+                    "news_id": meta.get("news_id") or "",
+                    "title": meta.get("title") or "",
+                    "source": meta.get("source") or "",
+                    "url": meta.get("url") or "",
+                    "published_at": meta.get("published_at") or "",
+                    "summary": str(c.get("content") or "")[:500],
+                    "image_url": meta.get("image_url") or None,
+                    "category": meta.get("category") or "",
+                    "score": c.get("rerank_score", 0.0),
+                    "reranked": True,
+                }
+            )
+        return items
+    except Exception as e:
+        logger.warning("deepinfra_news_rerank_error: %s", e)
+        return None
+
+
+async def rugbrain_news_rerank(
+    query: str,
+    limit: int = 20,
+    category: str | None = None,
+    timeout_s: float = 3.0,
+) -> list[dict[str, Any]] | None:
+    """Consumer news rerank via rugbrain ``POST /api/v1/rag/news-rerank``.
+
+    Lane 1: rugbrain HTTP endpoint (embed + hybrid search + ~1s rerank).
+    Lane 2 (container fallback): rag-api binds host-loopback and is NOT
+    reachable from this container, so when the HTTP lane fails we search
+    ``news_v2`` directly (existing Qdrant-direct lane) and rerank the
+    candidates with DeepInfra Qwen3-Reranker-4B — same model family as
+    rugbrain's local lane, same provider as the embed fallback.
+
+    Returns the ranked ``items`` list on success, or ``None`` on ANY failure
+    so the caller falls back to recency ranking — never raises, never
+    returns fabricated data.
+    """
+    if not query:
+        return None
+    api_key = _split_key_rotation(_RUGBRAIN_API_KEY)
+    body: dict[str, Any] = {"query": query, "limit": limit}
+    if category:
+        body["category"] = category
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=1.5)) as client:
+            r = await client.post(
+                f"{_RUGBRAIN_API_URL}/rag/news-rerank",
+                json=body,
+                headers={"X-API-Key": api_key} if api_key else {},
+            )
+        if r.status_code == 200:
+            items = r.json().get("items")
+            if isinstance(items, list) and items:
+                return items
+        else:
+            logger.warning("rugbrain_news_rerank status=%s body=%s", r.status_code, r.text[:150])
+    except Exception as e:
+        logger.warning("rugbrain_news_rerank_error: %s", e)
+
+    # ── Container fallback: Qdrant direct + DeepInfra rerank ────────────
+    try:
+        candidates = await _qdrant_direct_search(query, ["news_v2"], max(limit * 2, 30))
+        if not candidates:
+            return None
+        return await _deepinfra_news_rerank(query, candidates, limit)
+    except Exception as e:
+        logger.warning("rugbrain_news_rerank_fallback_error: %s", e)
+        return None
+
+
 async def rugbrain_ingest(
     content: str,
     collection: str = "default",

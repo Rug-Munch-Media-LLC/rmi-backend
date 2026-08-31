@@ -338,6 +338,130 @@ async def get_news_feed(
     )
 
 
+# ─── RAG-Served Feed (rugbrain news_v2 + rerank) ──────────────────
+# P2 (RAGBOT_NEXT_WINS): the consumer news surface is served FROM the RAG
+# (rugbrain news_v2, reranked via POST /api/v1/rag/news-rerank) instead of
+# the direct-API aggregator chain. Own-source priority: items from our own
+# scans/alerts/KOL ingest (tg:/lookonchain:/scanner:/kol: news_ids, or
+# RMI/Scanner/KOL/Lookonchain sources) rank above aggregator news.
+# Fail-open: when rugbrain is unreachable the feed degrades to recency
+# ranking of the same news_v2 points — honest data, never fabricated.
+
+#: news_id prefixes written by OUR ingest lanes (Telegram KOL/scanner
+#: channels, lookonchain watcher) — these are own-source by construction.
+_OWN_NEWS_ID_PREFIXES = ("tg:", "lookonchain:", "scanner:", "kol:")
+#: Substring markers in the source name for own-origin content.
+_OWN_SOURCE_MARKERS = ("rmi", "scanner", "pryscraper", "kol", "lookonchain", "rugmunch", "callanalyser")
+
+#: Default consumer query when the caller supplies none — broad enough to
+#: surface security + market + protocol news from the news_v2 corpus.
+_RAG_FEED_DEFAULT_QUERY = "latest crypto news security threats exploits market moves"
+
+
+def _is_own_source(article: dict[str, Any]) -> bool:
+    """True when the article originates from our own ingest lanes."""
+    news_id = str(article.get("news_id") or article.get("id") or "")
+    if news_id.startswith(_OWN_NEWS_ID_PREFIXES):
+        return True
+    source = str(article.get("source") or "").lower()
+    return any(marker in source for marker in _OWN_SOURCE_MARKERS)
+
+
+def _own_source_first(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Stable partition: own-source items above aggregator news.
+
+    Order WITHIN each group is preserved (rerank or recency order), so this
+    is a priority boost, not a re-ranking.
+    """
+    own = [a for a in articles if _is_own_source(a)]
+    rest = [a for a in articles if not _is_own_source(a)]
+    return own + rest
+
+
+class RagFeedResponse(NewsFeedResponse):
+    """RAG-served feed — adds rerank/degradation provenance fields."""
+
+    rag_served: bool = True
+    reranked: bool = False
+    own_source_count: int = 0
+
+
+@router.get("/rag-feed", response_model=RagFeedResponse)
+async def get_news_rag_feed(
+    limit: int = Query(30, ge=1, le=100),
+    category: str | None = Query(None, description="Optional news_v2 category filter"),
+    query: str | None = Query(None, description="Optional rerank query (defaults to broad consumer query)"),
+) -> Any:
+    """RAG-served news feed: rugbrain news_v2, reranked, own-source first.
+
+    Primary lane: rugbrain ``POST /api/v1/rag/news-rerank`` (embed + hybrid
+    search + ~1s top-k rerank). Fallback lane (rugbrain down): the most
+    recent news_v2 points ranked by recency — same corpus, honest order,
+    ``reranked=false``. Never fabricates items; an empty corpus returns an
+    explicit empty feed.
+    """
+    effective_query = (query or "").strip() or _RAG_FEED_DEFAULT_QUERY
+
+    # ── 1) Reranked lane via rugbrain ────────────────────────────────
+    items: list[dict[str, Any]] | None = None
+    reranked = False
+    try:
+        from app.integrations.rugbrain_client import rugbrain_news_rerank
+
+        items = await rugbrain_news_rerank(effective_query, limit=limit, category=category)
+        reranked = bool(items)
+    except Exception as e:
+        logger.warning(f"rag-feed rerank lane failed: {e}")
+        items = None
+
+    # ── 2) Fallback lane: recency-ranked news_v2 scroll ─────────────
+    if not items:
+        points = await _scroll_news_v2(limit=150)
+        articles = [_point_to_article(p) for p in points]
+        # Dedupe by news_id (chunked points share one news_id).
+        seen: set[str] = set()
+        deduped: list[dict[str, Any]] = []
+        for a in articles:
+            key = str(a.get("news_id") or a.get("id") or a.get("url") or "")
+            if key and key in seen:
+                continue
+            seen.add(key)
+            deduped.append(a)
+        deduped.sort(key=lambda a: str(a.get("published_at") or ""), reverse=True)
+        if category:
+            deduped = [a for a in deduped if str(a.get("category") or "").lower() == category.lower()]
+        items = deduped[:limit]
+
+    # ── 3) Own-source priority (stable within-group order) ──────────
+    items = _own_source_first(items)[:limit]
+    own_count = sum(1 for a in items if _is_own_source(a))
+
+    # ── 4) Rating enrichment + comment counts (same as /feed) ───────
+    try:
+        from app.domains.news.ratings import enrich_articles
+
+        items = enrich_articles(items)
+    except Exception as e:
+        logger.warning(f"rag-feed rating enrichment failed: {e}")
+    for a in items:
+        aid = a.get("id", "")
+        a["comment_count"] = len(_COMMENTS.get(aid, []))
+
+    return RagFeedResponse(
+        status="success",
+        articles=[NewsArticle(**a) for a in items],
+        total=len(items),
+        sources=sorted({str(a.get("source") or "") for a in items if a.get("source")}),
+        source_count=len({str(a.get("source") or "") for a in items if a.get("source")}),
+        tiers=sorted({str(a.get("tier") or "news") for a in items}),
+        cached=False,
+        fetched_at=datetime.now(UTC).isoformat(),
+        rag_served=True,
+        reranked=reranked,
+        own_source_count=own_count,
+    )
+
+
 # ─── Ground News-style Rated Articles ─────────────────────────────
 # These endpoints serve the Qdrant news_v2 collection with Ground
 # News-style rating cards (app/rag/ratings.py). Filters that live in
