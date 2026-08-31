@@ -178,6 +178,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.community_forensics_router",  # /api/v1/community-forensics/*  (7 routes, community forensics: reports, leaderboard, graph verify, cross-chain correlation)
     "app.routers.kol_intel",  # /api/v1/kol/*  (7 routes, social-intel: scammers, KOL score/leaderboard, wallets, cross-chain, shill-signals)
     "app.routers.shill",  # /api/v1/shill/*  (8 routes, shill-campaign intelligence: campaigns, probe, evidence, feed)
+    "app.routers.media",  # /api/v1/media/* (1 route, public rate-limited image assets for feed posts' image_path)
     "app.routers.rug_recovery",  # /api/v1/rug-recovery/*  (2 routes, recovery indexer)
     "app.routers.laundry_matcher",  # /api/v1/laundry-matcher/*  (2 routes, copycat detect)
     "app.routers.death_clock",  # /api/v1/death-clock/*  (1 route, Token Death Clock)

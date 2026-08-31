@@ -31,6 +31,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.utils.media_urls import public_image_url
 
 logger = get_logger("shill_evidence")
 
@@ -85,13 +86,17 @@ def _resolve_db_path() -> Path | None:
 
 
 def _norm_row(row: sqlite3.Row) -> dict[str, Any]:
+    image_path = row["image_path"]
     return {
         "id": row["id"],
         "token": row["token"],
         "chain": row["chain"],
         "account": row["account"],
         "x_url": row["x_url"],
-        "image_path": row["image_path"],
+        "image_path": image_path,
+        # Public, rate-limited URL for the screenshot ("" when unusable) so
+        # feed/website payloads can render the evidence thumbnail directly.
+        "image_url": public_image_url(image_path),
         "ocr_text": row["ocr_text"],
         "captured_at": row["captured_at"],
     }
@@ -205,6 +210,8 @@ async def write_evidence(record: dict[str, Any]) -> bool:
     x_url = str(record.get("x_url") or record.get("url") or "")
     image_path = str(record.get("image_path") or "")
     ocr = str(record.get("text") or record.get("ocr_text") or "")[:_SHILL_OCR_MAX_CHARS]
+    # Capture origin ("x" | "telegram"); empty → legacy account-derived default.
+    source = str(record.get("source") or "").strip().lower()
 
     db_saved = _db_insert(token, chain, account, x_url, image_path, ocr)
 
@@ -220,7 +227,7 @@ async def write_evidence(record: dict[str, Any]) -> bool:
             payload = {
                 "doc_id": f"shill:{digest[:20]}",
                 "kind": "shill_evidence",
-                "source": account or "telegram_shill",
+                "source": source or account or "telegram_shill",
                 "token": str(token)[:80],
                 "chain": str(chain)[:40],
                 "url": x_url,

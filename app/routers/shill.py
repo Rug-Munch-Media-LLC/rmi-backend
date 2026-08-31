@@ -69,6 +69,9 @@ class EvidenceIn(BaseModel):
     image_path: str = ""
     text: str = ""
     ocr_text: str = ""
+    #: Capture origin ("x" | "telegram") so the site can distinguish where a
+    #: screenshot came from. Empty → legacy default (account-derived).
+    source: str = ""
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
