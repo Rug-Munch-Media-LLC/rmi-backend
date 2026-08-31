@@ -248,7 +248,7 @@ class TestAnalyze:
             ),
             patch.object(detector, "_eth_get_code", AsyncMock(return_value="0x6080604052")),
             patch.object(detector, "_fetch_contract_source", AsyncMock(return_value=None)),
-            patch("app.domains.scanners.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xProxy", "ethereum")
         assert report.is_proxy is True
@@ -270,7 +270,7 @@ class TestAnalyze:
                 "_check_evm_proxy",
                 AsyncMock(return_value=(False, "", "", "")),
             ),
-            patch("app.domains.scanners.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xPlain", "ethereum")
         assert report.is_proxy is False
@@ -292,7 +292,7 @@ class TestAnalyze:
                 "_fetch_solana_upgrade_authority",
                 AsyncMock(return_value="SomeUpgradeAuth111111111111111111111111"),
             ),
-            patch("app.domains.scanners.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("SolMint1111111111111111111111111111111", "solana")
         assert report.is_proxy is True
@@ -311,7 +311,7 @@ class TestAnalyze:
         with (
             patch.object(detector, "_fetch_solana_program_data", AsyncMock(return_value=program_data)),
             patch.object(detector, "_fetch_solana_upgrade_authority", AsyncMock(return_value=None)),
-            patch("app.domains.scanners.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("SolMint1111111111111111111111111111111", "solana")
         assert report.is_proxy is False

@@ -37,7 +37,7 @@ class TestPriceDeviation:
             patch.object(detector, "_fetch_birdeye_price", AsyncMock(return_value=1.30)),
             patch.object(detector, "_check_chainlink_usage", AsyncMock(return_value=(False, None))),
             patch.object(detector, "_fetch_contract_source", AsyncMock(return_value=None)),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xtoken", "ethereum")
         assert report.price_deviation_pct == pytest.approx(30.0)
@@ -54,7 +54,7 @@ class TestPriceDeviation:
             patch.object(detector, "_fetch_birdeye_price", AsyncMock(return_value=1.02)),
             patch.object(detector, "_check_chainlink_usage", AsyncMock(return_value=(False, None))),
             patch.object(detector, "_fetch_contract_source", AsyncMock(return_value=None)),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xtoken", "ethereum")
         assert report.price_deviation_pct == pytest.approx(2.0)
@@ -70,7 +70,7 @@ class TestPriceDeviation:
             patch.object(detector, "_fetch_birdeye_price", AsyncMock(return_value=None)),
             patch.object(detector, "_check_chainlink_usage", AsyncMock(return_value=(False, None))),
             patch.object(detector, "_fetch_contract_source", AsyncMock(return_value=None)),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xtoken", "ethereum")
         assert report.price_deviation_pct == 0.0
@@ -87,7 +87,7 @@ class TestTWAPManipulation:
         with (
             patch.object(detector, "_fetch_dexscreener_token", AsyncMock(return_value=pair)),
             patch.object(detector, "_fetch_birdeye_price", AsyncMock(return_value=0.011)),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("SolMint1111111111111111111111111111111", "solana")
         assert report.oracle_type == "uniswap_twap"
@@ -104,7 +104,7 @@ class TestTWAPManipulation:
         with (
             patch.object(detector, "_fetch_dexscreener_token", AsyncMock(return_value=pair)),
             patch.object(detector, "_fetch_birdeye_price", AsyncMock(return_value=0.010)),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("SolMint1111111111111111111111111111111", "solana")
         assert report.pool_depth_usd == 2_000_000
@@ -254,7 +254,7 @@ class TestAnalyzeEVM:
                 "_fetch_contract_source",
                 AsyncMock(return_value="uses custom priceFeed oracle"),
             ),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xtoken", "ethereum")
         assert report.oracle_type == "custom"
@@ -273,7 +273,7 @@ class TestAnalyzeEVM:
                 "_check_chainlink_usage",
                 AsyncMock(return_value=(True, CHAINLINK_FEED_REGISTRY["ethereum"])),
             ),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xtoken", "ethereum")
         assert report.oracle_type == "chainlink"
@@ -289,7 +289,7 @@ class TestAnalyzeEVM:
             patch.object(detector, "_fetch_birdeye_price", AsyncMock(return_value=None)),
             patch.object(detector, "_check_chainlink_usage", AsyncMock(return_value=(False, None))),
             patch.object(detector, "_fetch_contract_source", AsyncMock(return_value=None)),
-            patch("app.domains.scanners.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
+            patch("rugmunch_scanner.detectors.oracle_manipulation.query_rag_citations", AsyncMock(return_value=[])),
         ):
             report = await detector.analyze("0xtoken", "ethereum")
         assert isinstance(report, OracleManipulationReport)
