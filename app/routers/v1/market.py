@@ -547,6 +547,11 @@ _STABLECOINS: dict[str, frozenset[str]] = {
 }
 
 
+# Flat set of every stablecoin address across chains (lowercase) — used by
+# _stablecoin_value for O(1) side detection.
+_STABLECOIN_ADDR_SET: frozenset[str] = frozenset(addr for addrs in _STABLECOINS.values() for addr in addrs)
+
+
 def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, Any]] | None:
     """Whale swaps from dex_events, USD derived from the stablecoin side."""
     client = _ch()
@@ -573,17 +578,23 @@ def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, An
         rows = client.execute(
             f"""
             SELECT chain, block_timestamp, tx_hash, dex, version, contract_address,
-                   token0, token1, sender, amount0, amount1,
+                   token0, token1, sender,
+                   toFloat64OrZero(amount0) AS amount0_in,
+                   toFloat64OrZero(amount1) AS amount1_in,
+                   toFloat64OrZero(amount0_out) AS amount0_out,
+                   toFloat64OrZero(amount1_out) AS amount1_out,
                    if(tm0.symbol = '', '', tm0.symbol) AS symbol0,
-                   if(tm1.symbol = '', '', tm1.symbol) AS symbol1
+                   if(tm1.symbol = '', '', tm1.symbol) AS symbol1,
+                   tm0.decimals AS decimals0,
+                   tm1.decimals AS decimals1
             FROM wallet_memory.dex_events
             LEFT JOIN wallet_memory.token_meta_ref tm0
                 ON tm0.chain = dex_events.chain AND tm0.token_address = dex_events.token0
             LEFT JOIN wallet_memory.token_meta_ref tm1
                 ON tm1.chain = dex_events.chain AND tm1.token_address = dex_events.token1
             WHERE {stablecoin_filter}
-              AND (toFloat64OrZero(if(token0 IN {in_tuple}, amount0, '0')) >= %(min_usd)s
-                   OR toFloat64OrZero(if(token1 IN {in_tuple}, amount1, '0')) >= %(min_usd)s)
+              AND (toFloat64OrZero(if(token0 IN {in_tuple}, greatest(toFloat64OrZero(amount0), toFloat64OrZero(amount0_out)), '0')) >= %(min_usd)s
+                   OR toFloat64OrZero(if(token1 IN {in_tuple}, greatest(toFloat64OrZero(amount1), toFloat64OrZero(amount1_out)), '0')) >= %(min_usd)s)
               {chain_sql}
             ORDER BY block_timestamp DESC
             LIMIT %(limit)s
@@ -597,8 +608,10 @@ def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, An
     items = []
     for r in rows:
         chain_name, ts, tx_hash, dex, version, pair, token0, token1, sender = r[:9]
-        sym0, sym1 = r[11], r[12]
-        usd, usd_asset = _stablecoin_value(r, chains)
+        a0_in, a1_in, a0_out, a1_out = r[9], r[10], r[11], r[12]
+        sym0, sym1 = r[13], r[14]
+        dec0, dec1 = r[15], r[16]
+        usd, usd_asset = _stablecoin_value(token0, token1, a0_in, a1_in, a0_out, a1_out, dec0, dec1)
         items.append(
             {
                 "id": f"whale-{r[2]}",
@@ -628,17 +641,42 @@ def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, An
                 "source": "own_clickhouse:dex_events",
             }
         )
+    # Enrichment pass (labels / context / smart money) — fail-open, batched.
+    try:
+        from app.routers.v1.whale_enrichment import enrich_feed_items
+
+        items = enrich_feed_items(client, items)
+    except Exception as exc:
+        logger.debug("whale feed enrichment failed: %s", exc)
     return items
 
 
-def _stablecoin_value(row: tuple[Any, ...], chains: list[str]) -> tuple[float, str]:
-    """USD value = stablecoin-side amount; returns (usd, stablecoin_address)."""
-    token0, token1, amount0, amount1 = row[6], row[7], row[9], row[10]
-    stable_addrs = {a for ch in chains for a in _STABLECOINS.get(ch, frozenset())}
-    if token0 in stable_addrs:
-        return float(amount0 or 0), token0
-    if token1 in stable_addrs:
-        return float(amount1 or 0), token1
+def _stablecoin_value(
+    token0: str,
+    token1: str,
+    a0_in: float,
+    a1_in: float,
+    a0_out: float,
+    a1_out: float,
+    dec0: Any = None,
+    dec1: Any = None,
+) -> tuple[float, str]:
+    """USD value = stablecoin-side amount (raw units → human via decimals).
+
+    ``dex_events`` stores RAW on-chain amounts (the lite-indexer write path
+    keeps raw log units; its pricing module divides by ``10 ** decimals``).
+    Both swap directions are covered: the stable leg may be an IN leg
+    (stable entered the pair — a buy) or an OUT leg (a sell); the larger of
+    the two is the trade's stablecoin notional.
+    """
+    from app.routers.v1.whale_enrichment import stable_usd
+
+    token0_l = (token0 or "").lower()
+    token1_l = (token1 or "").lower()
+    if token0_l in _STABLECOIN_ADDR_SET:
+        return stable_usd(max(a0_in, a0_out), token0_l, dec0), token0_l
+    if token1_l in _STABLECOIN_ADDR_SET:
+        return stable_usd(max(a1_in, a1_out), token1_l, dec1), token1_l
     return 0.0, ""
 
 
