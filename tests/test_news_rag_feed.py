@@ -16,7 +16,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.routers.news import _is_own_source, _own_source_first, get_news_rag_feed
+from app.routers.news import (
+    _COMMENTARY_CACHE,
+    _attach_commentary,
+    _generate_commentary,
+    _is_own_source,
+    _log_ingest_latency,
+    _own_source_first,
+    get_news_rag_feed,
+)
 
 
 def _point(news_id: str, source: str, published_at: str, title: str) -> dict:
@@ -152,3 +160,65 @@ class TestRagFeedRoute:
         assert resp.total == 0
         assert resp.articles == []
         assert resp.status == "success"
+
+
+class TestCommentary:
+    def setup_method(self):
+        _COMMENTARY_CACHE.clear()
+
+    async def test_attach_commentary_uses_cache(self):
+        _COMMENTARY_CACHE["rss:x"] = "Leverage is doing the talking again."
+        items = [{"id": "news-x", "news_id": "rss:x", "title": "T"}]
+        await _attach_commentary(items)
+        assert items[0]["commentary"] == "Leverage is doing the talking again."
+
+    async def test_attach_commentary_bounded_to_top_items(self):
+        async def fake_gen(article):
+            return f"commentary for {article['news_id']}"
+
+        items = [{"id": f"n{i}", "news_id": f"rss:{i}", "title": f"t{i}"} for i in range(15)]
+        with patch("app.routers.news._generate_commentary", new=fake_gen):
+            await _attach_commentary(items)
+        assert items[0]["commentary"] == "commentary for rss:0"
+        assert items[9]["commentary"] == "commentary for rss:9"
+        # Beyond the bounded window: no commentary attached.
+        assert items[10].get("commentary") is None
+
+    async def test_generate_commentary_fail_open(self):
+        async def boom(*a, **k):
+            raise RuntimeError("llm down")
+
+        with patch("app.llm_config.chat_with_fallback", new=boom):
+            out = await _generate_commentary({"news_id": "rss:boom", "title": "T"})
+        assert out == ""
+
+
+class TestIngestLatency:
+    def test_no_timestamps_is_silent(self):
+        _log_ingest_latency([{"id": "n1"}, {"id": "n2"}])  # must not raise
+
+    @staticmethod
+    def _spy_logger(monkeypatch):
+        from unittest.mock import MagicMock
+
+        spy = MagicMock()
+        monkeypatch.setattr("app.routers.news.logger", spy)
+        return spy
+
+    def test_fresh_items_no_violation(self, monkeypatch):
+        from datetime import UTC, datetime, timedelta
+
+        spy = self._spy_logger(monkeypatch)
+        fresh = datetime.now(UTC) - timedelta(seconds=30)
+        _log_ingest_latency([{"published_at": fresh.isoformat()}])
+        for call in spy.warning.call_args_list:
+            assert "target_exceeded" not in str(call.args[0] if call.args else call)
+
+    def test_stale_item_logs_violation(self, monkeypatch):
+        from datetime import UTC, datetime, timedelta
+
+        spy = self._spy_logger(monkeypatch)
+        stale = datetime.now(UTC) - timedelta(minutes=12)
+        _log_ingest_latency([{"published_at": stale.isoformat()}])
+        assert spy.warning.called
+        assert "target_exceeded" in str(spy.warning.call_args)

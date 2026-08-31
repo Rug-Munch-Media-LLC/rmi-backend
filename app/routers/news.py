@@ -72,6 +72,9 @@ class NewsArticle(BaseModel):
     cluster_id: str | None = None  # T03 story cluster (persistent, content-derived)
     source_count: int = 0  # distinct sources covering this story
     corroborating_sources: int = 0  # how many sources report this
+    # RAG-generated commentary (rag-feed only): 1-2 sentences, cryptorugmuncher
+    # voice, cached by news_id so a story is never re-commented.
+    commentary: str | None = None
 
 
 class NewsResponse(BaseModel):
@@ -378,6 +381,128 @@ def _own_source_first(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return own + rest
 
 
+# ─── RAG commentary (rag-feed) ────────────────────────────────────
+# After reranking, the top rag-feed items get a 1-2 sentence commentary
+# line in the cryptorugmuncher voice (mirrors rugmunchbot channels
+# style_guides "main" contract: name the token/mechanism/size, no AI slop,
+# no hedging). Generated via the existing free-tier LLM chain
+# (app.llm_config.chat_with_fallback — rugbrain exposes no commentary
+# endpoint) and cached by news_id so a story is commented exactly once.
+_COMMENTARY_CACHE: dict[str, str] = {}
+_COMMENTARY_MAX_ITEMS = 10  # per rag-feed request — bounded LLM spend
+_COMMENTARY_MAX_CHARS = 320
+
+_COMMENTARY_SYSTEM = (
+    "You write one-line commentary for a crypto news feed in the "
+    "cryptorugmuncher voice: sharp analyst who has seen every cycle. "
+    "1-2 sentences, max 40 words. Name the token, the mechanism, or the "
+    "size when the article gives one. No hedging, no 'it's worth noting', "
+    "no 'the crypto world is buzzing', no 'stay tuned', no NFA/DYOR. "
+    "Plain text only — no markdown, no emoji, no links. Output ONLY the "
+    "commentary line."
+)
+
+
+def _commentary_cache_key(article: dict[str, Any]) -> str:
+    return str(article.get("news_id") or article.get("id") or article.get("url") or "")
+
+
+async def _generate_commentary(article: dict[str, Any]) -> str:
+    """1-2 sentence commentary for one article. Cached by news_id; "" on
+    any failure (fail-open — the feed ships without commentary)."""
+    key = _commentary_cache_key(article)
+    if not key:
+        return ""
+    cached = _COMMENTARY_CACHE.get(key)
+    if cached is not None:
+        return cached
+    title = str(article.get("title") or "").strip()
+    summary = str(article.get("summary") or article.get("description") or "").strip()[:400]
+    if not title:
+        _COMMENTARY_CACHE[key] = ""
+        return ""
+    user = f"Headline: {title}\nSummary: {summary or '(none)'}"
+    text = ""
+    try:
+        from app.llm_config import chat_with_fallback
+
+        text = await chat_with_fallback(
+            [
+                {"role": "system", "content": _COMMENTARY_SYSTEM},
+                {"role": "user", "content": user},
+            ],
+            "snappy",
+            max_tokens=90,
+        )
+    except Exception as e:  # fail-open — commentary is additive
+        logger.debug(f"commentary generation failed: {e}")
+    text = " ".join(text.split())[:_COMMENTARY_MAX_CHARS].strip()
+    # Reject degenerate outputs (echoed prompt scaffolding, empty).
+    if text.lower().startswith(("headline:", "summary:")):
+        text = ""
+    _COMMENTARY_CACHE[key] = text
+    return text
+
+
+async def _attach_commentary(items: list[dict[str, Any]]) -> None:
+    """Attach cached/generated commentary to the top rag-feed items.
+
+    Bounded to the first ``_COMMENTARY_MAX_ITEMS`` (the LLM cost stays
+    flat regardless of feed size); runs concurrently; never raises.
+    """
+    targets = items[:_COMMENTARY_MAX_ITEMS]
+    results = await asyncio.gather(*(_generate_commentary(a) for a in targets), return_exceptions=True)
+    for a, res in zip(targets, results, strict=True):
+        a["commentary"] = res if isinstance(res, str) and res else None
+
+
+# ─── Breaking-news latency observability ─────────────────────────
+# Ingest→available latency: time from the source's published_at to the
+# item appearing in /api/v1/news/rag-feed. Target < 5 min (300s).
+# Observability ONLY — violations are logged, never blocked.
+_BREAKING_NEWS_LATENCY_TARGET_S = 300.0
+
+
+def _log_ingest_latency(items: list[dict[str, Any]]) -> None:
+    """Log ingest→available latency per rag-feed item; warn on >5min.
+
+    Uses the item's ``published_at`` (source publish time) vs now. Items
+    without a parseable timestamp are skipped. Pure logging — never raises.
+    """
+    now = datetime.now(UTC)
+    latencies: list[float] = []
+    for a in items:
+        raw = str(a.get("published_at") or "").strip()
+        if not raw:
+            continue
+        try:
+            published = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if published.tzinfo is None:
+                published = published.replace(tzinfo=UTC)
+            latencies.append((now - published).total_seconds())
+        except ValueError:
+            continue
+    if not latencies:
+        return
+    violations = [lat for lat in latencies if lat > _BREAKING_NEWS_LATENCY_TARGET_S]
+    if violations:
+        worst = max(violations)
+        logger.warning(
+            "news_latency:target_exceeded target_s=%.0f violations=%d/%d worst_s=%.0f",
+            _BREAKING_NEWS_LATENCY_TARGET_S,
+            len(violations),
+            len(latencies),
+            worst,
+        )
+    logger.info(
+        "news_latency:rag_feed_serve n=%d median_s=%.0f p90_s=%.0f max_s=%.0f",
+        len(latencies),
+        sorted(latencies)[len(latencies) // 2],
+        sorted(latencies)[int(len(latencies) * 0.9)],
+        max(latencies),
+    )
+
+
 class RagFeedResponse(NewsFeedResponse):
     """RAG-served feed — adds rerank/degradation provenance fields."""
 
@@ -446,6 +571,18 @@ async def get_news_rag_feed(
     for a in items:
         aid = a.get("id", "")
         a["comment_count"] = len(_COMMENTS.get(aid, []))
+
+    # ── 5) RAG commentary (top items, cached by news_id) ────────────
+    try:
+        await _attach_commentary(items)
+    except Exception as e:
+        logger.warning(f"rag-feed commentary attach failed: {e}")
+
+    # ── 6) Breaking-news latency observability (log-only) ───────────
+    try:
+        _log_ingest_latency(items)
+    except Exception as e:  # observability must never break the feed
+        logger.debug(f"rag-feed latency logging failed: {e}")
 
     return RagFeedResponse(
         status="success",
