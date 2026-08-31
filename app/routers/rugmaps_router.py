@@ -16,6 +16,7 @@ Connects to /api/v1/rugmaps/*
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -757,4 +758,242 @@ async def ai_health_check() -> dict[str, Any]:
         "litellm_url": LITELLM_BASE_URL,
         "model": "remote-long -> deepseek",
         "fallback": "deepseek-direct + rule-based",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Token risk scan — feeds the rugcharts/rugmaps frontend panels
+# (ScamRiskMeter, RugPullWarning). Backed by the SENTINEL scanner
+# service; every flag maps to a structured red_flag with category +
+# severity so the UI never renders an unexplained warning.
+# ══════════════════════════════════════════════════════════════════════
+
+# risk_flag → (category, severity, title, description)
+_RISK_FLAG_META: dict[str, tuple[str, str, str, str]] = {
+    "honeypot": ("contract", "critical", "Honeypot detected", "Sells are blocked — you can buy but not exit."),
+    "flagged_spam": ("contract", "high", "Flagged as spam", "Token is flagged by spam heuristics."),
+    "sanctioned_address": (
+        "contract",
+        "critical",
+        "Sanctioned address involved",
+        "Token interacts with a sanctioned address.",
+    ),
+    "bundled_launch": ("trading", "high", "Bundled launch", "Initial buys were bundled by the deployer."),
+    "copycat_token": ("contract", "high", "Copycat token", "Mimics a well-known token's name/symbol."),
+    "token_under_24h": ("trading", "medium", "Token under 24h old", "Extremely young token — elevated rug risk."),
+    "extreme_lp_concentration": (
+        "liquidity",
+        "critical",
+        "Extreme LP concentration",
+        "Liquidity is concentrated in few wallets.",
+    ),
+    "concentrated_lp": ("liquidity", "high", "Concentrated LP", "Liquidity providers are highly concentrated."),
+    "active_proxy_owner": (
+        "contract",
+        "critical",
+        "Active proxy owner",
+        "Proxy contract owner can upgrade the implementation.",
+    ),
+    "active_owner": ("contract", "high", "Active contract owner", "Owner privileges are still live on the contract."),
+    "suspicious_social_sentiment": (
+        "social",
+        "medium",
+        "Suspicious social sentiment",
+        "Community signals indicate coordinated promotion.",
+    ),
+    "wash_trading_suspected": ("trading", "high", "Wash trading suspected", "Volume pattern indicates wash trading."),
+    "extreme_volume_liquidity_ratio": (
+        "trading",
+        "high",
+        "Extreme volume/liquidity ratio",
+        "Volume far exceeds liquidity — likely artificial.",
+    ),
+}
+
+_SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+
+def _flags_to_red_flags(risk_flags: list[str]) -> list[dict[str, Any]]:
+    """Map SENTINEL risk-flag strings to structured red flags for the UI."""
+    out: list[dict[str, Any]] = []
+    for flag in risk_flags:
+        meta = _RISK_FLAG_META.get(flag)
+        if meta:
+            category, severity, title, description = meta
+        else:
+            category, severity = "trading", "medium"
+            title = flag.replace("_", " ").title()
+            description = ""
+        out.append(
+            {
+                "id": flag,
+                "category": category,
+                "severity": severity,
+                "title": title,
+                "description": description,
+            }
+        )
+    out.sort(key=lambda f: -_SEVERITY_ORDER.get(str(f["severity"]), 0))
+    return out
+
+
+async def _run_token_risk_scan(token: str, chain: str) -> dict[str, Any]:
+    """Run the SENTINEL token scan (free tier) and shape it for the panels."""
+    import asyncio
+
+    from app.domains.scanner.service import scan_token as sentinel_scan
+
+    try:
+        result = await asyncio.wait_for(
+            sentinel_scan(token_address=token, chain=chain, tiers=["free"]),
+            timeout=25.0,
+        )
+    except Exception as e:
+        logger.warning(f"rugmaps scan failed for {token[:12]}: {e}")
+        return {
+            "token": token,
+            "chain": chain,
+            "risk_score": None,
+            "risk_level": "unknown",
+            "safety_score": None,
+            "red_flags": [],
+            "confidence": 0,
+            "status": "scan_failed",
+            "error": str(e)[:200],
+        }
+
+    safety = int(getattr(result, "safety_score", 50) or 50)
+    risk_score = max(0, min(100, 100 - safety))
+    if risk_score >= 70:
+        risk_level = "critical"
+    elif risk_score >= 40:
+        risk_level = "high"
+    elif safety >= 70:
+        risk_level = "low"
+    else:
+        risk_level = "medium"
+
+    return {
+        "token": token,
+        "chain": chain,
+        "symbol": getattr(result, "symbol", "") or None,
+        "name": getattr(result, "name", "") or None,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "safety_score": safety,
+        "red_flags": _flags_to_red_flags(list(getattr(result, "risk_flags", []) or [])),
+        "confidence": int(getattr(result, "confidence", 0) or 0),
+        "modules_run": [
+            {"module": m.get("module"), "status": m.get("status")} for m in (getattr(result, "modules_run", None) or [])
+        ],
+        "scanned_at": getattr(result, "scanned_at", None),
+        "status": "completed",
+    }
+
+
+@router.get("/scan")
+async def rugmaps_scan_token(
+    token: str = Query(..., min_length=2),
+    chain: str = Query("solana"),
+) -> dict[str, Any]:
+    """Token risk scan for the rugcharts/rugmaps panels (ScamRiskMeter et al).
+
+    Returns structured red_flags (category/severity/title) — never a bare
+    string list — so the UI can render explainable risk factors.
+    """
+    return await _run_token_risk_scan(token.strip(), chain)
+
+
+@router.get("/rug-warning")
+async def rugmaps_rug_warning(
+    chain: str = Query("solana"),
+    token: str = Query(..., min_length=2),
+) -> dict[str, Any]:
+    """Active rug-pull warnings for a token (RugPullWarning panel).
+
+    Derives warnings from the SENTINEL scan red flags; each warning carries
+    level/category/confidence. Empty warnings ≠ safe — ``status`` reports
+    whether the scan actually ran.
+    """
+    scan = await _run_token_risk_scan(token.strip(), chain)
+    level_map = {"critical": "CRITICAL", "high": "WARNING", "medium": "CAUTION", "low": "CAUTION"}
+    warnings: list[dict[str, Any]] = []
+    for i, flag in enumerate(scan.get("red_flags", [])):
+        warnings.append(
+            {
+                "id": flag.get("id") or str(i),
+                "level": level_map.get(str(flag.get("severity")), "CAUTION"),
+                "category": flag.get("category") or "trading",
+                "title": flag.get("title") or "",
+                "description": flag.get("description") or "",
+                "confidence": scan.get("confidence", 0) or 50,
+                "detected_at": int(datetime.now(UTC).timestamp()),
+                "recommended_action": "Verify liquidity lock and holder distribution before trading."
+                if flag.get("severity") in ("high", "critical")
+                else "Exercise caution; monitor for further risk signals.",
+            }
+        )
+    return {
+        "token": token,
+        "chain": chain,
+        "risk_score": scan.get("risk_score"),
+        "risk_level": scan.get("risk_level"),
+        "warnings": warnings,
+        "status": scan.get("status"),
+    }
+
+
+@router.get("/deployer-tokens")
+async def rugmaps_deployer_tokens(
+    deployer: str = Query(..., min_length=8),
+    days: int = Query(30, ge=1, le=365),
+    chain: str | None = Query(None),
+) -> dict[str, Any]:
+    """Tokens previously launched by a deployer wallet (DeployerNetwork panel).
+
+    Backed by wallet_memory deployer history (ClickHouse). Empty list means
+    no recorded launches — never fabricated.
+    """
+    try:
+        from app.wallet_memory.storage import get_storage
+
+        storage = get_storage()
+        history = await storage.get_deployer_history(deployer)
+    except Exception as e:
+        logger.debug(f"deployer history failed for {deployer[:12]}: {e}")
+        return {"deployer": deployer, "chain": chain, "days": days, "tokens": [], "source": "unavailable"}
+
+    cutoff = datetime.now(UTC).timestamp() - days * 86400
+    tokens: list[dict[str, Any]] = []
+    for entry in history if isinstance(history, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        launched = entry.get("launched_at") or entry.get("created_at") or entry.get("timestamp") or 0
+        try:
+            launched_ts = float(launched)
+        except (TypeError, ValueError):
+            continue
+        if launched_ts and launched_ts < cutoff:
+            continue
+        t_chain = entry.get("chain") or chain
+        if chain and t_chain != chain:
+            continue
+        tokens.append(
+            {
+                "chain": t_chain,
+                "address": entry.get("address") or entry.get("token_address") or entry.get("mint") or "",
+                "symbol": entry.get("symbol") or entry.get("token_symbol") or "?",
+                "name": entry.get("name"),
+                "launched_at": launched_ts,
+                "peak_mcap": float(entry.get("peak_mcap") or entry.get("peak_market_cap") or 0),
+                "current_mcap": float(entry.get("current_mcap") or entry.get("market_cap") or 0),
+            }
+        )
+    return {
+        "deployer": deployer,
+        "chain": chain,
+        "days": days,
+        "tokens": tokens,
+        "count": len(tokens),
+        "source": "wallet_memory",
     }
