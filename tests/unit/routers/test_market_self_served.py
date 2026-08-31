@@ -63,7 +63,7 @@ def _patch_ch(fake):
 def test_holders_evm_from_clickhouse(client):
     fake = _FakeCH(
         [
-            [("0xaaa", 500.0, 12), ("0xbbb", 300.0, 5)],  # balances
+            [("0xaaa", 500.0, 12), ("0xbbb", 300.0, 5)],  # holder_balances rows
             [(2,)],  # uniq count
         ]
     )
@@ -71,7 +71,8 @@ def test_holders_evm_from_clickhouse(client):
         r = client.get("/api/v1/token/ethereum/0xtoken/holders")
     assert r.status_code == 200
     body = r.json()
-    assert body["source"] == "own_clickhouse:evm_transfers"
+    # Fast path: pre-aggregated holder_balances table (indexed, no full scan)
+    assert body["source"] == "own_clickhouse:holder_balances"
     assert body["total_holders"] == 2
     assert body["holders"][0]["address"] == "0xaaa"
     assert body["holders"][0]["balance"] == 500.0
@@ -268,6 +269,7 @@ def test_whale_feed_news_item_shape(client):
                     "PEPE",
                     6,
                     None,
+                    250_000.0,  # volume_usd (indexer-precomputed notional)
                 )
             ],
             [],  # labels query
@@ -301,7 +303,11 @@ def test_whale_feed_fail_open_empty(client):
     with _patch_ch(_Boom()):
         r = client.get("/api/v1/whales/feed")
     assert r.status_code == 200
-    assert r.json() == {"data": [], "source": "own_clickhouse", "count": 0}
+    body = r.json()
+    assert body["data"] == []
+    assert body["source"] == "own_clickhouse"
+    assert body["count"] == 0
+    assert body["alpha_signal_count"] == 0
 
 
 def test_whale_feed_unknown_chain_no_stables(client):

@@ -75,10 +75,47 @@ def _iso(ts: Any) -> str:
 
 
 def _holders_evm(chain: str, address: str, limit: int) -> dict[str, Any] | None:
-    """Holder distribution from evm_transfers net-balance aggregation."""
+    """Holder distribution — pre-aggregated ``holder_balances`` first (fast,
+    indexed by (chain, token_address, address)), falling back to a net-balance
+    aggregation over ``evm_transfers`` (slow full scan, only when the
+    holder_balances materialization has no rows for the token)."""
     client = _ch()
     if client is None:
         return None
+    # ── Fast path: holder_balances (ReplacingMergeTree, pre-aggregated) ──
+    try:
+        rows = client.execute(
+            """
+            SELECT address, max(balance), max(transfer_count)
+            FROM wallet_memory.holder_balances
+            WHERE chain = %(chain)s AND token_address = %(addr)s AND balance > 0
+            GROUP BY address
+            ORDER BY max(balance) DESC
+            LIMIT %(limit)s
+            """,
+            {"chain": chain, "addr": address, "limit": limit},
+        )
+        count_rows = client.execute(
+            """
+            SELECT uniq(address) FROM wallet_memory.holder_balances
+            WHERE chain = %(chain)s AND token_address = %(addr)s AND balance > 0
+            """,
+            {"chain": chain, "addr": address},
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("holders holder_balances query failed: %s", exc)
+        rows, count_rows = None, None
+    if rows:
+        holders = [{"address": r[0], "balance": float(r[1] or 0), "transfers": int(r[2] or 0)} for r in rows]
+        return {
+            "chain": chain,
+            "token_address": address,
+            "total_holders": int(count_rows[0][0]) if count_rows else len(holders),
+            "holders": holders,
+            "source": "own_clickhouse:holder_balances",
+        }
+
+    # ── Slow path: aggregate evm_transfers (full scan per token) ──
     try:
         rows = client.execute(
             """
@@ -243,12 +280,6 @@ FROM (
            signature AS tx_hash, 'launchpad' AS event_type,
            launch_signal, graduation_signal, confidence
     FROM wallet_memory.solana_launches
-    ORDER BY block_timestamp DESC LIMIT 500
-    UNION ALL
-    SELECT chain, block_timestamp, token_address AS address, creator,
-           if(factory != '', factory, event_type) AS dex, tx_hash,
-           event_type, 0, 0, 'high'
-    FROM wallet_memory.tron_launches
     ORDER BY block_timestamp DESC LIMIT 500
     UNION ALL
     SELECT chain, block_timestamp, token0 AS address, '' AS creator,
@@ -429,7 +460,7 @@ def _new_pairs_own(chain: str, limit: int) -> list[dict[str, Any]] | None:
             FROM (
                 SELECT chain, block_timestamp, token_address, deployer, factory, tx_hash, type
                 FROM wallet_memory.deployer_events
-                WHERE type IN ('pool', 'token') {chain_sql}
+                WHERE type IN ('v2_pool', 'v3_pool', 'solana_token') {chain_sql}
                 ORDER BY block_timestamp DESC LIMIT %(limit)s
             )
             ORDER BY block_timestamp DESC
@@ -565,8 +596,6 @@ def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, An
     if not terms:
         return []
     stablecoin_filter = "(" + " OR ".join(terms) + ")"
-    addrs = sorted({a for ch in chains for a in _STABLECOINS.get(ch, frozenset())})
-    in_tuple = "(" + ",".join(f"'{a}'" for a in addrs) + ")"
 
     chain_sql = ""
     params: dict[str, Any] = {"min_usd": min_usd, "limit": limit}
@@ -579,22 +608,22 @@ def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, An
             f"""
             SELECT chain, block_timestamp, tx_hash, dex, version, contract_address,
                    token0, token1, sender,
-                   toFloat64OrZero(amount0) AS amount0_in,
-                   toFloat64OrZero(amount1) AS amount1_in,
-                   toFloat64OrZero(amount0_out) AS amount0_out,
-                   toFloat64OrZero(amount1_out) AS amount1_out,
+                   toFloat64OrZero(ifNull(amount0, '')) AS amount0_in,
+                   toFloat64OrZero(ifNull(amount1, '')) AS amount1_in,
+                   toFloat64OrZero(ifNull(amount0_out, '')) AS amount0_out,
+                   toFloat64OrZero(ifNull(amount1_out, '')) AS amount1_out,
                    if(tm0.symbol = '', '', tm0.symbol) AS symbol0,
                    if(tm1.symbol = '', '', tm1.symbol) AS symbol1,
                    tm0.decimals AS decimals0,
-                   tm1.decimals AS decimals1
+                   tm1.decimals AS decimals1,
+                   volume_usd
             FROM wallet_memory.dex_events
             LEFT JOIN wallet_memory.token_meta_ref tm0
                 ON tm0.chain = dex_events.chain AND tm0.token_address = dex_events.token0
             LEFT JOIN wallet_memory.token_meta_ref tm1
                 ON tm1.chain = dex_events.chain AND tm1.token_address = dex_events.token1
             WHERE {stablecoin_filter}
-              AND (toFloat64OrZero(if(token0 IN {in_tuple}, greatest(toFloat64OrZero(amount0), toFloat64OrZero(amount0_out)), '0')) >= %(min_usd)s
-                   OR toFloat64OrZero(if(token1 IN {in_tuple}, greatest(toFloat64OrZero(amount1), toFloat64OrZero(amount1_out)), '0')) >= %(min_usd)s)
+              AND volume_usd >= %(min_usd)s
               {chain_sql}
             ORDER BY block_timestamp DESC
             LIMIT %(limit)s
@@ -611,7 +640,12 @@ def _whale_feed_own(min_usd: float, limit: int, chain: str) -> list[dict[str, An
         a0_in, a1_in, a0_out, a1_out = r[9], r[10], r[11], r[12]
         sym0, sym1 = r[13], r[14]
         dec0, dec1 = r[15], r[16]
+        row_usd = float(r[17] or 0)
         usd, usd_asset = _stablecoin_value(token0, token1, a0_in, a1_in, a0_out, a1_out, dec0, dec1)
+        # Prefer the indexer's precomputed notional when the stablecoin-side
+        # derivation came up empty (e.g. non-standard pair layout).
+        if usd <= 0 and row_usd > 0:
+            usd = row_usd
         items.append(
             {
                 "id": f"whale-{r[2]}",
