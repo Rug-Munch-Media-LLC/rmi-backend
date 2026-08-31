@@ -119,7 +119,11 @@ _RAG_BLOCKS: list[tuple[str, str, list[str], int]] = [
     (
         "rug_watch",
         "rug pull honeypot scam exploit last 24h",
-        ["known_scams", "threat_intel", "defi_exploits", "scam_patterns"],
+        # 2026-09-01 collection-drift fix: shill/social evidence lands in
+        # threat_intel_v2 (evidence.py:39). The v1 ``threat_intel`` collection
+        # never holds shill_evidence points, so "Rug & Scam Watch" would always
+        # miss real intel. Query v2 so the editorial block sees real evidence.
+        ["known_scams", "threat_intel_v2", "defi_exploits", "scam_patterns"],
         5,
     ),
     ("whale_flows", "whale transfer cex flow smart money", ["whale_transfers"], 5),

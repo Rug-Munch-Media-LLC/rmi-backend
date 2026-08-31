@@ -35,7 +35,15 @@ from app.core.logging import get_logger
 logger = get_logger("shill_evidence")
 
 #: Canonical Qdrant URL + physical collection for shill/screenshot evidence.
-_QDRANT_URL = os.getenv("RMI_QDRANT_URL", "http://127.0.0.1:6334").rstrip("/")
+#: 2026-09-01: the old default ``http://127.0.0.1:6334`` is unreachable inside
+#: the serving container (real Qdrant resolves as ``rmi-qdrant-v2:6333``) and
+#: the legacy ``RMI_QDRANT_URL`` env was never set in production, so the
+#: evidence Qdrant upsert silently no-op'd. Resolve against the fleet canonical
+#: ``QDRANT_URL`` chain (same as ``app.integrations.rugbrain_client``) and keep
+#: ``RMI_QDRANT_URL`` as a legacy override. The port is 6333, not 6334.
+_QDRANT_URL = os.getenv("RMI_QDRANT_URL") or os.getenv(
+    "QDRANT_URL", os.getenv("QDRANT_FALLBACK", "http://rmi-qdrant-v2:6333")
+).rstrip("/")
 _SHILL_EVIDENCE_COLLECTION = os.getenv("RMI_SHILL_EVIDENCE_COLLECTION", "threat_intel_v2")
 #: Max OCR text chars persisted per evidence row (bounded payload).
 _SHILL_OCR_MAX_CHARS = 1200
