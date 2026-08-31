@@ -544,3 +544,90 @@ async def rugcharts_volume_analysis(
         source="lite_chain_indexer (ClickHouse dex_events)",
         confidence=0.8 if breakdown["confidence"] == "high" else 0.5,
     )
+
+
+@router.get("/plugins/all")
+async def rugcharts_plugins_all(
+    token_address: str,
+    chain: str = Query("solana"),
+) -> dict[str, Any]:
+    """Aggregate plugin analysis for the RugCharts PluginViewer.
+
+    Composes REAL data from the existing rugcharts helpers — each plugin
+    entry carries its data or an explicit ``error``; nothing is fabricated.
+    """
+    import asyncio
+
+    async def _safe(name: str, coro: Any) -> dict[str, Any]:
+        try:
+            return await asyncio.wait_for(coro, timeout=15.0)
+        except Exception as e:
+            return {"error": str(e)[:200]}
+
+    async def _wallet_flow() -> dict[str, Any]:
+        trades = await _fetch_whale_trades_clickhouse(token_address, chain, 100)
+        labeled = classify_trades(trades)
+        return {
+            "trades": labeled[:50],
+            "buy_count": sum(1 for t in labeled if t["side"] == "buy"),
+            "sell_count": sum(1 for t in labeled if t["side"] == "sell"),
+            "total_whale_usd": round(sum(float(t.get("volume_usd", 0)) for t in labeled), 2),
+            "label_summary": label_summary(labeled),
+            "count": len(labeled),
+        }
+
+    async def _risk_heatmap() -> dict[str, Any]:
+        pair_info = await _fetch_pair_info(token_address, chain)
+        candles = await _fetch_ohlcv_clickhouse(token_address, chain, 168)
+        vol_auth = _compute_volume_authenticity(pair_info, candles)
+        return _compute_rug_score(pair_info, vol_auth)
+
+    async def _supply_donut() -> dict[str, Any]:
+        stats = await _fetch_holder_stats(token_address, chain)
+        if not stats:
+            return {"error": "no holder data available"}
+        return stats
+
+    async def _wash_trading() -> dict[str, Any]:
+        pair_info = await _fetch_pair_info(token_address, chain)
+        candles = await _fetch_ohlcv_clickhouse(token_address, chain, 168)
+        return _compute_volume_authenticity(pair_info, candles)
+
+    async def _token_health() -> dict[str, Any]:
+        pair_info = await _fetch_pair_info(token_address, chain)
+        if not pair_info:
+            return {"error": "no pair info available"}
+        return {
+            "price_usd": pair_info.get("price_usd"),
+            "liquidity_usd": pair_info.get("liquidity_usd"),
+            "volume_24h": pair_info.get("volume_24h"),
+            "fdv": pair_info.get("fdv"),
+            "txns_24h_buys": pair_info.get("txns_24h_buys"),
+            "txns_24h_sells": pair_info.get("txns_24h_sells"),
+        }
+
+    results = await asyncio.gather(
+        _safe("wallet_flow", _wallet_flow()),
+        _safe("risk_heatmap", _risk_heatmap()),
+        _safe("supply_donut", _supply_donut()),
+        _safe("wash_trading", _wash_trading()),
+        _safe("token_health", _token_health()),
+    )
+    plugins = dict(
+        zip(
+            ["wallet_flow", "risk_heatmap", "supply_donut", "wash_trading", "token_health"],
+            results,
+            strict=True,
+        )
+    )
+    # Plugins the panel expects but we have no real data source for yet are
+    # reported as unavailable — never stubbed with fake numbers.
+    for name in ("contract_risk", "social_divergence", "holder_evolution", "fund_flow", "cluster_activity"):
+        plugins[name] = {"error": "not_available"}
+
+    return {
+        "token_address": token_address,
+        "chain": chain,
+        "plugins": plugins,
+        "available": [k for k, v in plugins.items() if not v.get("error")],
+    }
