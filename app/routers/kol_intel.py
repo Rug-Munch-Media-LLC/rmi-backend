@@ -5,6 +5,8 @@ logic, just composition + graceful degradation:
 
   GET  /api/v1/kol/scammers         — Known scammers (filter by severity)
   GET  /api/v1/kol/kol/{handle}     — KOL profile: score + rug history + wallets
+  GET  /api/v1/kol/kol/{handle}/wallets — Labeled wallets (shill cross-referenced)
+  GET  /api/v1/kol/discovered       — Newly discovered KOLs (X monitoring)
   GET  /api/v1/kol/leaderboard      — KOL trust-score leaderboard
   GET  /api/v1/kol/wallets/{handle} — Attributed wallets for a KOL
   GET  /api/v1/kol/cross-chain/{handle} — Cross-chain wallet links
@@ -35,7 +37,9 @@ from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
 from app.databus import (
     kol_bot_store as kbs,
+    kol_discovered as kd,
     kol_scoring as ks,
+    kol_wallet_labels as kwl_labels,
     kol_wallet_linker as kwl,
     kol_wallets as kw,
     shill_detector as sd,
@@ -255,6 +259,29 @@ def list_scammers(
 
 
 @router.get(
+    "/discovered",
+    summary="Newly Discovered KOLs (X shill monitoring)",
+    dependencies=[Depends(get_rate_limit_dependency("kol13", rate=2.0, burst=5))],
+)
+def discovered_kols(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, Any]:
+    """KOLs auto-discovered by the bot's X shill monitoring: accounts NOT in
+    the tracked universe that pushed scanner-flagged risky tokens with real
+    engagement. Each record carries status ``discovered``, the tokens they
+    shilled and tweet evidence (id, url, engagement). Reads the shared
+    ``discovered_kols.json`` store (``RMI_DISCOVERED_KOLS_PATH``); an empty
+    or missing store degrades to ``{"discovered": [], "total": 0}``. Never
+    raises.
+    """
+    try:
+        return kd.discovered_summary(limit=limit)
+    except Exception as e:  # graceful degradation contract
+        logger.warning("kol_intel_discovered_failed: %s", str(e)[:120])
+        return {"discovered": [], "total": 0, "limit": limit, "source": "discovered_kols"}
+
+
+@router.get(
     "/kol/{handle}",
     response_model=None,
     summary="KOL Profile (score + rug history + wallets)",
@@ -421,6 +448,32 @@ def wallets(handle: str) -> dict[str, Any]:
     except Exception as e:  # graceful degradation contract
         logger.warning("kol_intel_wallets_failed: %s", str(e)[:120])
         return {"handle": key, "wallets": [], "total": 0, "source": "verified_kol_wallets"}
+
+
+@router.get(
+    "/kol/{handle}/wallets",
+    summary="Labeled Wallets for a KOL (shill cross-referenced)",
+    dependencies=[Depends(get_rate_limit_dependency("kol14", rate=2.0, burst=5))],
+)
+def labeled_wallets(handle: str) -> dict[str, Any]:
+    """Attributed wallets for a handle WITH behavioral labels: each wallet
+    carries ``address``, ``chain``, ``label`` (e.g. ``shill recipient``,
+    ``deployer of $SCAM``, ``verified KOL wallet``), ``confidence`` and the
+    linked shill campaigns (token + evidence URL) from the shill-evidence
+    store. Unknown handles return 200 with an empty list. Never raises.
+    """
+    key = handle.strip().lstrip("@").lower()
+    try:
+        wallets = kwl_labels.label_wallets(key)
+        return {
+            "handle": key,
+            "wallets": wallets,
+            "total": len(wallets),
+            "source": "kol_wallet_labels",
+        }
+    except Exception as e:  # graceful degradation contract
+        logger.warning("kol_intel_labeled_wallets_failed: %s", str(e)[:120])
+        return {"handle": key, "wallets": [], "total": 0, "source": "kol_wallet_labels"}
 
 
 @router.get(
