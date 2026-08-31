@@ -37,6 +37,15 @@ def _get_redis_url() -> str:
     if not url:
         url = os.getenv("REDIS_URL", "")
     if not url:
+        # Compose deployments set REDIS_HOST (+ REDIS_PASSWORD) but not
+        # REDIS_URL — build the URL from the parts so Redis-backed features
+        # (launch feed, scanner cache, rate limits) don't silently fall back
+        # to an unreachable localhost inside the container.
+        host = os.getenv("REDIS_HOST", "").strip()
+        if host and host not in ("localhost", "127.0.0.1"):
+            pw = os.getenv("REDIS_PASSWORD", "").strip()
+            url = f"redis://:{pw}@{host}:6379/0" if pw else f"redis://{host}:6379/0"
+    if not url:
         url = "redis://localhost:6379/0"
     # If URL has no password, fetch from the secrets manager (path via env).
     if "@" not in url:

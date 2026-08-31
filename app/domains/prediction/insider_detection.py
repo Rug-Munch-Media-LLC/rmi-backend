@@ -298,7 +298,16 @@ async def fetch_resolved_markets(client: httpx.AsyncClient, limit: int = 500) ->
         try:
             resp = await client.get(
                 f"{POLYMARKET_GAMMA}/markets",
-                params={"closed": "true", "limit": batch, "offset": offset},
+                # Newest-resolved first: without an explicit order the Gamma
+                # API returns the OLDEST closed markets (2021-era), which
+                # never overlap recent trades → empty insider leaderboard.
+                params={
+                    "closed": "true",
+                    "limit": batch,
+                    "offset": offset,
+                    "order": "closedTime",
+                    "ascending": "false",
+                },
             )
             if resp.status_code != 200:
                 break
