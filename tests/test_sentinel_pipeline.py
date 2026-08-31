@@ -283,7 +283,7 @@ async def test_proxy_detection_produces_report() -> None:
     with (
         patch.object(ProxyDetector, "_fetch_solana_program_data", new=AsyncMock(return_value=None)),
         patch.object(ProxyDetector, "_fetch_solana_upgrade_authority", new=AsyncMock(return_value=None)),
-        patch("app.domains.scanners.proxy_detector.query_rag_citations", new=AsyncMock(return_value=[])),
+        patch("rugmunch_scanner.detectors.proxy_detector.query_rag_citations", new=AsyncMock(return_value=[])),
     ):
         result = await run_proxy_detection(TOKEN, "solana")
     assert isinstance(result, dict)
