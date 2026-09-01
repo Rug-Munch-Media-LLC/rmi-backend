@@ -391,13 +391,10 @@ def _reaction_key(slug: str) -> str:
 @router.get("/ghost/posts/{slug}/reactions", summary="Reactions for a Ghost post")
 async def ghost_post_reactions(slug: str) -> dict[str, Any]:
     try:
-        import json as _json
-
         from app.domains.scanner.engines._exceptions import get_redis_async
 
         r = await get_redis_async()
-        raw = await r.get(_reaction_key(slug)) if r else None
-        counts = _json.loads(raw) if raw else {}
+        counts = await r.hgetall(_reaction_key(slug)) if r else {}
     except Exception:
         counts = {}
     return {"slug": slug, "reactions": {k: int(counts.get(k, 0)) for k in _REACTION_KINDS}}
@@ -422,10 +419,7 @@ async def ghost_post_react(slug: str, body: dict[str, Any] = Body(...)) -> dict[
         if added:
             await r.sexpire(voter_key, 86400 * 30)
             await r.hincrby(_reaction_key(slug), kind, 1)
-        raw = await r.get(_reaction_key(slug))
-        import json as _json
-
-        counts = _json.loads(raw) if raw else {}
+        counts = await r.hgetall(_reaction_key(slug))
         return {"slug": slug, "reactions": {k: int(counts.get(k, 0)) for k in _REACTION_KINDS}, "added": bool(added)}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="reactions unavailable") from exc
