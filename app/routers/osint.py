@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 # Prefix is applied at include time (app/main.py) — mirrors router convention
 # where mount.py passes no prefix because routers own theirs. We own the prefix
 # in the single registration line to keep the change isolated.
-osint_router = APIRouter(tags=["osint"])
+osint_router = APIRouter(prefix="/api/v1/osint", tags=["osint"])
 
 #: Canonical mount name (mount.py looks for `router`)
 router = osint_router
