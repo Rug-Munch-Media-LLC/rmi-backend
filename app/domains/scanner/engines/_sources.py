@@ -49,12 +49,12 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._price_constants import (
     _MEM_MAX,
     _MEM_TTL,
@@ -447,14 +447,17 @@ async def _own_price_argmax(token: str, chain: str) -> dict[str, Any] | None:
             return []
         # side == "0": our token is token0, ratio = amount1_out/amount0_in
         # side == "1": our token is token1, ratio = amount0_out/amount1_in
+        # 2026-09-01: amount columns are String (raw decimals from the
+        # indexer) — dividing them raises CH Code 43 "Illegal types String
+        # and String of arguments of function divide". Cast both sides.
         if side == "0":
-            ratio_expr = "amount1_out / amount0_in"
+            ratio_expr = "toFloat64OrZero(amount1_out) / toFloat64OrZero(amount0_in)"
             paired_col = "token1"
-            where_extra = "token0 = %(token)s AND amount0_in > 0 AND amount1_out > 0"
+            where_extra = "token0 = %(token)s AND toFloat64OrZero(amount0_in) > 0 AND toFloat64OrZero(amount1_out) > 0"
         else:
-            ratio_expr = "amount0_out / amount1_in"
+            ratio_expr = "toFloat64OrZero(amount0_out) / toFloat64OrZero(amount1_in)"
             paired_col = "token0"
-            where_extra = "token1 = %(token)s AND amount1_in > 0 AND amount0_out > 0"
+            where_extra = "token1 = %(token)s AND toFloat64OrZero(amount1_in) > 0 AND toFloat64OrZero(amount0_out) > 0"
         try:
             # ratio_expr/paired_col/where_extra are internal constants,
             # not user input; params are bound via clickhouse_driver placeholders.

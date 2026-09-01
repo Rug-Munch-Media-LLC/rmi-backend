@@ -105,7 +105,6 @@ def _db_oneinch(*args: Any, **kwargs: Any) -> Any:
     return default_port().oneinch_quote(*args, **kwargs)
 
 
-
 async def _dexscreener_price(token: str, chain: str, *, _depth: int = 0) -> dict[str, Any] | None:
     """Tier 2 — DexScreener token price (free, 300 req/min, no auth)."""
     try:
@@ -237,7 +236,6 @@ async def _coingecko_price(token: str, chain: str, *, _depth: int = 0) -> dict[s
     Reuses the verified free_security provider (same endpoint, no auth).
     """
     try:
-
         return await _db_cg_market(token_address=token, chain=chain, address=token)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle CoinGecko failed for %s: %s", token[:16], exc)
@@ -303,8 +301,7 @@ async def _geckoterminal_price(token: str, chain: str, *, _depth: int = 0) -> di
     Reuses the verified free_security provider (same endpoint).
     """
     try:
-
-        return await _db_gt_market(token_address=token, chain=chain, address=token)
+        return await _db_gt_market(chain=chain, address=token)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle GeckoTerminal failed for %s: %s", token[:16], exc)
         return None
@@ -318,7 +315,6 @@ async def _paraswap_price(token: str, chain: str, *, _depth: int = 0) -> dict[st
     USD via get_native_price.
     """
     try:
-
         result = await _db_paraswap(token_address=token, chain=chain, address=token)
         if not result:
             return None
@@ -346,7 +342,6 @@ async def _oneinch_price(token: str, chain: str, *, _depth: int = 0) -> dict[str
     if not api_key:
         return None
     try:
-
         result = await _db_oneinch(
             token_address=token,
             chain=chain,
