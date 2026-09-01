@@ -72,8 +72,8 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
+    _norm_addr,
     _query_batch_labels,
     _query_contract_addresses,
     clear_cache as _common_clear_cache,
@@ -114,6 +114,7 @@ from app.domains.scanner.engines._indexer_port import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 # Legacy module-local names kept for consistency with the other engines.
 _redis_get = redis_get
@@ -176,8 +177,8 @@ async def analyze_holder_clusters(
             "concentration": {level, top10_pct, top3_pct, hhi, description},
         }
     """
-    token_address = token_address.lower().strip()
     chain_norm = _normalize_chain(chain)
+    token_address = _norm_addr(token_address, chain_norm)
     _start = time.monotonic()
 
     if not token_address or not chain_norm:
@@ -254,7 +255,7 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
 
     balances: dict[str, float] = {}
     for row in balance_rows:
-        addr = str(row[0] or "").lower()
+        addr = _norm_addr(str(row[0] or ""), chain)
         if addr:
             balances[addr] = float(row[1] or 0)
 
@@ -266,11 +267,11 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
     # ── First in-transfer map (funder + evidence) ──
     first_in: dict[str, dict[str, Any]] = {}
     for row in first_in_rows or []:
-        h_addr = str(row[0] or "").lower()
+        h_addr = _norm_addr(str(row[0] or ""), chain)
         if not h_addr:
             continue
         first_in[h_addr] = {
-            "funder": str(row[1] or "").lower() or None,
+            "funder": _norm_addr(str(row[1] or ""), chain) or None,
             "first_tx": str(row[2] or ""),
             "first_block": row[3],
             "first_seen": row[4],
@@ -279,7 +280,7 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
     # ── First-buy map (dex_events) ──
     first_buy: dict[str, dict[str, Any]] = {}
     for row in first_buy_rows or []:
-        buyer = str(row[0] or "").lower()
+        buyer = _norm_addr(str(row[0] or ""), chain)
         if not buyer:
             continue
         first_buy[buyer] = {
@@ -301,12 +302,12 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
 
     pool_addresses: set[str] = set()
     if not isinstance(pool_rows, BaseException) and pool_rows:
-        pool_addresses = {str(r[0] or "").lower() for r in pool_rows if r and r[0]}
+        pool_addresses = {_norm_addr(str(r[0] or ""), chain) for r in pool_rows if r and r[0]}
 
     labels_map: dict[str, list[dict[str, Any]]] = {}
     if not isinstance(label_rows, BaseException) and label_rows:
         for row in label_rows:
-            addr = str(row[0] or "").lower()
+            addr = _norm_addr(str(row[0] or ""), chain)
             if not addr:
                 continue
             labels_map.setdefault(addr, []).append(
@@ -596,7 +597,7 @@ def _query_deploy_info(token_address: str, chain: str) -> dict[str, Any] | None:
             return None
         row = rows[0]
         return {
-            "deployer": str(row[0] or "").lower(),
+            "deployer": _norm_addr(str(row[0] or ""), chain),
             "block_number": row[1],
             "tx_hash": str(row[2] or ""),
             "deploy_ts": to_epoch(row[3]),

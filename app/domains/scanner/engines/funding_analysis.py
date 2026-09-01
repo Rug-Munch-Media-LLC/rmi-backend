@@ -81,8 +81,8 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
+    _norm_addr,
     _query_batch_labels,  # noqa: F401
     redis_get,  # noqa: F401
     redis_set,  # noqa: F401
@@ -151,6 +151,7 @@ from app.domains.scanner.engines._io import (
     clear_cache,
     get_cache_stats,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._scoring import (
     _FRESH_WALLET_AGE_DAYS,  # noqa: F401
     _aggregate_wallet_metrics,  # noqa: F401
@@ -214,8 +215,8 @@ async def analyze_funding_sources(
             "note": "...",
         }
     """
-    token_address = token_address.lower().strip()
     chain_norm = _normalize_chain(chain)
+    token_address = _norm_addr(token_address, chain_norm)
     _start = time.monotonic()
 
     if not token_address or not chain_norm:
@@ -299,8 +300,8 @@ async def compute_wallet_freshness(
       - >= 40  → FRESH_CLEAN (new-ish but no strong red flags)
       - <  40  → ESTABLISHED (old, active wallet)
     """
-    address = address.lower().strip()
     chain_norm = _normalize_chain(chain)
+    address = _norm_addr(address, chain_norm)
     _start = time.monotonic()
 
     if not address or not chain_norm:
@@ -393,9 +394,9 @@ async def compute_holder_overlap(
     High overlap (>30%) with a known scam token = red flag
     (coordinated farm group).
     """
-    token_a = token_a.lower().strip()
-    token_b = token_b.lower().strip()
     chain_norm = _normalize_chain(chain)
+    token_a = _norm_addr(token_a, chain_norm)
+    token_b = _norm_addr(token_b, chain_norm)
     _start = time.monotonic()
 
     if not token_a or not token_b or not chain_norm:
@@ -463,8 +464,8 @@ async def analyze_scam_overlap(
             "comparisons": [ ... per-token overlap result ... ],
         }
     """
-    token_address = token_address.lower().strip()
     chain_norm = _normalize_chain(chain)
+    token_address = _norm_addr(token_address, chain_norm)
     _start = time.monotonic()
 
     if not token_address or not chain_norm:
@@ -483,7 +484,7 @@ async def analyze_scam_overlap(
 
     try:
         scam_tokens = await run_sync(_query_known_scam_tokens, chain_norm, _MAX_SCAM_TOKENS)
-        scam_tokens = [t for t in scam_tokens if t and t.lower() != token_address]
+        scam_tokens = [t for t in scam_tokens if t and _norm_addr(t, chain_norm) != token_address]
         if not scam_tokens:
             result = {
                 "check": "scam_overlap",
@@ -581,8 +582,8 @@ async def compute_wallet_metrics(
             "note": "...",
         }
     """
-    token_address = token_address.lower().strip()
     chain_norm = _normalize_chain(chain)
+    token_address = _norm_addr(token_address, chain_norm)
     _start = time.monotonic()
 
     if not token_address or not chain_norm:

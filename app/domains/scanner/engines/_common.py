@@ -37,8 +37,8 @@ from typing import Any
 
 from redis.exceptions import RedisError
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -194,6 +194,17 @@ def to_iso(value: Any) -> str | None:
         except (ValueError, TypeError):
             return str(value)
     return str(value) if value else None
+
+
+def _norm_addr(address: str, chain_norm: str) -> str:
+    """Chain-aware address normalization.
+
+    Solana base58 addresses are CASE-SENSITIVE — preserve them exactly
+    (strip whitespace only). EVM hex addresses are case-insensitive —
+    lowercase them for consistent matching.
+    """
+    s = (address or "").strip()
+    return s if chain_norm == "solana" else s.lower()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

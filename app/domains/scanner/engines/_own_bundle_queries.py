@@ -20,6 +20,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
+from app.domains.scanner.engines._common import _norm_addr
 from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._own_bundle_common import (
     _LAUNCH_WINDOW_BLOCKS,
@@ -318,7 +319,7 @@ def _query_launch_cluster(
         )
         if deploy_rows and deploy_rows[0]:
             deploy_block = int(deploy_rows[0][0] or 0)
-            deployer = str(deploy_rows[0][1] or "").lower() or None
+            deployer = _norm_addr(str(deploy_rows[0][1] or ""), chain) or None
 
         # ── 1b. Fallback: first transfer block ──
         if not deploy_block:
@@ -369,7 +370,7 @@ def _query_launch_cluster(
         if not buy_rows:
             return {"deploy_block": deploy_block, "launch_buyers": [], "cluster_blocks": []}
 
-        buyers = list(dict.fromkeys(str(r[0] or "").lower() for r in buy_rows if r and r[0]))
+        buyers = list(dict.fromkeys(_norm_addr(str(r[0] or ""), chain) for r in buy_rows if r and r[0]))
 
         # ── 3. Per-buyer first-ever tx (any token, in/out) — prior-history check ──
         first_tx_map: dict[str, str] = {}
@@ -401,7 +402,7 @@ def _query_launch_cluster(
             )
             for row in first_rows or []:
                 if row and row[0]:
-                    first_tx_map[str(row[0]).lower()] = str(row[1] or "").lower()
+                    first_tx_map[_norm_addr(str(row[0]), chain)] = _norm_addr(str(row[1] or ""), chain)
 
         # ── 4. Deployer-funded launch buyers (same-funder signal) ──
         deployer_funded: set[str] = set()
@@ -420,12 +421,12 @@ def _query_launch_cluster(
             )
             for row in funded_rows or []:
                 if row and row[0]:
-                    deployer_funded.add(str(row[0]).lower())
+                    deployer_funded.add(_norm_addr(str(row[0]), chain))
 
         # ── 5. Assemble result ──
         launch_buyers: list[dict[str, Any]] = []
         for r in buy_rows:
-            buyer = str(r[0] or "").lower()
+            buyer = _norm_addr(str(r[0] or ""), chain)
             if not buyer:
                 continue
             launch_buyers.append(
