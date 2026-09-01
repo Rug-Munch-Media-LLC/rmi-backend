@@ -338,7 +338,7 @@ async def ghost_feed_posts(
         filter_parts.append(f"tag:{os.getenv('GHOST_FEED_TAG').strip()}")
     params["filter"] = "+".join(filter_parts)
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(f"{_GHOST_URL}/ghost/api/content/posts/", params=params)
             if resp.status_code != 200:
                 return {"posts": [], "meta": {"source": "ghost", "status": resp.status_code}}
