@@ -419,7 +419,7 @@ async def ghost_post_react(slug: str, body: dict[str, Any] = Body(...)) -> dict[
         voter_key = f"social:reactions:{slug}:voters:{kind}"
         added = await r.sadd(voter_key, client_id)
         if added:
-            await r.sexpire(voter_key, 86400 * 30)
+            await r.expire(voter_key, 86400 * 30)
             await r.hincrby(_reaction_key(slug), kind, 1)
         raw = await r.hgetall(_reaction_key(slug))
         counts = {(k.decode() if isinstance(k, bytes) else k): v for k, v in raw.items()}
