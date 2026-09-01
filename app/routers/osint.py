@@ -41,6 +41,9 @@ logger = get_logger(__name__)
 # in the single registration line to keep the change isolated.
 osint_router = APIRouter(tags=["osint"])
 
+#: Canonical mount name (mount.py looks for `router`)
+router = osint_router
+
 # Capability listing fallback (contract in app/osint/__init__.py). The engine
 # may override this with its own TARGET_TYPES when available.
 FALLBACK_TARGET_TYPES: list[str] = ["username", "email", "domain", "wallet", "phone", "spiderfoot"]
