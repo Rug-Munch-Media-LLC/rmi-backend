@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
@@ -374,3 +374,58 @@ async def ghost_feed_post(slug: str) -> dict[str, Any]:
     if not posts:
         raise HTTPException(status_code=404, detail="post not found")
     return {"post": _ghost_post_summary(posts[0])}
+
+
+# ── Social reactions — Ghost post reactions (feed page) ─────────
+# Redis-backed reaction counts per Ghost post slug. Members react with
+# fire/rocket/clown/diamond/short; one vote per reaction per client id
+# (localStorage uuid) — no auth wall for reads, light dedupe on writes.
+
+_REACTION_KINDS = ("fire", "rocket", "clown", "diamond", "short")
+
+
+def _reaction_key(slug: str) -> str:
+    return f"social:reactions:{slug}"
+
+
+@router.get("/ghost/posts/{slug}/reactions", summary="Reactions for a Ghost post")
+async def ghost_post_reactions(slug: str) -> dict[str, Any]:
+    try:
+        import json as _json
+
+        from app.domains.scanner.engines._exceptions import get_redis_async
+
+        r = await get_redis_async()
+        raw = await r.get(_reaction_key(slug)) if r else None
+        counts = _json.loads(raw) if raw else {}
+    except Exception:
+        counts = {}
+    return {"slug": slug, "reactions": {k: int(counts.get(k, 0)) for k in _REACTION_KINDS}}
+
+
+@router.post("/ghost/posts/{slug}/reactions", summary="React to a Ghost post")
+async def ghost_post_react(slug: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    kind = str(body.get("kind", "")).lower()
+    client_id = str(body.get("client_id", ""))[:64]
+    if kind not in _REACTION_KINDS:
+        raise HTTPException(status_code=422, detail=f"reaction must be one of {_REACTION_KINDS}")
+    if not client_id:
+        raise HTTPException(status_code=422, detail="client_id required")
+    from app.domains.scanner.engines._exceptions import get_redis_async
+
+    r = await get_redis_async()
+    if r is None:
+        raise HTTPException(status_code=503, detail="reactions unavailable")
+    try:
+        voter_key = f"social:reactions:{slug}:voters:{kind}"
+        added = await r.sadd(voter_key, client_id)
+        if added:
+            await r.sexpire(voter_key, 86400 * 30)
+            await r.hincrby(_reaction_key(slug), kind, 1)
+        raw = await r.get(_reaction_key(slug))
+        import json as _json
+
+        counts = _json.loads(raw) if raw else {}
+        return {"slug": slug, "reactions": {k: int(counts.get(k, 0)) for k in _REACTION_KINDS}, "added": bool(added)}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="reactions unavailable") from exc
