@@ -53,6 +53,8 @@ _CHAIN_MAP: dict[str, str] = {
     "scroll": "scroll",
     "mantle": "mantle",
     "solana": "solana",
+    "sol": "solana",  # API chain code (2026-09-01: missing alias zeroed every
+    # Solana price — pairs filtered by chainId mismatch)
 }
 
 # ── Native coin IDs for CoinGecko simple/price fallback (no key required) ──
@@ -69,6 +71,8 @@ _NATIVE_COINGECKO_IDS: dict[str, str] = {
     "gnosis": "xdai",
     "mantle": "mantle",
     "solana": "solana",
+    "sol": "solana",  # API chain code (2026-09-01: missing alias zeroed every
+    # Solana price — pairs filtered by chainId mismatch)
 }
 
 
