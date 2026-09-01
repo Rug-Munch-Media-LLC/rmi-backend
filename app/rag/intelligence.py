@@ -46,7 +46,8 @@ SCAM_COLLECTIONS: list[str] = [
     "known_scams",
     "defi_exploits",
     "threat_intel_v2",
-    "scam_intel",
+    "scam_intel_v2",
+    "social_intel",
 ]
 WALLET_COLLECTIONS: list[str] = [
     "wallet_profiles",
@@ -77,8 +78,22 @@ class RAGIntelligenceEnricher:
         chain = getattr(result, "chain", "")
         symbol = getattr(result, "symbol", "")
         deployer = getattr(result, "deployer_address", getattr(result, "deployer", ""))
+        name = getattr(result, "name", "")
 
-        query = f"{symbol} {token_address} {chain} scam pattern deployer exploit".strip()
+        # 2026-09-02 rag_context fix: raw hex addresses poison the query
+        # embedding (2560-dim Qwen3-Embedding-4B has no signal for 40-char
+        # hex) — the vector search then returns nothing and rag_context
+        # lands empty on every scan. Query with the SEMANTIC identifiers
+        # (symbol, name, chain, deployer) instead; the address stays on the
+        # result for exact-match consumers. social_intel (TG/X chatter about
+        # the token) is now in SCAM_COLLECTIONS so community shill/rug
+        # signals surface too.
+        semantic_parts = [p for p in (symbol, name, chain, deployer) if p]
+        query = " ".join([*semantic_parts, "scam rug pull exploit pattern"]).strip()
+        if not semantic_parts:
+            # No semantic identifiers at all — fall back to the address so
+            # the query is never empty (rugbrain_search rejects "").
+            query = f"{token_address} scam rug pull".strip()
         hits = await rugbrain_search(query=query, collections=SCAM_COLLECTIONS, limit=self._top_k * 2)
         similar_scams = [
             ScoredHit(
