@@ -30,12 +30,19 @@ def _get_redis_url() -> str:
     try:
         from app.config import settings as _s
 
-        if _s.redis_url:
-            url = _s.redis_url
+        # 2026-09-01 FIX: settings.redis_url has a NON-EMPTY default
+        # ("redis://localhost:6379/0") — accepting it unconditionally meant
+        # the REDIS_HOST/REDIS_PASSWORD compose fallback below NEVER fired
+        # and every Redis feature inside the container dialed unreachable
+        # localhost. Only trust the settings value when it is NOT the
+        # localhost default.
+        candidate = (_s.redis_url or "").strip()
+        if candidate and "localhost" not in candidate and "127.0.0.1" not in candidate:
+            url = candidate
     except Exception:  # noqa: S110 — optional dependency
         pass
     if not url:
-        url = os.getenv("REDIS_URL", "")
+        url = os.getenv("REDIS_URL", "").strip()
     if not url:
         # Compose deployments set REDIS_HOST (+ REDIS_PASSWORD) but not
         # REDIS_URL — build the URL from the parts so Redis-backed features
