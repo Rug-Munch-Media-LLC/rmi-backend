@@ -15,9 +15,11 @@ Sanctioned surface (add capabilities here as needed):
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass(frozen=True)
@@ -28,14 +30,18 @@ class _ProviderAdapter:
     _paraswap: Callable[..., Any]
     _oneinch: Callable[..., Any]
 
-    def dexscreener_price(self, chain: str, address: str) -> Any:
-        return self._dex_price(chain, address)
+    def dexscreener_price(self, **kwargs: Any) -> Any:
+        # 2026-09-01: pass-through — callers use mint/token/address kwargs
+        # (the underlying provider accepts all of them); the old rigid
+        # (chain, address) signature raised "unexpected keyword argument"
+        # and silently killed the tier.
+        return self._dex_price(**kwargs)
 
-    def coingecko_market(self, chain: str, address: str) -> Any:
-        return self._cg_market(chain, address)
+    def coingecko_market(self, **kwargs: Any) -> Any:
+        return self._cg_market(**kwargs)
 
-    def geckoterminal_market(self, chain: str, address: str) -> Any:
-        return self._gt_market(chain, address)
+    def geckoterminal_market(self, **kwargs: Any) -> Any:
+        return self._gt_market(**kwargs)
 
     def paraswap_quote(self, *a: Any, **k: Any) -> Any:
         return self._paraswap(*a, **k)
