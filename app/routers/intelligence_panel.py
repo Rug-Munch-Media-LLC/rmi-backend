@@ -394,7 +394,9 @@ async def ghost_post_reactions(slug: str) -> dict[str, Any]:
         from app.core.redis import get_redis_async
 
         r = await get_redis_async()
-        counts = await r.hgetall(_reaction_key(slug)) if r else {}
+        raw = await r.hgetall(_reaction_key(slug)) if r else {}
+        # Core pool uses decode_responses=False -> bytes keys/values.
+        counts = {(k.decode() if isinstance(k, bytes) else k): v for k, v in raw.items()}
     except Exception:
         counts = {}
     return {"slug": slug, "reactions": {k: int(counts.get(k, 0)) for k in _REACTION_KINDS}}
@@ -419,7 +421,8 @@ async def ghost_post_react(slug: str, body: dict[str, Any] = Body(...)) -> dict[
         if added:
             await r.sexpire(voter_key, 86400 * 30)
             await r.hincrby(_reaction_key(slug), kind, 1)
-        counts = await r.hgetall(_reaction_key(slug))
+        raw = await r.hgetall(_reaction_key(slug))
+        counts = {(k.decode() if isinstance(k, bytes) else k): v for k, v in raw.items()}
         return {"slug": slug, "reactions": {k: int(counts.get(k, 0)) for k in _REACTION_KINDS}, "added": bool(added)}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="reactions unavailable") from exc
