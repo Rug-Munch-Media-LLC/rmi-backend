@@ -391,7 +391,7 @@ def _reaction_key(slug: str) -> str:
 @router.get("/ghost/posts/{slug}/reactions", summary="Reactions for a Ghost post")
 async def ghost_post_reactions(slug: str) -> dict[str, Any]:
     try:
-        from app.domains.scanner.engines._exceptions import get_redis_async
+        from app.core.redis import get_redis_async
 
         r = await get_redis_async()
         counts = await r.hgetall(_reaction_key(slug)) if r else {}
@@ -408,7 +408,7 @@ async def ghost_post_react(slug: str, body: dict[str, Any] = Body(...)) -> dict[
         raise HTTPException(status_code=422, detail=f"reaction must be one of {_REACTION_KINDS}")
     if not client_id:
         raise HTTPException(status_code=422, detail="client_id required")
-    from app.domains.scanner.engines._exceptions import get_redis_async
+    from app.core.redis import get_redis_async
 
     r = await get_redis_async()
     if r is None:
