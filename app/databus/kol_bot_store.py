@@ -48,6 +48,8 @@ _WALL_OF_SHAME_CANDIDATES: tuple[str, ...] = (
     os.getenv("KOL_WALL_OF_SHAME_PATH", "").strip(),
     "/srv/work/repos/rugmunchbot/src/rugmunchbot/data/kol/wall_of_shame.json",
     "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/kol/wall_of_shame.json",
+    # Container path (bot repo mounted at /app/rugmunchbot in the backend image)
+    "/app/rugmunchbot/rugmunchbot/data/kol/wall_of_shame.json",
 )
 
 
