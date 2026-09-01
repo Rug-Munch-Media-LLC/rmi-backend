@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from datetime import datetime
 
-from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
+from app.domains.scanner.engines._common import _norm_addr
+from app.domains.scanner.engines._indexer_port import (
+    ch_client as _get_ch_client,
+    normalize_chain as _norm_chain,
+)
 from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
@@ -367,14 +371,19 @@ def _query_holder_first_tx_out(
 def _merge_first_tx_rows(
     in_rows: list[tuple[Any, ...]] | None,
     out_rows: list[tuple[Any, ...]] | None,
+    chain_norm: str = "",
 ) -> list[tuple[Any, ...]]:
-    """Merge the two first-tx directions, keeping the earliest row per holder."""
+    """Merge the two first-tx directions, keeping the earliest row per holder.
+
+    ``chain_norm`` selects address casing: Solana base58 keeps exact case,
+    EVM (default) lowercases for case-insensitive matching.
+    """
     best: dict[str, tuple[Any, ...]] = {}
     for rows in (in_rows, out_rows):
         for row in rows or []:
             if not row or not row[0]:
                 continue
-            addr = str(row[0]).lower()
+            addr = _norm_addr(str(row[0]), chain_norm)
             cur = best.get(addr)
             if cur is None or (row[1] is not None and (cur[1] is None or row[1] < cur[1])):
                 best[addr] = row
@@ -396,6 +405,7 @@ def _query_holder_first_tx(holders: list[str], chain: str) -> list[tuple[Any, ..
     return _merge_first_tx_rows(
         _query_holder_first_tx_in(holders, chain),
         _query_holder_first_tx_out(holders, chain),
+        _norm_chain(chain),
     )
 
 
@@ -459,7 +469,7 @@ def _query_known_scam_tokens(chain: str, limit: int) -> list[str]:
             {"chain": chain, "limit": limit},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
-        return [str(r[0] or "").lower() for r in rows if r and r[0]]
+        return [_norm_addr(str(r[0] or ""), chain) for r in rows if r and r[0]]
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("known_scam_tokens_query_failed: %s", exc)
         return []

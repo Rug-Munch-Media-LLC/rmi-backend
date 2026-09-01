@@ -22,8 +22,8 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
+    _norm_addr,
     _query_batch_labels,
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -65,6 +65,7 @@ from app.domains.scanner.engines._indexer_port import (
     _get_ch_client,
     _new_ch_client,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._scoring import (
     _FRESH_WALLET_AGE_DAYS,
     _aggregate_wallet_metrics,
@@ -105,13 +106,13 @@ async def _compute_funding(token_address: str, chain: str, holders: list[str] | 
     # ── 1. Resolve top holders ──
     holder_addrs: list[str] = []
     if holders:
-        holder_addrs = [h.lower().strip() for h in holders if h and h.lower().strip() not in (_ZERO_ADDR, _DEAD_ADDR)]
+        holder_addrs = [a for a in (_norm_addr(h, chain) for h in holders) if a and a not in (_ZERO_ADDR, _DEAD_ADDR)]
         holder_addrs = list(dict.fromkeys(holder_addrs))[:_MAX_HOLDERS]
 
     if not holder_addrs:
         holder_rows = await run_sync(_query_top_holders, token_address, chain, _MAX_HOLDERS)
         if holder_rows:
-            holder_addrs = [str(r[0] or "").lower() for r in holder_rows if r and r[0]]
+            holder_addrs = [_norm_addr(str(r[0] or ""), chain) for r in holder_rows if r and r[0]]
             holder_addrs = [h for h in holder_addrs if h not in (_ZERO_ADDR, _DEAD_ADDR)][:_MAX_HOLDERS]
 
     if not holder_addrs:
@@ -121,11 +122,11 @@ async def _compute_funding(token_address: str, chain: str, holders: list[str] | 
     first_in_rows = await run_sync(_query_first_funders, holder_addrs, chain)
     funder_by_holder: dict[str, dict[str, Any]] = {}
     for row in first_in_rows or []:
-        h_addr = str(row[0] or "").lower()
+        h_addr = _norm_addr(str(row[0] or ""), chain)
         if not h_addr:
             continue
         funder_by_holder[h_addr] = {
-            "funder": str(row[1] or "").lower() or None,
+            "funder": _norm_addr(str(row[1] or ""), chain) or None,
             "first_tx": str(row[2] or ""),
             "first_ts": row[3],
         }
@@ -137,7 +138,7 @@ async def _compute_funding(token_address: str, chain: str, holders: list[str] | 
     if funders:
         label_rows = await run_sync(_query_batch_labels, funders)
         for row in label_rows or []:
-            addr = str(row[0] or "").lower()
+            addr = _norm_addr(str(row[0] or ""), chain)
             if not addr:
                 continue
             labels_map.setdefault(addr, []).append(
@@ -155,7 +156,7 @@ async def _compute_funding(token_address: str, chain: str, holders: list[str] | 
     if funders:
         tx_rows = await run_sync(_query_funder_tx_counts, funders, chain)
         for row in tx_rows or []:
-            addr = str(row[0] or "").lower()
+            addr = _norm_addr(str(row[0] or ""), chain)
             if addr:
                 tx_count_by_funder[addr] = int(row[1] or 0)
 
@@ -229,13 +230,13 @@ async def _compute_wallet_metrics(
     # ── 1. Resolve top holders ──
     holder_addrs: list[str] = []
     if holders:
-        holder_addrs = [h.lower().strip() for h in holders if h and h.lower().strip() not in (_ZERO_ADDR, _DEAD_ADDR)]
+        holder_addrs = [a for a in (_norm_addr(h, chain) for h in holders) if a and a not in (_ZERO_ADDR, _DEAD_ADDR)]
         holder_addrs = list(dict.fromkeys(holder_addrs))[:_MAX_HOLDERS]
 
     if not holder_addrs:
         holder_rows = await run_sync(_query_top_holders, token_address, chain, _MAX_HOLDERS)
         if holder_rows:
-            holder_addrs = [str(r[0] or "").lower() for r in holder_rows if r and r[0]]
+            holder_addrs = [_norm_addr(str(r[0] or ""), chain) for r in holder_rows if r and r[0]]
             holder_addrs = [h for h in holder_addrs if h not in (_ZERO_ADDR, _DEAD_ADDR)][:_MAX_HOLDERS]
 
     if not holder_addrs:
@@ -266,15 +267,15 @@ async def _compute_wallet_metrics(
         run_sync(_query_holder_first_tx_in, holder_addrs, chain, _new_ch_client()),
         run_sync(_query_holder_first_tx_out, holder_addrs, chain, _new_ch_client()),
     )
-    first_tx_rows = _merge_first_tx_rows(first_tx_in, first_tx_out)
+    first_tx_rows = _merge_first_tx_rows(first_tx_in, first_tx_out, chain)
     first_tx_by_holder: dict[str, dict[str, Any]] = {}
     for row in first_tx_rows or []:
-        addr = str(row[0] or "").lower()
+        addr = _norm_addr(str(row[0] or ""), chain)
         if not addr:
             continue
         first_tx_by_holder[addr] = {
             "first_ts": row[1],
-            "first_token": str(row[2] or "").lower() or None,
+            "first_token": _norm_addr(str(row[2] or ""), chain) or None,
             "first_tx_hash": str(row[3] or "") or None,
         }
 
@@ -286,11 +287,11 @@ async def _compute_wallet_metrics(
     first_in_rows = await run_sync(_query_first_funders, holder_addrs, chain)
     funder_by_holder: dict[str, dict[str, Any]] = {}
     for row in first_in_rows or []:
-        addr = str(row[0] or "").lower()
+        addr = _norm_addr(str(row[0] or ""), chain)
         if not addr:
             continue
         funder_by_holder[addr] = {
-            "funder": str(row[1] or "").lower() or None,
+            "funder": _norm_addr(str(row[1] or ""), chain) or None,
             "first_tx": str(row[2] or ""),
             "first_ts": row[3],
         }
@@ -301,7 +302,7 @@ async def _compute_wallet_metrics(
     if funders:
         label_rows = await run_sync(_query_batch_labels, funders)
         for row in label_rows or []:
-            addr = str(row[0] or "").lower()
+            addr = _norm_addr(str(row[0] or ""), chain)
             if not addr:
                 continue
             labels_map.setdefault(addr, []).append(
@@ -318,7 +319,7 @@ async def _compute_wallet_metrics(
     if funders:
         tx_rows = await run_sync(_query_funder_tx_counts, funders, chain)
         for row in tx_rows or []:
-            addr = str(row[0] or "").lower()
+            addr = _norm_addr(str(row[0] or ""), chain)
             if addr:
                 tx_count_by_funder[addr] = int(row[1] or 0)
 
@@ -388,12 +389,12 @@ async def _compute_freshness(address: str, chain: str) -> dict[str, Any]:
     funder: str | None = None
     first_funder_label: str | None = None
     if funder_row:
-        funder = str(funder_row[0] or "").lower() or None
+        funder = _norm_addr(str(funder_row[0] or ""), chain) or None
         if funder:
             label_rows = await run_sync(_query_batch_labels, [funder])
             labels: list[dict[str, Any]] = []
             for row in label_rows or []:
-                addr = str(row[0] or "").lower()
+                addr = _norm_addr(str(row[0] or ""), chain)
                 if addr == funder:
                     labels.append(
                         {
@@ -453,8 +454,8 @@ async def _compute_overlap(token_a: str, token_b: str, chain: str) -> dict[str, 
         scam_task,
     )
 
-    holders_a = {str(r[0] or "").lower() for r in holders_a_rows or [] if r and r[0]}
-    holders_b = {str(r[0] or "").lower() for r in holders_b_rows or [] if r and r[0]}
+    holders_a = {_norm_addr(str(r[0] or ""), chain) for r in holders_a_rows or [] if r and r[0]}
+    holders_b = {_norm_addr(str(r[0] or ""), chain) for r in holders_b_rows or [] if r and r[0]}
 
     if not holders_a:
         return _overlap_unavailable(token_a, token_b, chain, reason="no holder data for token_a")

@@ -82,12 +82,13 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
+    _norm_addr,
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._own_bundle_common import (
     _BUNDLE_CACHE,
     _BUNDLE_CACHE_MAX,
@@ -160,8 +161,8 @@ async def get_own_bundle_analysis(
             "source": str,
         }
     """
-    token_address = token_address.lower()
     chain = _normalize_chain(chain)
+    token_address = _norm_addr(token_address, chain)
     _start = time.monotonic()
 
     # Check cache
@@ -298,8 +299,8 @@ async def detect_bundled_launch(
             "common_funders": [...],
         }
     """
-    token_address = token_address.lower()
     chain = _normalize_chain(chain)
+    token_address = _norm_addr(token_address, chain)
     _start = time.monotonic()
 
     cache_key = f"launch:{token_address}:{chain}"
