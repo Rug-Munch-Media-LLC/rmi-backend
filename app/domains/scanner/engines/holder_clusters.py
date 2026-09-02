@@ -457,6 +457,7 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                     ORDER BY block_timestamp DESC
                     LIMIT %(scan_limit)s
@@ -469,6 +470,7 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                     ORDER BY block_timestamp DESC
                     LIMIT %(scan_limit)s
@@ -553,6 +555,7 @@ def _query_first_in_transfers(token_address: str, chain: str) -> list[tuple[Any,
                 FROM wallet_memory.evm_transfers
                 WHERE token_address = %(token)s
                   AND chain = %(chain)s
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
                   AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                   AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
                                               '0x000000000000000000000000000000000000dead')
@@ -599,6 +602,7 @@ def _query_first_buy_blocks(token_address: str, chain: str) -> list[tuple[Any, .
                 WHERE chain = %(chain)s
                   AND (token0 = %(token)s OR token1 = %(token)s)
                   AND type = 'swap'
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
                   AND sender NOT IN ('', '0x0000000000000000000000000000000000000000',
                                         '0x000000000000000000000000000000000000dead')
                 ORDER BY block_timestamp DESC

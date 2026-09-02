@@ -295,6 +295,7 @@ def _query_holder_concentration(
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                     UNION ALL
                     SELECT
@@ -303,6 +304,7 @@ def _query_holder_concentration(
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                 )
                 WHERE addr != ''
@@ -312,6 +314,9 @@ def _query_holder_concentration(
                 LIMIT 50
                 """,
                 {"token": token_address, "chain": chain},
+                # 2026-09-02 base-chain timeout fix: 7-day window + bounds
+                # (was an unbounded full-table scan).
+                settings={"max_execution_time": 10, "max_rows_to_read": 300_000_000},
             )
 
         if not rows:
@@ -420,9 +425,15 @@ def _query_launch_cluster(
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                     """,
                     {"token": token_address, "chain": chain},
-                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                    # 2026-09-02 base-chain timeout fix: the unwindowed
+                    # min() scanned the whole table for tokens with no
+                    # deployer_events row. 7-day window bounds it (~1.2s on
+                    # base); launch detection only cares about recent
+                    # launches anyway.
+                    settings={"max_execution_time": 10, "max_rows_to_read": 300_000_000},
                 )
             if min_rows and min_rows[0] and min_rows[0][0]:
                 deploy_block = int(min_rows[0][0])

@@ -44,12 +44,12 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -287,6 +287,11 @@ def _query_top_holders(
 
     try:
         # Compute net balance per address from transfer history
+        # 2026-09-02 base-chain timeout fix: no skip index on token_address,
+        # so this scanned the ENTIRE evm_transfers table with no time bound
+        # and no max_execution_time (10s+ per call on base). 7-day window
+        # bounds the scan (~1.2s on base) — recent transfers dominate
+        # current balances for new tokens, which is this engine's use case.
         rows = client.execute(
             """
             SELECT
@@ -299,6 +304,7 @@ def _query_top_holders(
                 FROM wallet_memory.evm_transfers
                 WHERE token_address = %(token)s
                   AND chain = %(chain)s
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
                   AND to_address != '0x0000000000000000000000000000000000000000'
                   AND to_address != ''
                 UNION ALL
@@ -308,6 +314,7 @@ def _query_top_holders(
                 FROM wallet_memory.evm_transfers
                 WHERE token_address = %(token)s
                   AND chain = %(chain)s
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
                   AND from_address != '0x0000000000000000000000000000000000000000'
                   AND from_address != ''
             )
@@ -318,6 +325,7 @@ def _query_top_holders(
             LIMIT 50
             """,
             {"token": token_address, "chain": chain},
+            settings={"max_execution_time": 10, "max_rows_to_read": 300_000_000},
         )
 
         if not rows:
@@ -392,9 +400,16 @@ def _query_new_holders(
                   AND to_address != '0x0000000000000000000000000000000000000000'
                   AND to_address != ''
                   AND block_timestamp < now() - INTERVAL 24 HOUR
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
             )
             """,
             {"token": token_address, "chain": chain},
+            # 2026-09-02 base-chain timeout fix: bound the NOT IN subquery
+            # (was scanning ALL pre-24h history — 9.8s on base). The
+            # "existing holders" set is now scoped to the last 7 days:
+            # practical definition = holder appeared in last 24h but not in
+            # the prior 7 days. Best-effort metric, acceptable drift.
+            settings={"max_execution_time": 10, "max_rows_to_read": 300_000_000},
         )
 
         if rows:
@@ -443,6 +458,7 @@ def _query_gini_data(
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND to_address != '0x0000000000000000000000000000000000000000'
                       AND to_address != ''
                     UNION ALL
@@ -451,6 +467,7 @@ def _query_gini_data(
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND from_address != '0x0000000000000000000000000000000000000000'
                       AND from_address != ''
                 )
@@ -461,6 +478,9 @@ def _query_gini_data(
             ORDER BY balance ASC
             """,
             {"token": token_address, "chain": chain},
+            # 2026-09-02 base-chain timeout fix: 7-day window + bounds (was
+            # an unbounded full-table scan with no settings).
+            settings={"max_execution_time": 10, "max_rows_to_read": 300_000_000},
         )
 
         if not rows or len(rows) < 2:

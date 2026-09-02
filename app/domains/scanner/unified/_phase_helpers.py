@@ -178,6 +178,52 @@ async def _run_wallet_analysis_impl(r: ScanResult, address: str, chain: str) -> 
         )
 
         holders: list[str] = []
+
+        # ── Data pre-check (2026-09-02 base-chain timeout fix) ──
+        # There is no skip index on evm_transfers.token_address, so every
+        # token-filtered query scans the full time window (~110M rows/7d on
+        # base). For a token with ZERO indexed transfers every one of the
+        # ~8 heavy queries below burns its full 10-15s cap finding nothing,
+        # and the sequential engines blow the 120s phase budget before any
+        # module completes. A bounded 7-day count (~1.2s on base, verified)
+        # detects this cheaply: 0 rows → the engines cannot produce
+        # anything → record honest "unavailable" notes and return.
+        # ``None`` (ClickHouse unreachable / probe timeout) → fail-open,
+        # proceed with the normal path.
+        try:
+            from app.domains.scanner.engines._common import run_sync as _run_sync
+            from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
+
+            def _count_recent_transfers(addr: str, ch: str) -> int | None:
+                client = _get_ch_client()
+                if client is None:
+                    return None
+                try:
+                    rows = client.execute(
+                        """
+                        SELECT count()
+                        FROM wallet_memory.evm_transfers
+                        WHERE chain = %(chain)s
+                          AND token_address = %(token)s
+                          AND block_timestamp >= now() - INTERVAL 7 DAY
+                        """,
+                        {"chain": ch, "token": addr},
+                        settings={"max_execution_time": 5},
+                    )
+                    return int(rows[0][0] or 0) if rows else 0
+                except (ValueError, RuntimeError, OSError):
+                    return None
+
+            if chain != "solana":
+                recent = await _run_sync(_count_recent_transfers, address, chain)
+                if recent == 0:
+                    note = "no indexed transfers in last 7 days — token may be brand new or unindexed"
+                    logger.info("wallet_analysis_skipped_no_data", chain=chain, token=address[:16])
+                    for module in ("funding_analysis", "wallet_freshness", "holder_overlap", "wallet_metrics"):
+                        _record_module_unavailable(r, module, chain, note)
+                    return {"result": "unavailable", "note": note}
+        except Exception as exc:  # pragma: no cover — pre-check must never break the phase
+            logger.debug("wallet_analysis_precheck_failed", error=str(exc)[:120])
         holder_data = r.holders if isinstance(r.holders, dict) else None
         if holder_data:
             top = holder_data.get("top_holders") or []

@@ -102,12 +102,13 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
         )
         if hb_rows:
             return cast("list[tuple[Any, ...]] | None", hb_rows)
-        # 2026-09-02: 30-day window on the fallback — this UNION ALL
-        # full-scans the token's evm_transfers rows and blew the 10s server
-        # timeout on large tokens (USDT ethereum: 26.5M rows). Tokens NOT in
-        # holder_balances are newer tokens by definition, so their transfers
-        # are recent; limiting to the last 30 days keeps the scan bounded
-        # while still covering a new token's full history.
+        # 2026-09-02: 7-day window on the fallback — this UNION ALL
+        # full-scans the chain's evm_transfers rows in the window (there is
+        # no skip index on token_address, so the token filter cannot prune
+        # the scan). On base the 30-day window spans ~445M rows (>10s even
+        # with the cap); the 7-day window spans ~110M rows and completes in
+        # ~1.2s (verified). Tokens NOT in holder_balances are new/recently
+        # indexed by definition, so 7 days covers their full history.
         return cast(
             "list[tuple[Any, ...]] | None",
             client.execute(
@@ -121,14 +122,14 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
-                      AND block_timestamp >= now() - INTERVAL 30 DAY
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                     UNION ALL
                     SELECT from_address AS addr, -toFloat64OrZero(value) AS net
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
-                      AND block_timestamp >= now() - INTERVAL 30 DAY
+                      AND block_timestamp >= now() - INTERVAL 7 DAY
                       AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                 )
                 WHERE addr != ''
@@ -630,6 +631,7 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
             FROM wallet_memory.evm_transfers
             WHERE token_address = %(token)s
               AND chain = %(chain)s
+              AND block_timestamp >= now() - INTERVAL 7 DAY
               AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
             LIMIT %(limit)s
             """,
