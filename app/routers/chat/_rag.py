@@ -46,7 +46,7 @@ __all__ = [
 
 # ── RAG collections (searched for every message) ─────────────────────────
 # FOCUSED KNOWLEDGE SET (consolidated 2026-08-15 — was 13 collections).
-# Every fan-out collection costs ONE Infinity embed + ONE Qdrant search +
+# Every fan-out collection costs ONE Qwen3-Embedding-4B embed + ONE Qdrant search +
 # ONE mandatory cross-encoder rerank per message, so the set is pruned to
 # the intent space the chat/bot actually grounds on, with no redundancy.
 # All 5 kept collections are verified populated AND searchable via the RAG

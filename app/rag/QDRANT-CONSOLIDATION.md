@@ -6,8 +6,7 @@ Target: Qdrant 1.18.3 (docker `rmi-qdrant`, 127.0.0.1:6333, healthy, 42 legacy c
 ## 1. Goal
 
 Collapse all RAG vector stores into **one Qdrant collection** with native hybrid
-(dense ANN + sparse BM25, server-side RRF). The mature `app/rag/` stack (qwen3-4b via
-Infinity, chunking, dedup, rerank) is kept and retargeted; the legacy `app/rag_service/`
+(dense ANN + sparse BM25, server-side RRF). The mature `app/rag/` stack (Qwen3-Embedding-4B, chunking, dedup, rerank) is kept and retargeted; the legacy `app/rag_service/`
 stack (FAISS, multi-head crypto_embeddings, semantic cache) is retired.
 
 ## 2. Unified Collection Schema
@@ -76,7 +75,7 @@ POST /collections/rag_unified_v1/points/search
 ```
 
 Keep the outer wrappers unchanged: `QueryExpander` → prefetch dense+sparse →
-`HybridRetriever` fusion → Infinity bge-reranker (`rerank.py`) → `ContextBuilder`.
+`HybridRetriever` fusion → local Qwen3-Reranker-4B (:8003, `rerank.py`) → `ContextBuilder`.
 Metadata filters (chain, content_type, source) move into the Qdrant `filter` — kills the
 in-process `_apply_filters` post-filter step.
 
@@ -109,8 +108,8 @@ and legacy Redis/FAISS dumps (rag_service patterns). All re-indexing goes throug
 **same idempotent writer** (`ensure_collection` → batch embed qwen3-4b → upsert uuid5 IDs),
 so re-runs are safe.
 
-1. Export rows → chunk (`chunking.py`, existing 512-token/15% overlap) → embed (Infinity
-   qwen3-4b) → upsert.
+1. Export rows → chunk (`chunking.py`, existing 512-token/15% overlap) → embed (Qwen3-Embedding-4B via DeepInfra
+   primary + local :8004 backup) → upsert.
 2. Backfill order by content_type priority: news → threat/scan → audit → wallet/pattern.
 3. Run `evaluation.py` on the new collection pre/post; gate cutover on recall parity
    (target: ≥ current hybrid, expected +5-15% from real BM25 IDF).

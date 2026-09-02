@@ -132,9 +132,8 @@ Env name = field name uppercased. All fields read via `settings.<field>`; defaul
 | `mailgun_api_key` | `MAILGUN_API_KEY` | Mailgun key | `""` | no |
 | `mailgun_domain` | `MAILGUN_DOMAIN` | Mailgun domain | `""` | no |
 | `platform_wallet_address` | `PLATFORM_WALLET_ADDRESS` | Platform wallet for subscription fees | `""` | no |
-| `bge_m3_url` | `BGE_M3_URL` | DEPRECATED legacy BGE-M3 HTTP service | `""` | no |
-| `embedder_primary` | `EMBEDDER_PRIMARY` | Primary embedding backend (infinity|bge-m3|openrouter) | `"infinity"` | no |
-| `embedder_primary_model` | `EMBEDDER_PRIMARY_MODEL` | Model for primary embedder | `"BAAI/bge-m3"` | no |
+| `embedder_primary` | `EMBEDDER_PRIMARY` | Primary embedding backend (qwen3\|openrouter) | `"qwen3"` | no |
+| `embedder_primary_model` | `EMBEDDER_PRIMARY_MODEL` | Model for primary embedder | `"qwen3-embedding-4b"` | no |
 | `embedder_fallback` | `EMBEDDER_FALLBACK` | DEPRECATED Ollama fallback | `""` | no |
 | `embedder_cache_ttl` | `EMBEDDER_CACHE_TTL` | Embedding cache TTL | `86400` | no |
 | `embedder_cache_maxsize` | `EMBEDDER_CACHE_MAXSIZE` | Embedding cache maxsize | `10000` | no |
