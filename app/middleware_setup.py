@@ -512,6 +512,25 @@ def _try_register_csrf(app: FastAPI) -> None:
                 if any(path.startswith(p) for p in _X402_CSRF_EXEMPT_PREFIXES):
                     return cast("Response", await call_next(request))
 
+                # Only enforce CSRF on paths that match a registered route.
+                # Without this, POSTs to nonexistent paths return 403 (CSRF)
+                # instead of 404 — observed 2026-09-02: POST /api/v1/admin/login
+                # (stale client path) was masked as "CSRF validation failed".
+                from starlette.routing import Match
+
+                try:
+                    matched = False
+                    for route in request.app.routes:
+                        result = route.matches(request.scope)
+                        match = result[0] if isinstance(result, tuple) else result
+                        if match == Match.FULL:
+                            matched = True
+                            break
+                except Exception:
+                    matched = True  # fail open to CSRF enforcement
+                if not matched:
+                    return cast("Response", await call_next(request))
+
                 # Skip if Authorization: Bearer header is present (API clients)
                 auth = request.headers.get("Authorization", "")
                 if auth.startswith("Bearer "):
