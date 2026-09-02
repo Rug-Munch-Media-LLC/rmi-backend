@@ -250,3 +250,32 @@ async def health_unified() -> dict[str, Any]:
     _UNIFIED_CACHE = {"data": response, "timestamp": time.monotonic()}
 
     return response
+
+
+# ──────────────────────────────────────────────────────────────────────
+# DataBus provider health endpoint
+# ──────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/databus",
+    summary="DataBus Provider Health",
+    description="Runs a lightweight health_check() probe against every DataBus provider (across all fallback chains) and returns per-provider health with latency. Results are cached in Redis for 5 minutes. Pass ?force=true to bypass the cache and re-probe.",
+)
+async def health_databus(force: bool = False) -> dict[str, Any]:
+    """Per-provider DataBus health with latency, cached in Redis (5 min TTL).
+
+    Args:
+        force: When True, bypass the Redis cache and re-probe every provider.
+
+    Returns:
+        {
+            "timestamp": ISO-8601,
+            "cached": bool,
+            "summary": {"total", "healthy", "unhealthy", "unknown"},
+            "providers": {name: {"healthy", "latency_ms", "chain", "tier"}},
+        }
+    """
+    from app.domains.databus.health import check_all_providers
+
+    return await check_all_providers(force=force)

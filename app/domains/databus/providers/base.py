@@ -48,6 +48,45 @@ class Provider:
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
     interval_minutes: int = 0  # Optional refresh cadence for scheduled providers (0 = no schedule)
+    health_url: str = ""  # Lightweight endpoint used by health_check() (empty = no probe defined)
+
+    async def health_check(self) -> dict[str, Any]:
+        """Lightweight reachability probe for this provider.
+
+        GETs ``health_url`` with a short timeout and measures latency.
+        A provider is considered healthy when the server responds with any
+        HTTP status < 500 (a 401/404 still proves the API is reachable —
+        auth/route errors are not connectivity failures).
+
+        Returns:
+            {"healthy": bool | None, "latency_ms": int | None}
+            healthy is None when no health_url is configured for this provider.
+        """
+        if not self.health_url:
+            return {"healthy": None, "latency_ms": None}
+
+        import time
+
+        import httpx
+
+        start = time.monotonic()
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(self.health_url)
+            latency_ms = int((time.monotonic() - start) * 1000)
+            healthy = resp.status_code < 500
+            return {"healthy": healthy, "latency_ms": latency_ms}
+        except (
+            httpx.TimeoutException,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            httpx.HTTPError,
+            ValueError,
+            RuntimeError,
+        ):
+            latency_ms = int((time.monotonic() - start) * 1000)
+            return {"healthy": False, "latency_ms": latency_ms}
 
 
 @dataclass

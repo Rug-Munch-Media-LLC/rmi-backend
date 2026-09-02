@@ -66,8 +66,15 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 _g["_dexscreener_price"],
                 weight=5.0,
                 rate_limit_rps=2.0,
+                health_url="https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112",
             ),
-            Provider("coingecko", ProviderTier.FREE_API, _g["_coingecko_price"], weight=5.0),
+            Provider(
+                "coingecko",
+                ProviderTier.FREE_API,
+                _g["_coingecko_price"],
+                weight=5.0,
+                health_url="https://api.coingecko.com/api/v3/ping",
+            ),
             Provider(
                 "moralis",
                 ProviderTier.PAID,
@@ -363,6 +370,7 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 requires_key=True,
                 key_env="BIRDEYE_API_KEY",
                 monthly_quota=50000,
+                health_url="https://public-api.birdeye.so/defi/price?address=So11111111111111111111111111111111111111112",
             ),
             Provider(
                 "dexscreener_price",
@@ -370,6 +378,47 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 _g["_dexscreener_price"],
                 weight=10.0,
                 rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+    # ── price_fallback — CoinGecko → DexScreener → Birdeye ──
+    # Dedicated free price fallback chain. Tries CoinGecko first, then
+    # DexScreener, then Birdeye. Each provider returns None on failure so
+    # ProviderChain.fetch() falls through to the next tier automatically.
+    chains["price_fallback"] = ProviderChain(
+        data_type="price_fallback",
+        description="Price fallback chain: CoinGecko → DexScreener → Birdeye",
+        providers=[
+            Provider(
+                "coingecko_price_fallback",
+                ProviderTier.FREE_API,
+                _g["_coingecko_price"],
+                weight=10.0,
+                rate_limit_rps=0.5,
+                health_url="https://api.coingecko.com/api/v3/ping",
+                description="CoinGecko simple/token_price — free tier 10-30 req/min",
+            ),
+            Provider(
+                "dexscreener_price_fallback",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_price"],
+                weight=8.0,
+                rate_limit_rps=2.0,
+                health_url="https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112",
+                description="DexScreener latest/dex/tokens — live pair price (free)",
+            ),
+            Provider(
+                "birdeye_price_fallback",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_price"],
+                weight=5.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+                health_url="https://public-api.birdeye.so/defi/price?address=So11111111111111111111111111111111111111112",
+                description="Birdeye real-time token price (freemium, key required)",
             ),
         ],
     )
