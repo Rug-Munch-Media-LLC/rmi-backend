@@ -33,6 +33,9 @@ _QUERY_TIMEOUT_SECONDS = 60  # 2026-08-26: 20s killed first-tx scans on 1.3B-row
 
 def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple[Any, ...]] | None:
     """Top-N holder addresses from evm_transfers (EVM) or solana balance changes."""
+    # Defensive: normalize even if a caller forgot — EVM addresses must be
+    # lowercase to match ClickHouse storage (checksummed input → 0 rows).
+    token_address = _norm_addr(token_address, chain)
     client = _get_ch_client()
     if client is None:
         return None
@@ -556,6 +559,9 @@ def _query_holder_first_tx(holders: list[str], chain: str) -> list[tuple[Any, ..
 
 def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[tuple[Any, ...]] | None:
     """Set of holder addresses for a token (net balance > 0), capped at ``limit``."""
+    # Defensive: normalize even if a caller forgot — EVM addresses must be
+    # lowercase to match ClickHouse storage (checksummed input → 0 rows).
+    token_address = _norm_addr(token_address, chain)
     client = _get_ch_client()
     if client is None:
         return None

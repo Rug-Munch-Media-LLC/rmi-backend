@@ -103,6 +103,9 @@ _DEAD_ADDR = "0x000000000000000000000000000000000000dead"
 
 async def _compute_funding(token_address: str, chain: str, holders: list[str] | None) -> dict[str, Any]:
     """Resolve holders, trace funders, classify, and aggregate percentages."""
+    # Normalize once at entry: EVM addresses must be lowercase to match
+    # ClickHouse storage (checksummed input would match 0 rows).
+    token_address = _norm_addr(token_address, chain)
     # ── 1. Resolve top holders ──
     holder_addrs: list[str] = []
     if holders:
@@ -227,6 +230,9 @@ async def _compute_wallet_metrics(
     holders: list[str] | None,
 ) -> dict[str, Any]:
     """Resolve holders, fetch wallet age + first funder, aggregate metrics."""
+    # Normalize once at entry: EVM addresses must be lowercase to match
+    # ClickHouse storage (checksummed input would match 0 rows).
+    token_address = _norm_addr(token_address, chain)
     # ── 1. Resolve top holders ──
     holder_addrs: list[str] = []
     if holders:
