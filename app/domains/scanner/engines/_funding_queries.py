@@ -423,7 +423,7 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
                 SELECT DISTINCT if(owner != '', owner, token_account) AS holder
                 FROM wallet_memory.solana_spl_balance_changes
                 WHERE mint = %(token)s
-                  AND delta > 0
+                  AND toFloat64OrZero(delta) > 0
                 LIMIT %(limit)s
                 """,
                     {"token": token_address, "limit": limit},
