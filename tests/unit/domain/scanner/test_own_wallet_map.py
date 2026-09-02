@@ -78,7 +78,7 @@ class FakeFundingClient:
             return self.first_buy
         if "argMin(block_timestamp, block_timestamp) AS first_ts" in sql:  # first-tx (in/out)
             return self.first_tx
-        if "holder_balances FINAL" in sql:  # _query_top_holders (EVM)
+        if "holder_balances" in sql:  # _query_top_holders (EVM) — FINAL removed 2026-09-02
             return self.holders
         return []
 

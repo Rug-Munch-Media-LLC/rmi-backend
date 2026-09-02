@@ -63,9 +63,13 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
         # full-scans the chain's transfer rows (122M+ on ethereum) and blows
         # the query timeout on busy tokens. Fall back to it only when the
         # indexer has not seen the token yet (empty holder_balances).
+        # 2026-09-02: FINAL removed — ReplacingMergeTree dedup is not critical
+        # for a best-effort 60s scan (slight staleness acceptable), and FINAL
+        # on a 42M-row table was slow enough to risk the query timeout on
+        # busy tokens like USDT ethereum (552K holder rows).
         hb_rows = client.execute(
             """
-            SELECT address, balance FROM wallet_memory.holder_balances FINAL
+            SELECT address, balance FROM wallet_memory.holder_balances
             WHERE chain = %(chain)s AND token_address = %(token)s AND balance > 0
             ORDER BY balance DESC
             LIMIT %(limit)s
@@ -75,6 +79,12 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
         )
         if hb_rows:
             return cast("list[tuple[Any, ...]] | None", hb_rows)
+        # 2026-09-02: 30-day window on the fallback — this UNION ALL
+        # full-scans the token's evm_transfers rows and blew the 10s server
+        # timeout on large tokens (USDT ethereum: 26.5M rows). Tokens NOT in
+        # holder_balances are newer tokens by definition, so their transfers
+        # are recent; limiting to the last 30 days keeps the scan bounded
+        # while still covering a new token's full history.
         return cast(
             "list[tuple[Any, ...]] | None",
             client.execute(
@@ -88,12 +98,14 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 30 DAY
                       AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                     UNION ALL
                     SELECT from_address AS addr, -toFloat64OrZero(value) AS net
                     FROM wallet_memory.evm_transfers
                     WHERE token_address = %(token)s
                       AND chain = %(chain)s
+                      AND block_timestamp >= now() - INTERVAL 30 DAY
                       AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
                 )
                 WHERE addr != ''
