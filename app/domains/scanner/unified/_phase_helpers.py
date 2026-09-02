@@ -24,6 +24,31 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _record_module_error(r: ScanResult, module: str, chain: str, reason: str) -> None:
+    """Carry a module failure into ``ScanResult.errors`` + log it visibly.
+
+    Errors are NEVER silent: every unavailable/failed module gets a WARNING
+    log with structured fields and an entry in the response ``errors`` list
+    so the API consumer sees WHY own-data was missing (2026-09-02 hardening).
+    """
+    reason = (reason or "unknown")[:200]
+    logger.warning("scanner_module_failed", module=module, chain=chain, error=reason)
+    try:
+        r.errors.append({"module": module, "chain": chain, "error": reason})
+    except AttributeError:  # pragma: no cover — defensive for legacy results
+        pass
+
+
+def _record_module_unavailable(r: ScanResult, module: str, chain: str, reason: str) -> None:
+    """Log + record a module that degraded to ``unavailable`` (INFO level)."""
+    reason = (reason or "no data")[:200]
+    logger.info("scanner_module_unavailable", module=module, chain=chain, reason=reason)
+    try:
+        r.errors.append({"module": module, "chain": chain, "error": f"unavailable: {reason}"})
+    except AttributeError:  # pragma: no cover
+        pass
+
+
 async def gather_freshness(tasks: list[Any]) -> dict[str, Any]:
     """Aggregate per-wallet freshness results into a token-level summary.
 
@@ -120,12 +145,48 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
 
         if not isinstance(funding, BaseException) and isinstance(funding, dict):
             r.funding_analysis = funding
+            if funding.get("result") != "scanned":
+                _record_module_unavailable(r, "funding_analysis", chain, str(funding.get("reason", "")))
+        else:
+            _record_module_error(
+                r,
+                "funding_analysis",
+                chain,
+                str(funding)[:200] if isinstance(funding, BaseException) else "invalid result",
+            )
         if not isinstance(freshness, BaseException) and isinstance(freshness, dict):
             r.wallet_freshness = freshness
+            if freshness.get("result") != "scanned":
+                _record_module_unavailable(r, "wallet_freshness", chain, str(freshness.get("reason", "")))
+        else:
+            _record_module_error(
+                r,
+                "wallet_freshness",
+                chain,
+                str(freshness)[:200] if isinstance(freshness, BaseException) else "invalid result",
+            )
         if not isinstance(overlap, BaseException) and isinstance(overlap, dict):
             r.holder_overlap = overlap
+            if overlap.get("result") != "scanned":
+                _record_module_unavailable(r, "holder_overlap", chain, str(overlap.get("reason", "")))
+        else:
+            _record_module_error(
+                r,
+                "holder_overlap",
+                chain,
+                str(overlap)[:200] if isinstance(overlap, BaseException) else "invalid result",
+            )
         if not isinstance(metrics, BaseException) and isinstance(metrics, dict):
             r.wallet_metrics = metrics
+            if metrics.get("result") != "scanned":
+                _record_module_unavailable(r, "wallet_metrics", chain, str(metrics.get("reason", "")))
+        else:
+            _record_module_error(
+                r,
+                "wallet_metrics",
+                chain,
+                str(metrics)[:200] if isinstance(metrics, BaseException) else "invalid result",
+            )
 
         r.modules_run.extend(["funding_analysis", "wallet_freshness", "holder_overlap", "wallet_metrics"])
         # Honest data_sources counting (2026-09-02): only credit own data when
@@ -138,7 +199,8 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
         if scanned:
             r.enrichment_sources.append("wallet_analysis:own")
     except Exception as exc:
-        logger.debug("wallet_analysis_failed", error=str(exc)[:120])
+        logger.warning("wallet_analysis_failed", error=str(exc)[:200], chain=chain, token=address[:16])
+        _record_module_error(r, "wallet_analysis", chain, str(exc))
 
 
 async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
@@ -169,10 +231,20 @@ async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
             r.modules_run.append("bundle_analysis")
             if bundle.get("result") == "scanned":
                 r.enrichment_sources.append("bundle_analysis:own")
+            else:
+                _record_module_unavailable(r, "bundle_analysis", chain, str(bundle.get("reason", "")))
+        else:
+            _record_module_error(
+                r,
+                "bundle_analysis",
+                chain,
+                str(bundle)[:200] if isinstance(bundle, BaseException) else "invalid result",
+            )
         if isinstance(same_slot, dict) and isinstance(r.bundle_analysis, dict):
             r.bundle_analysis["same_slot"] = same_slot
     except Exception as exc:
-        logger.debug("bundle_analysis_failed", error=str(exc)[:120])
+        logger.warning("bundle_analysis_failed", error=str(exc)[:200], chain=chain, token=address[:16])
+        _record_module_error(r, "bundle_analysis", chain, str(exc))
 
 
 #: First-buyers sample size per scan tier (2026-08-29 depth push — synced
@@ -201,5 +273,13 @@ async def run_first_buyers(r: ScanResult, address: str, chain: str, tier: str) -
             r.first_buyers = result
             r.modules_run.append("first_buyers")
             r.enrichment_sources.append("first_buyers:own")
+        else:
+            _record_module_unavailable(
+                r,
+                "first_buyers",
+                chain,
+                str((result or {}).get("reason", "")) if isinstance(result, dict) else "no buyer data",
+            )
     except Exception as exc:
-        logger.debug("first_buyers_failed", error=str(exc)[:120])
+        logger.warning("first_buyers_failed", error=str(exc)[:200], chain=chain, token=address[:16])
+        _record_module_error(r, "first_buyers", chain, str(exc))

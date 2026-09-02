@@ -194,6 +194,11 @@ class ScanResult:
     # Metadata
     modules_run: list[str] = field(default_factory=list)
     enrichment_sources: list[str] = field(default_factory=list)
+    # Structured error visibility (2026-09-02 hardening): every module that
+    # failed or degraded to "unavailable" appends
+    # ``{"module": ..., "chain": ..., "error": ...}`` here so the API
+    # consumer sees WHY own-data was missing — never silent again.
+    errors: list[dict[str, str]] = field(default_factory=list)
     tier: str = "free"
     scan_tier: str = "quick"  # "quick" | "deep" — which SENTINEL module set ran
     scan_duration_ms: float = 0.0

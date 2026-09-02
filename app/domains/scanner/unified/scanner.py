@@ -57,7 +57,11 @@ __all__ = [
 # plus the final result are published to Redis under
 # ``scanner:status:{chain}:{address}`` and polled by
 # ``GET /api/v2/scanner/token/scan/{chain}/{address}/status``.
-SCAN_HARD_TIMEOUT_S = float(os.getenv("SCAN_HARD_TIMEOUT_S", "25"))
+# 2026-09-02 hardening: default raised 25 → 60 to match the own-data query
+# timeout (_QUERY_TIMEOUT_SECONDS=60 in _funding_queries.py) — the old 25s
+# budget cancelled every own-data phase before its 60s queries could finish,
+# producing uniform ~25,001ms scans with 0 own-data and no visible reason.
+SCAN_HARD_TIMEOUT_S = float(os.getenv("SCAN_HARD_TIMEOUT_S", "60"))
 SCAN_STATUS_TTL = int(os.getenv("SCAN_STATUS_TTL", "900"))  # 15 min
 
 
@@ -348,11 +352,20 @@ class UnifiedTokenScanner:
             await asyncio.wait_for(asyncio.shield(bg_task), timeout=remaining)
             result.background_status = "complete"
         except TimeoutError:
-            logger.info(
-                "scan_background_deferred",
-                token=address[:16],
+            logger.warning(
+                "scanner_phase_timeout",
+                phase="background_phases",
                 chain=chain,
+                token=address[:16],
+                timeout_s=SCAN_HARD_TIMEOUT_S,
                 elapsed_s=round(time.monotonic() - start, 1),
+            )
+            result.errors.append(
+                {
+                    "module": "background_phases",
+                    "chain": chain,
+                    "error": f"timed out after {SCAN_HARD_TIMEOUT_S:.0f}s (deferred to background)",
+                }
             )
             result.background_status = "running"
 

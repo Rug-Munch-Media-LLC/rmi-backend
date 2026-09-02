@@ -603,7 +603,7 @@ async def compute_wallet_metrics(
     try:
         result = await _compute_wallet_metrics(token_address, chain_norm, holders)
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
-        logger.debug("wallet_metrics_query_failed: %s", exc)
+        logger.warning("wallet_metrics_query_failed", error=str(exc)[:200], chain=chain_norm, token=token_address[:16])
         result = _wallet_metrics_unavailable(token_address, chain_norm, reason=str(exc)[:120])
 
     if result.get("result") == "scanned":

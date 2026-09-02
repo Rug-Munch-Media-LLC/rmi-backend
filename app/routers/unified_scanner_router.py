@@ -292,6 +292,9 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "breakdown": result.breakdown,
         "evidence": result.evidence,
         "modules_run": result.modules_run,
+        # Structured error visibility (2026-09-02 hardening): WHY own-data
+        # modules are missing — each entry {module, chain, error}.
+        "errors": result.errors,
         "scan_duration_ms": result.scan_duration_ms,
         "tier": result.tier,
         "scanned_at": result.scanned_at,
