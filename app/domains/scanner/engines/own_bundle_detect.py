@@ -97,6 +97,7 @@ from app.domains.scanner.engines._own_bundle_common import (
     _QUERY_TIMEOUT_SECONDS,  # noqa: F401  (re-exported)
     _SIMILAR_AMOUNT_CV_BANDS,  # noqa: F401  (re-exported)
     _ch_client,
+    _new_ch_client,
     _normalize_chain,
 )
 from app.domains.scanner.engines._own_bundle_queries import (
@@ -191,10 +192,14 @@ async def get_own_bundle_analysis(
 
     try:
         # Run all queries in parallel
-        atomic_task = asyncio.create_task(run_sync(_query_atomic_blocks, token_address, chain))
-        funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain))
-        holder_task = asyncio.create_task(run_sync(_query_holder_concentration, token_address, chain))
-        launch_task = asyncio.create_task(run_sync(_query_launch_cluster, token_address, chain))
+        # Dedicated connections: the shared client rejects simultaneous
+        # queries, and these four run concurrently via run_sync.
+        atomic_task = asyncio.create_task(run_sync(_query_atomic_blocks, token_address, chain, _new_ch_client()))
+        funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain, _new_ch_client()))
+        holder_task = asyncio.create_task(run_sync(_query_holder_concentration, token_address, chain, _new_ch_client()))
+        launch_task = asyncio.create_task(
+            run_sync(_query_launch_cluster, token_address, chain, client=_new_ch_client())
+        )
 
         atomic_blocks, funders, holder_data, launch_cluster = await asyncio.gather(
             atomic_task,
@@ -330,8 +335,10 @@ async def detect_bundled_launch(
     }
 
     try:
-        cluster_task = asyncio.create_task(run_sync(_query_launch_cluster, token_address, chain))
-        funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain))
+        cluster_task = asyncio.create_task(
+            run_sync(_query_launch_cluster, token_address, chain, client=_new_ch_client())
+        )
+        funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain, _new_ch_client()))
 
         cluster, funders = await asyncio.gather(cluster_task, funder_task)
 
