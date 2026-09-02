@@ -37,6 +37,18 @@ logger = get_logger(__name__)
 # Query timeout shared with funding_analysis (time-boxed queries).
 _QUERY_TIMEOUT_SECONDS = 60  # 2026-08-26: 20s killed first-tx scans on 1.3B-row evm_transfers (Code 159); engine is async/best-effort so a slower correct answer beats "unavailable"
 
+# 2026-09-02 new-token fallback bounds: the evm_transfers UNION ALL fallback
+# only runs for tokens NOT in holder_balances (i.e. new tokens with few
+# transfers). max_rows_to_read counts rows READ, not the token's rows: the
+# 30-day window on a busy chain (base) spans 225-445M rows and GROWS daily,
+# so any fixed cap below the chain-wide window aborts queries that would
+# otherwise finish within the time budget (verified: 5M/50M/300M all hit
+# Code 158 on base). The cap is therefore set effectively inert (1B) and
+# max_execution_time=10 is the real guard — a slow fallback degrades to
+# empty instead of eating the scan's 120s phase budget.
+_FALLBACK_TIMEOUT_SECONDS = 10
+_FALLBACK_MAX_ROWS = 1_000_000_000
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CLICKHOUSE QUERIES (all sync, bounded by max_execution_time)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -127,7 +139,13 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
             LIMIT %(limit)s
             """,
                 {"token": token_address, "chain": chain, "limit": limit},
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                # 2026-09-02: bounded fallback — new tokens only (<5M rows
+                # expected); 10s cap so a slow UNION ALL degrades to empty
+                # instead of eating the scan's 120s phase budget.
+                settings={
+                    "max_execution_time": _FALLBACK_TIMEOUT_SECONDS,
+                    "max_rows_to_read": _FALLBACK_MAX_ROWS,
+                },
             ),
         )
     except (ValueError, RuntimeError, OSError) as exc:
@@ -616,7 +634,12 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
             LIMIT %(limit)s
             """,
                 {"token": token_address, "chain": chain, "limit": limit},
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                # 2026-09-02: bounded fallback — same rationale as the
+                # _query_top_holders fallback (new tokens only, 10s cap).
+                settings={
+                    "max_execution_time": _FALLBACK_TIMEOUT_SECONDS,
+                    "max_rows_to_read": _FALLBACK_MAX_ROWS,
+                },
             ),
         )
     except (ValueError, RuntimeError, OSError) as exc:

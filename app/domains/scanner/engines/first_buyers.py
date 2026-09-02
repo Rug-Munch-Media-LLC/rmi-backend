@@ -64,6 +64,13 @@ FIRST_BUYERS_LIMIT_DEEP = 250
 # token has more than this many recent transfers.
 _LARGE_TOKEN_RECENT_TRANSFERS = 100_000
 
+# 2026-09-02 new-token exemption: first buyers are CRITICAL for tokens
+# younger than this — even a busy new token must not be skipped by the
+# large-token guard. Token age comes from evm_launches (pair_created /
+# launchpad rows); when the launch ts is unknown, the guard applies as
+# before (fail-safe).
+_NEW_TOKEN_MAX_AGE_S = 24 * 3600
+
 # On-demand RPC budget (pump.fun path): signatures fetched + txs parsed per
 # mint. Bounded so a deep 250-wallet cohort stays within a few seconds.
 _RPC_SIG_LIMIT = 300
@@ -130,6 +137,32 @@ def _query_recent_transfer_count(token_address: str, chain: str) -> int | None:
         return int(rows[0][0] or 0) if rows else 0
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("first_buyers_transfer_count_failed: %s", exc)
+        return None
+
+
+def _query_token_launch_ts(token_address: str, chain: str) -> Any | None:
+    """Earliest launch timestamp for a token from evm_launches (or None).
+
+    Used by the large-token guard: a token launched <24h ago is exempt from
+    the skip — first buyers are the core rug signal for new tokens.
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT min(block_timestamp)
+            FROM wallet_memory.evm_launches
+            WHERE chain = %(chain)s
+              AND (token0 = %(token)s OR token1 = %(token)s)
+            """,
+            {"chain": chain, "token": token_address},
+            settings={"max_execution_time": _QUERY_TIMEOUT_S},
+        )
+        return rows[0][0] if rows and rows[0][0] is not None else None
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("first_buyers_launch_ts_failed: %s", exc)
         return None
 
 
@@ -520,9 +553,27 @@ async def get_first_buyers(address: str, chain: str, limit: int = FIRST_BUYERS_L
         # note instead of timing out.
         recent_count = await run_sync(_query_recent_transfer_count, address, chain_norm)
         if recent_count is not None and recent_count > _LARGE_TOKEN_RECENT_TRANSFERS:
-            note = f"token too large for first-buyers analysis (>{_LARGE_TOKEN_RECENT_TRANSFERS} recent transfers)"
-            logger.info("first_buyers_skipped_large_token", chain=chain_norm, recent_transfers=recent_count)
-            return {"result": "skipped", "note": note, "reason": note}
+            # New-token exemption (2026-09-02): a token launched <24h ago is
+            # NEVER skipped — first buyers are the core rug signal for new
+            # tokens, and the 7-day window + 50M row cap already bound the
+            # query. Unknown launch ts → guard applies (fail-safe).
+            launch_ts = await run_sync(_query_token_launch_ts, address, chain_norm)
+            is_new_token = False
+            if launch_ts is not None:
+                try:
+                    is_new_token = (datetime.now(UTC) - launch_ts).total_seconds() < _NEW_TOKEN_MAX_AGE_S
+                except (TypeError, ValueError, AttributeError):
+                    is_new_token = False
+            if not is_new_token:
+                note = f"token too large for first-buyers analysis (>{_LARGE_TOKEN_RECENT_TRANSFERS} recent transfers)"
+                logger.info("first_buyers_skipped_large_token", chain=chain_norm, recent_transfers=recent_count)
+                return {"result": "skipped", "note": note, "reason": note}
+            logger.info(
+                "first_buyers_new_token_exempt",
+                chain=chain_norm,
+                recent_transfers=recent_count,
+                launch_ts=str(launch_ts),
+            )
         rows = await run_sync(_query_first_buyers_evm, address, chain_norm, limit)
         births = (
             await run_sync(
