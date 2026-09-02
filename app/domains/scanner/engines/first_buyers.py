@@ -172,7 +172,13 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
             {"chain": chain, "token": token_address, "limit": int(limit)},
             settings={
                 "max_execution_time": 15,
-                "max_rows_to_read": 100_000,
+                # 2026-09-02: raised 100K → 50M. The limit counts rows READ,
+                # not rows returned: the 7-day window on a busy chain (base)
+                # spans ~20M rows even for a token with 29 transfers, so the
+                # old cap aborted every fresh EVM meme token with
+                # TOO_MANY_ROWS. max_execution_time=15 remains the real
+                # guard against stalls.
+                "max_rows_to_read": 50_000_000,
             },
         )
     except (ValueError, RuntimeError, OSError) as exc:
