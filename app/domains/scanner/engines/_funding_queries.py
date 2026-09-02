@@ -114,6 +114,53 @@ def _query_first_funders(holders: list[str], chain: str) -> list[tuple[Any, ...]
     client = _get_ch_client()
     if client is None or not holders:
         return None
+    if chain == "solana":
+        # Solana SPL balance changes: the funder is the owner with a
+        # negative delta in the holder's first incoming tx (same tx_hash).
+        try:
+            return cast(
+                "list[tuple[Any, ...]] | None",
+                client.execute(
+                    """
+                SELECT
+                    h.holder,
+                    argMin(f.owner, f.block_timestamp) AS funder,
+                    h.first_tx,
+                    h.first_ts
+                FROM (
+                    SELECT
+                        owner AS holder,
+                        argMin(tx_hash, block_timestamp) AS first_tx,
+                        min(block_timestamp) AS first_ts
+                    FROM wallet_memory.solana_spl_balance_changes
+                    WHERE owner IN %(holders)s
+                      AND toFloat64OrZero(delta) > 0
+                      AND owner != ''
+                    GROUP BY owner
+                ) AS h
+                LEFT JOIN (
+                    SELECT tx_hash, owner, block_timestamp
+                    FROM wallet_memory.solana_spl_balance_changes
+                    WHERE toFloat64OrZero(delta) < 0
+                      AND owner != ''
+                      AND tx_hash IN (
+                          SELECT argMin(tx_hash, block_timestamp)
+                          FROM wallet_memory.solana_spl_balance_changes
+                          WHERE owner IN %(holders)s
+                            AND toFloat64OrZero(delta) > 0
+                            AND owner != ''
+                          GROUP BY owner
+                      )
+                ) AS f ON f.tx_hash = h.first_tx
+                GROUP BY h.holder, h.first_tx, h.first_ts
+                """,
+                    {"holders": tuple(holders)},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                ),
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.debug("funding_first_funders_query_failed: %s", exc)
+            return None
     try:
         return cast(
             "list[tuple[Any, ...]] | None",
@@ -145,6 +192,39 @@ def _query_funder_tx_counts(funders: list[str], chain: str) -> list[tuple[Any, .
     client = _get_ch_client()
     if client is None or not funders:
         return None
+    if chain == "solana":
+        # Solana: distinct txs where the owner sent (delta < 0) or
+        # received (delta > 0) any SPL token.
+        try:
+            return cast(
+                "list[tuple[Any, ...]] | None",
+                client.execute(
+                    """
+                SELECT addr, sum(cnt) AS total
+                FROM (
+                    SELECT owner AS addr, uniqExact(tx_hash) AS cnt
+                    FROM wallet_memory.solana_spl_balance_changes
+                    WHERE owner IN %(funders)s
+                      AND toFloat64OrZero(delta) < 0
+                      AND owner != ''
+                    GROUP BY owner
+                    UNION ALL
+                    SELECT owner AS addr, uniqExact(tx_hash) AS cnt
+                    FROM wallet_memory.solana_spl_balance_changes
+                    WHERE owner IN %(funders)s
+                      AND toFloat64OrZero(delta) > 0
+                      AND owner != ''
+                    GROUP BY owner
+                )
+                GROUP BY addr
+                """,
+                    {"funders": tuple(funders)},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                ),
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.debug("funding_funder_tx_counts_failed: %s", exc)
+            return None
     try:
         return cast(
             "list[tuple[Any, ...]] | None",
@@ -237,6 +317,21 @@ def _query_token_coverage_start(token_address: str, chain: str) -> datetime | No
     client = _get_ch_client()
     if client is None:
         return None
+    if chain == "solana":
+        try:
+            rows = client.execute(
+                """
+                SELECT min(block_timestamp)
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE mint = %(token)s
+                """,
+                {"token": token_address},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
+            return rows[0][0] if rows and rows[0][0] is not None else None
+        except (ValueError, RuntimeError, OSError):
+            logger.debug("token_coverage_start_query_failed: %s", token_address[:12])
+            return None
     try:
         rows = client.execute(
             """
@@ -309,6 +404,31 @@ def _query_holder_first_tx_in(
     client = client or _get_ch_client()
     if client is None or not holders:
         return None
+    if chain == "solana":
+        # Solana: first incoming SPL token receipt per owner (any mint).
+        try:
+            return cast(
+                "list[tuple[Any, ...]] | None",
+                client.execute(
+                    """
+                SELECT
+                    owner AS addr,
+                    argMin(block_timestamp, block_timestamp) AS first_ts,
+                    argMin(mint, block_timestamp) AS first_token,
+                    argMin(tx_hash, block_timestamp) AS first_tx_hash
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE owner IN %(holders)s
+                  AND toFloat64OrZero(delta) > 0
+                  AND owner != ''
+                GROUP BY owner
+                """,
+                    {"holders": tuple(holders)},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                ),
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.debug("holder_first_tx_in_query_failed: %s", exc)
+            return None
     try:
         return cast(
             "list[tuple[Any, ...]] | None",
@@ -342,6 +462,31 @@ def _query_holder_first_tx_out(
     client = client or _get_ch_client()
     if client is None or not holders:
         return None
+    if chain == "solana":
+        # Solana: first outgoing SPL token send per owner (any mint).
+        try:
+            return cast(
+                "list[tuple[Any, ...]] | None",
+                client.execute(
+                    """
+                SELECT
+                    owner AS addr,
+                    argMin(block_timestamp, block_timestamp) AS first_ts,
+                    argMin(mint, block_timestamp) AS first_token,
+                    argMin(tx_hash, block_timestamp) AS first_tx_hash
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE owner IN %(holders)s
+                  AND toFloat64OrZero(delta) < 0
+                  AND owner != ''
+                GROUP BY owner
+                """,
+                    {"holders": tuple(holders)},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                ),
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.debug("holder_first_tx_out_query_failed: %s", exc)
+            return None
     try:
         return cast(
             "list[tuple[Any, ...]] | None",

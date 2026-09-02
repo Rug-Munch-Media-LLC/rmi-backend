@@ -128,7 +128,15 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
             r.wallet_metrics = metrics
 
         r.modules_run.extend(["funding_analysis", "wallet_freshness", "holder_overlap", "wallet_metrics"])
-        r.enrichment_sources.append("wallet_analysis:own")
+        # Honest data_sources counting (2026-09-02): only credit own data when
+        # at least ONE of the 4 wallet metrics actually returned "scanned" —
+        # a ClickHouse outage leaves every metric "unavailable" and the module
+        # served nothing.
+        scanned = any(
+            isinstance(m, dict) and m.get("result") == "scanned" for m in (funding, freshness, overlap, metrics)
+        )
+        if scanned:
+            r.enrichment_sources.append("wallet_analysis:own")
     except Exception as exc:
         logger.debug("wallet_analysis_failed", error=str(exc)[:120])
 
