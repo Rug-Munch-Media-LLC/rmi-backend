@@ -326,6 +326,12 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "wallet_freshness": result.wallet_freshness,
         "holder_overlap": result.holder_overlap,
         "first_buyers": result.first_buyers,
+        # Phanes-parity token metrics (2026-09-02): dev-sold status,
+        # DEX-paid status, ATH/current/1h price, launch-sniper count.
+        "dev_sold": result.dev_sold,
+        "dex_paid": result.dex_paid,
+        "price_metrics": result.price_metrics,
+        "sniper_count": result.sniper_count,
         # v2 structured RiskReport (unified/risk_report.py — Phase 5b): the
         # ~30-factor explainable report + beyond-market wallet-cluster graph
         # (8-leg risk_cluster engine) serialized for thin clients (bot +

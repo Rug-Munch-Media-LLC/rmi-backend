@@ -33,6 +33,7 @@ from app.domains.scanner.unified._merge_helpers import merge_core
 from app.domains.scanner.unified._phase_helpers import (
     run_bundle_analysis,
     run_first_buyers,
+    run_token_metrics,
     run_wallet_analysis,
 )
 from app.domains.scanner.unified.deep_profile import collect_deep_profile
@@ -433,6 +434,12 @@ class UnifiedTokenScanner:
             # ── Phase 2c: Bundle-launch detection (own ClickHouse data, free) ──
             # Coordinated sniper/bot buys in the first blocks after deployment.
             await self._detect_bundled_launch(result, address, chain)
+
+            # ── Phase 2c-2: Phanes-parity token metrics (own data, free) ──
+            # dev_sold / dex_paid / ATH+1h price / sniper count, all four
+            # engines in parallel. Runs after bundle detection so the
+            # launch block is already resolved for the sniper engine.
+            await run_token_metrics(result, address, chain)
 
             # ── Phase 3: Premium (tier-gated — elite/admin only) ──
             if tier in ("elite", "admin"):
