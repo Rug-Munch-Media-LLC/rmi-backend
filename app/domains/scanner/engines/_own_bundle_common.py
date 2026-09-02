@@ -57,6 +57,35 @@ def _normalize_chain(chain: str) -> str:
     return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
+def _new_ch_client() -> Any | None:
+    """Dedicated ClickHouse connection for concurrent query paths.
+
+    The shared singleton rejects simultaneous queries; callers that run
+    multiple ``_query_*`` helpers concurrently (asyncio.gather via
+    ``run_sync``) must hand each one its own connection — same pattern as
+    ``_io._compute_wallet_metrics``.
+    """
+    ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
+    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT") or "9000")
+    ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
+    ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
+    try:
+        from clickhouse_driver import Client as CHClient
+
+        return CHClient(
+            host=ch_host,
+            port=ch_port,
+            user=ch_user,
+            password=ch_pass,
+            database="wallet_memory",
+            connect_timeout=3,
+            send_receive_timeout=15,
+        )
+    except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError) as e:
+        logger.warning("Own bundle detect dedicated ClickHouse client unavailable: %s", e)
+        return None
+
+
 def _get_ch_client() -> Any | None:
     """Lazy-init ClickHouse native protocol client."""
     global _ch_client

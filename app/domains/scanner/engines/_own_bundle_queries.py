@@ -34,6 +34,7 @@ logger = get_logger(__name__)
 def _query_atomic_blocks(
     token_address: str,
     chain: str,
+    client: Any | None = None,
 ) -> list[dict[str, Any]] | None:
     """Query for blocks where multiple wallets bought the token.
 
@@ -42,32 +43,52 @@ def _query_atomic_blocks(
 
     Returns: [{"block_number": int, "buyer_count": int, "buy_count": int}, ...]
     """
-    client = _get_ch_client()
+    client = client or _get_ch_client()
     if client is None:
         return None
 
     try:
-        rows = client.execute(
-            """
-            SELECT
-                block_number,
-                uniqExact(from_address) AS buyer_count,
-                count() AS total_buys
-            FROM wallet_memory.evm_transfers
-            WHERE token_address = %(token)s
-              AND chain = %(chain)s
-              AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                      '0x000000000000000000000000000000000000dead')
-              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                        '0x000000000000000000000000000000000000dead')
-              AND block_timestamp >= now() - INTERVAL 7 DAY
-            GROUP BY block_number
-            HAVING buyer_count >= 3
-            ORDER BY buyer_count DESC
-            LIMIT 20
-            """,
-            {"token": token_address, "chain": chain},
-        )
+        if chain == "solana":
+            rows = client.execute(
+                """
+                SELECT
+                    slot AS block_number,
+                    uniqExact(owner) AS buyer_count,
+                    count() AS total_buys
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE mint = %(token)s
+                  AND toFloat64OrZero(delta) > 0
+                  AND owner != ''
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
+                GROUP BY slot
+                HAVING buyer_count >= 3
+                ORDER BY buyer_count DESC
+                LIMIT 20
+                """,
+                {"token": token_address},
+            )
+        else:
+            rows = client.execute(
+                """
+                SELECT
+                    block_number,
+                    uniqExact(from_address) AS buyer_count,
+                    count() AS total_buys
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                          '0x000000000000000000000000000000000000dead')
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                            '0x000000000000000000000000000000000000dead')
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
+                GROUP BY block_number
+                HAVING buyer_count >= 3
+                ORDER BY buyer_count DESC
+                LIMIT 20
+                """,
+                {"token": token_address, "chain": chain},
+            )
 
         if not rows:
             return None
@@ -97,6 +118,7 @@ def _query_atomic_blocks(
 def _query_common_funders(
     token_address: str,
     chain: str,
+    client: Any | None = None,
 ) -> list[dict[str, Any]] | None:
     """Query for common funding sources among buyers.
 
@@ -105,25 +127,39 @@ def _query_common_funders(
 
     Returns: [{"funder": str, "funded_count": int, "funded_addresses": [str]}]
     """
-    client = _get_ch_client()
+    client = client or _get_ch_client()
     if client is None:
         return None
 
     try:
         # First, get all buyers of this token
-        buyers_rows = client.execute(
-            """
-            SELECT DISTINCT from_address
-            FROM wallet_memory.evm_transfers
-            WHERE token_address = %(token)s
-              AND chain = %(chain)s
-              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                        '0x000000000000000000000000000000000000dead')
-              AND block_timestamp >= now() - INTERVAL 7 DAY
-            LIMIT 200
-            """,
-            {"token": token_address, "chain": chain},
-        )
+        if chain == "solana":
+            buyers_rows = client.execute(
+                """
+                SELECT DISTINCT owner
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE mint = %(token)s
+                  AND toFloat64OrZero(delta) > 0
+                  AND owner != ''
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
+                LIMIT 200
+                """,
+                {"token": token_address},
+            )
+        else:
+            buyers_rows = client.execute(
+                """
+                SELECT DISTINCT from_address
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                            '0x000000000000000000000000000000000000dead')
+                  AND block_timestamp >= now() - INTERVAL 7 DAY
+                LIMIT 200
+                """,
+                {"token": token_address, "chain": chain},
+            )
 
         if not buyers_rows or len(buyers_rows) < 3:
             return None
@@ -132,33 +168,57 @@ def _query_common_funders(
 
         # Now find who funded these buyers (they received native token from a funder)
         if chain == "solana":
-            # Solana uses native_transfers table if available, otherwise skip
-            return None
-
-        # For EVM: find common senders to these buyers
-        funder_rows = client.execute(
-            """
-            SELECT
-                from_address AS funder,
-                uniqExact(to_address) AS funded_count,
-                groupUniqArray(to_address) AS funded_addresses_sample
-            FROM wallet_memory.evm_transfers
-            WHERE token_address = '0x0000000000000000000000000000000000000000'
-              AND chain = %(chain)s
-              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                        '0x000000000000000000000000000000000000dead',
-                                        '0xdead000000000000000000000000000000000000')
-              AND to_address IN %(buyers)s
-              AND block_timestamp >= now() - INTERVAL 14 DAY
-              AND block_timestamp <= now() - INTERVAL 1 HOUR
-              AND value > '0'
-            GROUP BY funder
-            HAVING funded_count >= 2
-            ORDER BY funded_count DESC
-            LIMIT 10
-            """,
-            {"chain": chain, "buyers": buyer_addresses},
-        )
+            # Solana: a funder is the owner with a negative delta in the
+            # same tx (same tx_hash + mint) that credited the buyers.
+            funder_rows = client.execute(
+                """
+                SELECT
+                    f.owner AS funder,
+                    uniqExact(b.owner) AS funded_count,
+                    groupUniqArray(b.owner) AS funded_addresses_sample
+                FROM wallet_memory.solana_spl_balance_changes AS b
+                INNER JOIN wallet_memory.solana_spl_balance_changes AS f
+                    ON f.tx_hash = b.tx_hash AND f.mint = b.mint
+                WHERE b.owner IN %(buyers)s
+                  AND toFloat64OrZero(b.delta) > 0
+                  AND toFloat64OrZero(f.delta) < 0
+                  AND f.owner != ''
+                  AND f.owner != b.owner
+                  AND b.block_timestamp >= now() - INTERVAL 14 DAY
+                  AND b.block_timestamp <= now() - INTERVAL 1 HOUR
+                  AND f.block_timestamp >= now() - INTERVAL 14 DAY
+                GROUP BY f.owner
+                HAVING funded_count >= 2
+                ORDER BY funded_count DESC
+                LIMIT 10
+                """,
+                {"buyers": buyer_addresses},
+            )
+        else:
+            # For EVM: find common senders to these buyers
+            funder_rows = client.execute(
+                """
+                SELECT
+                    from_address AS funder,
+                    uniqExact(to_address) AS funded_count,
+                    groupUniqArray(to_address) AS funded_addresses_sample
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = '0x0000000000000000000000000000000000000000'
+                  AND chain = %(chain)s
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                            '0x000000000000000000000000000000000000dead',
+                                            '0xdead000000000000000000000000000000000000')
+                  AND to_address IN %(buyers)s
+                  AND block_timestamp >= now() - INTERVAL 14 DAY
+                  AND block_timestamp <= now() - INTERVAL 1 HOUR
+                  AND value > '0'
+                GROUP BY funder
+                HAVING funded_count >= 2
+                ORDER BY funded_count DESC
+                LIMIT 10
+                """,
+                {"chain": chain, "buyers": buyer_addresses},
+            )
 
         if not funder_rows:
             return None
@@ -189,6 +249,7 @@ def _query_common_funders(
 def _query_holder_concentration(
     token_address: str,
     chain: str,
+    client: Any | None = None,
 ) -> dict[str, Any] | None:
     """Query holder concentration data.
 
@@ -200,41 +261,58 @@ def _query_holder_concentration(
         "holder_count": int,
     }
     """
-    client = _get_ch_client()
+    client = client or _get_ch_client()
     if client is None:
         return None
 
     try:
-        rows = client.execute(
-            """
-            SELECT
-                addr,
-                sum(net) AS balance
-            FROM (
+        if chain == "solana":
+            rows = client.execute(
+                """
                 SELECT
-                    to_address AS addr,
-                    toFloat64OrZero(value) AS net
-                FROM wallet_memory.evm_transfers
-                WHERE token_address = %(token)s
-                  AND chain = %(chain)s
-                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
-                UNION ALL
-                SELECT
-                    from_address AS addr,
-                    -toFloat64OrZero(value) AS net
-                FROM wallet_memory.evm_transfers
-                WHERE token_address = %(token)s
-                  AND chain = %(chain)s
-                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                    owner AS addr,
+                    sum(toFloat64OrZero(delta)) AS balance
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE mint = %(token)s
+                  AND owner != ''
+                GROUP BY owner
+                HAVING balance > 0
+                ORDER BY balance DESC
+                LIMIT 50
+                """,
+                {"token": token_address},
             )
-            WHERE addr != ''
-            GROUP BY addr
-            HAVING balance > 0
-            ORDER BY balance DESC
-            LIMIT 50
-            """,
-            {"token": token_address, "chain": chain},
-        )
+        else:
+            rows = client.execute(
+                """
+                SELECT
+                    addr,
+                    sum(net) AS balance
+                FROM (
+                    SELECT
+                        to_address AS addr,
+                        toFloat64OrZero(value) AS net
+                    FROM wallet_memory.evm_transfers
+                    WHERE token_address = %(token)s
+                      AND chain = %(chain)s
+                      AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                    UNION ALL
+                    SELECT
+                        from_address AS addr,
+                        -toFloat64OrZero(value) AS net
+                    FROM wallet_memory.evm_transfers
+                    WHERE token_address = %(token)s
+                      AND chain = %(chain)s
+                      AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                )
+                WHERE addr != ''
+                GROUP BY addr
+                HAVING balance > 0
+                ORDER BY balance DESC
+                LIMIT 50
+                """,
+                {"token": token_address, "chain": chain},
+            )
 
         if not rows:
             return None
@@ -275,6 +353,7 @@ def _query_launch_cluster(
     token_address: str,
     chain: str,
     window_blocks: int = _LAUNCH_WINDOW_BLOCKS,
+    client: Any | None = None,
 ) -> dict[str, Any] | None:
     """Query launch-window buy cluster data for a token.
 
@@ -296,7 +375,7 @@ def _query_launch_cluster(
         "cluster_blocks": [{"block_number": int, "buyer_count": int}],
     }
     """
-    client = _get_ch_client()
+    client = client or _get_ch_client()
     if client is None:
         return None
 
@@ -304,35 +383,47 @@ def _query_launch_cluster(
         # ── 1. Deploy block (deployer_events first appearance) ──
         deploy_block: int | None = None
         deployer: str | None = None
-        deploy_rows = client.execute(
-            """
-            SELECT block_number, deployer
-            FROM wallet_memory.deployer_events
-            WHERE token_address = %(token)s
-              AND chain = %(chain)s
-              AND block_number > 0
-            ORDER BY block_number ASC
-            LIMIT 1
-            """,
-            {"token": token_address, "chain": chain},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-        if deploy_rows and deploy_rows[0]:
-            deploy_block = int(deploy_rows[0][0] or 0)
-            deployer = _norm_addr(str(deploy_rows[0][1] or ""), chain) or None
-
-        # ── 1b. Fallback: first transfer block ──
-        if not deploy_block:
-            min_rows = client.execute(
+        if chain != "solana":
+            deploy_rows = client.execute(
                 """
-                SELECT min(block_number)
-                FROM wallet_memory.evm_transfers
+                SELECT block_number, deployer
+                FROM wallet_memory.deployer_events
                 WHERE token_address = %(token)s
                   AND chain = %(chain)s
+                  AND block_number > 0
+                ORDER BY block_number ASC
+                LIMIT 1
                 """,
                 {"token": token_address, "chain": chain},
                 settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
             )
+            if deploy_rows and deploy_rows[0]:
+                deploy_block = int(deploy_rows[0][0] or 0)
+                deployer = _norm_addr(str(deploy_rows[0][1] or ""), chain) or None
+
+        # ── 1b. Fallback: first transfer block ──
+        if not deploy_block:
+            if chain == "solana":
+                min_rows = client.execute(
+                    """
+                    SELECT min(slot)
+                    FROM wallet_memory.solana_spl_balance_changes
+                    WHERE mint = %(token)s
+                    """,
+                    {"token": token_address},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                )
+            else:
+                min_rows = client.execute(
+                    """
+                    SELECT min(block_number)
+                    FROM wallet_memory.evm_transfers
+                    WHERE token_address = %(token)s
+                      AND chain = %(chain)s
+                    """,
+                    {"token": token_address, "chain": chain},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                )
             if min_rows and min_rows[0] and min_rows[0][0]:
                 deploy_block = int(min_rows[0][0])
 
@@ -343,29 +434,51 @@ def _query_launch_cluster(
         end_block = deploy_block + max(0, window_blocks - 1)
 
         # ── 2. Launch-window buys grouped by wallet ──
-        buy_rows = client.execute(
-            """
-            SELECT
-                from_address AS buyer,
-                block_number,
-                count() AS buy_count,
-                sum(toFloat64OrZero(value)) AS amount
-            FROM wallet_memory.evm_transfers
-            WHERE token_address = %(token)s
-              AND chain = %(chain)s
-              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                        '0x000000000000000000000000000000000000dead')
-              AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                        '0x000000000000000000000000000000000000dead')
-              AND block_number >= %(start)s
-              AND block_number <= %(end)s
-            GROUP BY from_address, block_number
-            ORDER BY block_number ASC
-            LIMIT 300
-            """,
-            {"token": token_address, "chain": chain, "start": start_block, "end": end_block},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
+        if chain == "solana":
+            buy_rows = client.execute(
+                """
+                SELECT
+                    owner AS buyer,
+                    slot AS block_number,
+                    uniqExact(tx_hash) AS buy_count,
+                    sum(toFloat64OrZero(delta)) AS amount
+                FROM wallet_memory.solana_spl_balance_changes
+                WHERE mint = %(token)s
+                  AND toFloat64OrZero(delta) > 0
+                  AND owner != ''
+                  AND slot >= %(start)s
+                  AND slot <= %(end)s
+                GROUP BY owner, slot
+                ORDER BY slot ASC
+                LIMIT 300
+                """,
+                {"token": token_address, "start": start_block, "end": end_block},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
+        else:
+            buy_rows = client.execute(
+                """
+                SELECT
+                    from_address AS buyer,
+                    block_number,
+                    count() AS buy_count,
+                    sum(toFloat64OrZero(value)) AS amount
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                            '0x000000000000000000000000000000000000dead')
+                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                            '0x000000000000000000000000000000000000dead')
+                  AND block_number >= %(start)s
+                  AND block_number <= %(end)s
+                GROUP BY from_address, block_number
+                ORDER BY block_number ASC
+                LIMIT 300
+                """,
+                {"token": token_address, "chain": chain, "start": start_block, "end": end_block},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
 
         if not buy_rows:
             return {"deploy_block": deploy_block, "launch_buyers": [], "cluster_blocks": []}
@@ -375,31 +488,56 @@ def _query_launch_cluster(
         # ── 3. Per-buyer first-ever tx (any token, in/out) — prior-history check ──
         first_tx_map: dict[str, str] = {}
         if buyers:
-            first_rows = client.execute(
-                """
-                SELECT
-                    addr,
-                    argMin(token_address, block_timestamp) AS first_token
-                FROM (
-                    SELECT to_address AS addr, token_address, block_timestamp
-                    FROM wallet_memory.evm_transfers
-                    WHERE chain = %(chain)s
-                      AND to_address IN %(buyers)s
-                      AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                                '0x000000000000000000000000000000000000dead')
-                    UNION ALL
-                    SELECT from_address AS addr, token_address, block_timestamp
-                    FROM wallet_memory.evm_transfers
-                    WHERE chain = %(chain)s
-                      AND from_address IN %(buyers)s
-                      AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                                '0x000000000000000000000000000000000000dead')
+            if chain == "solana":
+                first_rows = client.execute(
+                    """
+                    SELECT
+                        addr,
+                        argMin(mint, block_timestamp) AS first_token
+                    FROM (
+                        SELECT owner AS addr, mint, block_timestamp
+                        FROM wallet_memory.solana_spl_balance_changes
+                        WHERE owner IN %(buyers)s
+                          AND toFloat64OrZero(delta) > 0
+                          AND owner != ''
+                        UNION ALL
+                        SELECT owner AS addr, mint, block_timestamp
+                        FROM wallet_memory.solana_spl_balance_changes
+                        WHERE owner IN %(buyers)s
+                          AND toFloat64OrZero(delta) < 0
+                          AND owner != ''
+                    )
+                    GROUP BY addr
+                    """,
+                    {"buyers": tuple(buyers)},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
                 )
-                GROUP BY addr
-                """,
-                {"buyers": tuple(buyers), "chain": chain},
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-            )
+            else:
+                first_rows = client.execute(
+                    """
+                    SELECT
+                        addr,
+                        argMin(token_address, block_timestamp) AS first_token
+                    FROM (
+                        SELECT to_address AS addr, token_address, block_timestamp
+                        FROM wallet_memory.evm_transfers
+                        WHERE chain = %(chain)s
+                          AND to_address IN %(buyers)s
+                          AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                                    '0x000000000000000000000000000000000000dead')
+                        UNION ALL
+                        SELECT from_address AS addr, token_address, block_timestamp
+                        FROM wallet_memory.evm_transfers
+                        WHERE chain = %(chain)s
+                          AND from_address IN %(buyers)s
+                          AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                                    '0x000000000000000000000000000000000000dead')
+                    )
+                    GROUP BY addr
+                    """,
+                    {"buyers": tuple(buyers), "chain": chain},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                )
             for row in first_rows or []:
                 if row and row[0]:
                     first_tx_map[_norm_addr(str(row[0]), chain)] = _norm_addr(str(row[1] or ""), chain)

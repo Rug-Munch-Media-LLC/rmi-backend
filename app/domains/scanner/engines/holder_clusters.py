@@ -418,7 +418,11 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
         "confidence": confidence,
         "deployer": deployer,
         "active_24h": bool(is_active),
-        "note": "holder balances computed from evm_transfers deltas (sum in - sum out)",
+        "note": (
+            "holder balances computed from solana_spl_balance_changes deltas (sum of delta)"
+            if chain == "solana"
+            else "holder balances computed from evm_transfers deltas (sum in - sum out)"
+        ),
     }
 
 
@@ -434,6 +438,8 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
     ``_MAX_TRANSFERS_SCAN`` rows so huge token tables (1B+ rows) return a
     bounded top-N result instead of timing out under max_execution_time.
     """
+    if chain == "solana":
+        return _query_holder_balances_solana(token_address)
     client = _get_ch_client()
     if client is None:
         return None
@@ -483,12 +489,48 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
         return None
 
 
+def _query_holder_balances_solana(mint: str) -> list[tuple[Any, ...]] | None:
+    """Net balance per owner wallet from SPL balance deltas (Solana branch).
+
+    ``solana_spl_balance_changes`` stores per-tx deltas (``delta`` column —
+    see lite-chain-indexer migration 006; the legacy ``amount`` column does
+    not exist). Summing deltas per owner yields the current balance, same
+    row shape as the EVM path (addr, balance) so the cluster math is shared.
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT
+                owner AS addr,
+                sum(toFloat64OrZero(delta)) AS balance
+            FROM wallet_memory.solana_spl_balance_changes
+            WHERE mint = %(token)s
+              AND owner != ''
+            GROUP BY addr
+            HAVING balance > 0
+            ORDER BY balance DESC
+            LIMIT %(limit)s
+            """,
+            {"token": mint, "limit": _MAX_HOLDERS},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        return cast("list[tuple[Any, ...]] | None", rows)
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("holder_balances_solana_query_failed: %s", exc)
+        return None
+
+
 def _query_first_in_transfers(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
     """First in-transfer per holder — funder, evidence tx, block, timestamp.
 
     The scan is bounded to the ``_MAX_TRANSFERS_SCAN`` most-recent in-transfers
     so large token tables do not time out under max_execution_time.
     """
+    if chain == "solana":
+        return None  # funder clustering is EVM-only (evm_transfers)
     client = _get_ch_client()
     if client is None:
         return None
@@ -534,6 +576,8 @@ def _query_first_buy_blocks(token_address: str, chain: str) -> list[tuple[Any, .
     The dex_events scan is bounded to the ``_MAX_TRANSFERS_SCAN`` most-recent
     swap rows so large token tables do not time out under max_execution_time.
     """
+    if chain == "solana":
+        return None  # dex_events first-buy blocks are EVM-only
     client = _get_ch_client()
     if client is None:
         return None
@@ -575,6 +619,8 @@ def _query_first_buy_blocks(token_address: str, chain: str) -> list[tuple[Any, .
 
 def _query_deploy_info(token_address: str, chain: str) -> dict[str, Any] | None:
     """Deployer + deploy block/ts from deployer_events (earliest row)."""
+    if chain == "solana":
+        return None  # deployer_events is EVM-only
     client = _get_ch_client()
     if client is None:
         return None
@@ -616,16 +662,26 @@ def _query_is_active(token_address: str, chain: str) -> bool:
     client = _get_ch_client()
     if client is None:
         return False
-    try:
-        rows = client.execute(
+    if chain == "solana":
+        sql = """
+            SELECT 1
+            FROM wallet_memory.solana_spl_balance_changes
+            WHERE mint = %(token)s
+              AND block_timestamp >= now() - INTERVAL 24 HOUR
+            LIMIT 1
             """
+    else:
+        sql = """
             SELECT 1
             FROM wallet_memory.evm_transfers
             WHERE token_address = %(token)s
               AND chain = %(chain)s
               AND block_timestamp >= now() - INTERVAL 24 HOUR
             LIMIT 1
-            """,
+            """
+    try:
+        rows = client.execute(
+            sql,
             {"token": token_address, "chain": chain},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
