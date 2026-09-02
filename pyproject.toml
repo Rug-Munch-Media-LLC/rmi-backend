@@ -171,6 +171,12 @@ ignore = ["ASYNC109"]
 "app/domains/scanner/engines/_sources.py" = ['S608']
 # News-event-to-price correlation: same pattern — parameterized values, trusted internal traffic
 "app/domains/scanner/engines/event_correlation.py" = ['S608']
+# Phanes-parity token metrics (2026-09-02): internal-constant f-string SQL —
+# parameterized values, trusted internal traffic (same contract as the engines above)
+"app/domains/scanner/engines/dev_sold.py" = ['S608']
+"app/domains/scanner/engines/dex_paid.py" = ['S608']
+"app/domains/scanner/engines/price_metrics.py" = ['S608']
+"app/domains/scanner/engines/sniper_detect.py" = ['S608']
 # x402 enrichment label lookup: placeholders only, values always bound via ch.execute params
 "app/routers/x402_enrichment/labels.py" = ['S608']
 # Pre-existing: internal-constant f-string SQL in volume authenticity (sanitized, trusted internal traffic)

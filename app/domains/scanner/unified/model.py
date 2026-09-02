@@ -142,6 +142,14 @@ class ScanResult:
     # top-25 on quick scans, top-200 on deep/elite.
     first_buyers: dict[str, Any] | None = None
 
+    # Phanes-parity token metrics (2026-09-02 — engines/dev_sold.py,
+    # dex_paid.py, price_metrics.py, sniper_detect.py): dev-sold status,
+    # DEX-paid status, ATH/current/1h price, launch-sniper count.
+    dev_sold: dict[str, Any] | None = None
+    dex_paid: dict[str, Any] | None = None
+    price_metrics: dict[str, Any] | None = None
+    sniper_count: dict[str, Any] | None = None
+
     # News-event-to-price correlation (own-data engine — event_correlation.py)
     event_correlation: dict[str, Any] | None = None  # which news events moved the price
 
