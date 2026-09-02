@@ -1,7 +1,8 @@
 """
 Cross-Encoder Reranker Module
 
-Local cross-encoder reranker using BAAI/bge-reranker-v2-m3 for CPU inference.
+Local cross-encoder reranker using Qwen/Qwen3-Reranker-4B (the same model served
+by the local llama.cpp lane on :8003) for CPU inference.
 Part of a 3-stage RAG pipeline: vector search (stage 1) -> cross-encoder (stage 2) -> LLM reranking (stage 3).
 
 Uses sentence-transformers CrossEncoder for batched scoring and combines
@@ -23,7 +24,7 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-_MODEL_NAME = "BAAI/bge-reranker-v2-m3"
+_MODEL_NAME = "Qwen/Qwen3-Reranker-4B"
 _INFERENCE_TIMEOUT_SECS = 10
 _CROSS_ENCODER_WEIGHT = 0.6
 _VECTOR_SIM_WEIGHT = 0.4
@@ -55,7 +56,7 @@ def _min_max_normalize(scores: list[float]) -> list[float]:
 
 
 class CrossEncoderReranker:
-    """Cross-encoder reranker powered by BAAI/bge-reranker-v2-m3.
+    """Cross-encoder reranker powered by Qwen/Qwen3-Reranker-4B.
 
     Lazy-loads the model on first use (or via ``warm_up()``).
     Use ``get_reranker()`` to obtain the singleton instance.
@@ -105,7 +106,7 @@ class CrossEncoderReranker:
         # Check for quantized ONNX model first
         import os as _os
 
-        _onnx_path = "/app/data/models/bge-reranker-v2-m3-onnx"
+        _onnx_path = "/app/data/models/qwen3-reranker-4b-onnx"
         _onnx_model = _os.path.join(_onnx_path, "model.onnx")
 
         if _os.path.exists(_onnx_model):
@@ -149,7 +150,6 @@ class CrossEncoderReranker:
         self._model = CrossEncoder(
             _MODEL_NAME,
             device="cpu",
-            revision="953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",  # pinned HF revision (2024-06-24)
         )
         elapsed = time.perf_counter() - start
         self._load_time_secs = round(elapsed, 2)

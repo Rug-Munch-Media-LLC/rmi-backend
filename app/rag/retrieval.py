@@ -605,7 +605,7 @@ class HybridRetriever:
             expand: Whether to expand the query with synonyms (incl. bigram
                 phrase expansion).
             rerank: Whether to rerank candidates with the Qwen3
-                cross-encoder (BAAI/bge-reranker-v2-m3) before returning.
+                cross-encoder (Qwen3-Reranker-4B, local :8003) before returning.
                 The underlying ``three_pillar_search`` ALREADY runs the
                 mandatory cross-encoder rerank, so this pass only fires when
                 the engine could not (single hit / reranker unreachable).

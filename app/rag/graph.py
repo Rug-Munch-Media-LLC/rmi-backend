@@ -218,7 +218,7 @@ async def retrieve_news(state: ResearchState) -> dict[str, Any]:
 
 
 async def rerank_documents(state: ResearchState) -> dict[str, Any]:
-    """Cross-encoder rerank (BGE reranker v2 m3 via Qwen3 llama.cpp server). Fail-open.
+    """Cross-encoder rerank (Qwen3-Reranker-4B via local llama.cpp server :8003). Fail-open.
 
     Reorders ``documents`` by relevance and drops low-confidence hits.
     On reranker failure the pre-rerank order is kept.
@@ -419,7 +419,7 @@ def create_crypto_rag_graph() -> Any:
     workflow.add_node("retrieve_market", retrieve_market)  # Price + on-chain
     workflow.add_node("retrieve_code", retrieve_code)  # Contracts + docs
     workflow.add_node("retrieve_news", retrieve_news)  # Recent articles
-    workflow.add_node("rerank", rerank_documents)  # BGE reranker filter
+    workflow.add_node("rerank", rerank_documents)  # Qwen3-Reranker-4B filter
     workflow.add_node("synthesize", synthesize_answer)  # Build final response
     workflow.add_node("verify", verify_sources)  # Check citations
 

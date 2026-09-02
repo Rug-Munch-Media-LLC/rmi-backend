@@ -485,14 +485,8 @@ class Settings(BaseSettings):
     )
 
     # ── Embedder ────────────────────────────────────────────────────────
-    bge_m3_url: str = Field(
-        default="",
-        description=(
-            "DEPRECATED — legacy Qwen3-4B container HTTP service (the old :8001 path, "
-            "nothing listens there). Qwen3-4B embeddings are served by Qwen3 "
-            "(``qwen_embed_url``)."
-        ),
-    )
+    # (legacy deprecated URL field removed 2026-09-02 — superseded by
+    # ``qwen_embed_url`` (:8004/v1, Qwen3-Embedding-4B) above.)
     embedder_primary: str = Field(
         default="qwen3",
         description=(

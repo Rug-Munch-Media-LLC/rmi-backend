@@ -1,4 +1,4 @@
-"""Embedding providers: Local BGE, Qwen3-4B, OpenRouter, HuggingFace."""
+"""Embedding providers: Qwen3-Embedding-4B (primary), OpenRouter, HuggingFace."""
 
 from __future__ import annotations
 
@@ -22,16 +22,19 @@ HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
 
 
 class LocalBGEEmbedder:
-    """Local BAAI BGE-small-en-v1.5 embedder — HARD-DISABLED.
+    """Legacy small-model embedder — HARD-DISABLED.
 
-    The in-process sentence-transformers/torch path (~300MB resident in the bot
-    process, never unloaded) was the direct cause of memory pressure. This class
-    now fails fast and can NEVER load a local model or touch torch. Use the
-    remote embedders (Qwen3 primary, OpenRouter, HuggingFace) or the hash
-    fallback instead.
+    Superseded by Qwen3-Embedding-4B (2560-dim; DeepInfra primary + local
+    :8004 backup). The in-process sentence-transformers/torch path (~300MB
+    resident in the bot process, never unloaded) was the direct cause of
+    memory pressure. This class now fails fast and can NEVER load a local
+    model or touch torch. Use the remote embedders (Qwen3 primary,
+    OpenRouter, HuggingFace) or the hash fallback instead.
     """
 
-    MODEL_NAME = "BAAI/bge-small-en-v1.5"
+    # Legacy model id retained only as a historical marker; never loaded.
+    # Superseded by Qwen3-Embedding-4B (2560-dim).
+    MODEL_NAME = "legacy/bge-small-en-v1.5-superseded-by-qwen3-embedding-4b"
 
     @classmethod
     def _get_model(cls) -> Any:
