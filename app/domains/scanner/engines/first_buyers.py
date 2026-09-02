@@ -104,6 +104,15 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
     if client is None:
         return None
     try:
+        # 2026-09-02: 7-day window — the unbounded GROUP BY + ORDER BY over
+        # evm_transfers full-scans the token's rows and blew the 10s server
+        # timeout on large tokens (USDT ethereum: 26.5M rows). First buyers
+        # of a NEW token are recent by definition, so the window covers them
+        # fully. For ESTABLISHED tokens (USDT, years old) the earliest
+        # buyers are outside the window and the query returns no rows →
+        # ``None`` → the caller renders nothing. That is the intended
+        # trade-off: a 2-year-old token's first buyers carry no rug-detection
+        # signal anyway, and returning "unavailable" beats a timeout.
         return client.execute(
             """
             SELECT
@@ -113,6 +122,7 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
             FROM wallet_memory.evm_transfers
             WHERE chain = %(chain)s
               AND token_address = %(token)s
+              AND block_timestamp >= now() - INTERVAL 7 DAY
               AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
                                      '0x000000000000000000000000000000000000dead')
             GROUP BY buyer
