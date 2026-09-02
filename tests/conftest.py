@@ -20,7 +20,40 @@ Registers Hypothesis profiles:
 
 import os
 
+collect_ignore: list[str] = []
 collect_ignore_glob = ["manual/*"]
+
+# ── rugmunch_scanner availability guard ──────────────────────────────
+# rugmunch_scanner is a private package installed inside the Docker image
+# (pip install git+...rugmunch-scanner.git) but NOT in local dev/test envs.
+# The test modules below import app thin-adapter modules that re-export from
+# rugmunch_scanner at import time, so they cannot even be collected without
+# it. Exclude them from collection when the package is missing (they still
+# run in the container). Mocking the package would make the detectors
+# MagicMocks and every assertion meaningless, so exclusion — not faking —
+# is the correct dev-env behavior.
+try:
+    import rugmunch_scanner  # noqa: F401
+
+    _HAS_RUGMUNCH_SCANNER = True
+except ImportError:  # pragma: no cover — depends on dev env
+    _HAS_RUGMUNCH_SCANNER = False
+
+if not _HAS_RUGMUNCH_SCANNER:
+    collect_ignore += [
+        "test_launchpad_lp.py",
+        "test_pumpfun_metadata.py",
+        "test_scan_numbers.py",
+        "test_scanner_degodding.py",
+        "unit/domain/scanner/test_bundle_detector_behavior.py",
+        "unit/domain/scanner/test_contract_authority.py",
+        "unit/domain/scanner/test_cross_chain_trace.py",
+        "unit/domain/scanner/test_holder_analyzer.py",
+        "unit/domain/scanner/test_liquidity_verifier.py",
+        "unit/domain/scanner/test_oracle_manipulation.py",
+        "unit/domain/scanner/test_proxy_detector.py",
+        "unit/domain/scanners/test_cross_launch_correlation.py",
+    ]
 
 # Set safe defaults for test environment (avoids RuntimeError on jwt.py import
 # when JWT_ALGORITHM=RS256 but keys aren't configured)
