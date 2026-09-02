@@ -319,6 +319,12 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "sentinel": result.sentinel,
         "wallet_metrics": result.wallet_metrics,
         "bundle_analysis": result.bundle_analysis,
+        # Own-data wallet metrics (2026-09-02 wallet_analysis fix): the
+        # engines compute these but the formatter never surfaced them —
+        # API consumers always saw None even on successful scans.
+        "funding_analysis": result.funding_analysis,
+        "wallet_freshness": result.wallet_freshness,
+        "holder_overlap": result.holder_overlap,
         "first_buyers": result.first_buyers,
         # v2 structured RiskReport (unified/risk_report.py — Phase 5b): the
         # ~30-factor explainable report + beyond-market wallet-cluster graph

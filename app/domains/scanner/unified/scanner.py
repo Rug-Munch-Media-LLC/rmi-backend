@@ -61,7 +61,13 @@ __all__ = [
 # timeout (_QUERY_TIMEOUT_SECONDS=60 in _funding_queries.py) — the old 25s
 # budget cancelled every own-data phase before its 60s queries could finish,
 # producing uniform ~25,001ms scans with 0 own-data and no visible reason.
-SCAN_HARD_TIMEOUT_S = float(os.getenv("SCAN_HARD_TIMEOUT_S", "60"))
+# 2026-09-02 (wallet_analysis fix): raised 60 → 120 — the wallet-analysis
+# phase runs 4 metric engines + 10 per-wallet freshness tasks concurrently;
+# on large tokens (USDT: 26.5M transfer rows) the deep fetch (30s) plus the
+# wallet phase (~60s of parallel ClickHouse queries) exceeded the 60s budget
+# and the HTTP response returned before own-data landed. Results still land
+# in Redis via the shielded background task either way.
+SCAN_HARD_TIMEOUT_S = float(os.getenv("SCAN_HARD_TIMEOUT_S", "120"))
 SCAN_STATUS_TTL = int(os.getenv("SCAN_STATUS_TTL", "900"))  # 15 min
 
 

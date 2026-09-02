@@ -17,11 +17,22 @@ if TYPE_CHECKING:
 from app.domains.scanner.engines._common import _norm_addr
 from app.domains.scanner.engines._indexer_port import (
     ch_client as _get_ch_client,
+    new_ch_client as _new_ch_client,
     normalize_chain as _norm_chain,
 )
 from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
+
+# 2026-09-02 wallet_analysis fix: every query helper below opens a DEDICATED
+# ClickHouse connection (``_new_ch_client()``) instead of the shared
+# singleton. The scan orchestrator runs the 4 wallet metrics + 10 per-wallet
+# freshness tasks concurrently via asyncio.gather → run_sync threads; concurrent
+# ``client.execute()`` on the shared singleton raises "Simultaneous queries on
+# single connection", every helper returned None, and all 4 metrics degraded
+# to "unavailable" in orchestrated scans while direct (sequential) calls worked.
+# Falls back to the shared singleton when a dedicated connection can't be
+# created (e.g. clickhouse_driver missing).
 
 # Query timeout shared with funding_analysis (time-boxed queries).
 _QUERY_TIMEOUT_SECONDS = 60  # 2026-08-26: 20s killed first-tx scans on 1.3B-row evm_transfers (Code 159); engine is async/best-effort so a slower correct answer beats "unavailable"
@@ -36,7 +47,7 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
     # Defensive: normalize even if a caller forgot — EVM addresses must be
     # lowercase to match ClickHouse storage (checksummed input → 0 rows).
     token_address = _norm_addr(token_address, chain)
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return None
     try:
@@ -126,7 +137,7 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
 
 def _query_first_funders(holders: list[str], chain: str) -> list[tuple[Any, ...]] | None:
     """First incoming transfer per holder across ALL tokens (the funding event)."""
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None or not holders:
         return None
     if chain == "solana":
@@ -204,7 +215,7 @@ def _query_first_funders(holders: list[str], chain: str) -> list[tuple[Any, ...]
 
 def _query_funder_tx_counts(funders: list[str], chain: str) -> list[tuple[Any, ...]] | None:
     """Total on-chain transfers per funder (in + out) — drives fresh-wallet detection."""
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None or not funders:
         return None
     if chain == "solana":
@@ -270,7 +281,7 @@ def _query_funder_tx_counts(funders: list[str], chain: str) -> list[tuple[Any, .
 
 def _query_wallet_stats(address: str, chain: str) -> list[tuple[Any, ...]] | None:
     """First-seen timestamp and total transfer count for a wallet."""
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return None
     try:
@@ -296,7 +307,7 @@ def _query_wallet_stats(address: str, chain: str) -> list[tuple[Any, ...]] | Non
 
 def _query_wallet_first_funder(address: str, chain: str) -> list[tuple[Any, ...]] | None:
     """The wallet's first-ever incoming funder (any token on chain)."""
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return None
     try:
@@ -329,7 +340,7 @@ def _query_token_coverage_start(token_address: str, chain: str) -> datetime | No
     makes every holder look <30 days old. That is an indexing artifact, not
     a market signal, and callers must surface it as a coverage caveat.
     """
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return None
     if chain == "solana":
@@ -375,7 +386,7 @@ def _query_holder_first_buy(
     metrics in ``own_wallet_map``: fresh-wallet (wallet born within N hours
     before its buy) and recently-funded (funder → buy latency).
     """
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None or not holders:
         return None
     try:
@@ -574,7 +585,7 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
     # Defensive: normalize even if a caller forgot — EVM addresses must be
     # lowercase to match ClickHouse storage (checksummed input → 0 rows).
     token_address = _norm_addr(token_address, chain)
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return None
     try:
@@ -615,7 +626,7 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
 
 def _query_known_scam_tokens(chain: str, limit: int) -> list[str]:
     """Recent tokens flagged scam-related from deployer_history."""
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return []
     try:
@@ -640,7 +651,7 @@ def _query_known_scam_tokens(chain: str, limit: int) -> list[str]:
 
 def _query_token_scam_status(token_address: str, chain: str) -> bool:
     """True when a token is flagged in scam_addresses or deployer_history."""
-    client = _get_ch_client()
+    client = _new_ch_client() or _get_ch_client()
     if client is None:
         return False
     try:
