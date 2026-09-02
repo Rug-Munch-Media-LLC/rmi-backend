@@ -225,6 +225,22 @@ async def ingest_x_shill(
                 )
                 if saved:
                     summary["evidence_written"] += 1
+                # Vectorize the shill detection into social_intel (fire-and-forget)
+                try:
+                    from app.rag.scan_intel import embed_shill_detection_bg
+
+                    embed_shill_detection_bg(
+                        {
+                            "handle": handle,
+                            "token": tokens[0],
+                            "platform": "x",
+                            "tweet_id": tweet_id,
+                            "text": text,
+                            "url": tweet.get("url") or "",
+                        }
+                    )
+                except Exception as exc:
+                    logger.debug("x_shill_ingest:embed_schedule_failed err=%s", str(exc)[:120])
                 if conn is not None:
                     _mark_seen(conn, tweet_id, handle)
     finally:

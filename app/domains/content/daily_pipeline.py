@@ -155,7 +155,27 @@ def articles_to_shill_posts(articles: list[NewsArticle]) -> list[ShillPost]:
 
 async def run_shill_step(articles: list[NewsArticle]) -> list[PlatformAlert]:
     """Run coordinated-shill detection over the swept news posts."""
-    return run_shill_detection(articles_to_shill_posts(articles))
+    alerts = run_shill_detection(articles_to_shill_posts(articles))
+    # Vectorize each coordinated-shill alert into Qdrant social_intel
+    # (fire-and-forget — never blocks the pipeline).
+    try:
+        from app.rag.scan_intel import embed_shill_detection_bg
+
+        for alert in alerts:
+            d = alert.to_dict()
+            embed_shill_detection_bg(
+                {
+                    "handle": d.get("author") or d.get("source") or "unknown",
+                    "token": d.get("token_address") or d.get("token") or "unknown",
+                    "platform": d.get("source") or "telegram",
+                    "suspicion_score": d.get("confidence"),
+                    "wallet": d.get("wallet") or "",
+                    "description": d.get("description") or d.get("title") or "",
+                }
+            )
+    except Exception as exc:  # embedding is strictly best-effort
+        logger.debug("shill_embed_schedule_failed err=%s", str(exc)[:120])
+    return alerts
 
 
 async def run_briefing_step(
