@@ -167,6 +167,13 @@ class ScanResult:
     # ``sentinel`` dict above.
     deep_profile: DeepScanProfile | None = None
 
+    # Holder concentration (engines/holder_clusters.py — BubbleMaps-style
+    # own-ClickHouse analysis, 2026-08-25 quality push): top-10 %, top-3 %,
+    # Gini, HHI, concentration class, total holders, cluster count + the
+    # top-10 holders (address / pct / label). Populated by the risk-report
+    # phase so the API response can surface it without re-running the engine.
+    holder_concentration: dict[str, Any] | None = None
+
     # Structured RiskReport (unified/risk_report.py, Phase 5b) — deployer /
     # holders / first-buyer / top-25 / fresh% / CEX-funded% / bundle /
     # beyond-market wallet-cluster graph (risk_cluster.py, 8 structures) /
