@@ -51,6 +51,14 @@ class AlertBroadcaster:
             except Exception as exc:
                 log.warning("ws_broadcast_failed", error=str(exc))
 
+            # 3. Vectorize the alert into Qdrant threat_intel_v2 (fire-and-forget)
+            try:
+                from app.rag.scan_intel import embed_scam_alert_bg
+
+                embed_scam_alert_bg(event.model_dump(mode="json"))
+            except Exception as exc:
+                log.debug("alert_embed_schedule_failed err=%s", str(exc))
+
         except (ValueError, TypeError, KeyError, OSError) as exc:
             # Broadcasting failure must not break the firing path.
             log.warning(

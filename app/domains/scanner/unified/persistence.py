@@ -129,6 +129,16 @@ async def persist_result(result: ScanResult) -> None:
     except (RedisError, ConnectionError, OSError, TimeoutError, ImportError):
         logger.exception("scan_redis_cache_failed")
 
+    # ── 3b. RAG embedding (fire-and-forget) — vectorize the scan into the
+    #    Qdrant ``scan_intel`` collection so scan history is RAG-searchable.
+    #    Never blocks or fails the persist path.
+    try:
+        from app.rag.scan_intel import embed_scan_result_bg
+
+        embed_scan_result_bg(result)
+    except Exception:
+        logger.debug("scan_embed_schedule_failed")
+
     # ── 4. Stability tracking (best-effort) — record the risk level exactly
     #    once per completed scan run (the shared-result flag prevents the same
     #    run being counted twice when both persists fire). ──

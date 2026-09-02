@@ -152,6 +152,28 @@ async def feedback(record: FeedbackRecord) -> IngestResult:
     )
 
 
+@router.get("/scan-search")
+async def scan_search(q: str, top_k: int = 10) -> dict[str, Any]:
+    """Semantic search over the ``scan_intel`` collection (scan history RAG).
+
+    Example: ``GET /api/v1/rag/v2/scan-search?q=bundled+launch+dev+sold``.
+    """
+    from app.rag.scan_intel import SCAN_COLLECTION, search_scan_intel
+
+    if not q.strip():
+        raise HTTPException(status_code=422, detail="q must not be blank")
+    t0 = datetime.now(UTC)
+    hits = await search_scan_intel(q, limit=max(1, min(int(top_k), 50)))
+    took_ms = (datetime.now(UTC) - t0).total_seconds() * 1000
+    return {
+        "query": q,
+        "collection": SCAN_COLLECTION,
+        "hits": hits,
+        "count": len(hits),
+        "took_ms": round(took_ms, 2),
+    }
+
+
 @router.get("/stats")
 async def stats() -> dict[str, Any]:
     """Collection stats from Qdrant v2."""
