@@ -34,7 +34,7 @@ import statistics
 from datetime import UTC, datetime
 from typing import Any
 
-from app.domains.scanner.engines._common import run_sync
+from app.domains.scanner.engines._common import _norm_addr, run_sync
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
 from app.domains.scanner.engines._logging import get_logger
 
@@ -441,6 +441,9 @@ async def get_first_buyers(address: str, chain: str, limit: int = FIRST_BUYERS_L
     chain_norm = (chain or "").strip().lower()
     if not address or not chain_norm:
         return None
+    # Normalize once at entry: EVM addresses must be lowercase to match
+    # ClickHouse storage (checksummed input would match 0 rows).
+    address = _norm_addr(address, chain_norm)
     if chain_norm == "solana":
         rows = await run_sync(_query_first_buyers_solana, address, limit)
         # pump.fun path: the indexer only tracks a handful of hardcoded
