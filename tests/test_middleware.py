@@ -244,9 +244,12 @@ class TestCSRFMiddleware:
             "/api/v1/bulletin/posts",
             json={"title": "test", "content": "test", "category": "test"},
         )
-        # May be 401 (auth) or 403 (csrf) or other
+        # May be 401 (auth) or 403 (csrf) or 422 (validation).
+        # 404 is also acceptable: CSRF middleware is route-aware and lets
+        # nonexistent paths fall through to routing instead of masking
+        # them as "CSRF validation failed" (fix 2026-09-02).
         # But not 200 since we didn't provide auth or CSRF
-        assert resp.status_code in (401, 403, 422)
+        assert resp.status_code in (401, 403, 404, 422)
 
 
 # ═══════════════════════════════════════════════════════════════════════
