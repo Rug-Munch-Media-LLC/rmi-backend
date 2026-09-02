@@ -496,6 +496,7 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/news/_admin/",  # News admin ingest — internal service-to-service (X-RMI-Key), no cookies
             "/api/v1/news/internal/",  # News internal endpoints — internal service-to-service (X-RMI-Key), no cookies
             "/api/v1/admin/backend/",  # Admin dashboard — session-based auth (X-Admin-Session header, no cookies)
+            "/api/v1/admin/login",  # Admin login — cookie-free auth (no session yet, CSRF impossible)
             "/mcp/x402",
             "/x402/sandbox/",
             "/.well-known/x402",
