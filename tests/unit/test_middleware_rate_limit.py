@@ -47,8 +47,8 @@ class TestResolveRateLimit:
 
     def test_known_path_scan(self) -> None:
         rate, burst = _resolve_rate_limit("/api/v1/scanner/scan")
-        assert rate == pytest.approx(20 / 60.0)
-        assert burst == max(1, int(20 * 0.25))
+        assert rate == pytest.approx(10 / 60.0)
+        assert burst == max(1, int(10 * 0.25))
 
     def test_known_path_public(self) -> None:
         rate, burst = _resolve_rate_limit("/api/v1/token/0x...")
@@ -64,7 +64,7 @@ class TestResolveRateLimit:
     def test_exact_prefix_match(self) -> None:
         """Longest prefix match wins."""
         rate, _ = _resolve_rate_limit("/api/v1/scanner/something")
-        assert rate == pytest.approx(20 / 60.0), "Should match 'scan' category"
+        assert rate == pytest.approx(10 / 60.0), "Should match 'scan' category"
 
     def test_burst_never_below_one(self) -> None:
         _, burst = _resolve_rate_limit("/api/v1/some-unknown")

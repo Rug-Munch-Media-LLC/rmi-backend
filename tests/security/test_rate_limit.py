@@ -140,23 +140,23 @@ class TestPathCategoryResolution:
         assert rate < 0.2, f"Expected low rate for auth, got {rate}"
         assert burst == 2
 
-    def test_api_v1_auth_login_gets_default(self):
-        """/api/v1/auth/login is not in PATH_CATEGORIES; gets default limits."""
+    def test_api_v1_auth_login_gets_auth_limit(self):
+        """/api/v1/auth/login maps to the 'auth' category (5 rpm brute-force protection)."""
         from app.core.rate_limiter import _resolve_rate_limit
 
         rate, burst = _resolve_rate_limit("/api/v1/auth/login")
-        # default: 60 rpm / 60 = 1.0 rps, burst 15
-        assert rate == 1.0
-        assert burst == 15
+        # auth: 5 rpm / 60 ≈ 0.083 rps, burst 2
+        assert rate < 0.2, f"Expected low rate for auth, got {rate}"
+        assert burst == 2
 
     def test_scan_path(self):
         """Scan paths should get moderate limits."""
         from app.core.rate_limiter import _resolve_rate_limit
 
         rate, burst = _resolve_rate_limit("/api/v1/scanner/token")
-        # 20 rpm / 60 ≈ 0.333
-        assert 0.2 < rate < 1.0
-        assert burst == 5
+        # 10 rpm / 60 ≈ 0.167
+        assert 0.1 < rate < 0.3
+        assert burst == 2
 
     def test_x402_path(self):
         """x402 payment paths should get high limits."""

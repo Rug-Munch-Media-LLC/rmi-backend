@@ -40,12 +40,13 @@ DEFAULT_RATE_LIMITS: dict[str, tuple[int, float]] = {
     "health": (1000, 0.2),  # 1000/min,  burst 200
     "auth": (5, 0.4),  # 5/min,     burst 2
     "x402": (1000, 0.2),  # 1000/min,  burst 200
-    "scan": (20, 0.25),  # 20/min,    burst 5
+    "scan": (10, 0.25),  # 10/min,    burst 2  (per API key)
     "ai": (10, 0.3),  # 10/min,    burst 3
     "market": (60, 0.25),  # 60/min,    burst 15
     "public": (100, 0.25),  # 100/min,   burst 25
     "mcp": (30, 0.25),  # 30/min,    burst 7
     "admin": (10, 0.2),  # 10/min,    burst 2
+    "databus": (60, 0.25),  # 60/min,    burst 15  (per API key)
     "degenfeed:farcaster": (30, 0.25),  # 30/min, burst 7
     "degenfeed:lens": (30, 0.25),  # 30/min, burst 7
     "degenfeed:twitter": (15, 0.2),  # 15/min, burst 3
@@ -55,6 +56,41 @@ DEFAULT_RATE_LIMITS: dict[str, tuple[int, float]] = {
     "degenfeed:cross-post": (10, 0.3),  # 10/min, burst 3
     "default": (60, 0.25),  # 60/min,    burst 15
 }
+
+
+# ── Env-var overrides ─────────────────────────────────────────────────────
+# Each rate limit can be tuned at deploy time without a code change:
+#   RATE_LIMIT_GLOBAL   → global per-IP cap (req/min), default 100
+#   RATE_LIMIT_SCANNER  → scanner endpoints (req/min per API key), default 10
+#   RATE_LIMIT_AUTH     → auth endpoints (req/min per IP), default 5
+#   RATE_LIMIT_DATABUS  → DataBus endpoints (req/min per API key), default 60
+#   RATE_LIMIT_DEFAULT  → fallback for unmapped paths (req/min), default 60
+# Values are clamped to >= 1. Invalid/non-numeric values fall back to defaults.
+def _env_int(name: str, default: int) -> int:
+    try:
+        val = int(os.getenv(name, ""))
+        return val if val >= 1 else default
+    except (TypeError, ValueError):
+        return default
+
+
+RATE_LIMIT_GLOBAL: int = _env_int("RATE_LIMIT_GLOBAL", 100)
+RATE_LIMIT_SCANNER: int = _env_int("RATE_LIMIT_SCANNER", 10)
+RATE_LIMIT_AUTH: int = _env_int("RATE_LIMIT_AUTH", 5)
+RATE_LIMIT_DATABUS: int = _env_int("RATE_LIMIT_DATABUS", 60)
+RATE_LIMIT_DEFAULT: int = _env_int("RATE_LIMIT_DEFAULT", 60)
+
+# Apply env-var overrides onto the static defaults (keeps burst factors).
+_ENV_OVERRIDES: dict[str, int] = {
+    "scan": RATE_LIMIT_SCANNER,
+    "auth": RATE_LIMIT_AUTH,
+    "databus": RATE_LIMIT_DATABUS,
+    "default": RATE_LIMIT_DEFAULT,
+}
+for _cat, _rpm in _ENV_OVERRIDES.items():
+    if _cat in DEFAULT_RATE_LIMITS:
+        _burst_factor = DEFAULT_RATE_LIMITS[_cat][1]
+        DEFAULT_RATE_LIMITS[_cat] = (_rpm, _burst_factor)
 
 # Path prefix → category
 PATH_CATEGORIES: dict[str, str] = {
@@ -66,6 +102,7 @@ PATH_CATEGORIES: dict[str, str] = {
     "/login": "auth",
     "/2fa": "auth",
     "/forgot-password": "auth",
+    "/api/v1/auth": "auth",
     "/api/v1/x402": "x402",
     "/pay": "x402",
     "/affiliates": "x402",
@@ -99,6 +136,8 @@ PATH_CATEGORIES: dict[str, str] = {
     "/api/v1/degenfeed/mastodon": "degenfeed:mastodon",
     "/api/v1/degenfeed/nostr": "degenfeed:nostr",
     "/api/v1/degenfeed": "degenfeed:farcaster",
+    "/api/v1/databus": "databus",
+    "/api/v1/x402-databus": "databus",
     "/api/v1/admin": "admin",
     "/api/v1/_test": "admin",
 }
@@ -498,6 +537,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Any) -> StarletteResponse:
         client_id = _extract_client_id(request)
+
+        # Global per-IP cap (default 100 req/min). Applied to every request
+        # regardless of path, keyed on the same client identity as the
+        # path-based limits. Fail-open: if the limiter cannot reach Redis it
+        # falls back to the in-memory token bucket (never blocks on Redis).
+        global_allowed, global_headers = await self.limiter.acquire(
+            f"global:{client_id}",
+            rate=RATE_LIMIT_GLOBAL / 60.0,
+            burst=max(1, int(RATE_LIMIT_GLOBAL * 0.25)),
+        )
+        if not global_allowed:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded"},
+                headers=global_headers,
+            )
+
         allowed, headers = await self.limiter.acquire_path(request.url.path, client_id)
         if not allowed:
             return JSONResponse(
