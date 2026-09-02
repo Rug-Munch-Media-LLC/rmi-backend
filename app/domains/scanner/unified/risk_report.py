@@ -1993,6 +1993,32 @@ async def run_risk_report_phase(r: ScanResult, address: str, chain: str) -> None
             logger.debug("risk_report_holder_clusters_failed", error=str(exc)[:120])
             holder_clusters = None
 
+        # ── Surface holder concentration on the ScanResult (2026-08-25
+        # quality push): the API formatter reads ``r.holder_concentration``
+        # directly — thin clients (bot + site) get top-10 %, Gini, HHI and
+        # the top holders without digging through the risk report. ──
+        if isinstance(holder_clusters, dict) and holder_clusters.get("result") == "scanned":
+            hc_metrics = holder_clusters.get("metrics") or {}
+            hc_conc = holder_clusters.get("concentration") or {}
+            r.holder_concentration = {
+                "top10_pct": hc_metrics.get("top10_pct", hc_conc.get("top10_pct")),
+                "top3_pct": hc_conc.get("top3_pct"),
+                "gini": hc_metrics.get("gini"),
+                "hhi": hc_metrics.get("hhi"),
+                "class": hc_conc.get("level") or hc_metrics.get("class"),
+                "total_holders": hc_metrics.get("total_holders"),
+                "clusters_found": len(holder_clusters.get("clusters") or []),
+                "top_holders": [
+                    {
+                        "address": h.get("address"),
+                        "pct": h.get("balance_pct"),
+                        "label": h.get("label"),
+                    }
+                    for h in (holder_clusters.get("holders") or [])[:10]
+                    if isinstance(h, dict) and h.get("address")
+                ],
+            }
+
         # ── Beyond-market wallet CLUSTER graph (own ClickHouse) ──
         cluster_graph: dict[str, Any] | None = None
         try:

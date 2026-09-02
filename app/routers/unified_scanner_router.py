@@ -204,6 +204,31 @@ def _top_level_deployer(result: Any) -> dict[str, Any] | None:
     return None
 
 
+def _deep_links(token: str, chain: str) -> dict[str, str]:
+    """Chain-aware explorer / chart / trading deep links for a token.
+
+    Every link embeds the token address so thin clients (bot + site) can
+    render one-tap deep links like the competitor bots do. Solana gets
+    Solscan; EVM chains get Etherscan; chart/aggregator links are
+    chain-aware for both.
+    """
+    c = (chain or "").strip().lower()
+    t = (token or "").strip()
+    links: dict[str, str] = {}
+    if not t:
+        return links
+    if c in ("solana", "sol"):
+        links["solscan"] = f"https://solscan.io/token/{t}"
+    else:
+        links["etherscan"] = f"https://etherscan.io/token/{t}"
+    links["dexscreener"] = f"https://dexscreener.com/{c}/{t}"
+    links["gmgn"] = f"https://gmgn.ai/{c}/token/{t}"
+    if c not in ("solana", "sol"):
+        links["defined"] = f"https://defined.fi/{c}/{t}"
+    links["geckoterminal"] = f"https://www.geckoterminal.com/{c}/tokens/{t}"
+    return links
+
+
 def _format_scan_response(result: Any) -> dict[str, Any]:
     """Format a ScanResult into the API response dict."""
     # Track which sources were own data vs external API fallback
@@ -216,6 +241,37 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
     total_with_source = len(result.enrichment_sources)
     fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
     deployer_top = _top_level_deployer(result)
+
+    # ── Rich-output surfacing (2026-08-25 quality push — beat Phanes):
+    # convenience top-level fields extracted from the engine payloads the
+    # scan already computed. Everything here is own-data — nothing is
+    # fabricated; missing values stay None/absent. ──
+    wm = result.wallet_metrics if isinstance(result.wallet_metrics, dict) else {}
+    ba = result.bundle_analysis if isinstance(result.bundle_analysis, dict) else {}
+    fb = result.first_buyers if isinstance(result.first_buyers, dict) else {}
+    sent = result.sentinel if isinstance(result.sentinel, dict) else {}
+    sent_free = sent.get("free") if isinstance(sent.get("free"), dict) else {}
+    contract_authority = sent_free.get("contract_authority")
+    hc = result.holder_concentration if isinstance(result.holder_concentration, dict) else None
+
+    # Bundler / bundled-buyer counts (own bundle + first-buyers engines).
+    bundle_wallets = ba.get("bundle_wallets")
+    bundler_count = None
+    if isinstance(bundle_wallets, list):
+        bundler_count = len(bundle_wallets)
+    elif isinstance(bundle_wallets, (int, float)):
+        bundler_count = int(bundle_wallets)
+    elif ba.get("funded_count") is not None:
+        bundler_count = ba.get("funded_count")
+    buyers_list = fb.get("buyers") if isinstance(fb.get("buyers"), list) else []
+    bundled_buyers = sum(1 for b in buyers_list if isinstance(b, dict) and b.get("bundled"))
+    buyers_analyzed = fb.get("total_buyers") or len(buyers_list) or None
+    bundler_pct = round(bundled_buyers / buyers_analyzed * 100, 1) if buyers_analyzed and bundled_buyers else None
+
+    # Holder count / supply — best-effort from engine payloads.
+    holder_count = (hc or {}).get("total_holders")
+    if not holder_count and isinstance(ba.get("holder_count"), int):
+        holder_count = ba["holder_count"]
 
     payload: dict[str, Any] = {
         "status": "ok",
@@ -267,6 +323,23 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         # site). The bot renders this block directly and falls back to
         # synthesizing the same shape only when it is absent (older backend).
         "risk_report": result.risk_report,
+        # ── Rich-output block (2026-08-25 quality push) ──
+        "holder_concentration": hc,
+        "top_holders": (hc or {}).get("top_holders"),
+        "holder_count": holder_count,
+        "contract_authority": contract_authority,
+        "bundler_count": bundler_count,
+        "bundled_first_buyers": bundled_buyers or None,
+        "bundler_pct": bundler_pct,
+        "wallet_metrics_summary": {
+            "holders_analyzed": wm.get("holders_analyzed"),
+            "fresh_wallet_pct": wm.get("fresh_wallet_pct"),
+            "cex_funded_pct": wm.get("cex_funded_pct"),
+            "first_tx_pct": wm.get("first_tx_pct"),
+        }
+        if wm
+        else None,
+        "deep_links": _deep_links(result.token_address, result.chain),
         "deployer_profile": (
             asdict(result.deep_profile.deployer_profile)
             if result.deep_profile
