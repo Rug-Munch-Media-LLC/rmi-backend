@@ -14,6 +14,7 @@ returns an ``unavailable`` summary when no wallet finished a scan.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from app.domains.scanner.engines._logging import get_logger
@@ -33,33 +34,57 @@ def _record_module_error(r: ScanResult, module: str, chain: str, reason: str) ->
     """
     reason = (reason or "unknown")[:200]
     logger.warning("scanner_module_failed", module=module, chain=chain, error=reason)
-    try:
+    with contextlib.suppress(AttributeError):  # defensive for legacy results
         r.errors.append({"module": module, "chain": chain, "error": reason})
-    except AttributeError:  # pragma: no cover — defensive for legacy results
-        pass
 
 
 def _record_module_unavailable(r: ScanResult, module: str, chain: str, reason: str) -> None:
     """Log + record a module that degraded to ``unavailable`` (INFO level)."""
     reason = (reason or "no data")[:200]
     logger.info("scanner_module_unavailable", module=module, chain=chain, reason=reason)
-    try:
+    with contextlib.suppress(AttributeError):
         r.errors.append({"module": module, "chain": chain, "error": f"unavailable: {reason}"})
-    except AttributeError:  # pragma: no cover
-        pass
 
 
-async def gather_freshness(tasks: list[Any]) -> dict[str, Any]:
+async def _safe(coro: Any) -> Any:
+    """Await a coroutine, converting any exception into a returned value.
+
+    Replacement for ``asyncio.gather(..., return_exceptions=True)`` in the
+    sequential wallet-analysis path — same contract, no concurrency.
+    """
+    try:
+        return await coro
+    except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as exc:  # mirrors gather(return_exceptions=True)
+        return exc
+
+
+async def gather_freshness(tasks: list[Any], max_concurrency: int = 3) -> dict[str, Any]:
     """Aggregate per-wallet freshness results into a token-level summary.
 
-    Runs the given freshness tasks concurrently and returns a summary dict
-    with the fresh-wallet concentration signal (``fresh_wallet_pct`` is the
-    share of analyzed top holders classified FRESH_SUSPICIOUS).
+    Runs the given freshness tasks with bounded concurrency (default 3 —
+    each task issues 2 heavy ClickHouse queries; running all 10 at once
+    starved the ClickHouse server and pushed the whole wallet phase past
+    the scan budget on large tokens) and returns a summary dict with the
+    fresh-wallet concentration signal (``fresh_wallet_pct`` is the share
+    of analyzed top holders classified FRESH_SUSPICIOUS).
     """
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    sem = asyncio.Semaphore(max(1, max_concurrency))
+
+    async def _bounded(task: Any) -> Any:
+        async with sem:
+            return await task
+
+    results = await asyncio.gather(*(_bounded(t) for t in tasks), return_exceptions=True)
     analyzed: list[dict[str, Any]] = []
     for res in results:
-        if not isinstance(res, BaseException) and isinstance(res, dict) and res.get("result") == "scanned":
+        if isinstance(res, BaseException):
+            # Never silent: a failed per-wallet freshness task must be logged
+            # so "unavailable" summaries are diagnosable (2026-09-02).
+            logger.warning("freshness_task_failed", error=str(res)[:200])
+            continue
+        if isinstance(res, dict) and res.get("result") == "scanned":
             analyzed.append(res)
 
     if not analyzed:
@@ -116,12 +141,40 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
             elif isinstance(top, dict):
                 # Some providers return {address: pct}
                 holders = [str(a) for a in top if a]
+            if not holders and isinstance(holder_data.get("holders"), list):
+                # Birdeye/GMGN-style payloads: [{"address": ...}, ...]
+                holders = [
+                    str(h.get("address", "")) if isinstance(h, dict) else str(h) for h in holder_data["holders"] if h
+                ]
+
+        # ── Holder fallback (2026-09-02 wallet_analysis fix): the DataBus
+        # ``holder_data`` chain does not always carry ``top_holders`` (e.g.
+        # the sentinelscan cache path returns a full scan payload without
+        # one). Without holders the freshness phase had ZERO per-wallet
+        # tasks and degraded to "no freshness data" on every orchestrated
+        # scan while direct calls (which fetch their own holders) worked.
+        # Fall back to the engine's own ClickHouse top-holders query —
+        # same source ``compute_wallet_metrics`` already uses.
+        if not holders:
+            try:
+                from app.domains.scanner.engines._common import run_sync
+                from app.domains.scanner.engines._funding_queries import _query_top_holders
+
+                rows = await run_sync(_query_top_holders, address, chain, 10)
+                holders = [str(row[0]) for row in (rows or []) if row and row[0]]
+                if holders:
+                    logger.info("wallet_analysis_holders_fallback", chain=chain, count=len(holders))
+            except Exception as exc:  # pragma: no cover — best-effort fallback
+                logger.debug("wallet_analysis_holders_fallback_failed", error=str(exc)[:120])
 
         # ── Metric 1: Exchange-funded wallet % ──
         funding_task = analyze_funding_sources(address, chain, holders=holders or None)
 
         # ── Metric 2: Freshness of the top few holders (bounded) ──
-        freshness_holders = holders[:10]
+        # Top-5 (was 10): each wallet = 2 heavy ClickHouse queries; at ~35s
+        # per wallet under load, 10 wallets blew the scan budget. Top-5 is
+        # still a representative freshness sample (2 batches @ concurrency 3).
+        freshness_holders = holders[:5]
         freshness_tasks = [compute_wallet_freshness(h, chain) for h in freshness_holders]
         freshness_task = gather_freshness(freshness_tasks)
 
@@ -135,13 +188,21 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
         freshness: Any
         overlap: Any
         metrics: Any
-        funding, freshness, overlap, metrics = await asyncio.gather(
-            funding_task,
-            freshness_task,
-            overlap_task,
-            metrics_task,
-            return_exceptions=True,
-        )
+
+        # ── Sequential execution (2026-09-02 wallet_analysis fix) ──
+        # The old single asyncio.gather ran 4 metric engines + 10 freshness
+        # sub-tasks at once — ~25 concurrent heavy ClickHouse queries on
+        # large tokens (USDT: 26.6M transfer rows). Combined with the shared
+        # client singleton this produced "Simultaneous queries on single
+        # connection" errors (fixed per-query) AND server-side contention
+        # that pushed every engine past its budget → uniform "unavailable".
+        # Sequential engines + bounded freshness concurrency keep each query
+        # fast; total wall time is comparable because queries no longer
+        # thrash each other.
+        funding = await _safe(funding_task)
+        overlap = await _safe(overlap_task)
+        metrics = await _safe(metrics_task)
+        freshness = await _safe(freshness_task)
 
         if not isinstance(funding, BaseException) and isinstance(funding, dict):
             r.funding_analysis = funding
