@@ -1,6 +1,6 @@
 # RugMunchScan — Status & Capabilities
 
-> Living document. Last updated: 2026-08-03
+> Living document. Last updated: 2026-09-02
 
 ## Architecture
 
@@ -37,6 +37,73 @@ RugMunchScan has 4 core scanner engines, 7 capability engines (C1–C7, C4 v1 co
 All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 `engines/` include `own_dex_data/`, `insider_detector/`, `gmgn_client.py`,
 `known_entities.py`, `intel_aggregation.py`, and `rpc_router.py`.
+
+**Chain coverage (2026-09-02):**
+- **Solana modules NOW WORK** — the case-aware fix (`normalize_addr`
+  preserves base58 case; queries hit `solana_spl_balance_changes` with the
+  `mint` column). Previously reported "unavailable" because engines
+  lowercased Solana addresses and/or queried `evm_transfers` for Solana.
+- **EVM modules NOW WORK** — the address-normalization fix (EVM hex
+  lowercased consistently) plus correct `evm_transfers` column mapping.
+- **Per-query ClickHouse clients** — no more "simultaneous queries on
+  single connection" errors from the shared client singleton (see the
+  resilience layer's `ConnectionPool` above).
+
+### Chain Data Access Layer (2026-09-02)
+- **`engines/_chain_data.py`** — THE single source of truth for
+  chain→table→column mapping. `get_chain_spec(chain) -> ChainDataSpec`
+  returns table names (`transfers_table`, `dex_table`), column names
+  (`addr_col`, `from_col`, `to_col`, `amount_expr`, `ts_col`, `tx_hash_col`,
+  `block_col`), the `chain_filter` WHERE fragment, and case sensitivity
+  (`is_solana`). Raises `ValueError` for unknown chains. Tron has no
+  ClickHouse transfers table (`has_transfers_table=False`) — TronGrid
+  provider instead.
+- **`normalize_addr(addr, chain)`** — the ONLY correct way to normalize an
+  address: EVM hex → lowercase; Solana base58 → case-preserving (strip
+  whitespace only). This fixed the EVM own-data engines that were
+  lowercasing Solana addresses (and vice versa) and returning nothing.
+- **Contract:** all engines MUST import and use this module — no hardcoded
+  table names in engine code. Migration is incremental; new code must never
+  add inline `if chain == "solana": ...` table branches.
+
+### Scan Orchestration (`unified/scanner.py`)
+- **`SCAN_HARD_TIMEOUT_S = 120`** (env-overridable; was 25 → 60 → 120).
+  The HTTP scan response returns within this budget while deep/intel/
+  SENTINEL/news phases continue in a shielded background task; progress +
+  final result publish to Redis (`scanner:status:{chain}:{address}`, TTL
+  15 min) and are polled via `GET /api/v2/scanner/token/scan/{chain}/{address}/status`.
+- **Error visibility (2026-09-02 hardening):** `ScanResult.errors` is a
+  structured list of `{"module", "chain", "error"}` entries. Helpers
+  `_record_module_error()` (WARNING log + errors entry) and
+  `_record_module_unavailable()` (INFO log + errors entry) in
+  `unified/_phase_helpers.py` ensure no module failure is ever silent —
+  the API consumer sees WHY own-data was missing.
+- **Honest data_sources counting:** `wallet_analysis` only appends
+  `wallet_analysis:own` to `enrichment_sources` when at least ONE of its 4
+  metric engines (funding, freshness, overlap, metrics) returned
+  `"scanned"` — a ClickHouse outage no longer inflates own-data counts.
+- **Wallet-analysis phase (2026-09-02 fix):** the 4 metric engines run
+  sequentially (was one giant gather of ~25 concurrent heavy ClickHouse
+  queries); per-wallet freshness is bounded to top-5 holders at
+  concurrency 3; holders fall back to the engine's own ClickHouse
+  top-holders query when the DataBus `holder_data` chain lacks
+  `top_holders`.
+
+### Resilience Layer (rugmunch-scanner, `rugmunch_scanner/resilience.py`)
+- **`retry_on_transient`** — async decorator: exponential backoff + jitter
+  on ConnectionError/TimeoutError/OSError/ClickHouse OperationalError;
+  never retries ValueError/TypeError.
+- **`with_timeout`** — hard cap via `asyncio.wait_for`; returns a
+  structured `{"result": "timeout", ...}` fallback so timeouts are
+  distinguishable from real data.
+- **`HealthTracker`** — thread-safe per-module health: degraded after 5
+  consecutive failures, recovers on next success.
+- **`ConnectionPool`** — pool of ClickHouse clients (one connection per
+  concurrent query, max 10, bounded acquire via `with pool.acquire()`),
+  replacing the shared single client that caused "simultaneous queries on
+  single connection" errors under load. Broken clients are discarded, not
+  recycled. All primitives are fail-open: infrastructure problems degrade
+  results, never crash a scan.
 
 ### DataBus Integration
 - 115 provider chains registered (6 categories: market, security, wallet,
@@ -145,6 +212,79 @@ API surface: `POST /api/v1/rag/v2/search` · `/ingest` · `/feedback` ·
 `/bulk-ingest`, `GET /api/v1/rag/v2/stats`, `POST /api/v1/rag/v2/ask` (+SSE),
 `GET /api/v1/rag/metrics`.
 
+## Current Limitations (2026-09-02)
+
+Honest limitations — these are data/infrastructure constraints, not bugs:
+
+- **EVM first_buyers on USDT-scale tokens** — tokens with ~26.5M transfer
+  rows hit the ClickHouse 10s server-side timeout on the first-buyers
+  query; the module degrades to `unavailable` (recorded in `errors`).
+- **EVM dex_events 4–9 days stale** — catch-up backlog in the indexer,
+  not a failure. Solana dex_events are fresh.
+- **holder_overlap + bundle_analysis return "unavailable"** for tokens
+  without scam-token holder sets or launch indexing data — an honest data
+  limitation (no reference data to compare against), not a bug. Recorded
+  in `errors` with the reason.
+- **Solana native SOL transfers stale (Aug 24)** — the `solana_transfers`
+  table stopped updating Aug 24; only SPL balance changes
+  (`solana_spl_balance_changes`) are fresh. Native-SOL flow analysis is
+  degraded until the indexer catches up.
+
+## Response Fields (`_format_scan_response`, unified_scanner_router.py)
+
+Every field in the `/api/v2/scanner/token/scan` (+ `/token/deepscan`) response:
+
+| Field | Source |
+|---|---|
+| `status` | always `"ok"` |
+| `token`, `chain` | ScanResult identity |
+| `name`, `symbol` | token metadata |
+| `price_usd`, `market_cap_usd`, `liquidity_usd`, `volume_24h_usd`, `age_hours` | core identity |
+| `safety_score`, `confidence`, `risk_level` | scoring |
+| `risk_flags`, `green_flags` | scoring evidence |
+| `breakdown`, `evidence` | per-dimension score breakdown + raw findings |
+| `modules_run` | list of module names that ran |
+| `errors` | structured `[{module, chain, error}]` — WHY own-data is missing (2026-09-02) |
+| `scan_duration_ms`, `tier`, `scanned_at` | metadata |
+| `background_status` | `"complete"` or `"running"` (poll status endpoint) |
+| `cached`, `stability` | 1h result-cache hit + risk-level agreement summary |
+| `data_source`, `freshness` | `"databus"` / scan timestamp |
+| `fallback_used` | true when external fallbacks ≥ own-data modules |
+| `deployer_address`, `deployer_source` | canonical top-level deployer (2026-08-25) |
+| `data_sources` | `{own_data_modules, external_fallback_modules, total_modules}` |
+| `rag_context` | RugBrain RAG matches (similar_scams, wallet_context, fusion_summary) |
+| `news_sentiment`, `news_card` | RugBrain news engines |
+| `sentinel` | SENTINEL phase results (`{free, premium, ...}`) |
+| `wallet_metrics`, `funding_analysis`, `wallet_freshness`, `holder_overlap` | own-data wallet engines (surfaced 2026-09-02) |
+| `bundle_analysis`, `first_buyers` | own-data launch engines |
+| `risk_report` | v2 structured ~30-factor RiskReport + wallet-cluster graph |
+| `holder_concentration`, `top_holders`, `holder_count` | holder_clusters engine (rich-output block) |
+| `contract_authority` | SENTINEL free module |
+| `bundler_count`, `bundled_first_buyers`, `bundler_pct` | bundle + first-buyers derived counts |
+| `wallet_metrics_summary` | `{holders_analyzed, fresh_wallet_pct, cex_funded_pct, first_tx_pct}` |
+| `deep_links` | chain-aware solscan/etherscan/dexscreener/gmgn/defined/geckoterminal links |
+| `deployer_profile` | deep-tier SENTINEL deployer profile |
+| `ai_verdict` | attached at the async route layer (fail-open) |
+
+## Recent Changes (2026-09-02) — Scanner Quality Push
+
+- **Solana case-aware fix** — `normalize_addr` preserves base58 case;
+  Solana own-data engines work again.
+- **EVM address normalization** — consistent lowercase EVM matching;
+  EVM own-data engines work again.
+- **Chain data access layer** — `engines/_chain_data.py` single source of
+  truth for chain→table→column mapping.
+- **Resilience layer** — retry/timeout/health-tracking/connection-pool in
+  rugmunch-scanner `resilience.py`.
+- **Error visibility** — `ScanResult.errors` + `_record_module_error()` /
+  `_record_module_unavailable()`; honest data_sources counting.
+- **Wallet-analysis fix** — sequential metric engines, bounded freshness
+  concurrency (top-5 @ 3), holder fallback to own ClickHouse.
+- **`SCAN_HARD_TIMEOUT_S` 25 → 60 → 120** — own-data phases now fit the
+  HTTP budget on large tokens.
+- **dex_events parsing fixes** — EVM dex_events parsing corrected
+  (4–9 day catch-up backlog remains, see Current Limitations).
+
 ## Recent Changes (2026-08-03)
 
 - `c6f521fc` feat(scanner): C4 cross-chain entity v1 complete, finish `_common` extraction, fix 30 legacy F821 NameErrors
@@ -244,4 +384,4 @@ Build order and sequencing documented in the spec (`docs/scan-capabilities-spec.
 - Spec: rmi-backend/docs/scan-capabilities-spec.md
 
 ---
-Last updated: 2026-08-03
+Last updated: 2026-09-02
