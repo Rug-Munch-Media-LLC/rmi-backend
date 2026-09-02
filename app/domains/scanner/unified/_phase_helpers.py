@@ -19,6 +19,50 @@ from typing import TYPE_CHECKING, Any
 
 from app.domains.scanner.engines._logging import get_logger
 
+# ── Resilience layer (rugmunch-scanner) ────────────────────────────────────
+# Guarded import: the private ``rugmunch_scanner`` package may not be
+# installed in dev environments. Fallbacks are no-ops so the scanner keeps
+# working without the resilience layer (fail-open by contract).
+try:
+    from rugmunch_scanner.resilience import HealthTracker, with_timeout
+except ImportError:  # pragma: no cover — dev env without the private package
+
+    def with_timeout(seconds: float = 30.0, fallback: Any = None):  # type: ignore[misc]
+        """No-op fallback for ``rugmunch_scanner.resilience.with_timeout``."""
+
+        def decorator(func):
+            return func
+
+        return decorator
+
+    class HealthTracker:  # type: ignore[no-redef]
+        """No-op fallback for ``rugmunch_scanner.resilience.HealthTracker``."""
+
+        def __init__(self, threshold: int = 5) -> None:
+            self._threshold = threshold
+
+        def record(self, module: str, success: bool, error: str = "") -> None:
+            pass
+
+        def is_healthy(self, module: str) -> bool:
+            return True
+
+        def get_stats(self, module: str) -> dict[str, Any]:
+            return {
+                "total": 0,
+                "successes": 0,
+                "failures": 0,
+                "consecutive_failures": 0,
+                "last_error": "",
+                "healthy": True,
+            }
+
+
+#: Module-level health tracker for the wallet_analysis phase. A module is
+#: considered degraded after 5 consecutive failures; the phase is then
+#: skipped entirely until a success resets the counter.
+health_tracker = HealthTracker(threshold=5)
+
 if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult
 
@@ -118,11 +162,12 @@ async def gather_freshness(tasks: list[Any], max_concurrency: int = 3) -> dict[s
     }
 
 
-async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
-    """Run exchange-funding, freshness, and scam-overlap analysis.
+@with_timeout(seconds=120)
+async def _run_wallet_analysis_impl(r: ScanResult, address: str, chain: str) -> dict[str, Any]:
+    """Wallet-analysis body (timeout-capped by ``with_timeout``).
 
-    Best-effort: each engine degrades gracefully when own ClickHouse data
-    is unavailable, so a failed sub-engine never fails the scan.
+    Returns a status dict so the timeout wrapper's structured fallback can
+    be distinguished from a normal completion by ``run_wallet_analysis``.
     """
     try:
         from app.domains.scanner.engines.funding_analysis import (
@@ -259,9 +304,44 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
         )
         if scanned:
             r.enrichment_sources.append("wallet_analysis:own")
+        return {"result": "scanned" if scanned else "unavailable"}
     except Exception as exc:
         logger.warning("wallet_analysis_failed", error=str(exc)[:200], chain=chain, token=address[:16])
         _record_module_error(r, "wallet_analysis", chain, str(exc))
+        return {"result": "error", "error": str(exc)}
+
+
+async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
+    """Run exchange-funding, freshness, and scam-overlap analysis.
+
+    Resilience wiring (rugmunch-scanner layer):
+      * ``@with_timeout(seconds=120)`` on the impl — a hung phase returns a
+        structured timeout dict instead of blocking the scan forever.
+      * ``health_tracker`` — after 5 consecutive failures the phase is
+        skipped entirely (circuit breaker) until a success resets it.
+
+    Best-effort: each engine degrades gracefully when own ClickHouse data
+    is unavailable, so a failed sub-engine never fails the scan.
+    """
+    if not health_tracker.is_healthy("wallet_analysis"):
+        logger.warning("wallet_analysis_skipped_degraded", chain=chain, token=address[:16])
+        with contextlib.suppress(AttributeError):  # defensive for legacy results
+            r.errors.append({"module": "wallet_analysis", "error": "degraded — skipped after 5 consecutive failures"})
+        return
+
+    outcome = await _run_wallet_analysis_impl(r, address, chain)
+    if isinstance(outcome, dict) and outcome.get("result") == "timeout":
+        # Structured fallback from with_timeout — record as a phase failure
+        # so the health tracker sees it and the API consumer knows why the
+        # wallet modules are missing.
+        note = str(outcome.get("note", "timeout"))
+        logger.warning("wallet_analysis_timeout", chain=chain, token=address[:16], note=note)
+        _record_module_error(r, "wallet_analysis", chain, note)
+        health_tracker.record("wallet_analysis", success=False, error=note)
+        return
+
+    success = isinstance(outcome, dict) and outcome.get("result") == "scanned"
+    health_tracker.record("wallet_analysis", success=success, error=str(outcome.get("error", ""))[:200])
 
 
 async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:

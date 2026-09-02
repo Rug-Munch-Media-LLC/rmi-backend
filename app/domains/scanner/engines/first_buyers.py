@@ -56,6 +56,14 @@ _NEW_MAX_AGE_S = 7 * 24 * 3600  # born <7d before its first buy
 FIRST_BUYERS_LIMIT_QUICK = 25
 FIRST_BUYERS_LIMIT_DEEP = 250
 
+# 2026-09-02 large-token guard: first-buyers analysis is a rug-detection
+# signal for NEW tokens. Established tokens (USDT ethereum: 26.5M transfer
+# rows, ~2M/week) blow the ClickHouse server timeout even with a 7-day
+# window (the GROUP BY + ORDER BY over ~2M rows requires a full sort), and
+# their first buyers carry no rug signal anyway. Skip the query when the
+# token has more than this many recent transfers.
+_LARGE_TOKEN_RECENT_TRANSFERS = 100_000
+
 # On-demand RPC budget (pump.fun path): signatures fetched + txs parsed per
 # mint. Bounded so a deep 250-wallet cohort stays within a few seconds.
 _RPC_SIG_LIMIT = 300
@@ -98,6 +106,33 @@ def _iso(ts: Any) -> str | None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+def _query_recent_transfer_count(token_address: str, chain: str) -> int | None:
+    """Count the token's transfers in the last 7 days (large-token guard).
+
+    Returns the count, or ``None`` when ClickHouse is unreachable (fail-open:
+    the caller proceeds with the normal query path).
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT count()
+            FROM wallet_memory.evm_transfers
+            WHERE chain = %(chain)s
+              AND token_address = %(token)s
+              AND block_timestamp >= now() - INTERVAL 7 DAY
+            """,
+            {"chain": chain, "token": token_address},
+            settings={"max_execution_time": _QUERY_TIMEOUT_S},
+        )
+        return int(rows[0][0] or 0) if rows else 0
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("first_buyers_transfer_count_failed: %s", exc)
+        return None
+
+
 def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[tuple[Any, ...]] | None:
     """Earliest N distinct buyers — ``(buyer, first_buy_ts, tokens_in)``."""
     client = _get_ch_client()
@@ -113,6 +148,11 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
         # ``None`` → the caller renders nothing. That is the intended
         # trade-off: a 2-year-old token's first buyers carry no rug-detection
         # signal anyway, and returning "unavailable" beats a timeout.
+        # Large tokens (>100K recent transfers) are skipped entirely by
+        # ``get_first_buyers`` before reaching this query.
+        # SETTINGS cap rows scanned + server execution time for the
+        # remaining (smaller) tokens so a slow query degrades to ``None``
+        # instead of stalling the scan.
         return client.execute(
             """
             SELECT
@@ -130,7 +170,10 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
             LIMIT %(limit)s
             """,
             {"chain": chain, "token": token_address, "limit": int(limit)},
-            settings={"max_execution_time": _QUERY_TIMEOUT_S},
+            settings={
+                "max_execution_time": 15,
+                "max_rows_to_read": 100_000,
+            },
         )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("first_buyers_evm_query_failed: %s", exc)
@@ -463,6 +506,17 @@ async def get_first_buyers(address: str, chain: str, limit: int = FIRST_BUYERS_L
             rows = await _rpc_first_buyers_solana(address, limit)
         births = await run_sync(_query_wallet_births_solana, tuple(str(r[0]) for r in rows or [])) if rows else {}
     else:
+        # Large-token guard (2026-09-02): first-buyers analysis is a
+        # rug-detection signal for NEW tokens. Established tokens with
+        # >100K recent transfers (USDT ethereum: ~2M/week) blow the
+        # ClickHouse server timeout on the GROUP BY + ORDER BY, and their
+        # first buyers carry no rug signal anyway. Skip honestly with a
+        # note instead of timing out.
+        recent_count = await run_sync(_query_recent_transfer_count, address, chain_norm)
+        if recent_count is not None and recent_count > _LARGE_TOKEN_RECENT_TRANSFERS:
+            note = f"token too large for first-buyers analysis (>{_LARGE_TOKEN_RECENT_TRANSFERS} recent transfers)"
+            logger.info("first_buyers_skipped_large_token", chain=chain_norm, recent_transfers=recent_count)
+            return {"result": "skipped", "note": note, "reason": note}
         rows = await run_sync(_query_first_buyers_evm, address, chain_norm, limit)
         births = (
             await run_sync(

@@ -22,6 +22,24 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
+# ── Resilience layer (rugmunch-scanner) ───────────────────────────────────
+# Guarded import: the private ``rugmunch_scanner`` package may not be
+# installed in dev environments. ``retry_on_transient`` retries transient
+# ClickHouse/connection errors with backoff; the no-op fallback keeps the
+# engine working without it (fail-open by contract).
+try:
+    from rugmunch_scanner.resilience import retry_on_transient
+except ImportError:  # pragma: no cover — dev env without the private package
+
+    def retry_on_transient(max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 5.0):  # type: ignore[misc]
+        """No-op fallback for ``rugmunch_scanner.resilience.retry_on_transient``."""
+
+        def decorator(func):
+            return func
+
+        return decorator
+
+
 from app.domains.scanner.engines._common import (
     _norm_addr,
     _query_batch_labels,
@@ -101,8 +119,14 @@ _DEAD_ADDR = "0x000000000000000000000000000000000000dead"
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@retry_on_transient(max_retries=2)
 async def _compute_funding(token_address: str, chain: str, holders: list[str] | None) -> dict[str, Any]:
-    """Resolve holders, trace funders, classify, and aggregate percentages."""
+    """Resolve holders, trace funders, classify, and aggregate percentages.
+
+    Wrapped with ``retry_on_transient(max_retries=2)``: a ClickHouse
+    connection drop mid-query is retried with backoff instead of degrading
+    the metric to ``unavailable`` on the first transient blip.
+    """
     # Normalize once at entry: EVM addresses must be lowercase to match
     # ClickHouse storage (checksummed input would match 0 rows).
     token_address = _norm_addr(token_address, chain)
@@ -224,12 +248,16 @@ async def _compute_funding(token_address: str, chain: str, holders: list[str] | 
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@retry_on_transient(max_retries=2)
 async def _compute_wallet_metrics(
     token_address: str,
     chain: str,
     holders: list[str] | None,
 ) -> dict[str, Any]:
-    """Resolve holders, fetch wallet age + first funder, aggregate metrics."""
+    """Resolve holders, fetch wallet age + first funder, aggregate metrics.
+
+    Wrapped with ``retry_on_transient(max_retries=2)`` — see ``_compute_funding``.
+    """
     # Normalize once at entry: EVM addresses must be lowercase to match
     # ClickHouse storage (checksummed input would match 0 rows).
     token_address = _norm_addr(token_address, chain)
