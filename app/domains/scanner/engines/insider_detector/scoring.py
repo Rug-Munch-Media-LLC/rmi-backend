@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, cast
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
+from app.domains.scanner.engines._logging import get_logger
 
 from .collectors import _collect_token_meta, _gather_events, _get_token_traders
 from .config import INSIDER_WINDOW_MIN, MIN_INSIDER_BUY_USD

@@ -81,8 +81,6 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
-
 # ``as`` alias marks the re-export so mypy strict (implicit_reexport=False)
 # keeps treating ``deployer_fingerprint._get_ch_client`` as exportable —
 # the query submodule resolves the client lazily through this shim.
@@ -132,6 +130,7 @@ from app.domains.scanner.engines._indexer_port import (
     _get_ch_client as _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 # Legacy module-local names kept so existing unit tests that patch
 # ``deployer_fingerprint._redis_get`` / ``deployer_fingerprint._redis_set``

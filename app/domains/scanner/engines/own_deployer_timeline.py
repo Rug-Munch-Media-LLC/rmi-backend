@@ -56,7 +56,6 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -71,6 +70,7 @@ from app.domains.scanner.engines._deployer_fingerprint_queries import (
     _query_per_token_deployments,
     _query_token_dex_stats,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 

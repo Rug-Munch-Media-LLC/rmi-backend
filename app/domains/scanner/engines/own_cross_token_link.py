@@ -58,7 +58,6 @@ from __future__ import annotations
 import time
 from typing import Any, cast
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -73,6 +72,7 @@ from app.domains.scanner.engines._deployer_fingerprint_queries import (
 )
 from app.domains.scanner.engines._funding_queries import _query_first_funders
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._own_bundle_common import _normalize_chain
 from app.domains.scanner.engines._own_bundle_queries import _query_launch_cluster
 

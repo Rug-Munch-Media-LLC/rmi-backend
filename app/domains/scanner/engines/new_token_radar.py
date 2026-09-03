@@ -55,7 +55,6 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -68,6 +67,7 @@ from app.domains.scanner.engines._indexer_port import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 # Legacy module-local names kept so existing unit tests that patch
 # ``new_token_radar._redis_get`` / ``new_token_radar._redis_set`` keep

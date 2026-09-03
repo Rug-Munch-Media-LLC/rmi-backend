@@ -8,8 +8,8 @@ from typing import Any
 
 import httpx
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
+from app.domains.scanner.engines._logging import get_logger
 
 from .config import DEXSCREENER_BOOSTS, DEXSCREENER_PROFILES, DEXSCREENER_SEARCH, DEXSCREENER_TOKEN
 from .helpers import _parse_timestamp

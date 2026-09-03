@@ -64,12 +64,12 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_pools_for_token,
     _load_pair_cache,

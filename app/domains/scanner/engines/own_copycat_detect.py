@@ -40,12 +40,12 @@ import os
 import time
 from typing import Any
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 
