@@ -122,7 +122,7 @@ def score_cluster_risk(
         components["bundle"] = round(bundle_pts, 1)
 
     score = max(0.0, min(100.0, score))
-    risk_int = int(round(score))
+    risk_int = round(score)
 
     if risk_int >= 80:
         label = "CRITICAL"

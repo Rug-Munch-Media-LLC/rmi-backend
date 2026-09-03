@@ -326,7 +326,7 @@ def detect_temporal_clusters(
                     "span_blocks": span,
                     "rapid_sequence": True,
                     "early_launch": _is_early(run[0]),
-                    "note": f"{len(run_wallets)} wallets entered within {span} block(s) ({run[0]}–{run[-1]})",
+                    "note": f"{len(run_wallets)} wallets entered within {span} block(s) ({run[0]}-{run[-1]})",
                 }
             )
 

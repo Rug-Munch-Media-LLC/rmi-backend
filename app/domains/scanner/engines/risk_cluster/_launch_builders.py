@@ -187,7 +187,7 @@ def detect_sniper_bot_patterns(
             )
 
     # Stable ordering: signal strength first, then member count.
-    _SIGNAL_ORDER = {
+    _signal_order = {
         "sniper_wave": 0,
         "same_block_snipe": 1,
         "fresh_wallet_bots": 2,
@@ -196,7 +196,7 @@ def detect_sniper_bot_patterns(
     }
     return sorted(
         patterns,
-        key=lambda p: (_SIGNAL_ORDER.get(str(p.get("pattern") or ""), 9), -int(p.get("members") or 0)),
+        key=lambda p: (_signal_order.get(str(p.get("pattern") or ""), 9), -int(p.get("members") or 0)),
     )
 
 
@@ -338,10 +338,10 @@ def detect_mev_bundles(
                 }
             )
 
-    _MEV_ORDER = {"identical_tip_bundle": 0, "atomic_bundle_buy": 1, "buy_then_distribute": 2}
+    _mev_order = {"identical_tip_bundle": 0, "atomic_bundle_buy": 1, "buy_then_distribute": 2}
     return sorted(
         bundles,
-        key=lambda b: (_MEV_ORDER.get(str(b.get("pattern") or ""), 9), -int(b.get("members") or 0)),
+        key=lambda b: (_mev_order.get(str(b.get("pattern") or ""), 9), -int(b.get("members") or 0)),
     )
 
 
@@ -443,7 +443,7 @@ def detect_wash_trading_clusters(
             if nxt in visited or len(path) >= _MAX_WASH_CYCLE_LEN:
                 continue
             visited.add(nxt)
-            _walk(start, path + [nxt], visited)
+            _walk(start, [*path, nxt], visited)
             visited.remove(nxt)
 
     for start in sorted(adj):
@@ -468,7 +468,7 @@ def detect_wash_trading_clusters(
         "total_transfer_volume": round(total_volume, 4),
         "cycle_volume": round(cycle_volume, 4),
         "cycle_volume_ratio": round(cycle_volume / total_volume, 4) if total_volume > 0 else 0.0,
-        "wash_score": int(round(wash_score)),
+        "wash_score": round(wash_score),
     }
 
 

@@ -16,7 +16,7 @@ _MIN_CROSS_TOKEN_MEMBERS = 2  # wallet group size for a cross-token cluster
 _MIN_SHARED_DEPLOYER_MEMBERS = 2  # wallet overlap size for shared-deployer net
 
 # ── Deepened cluster limits (legs 4-8) ────────────────────────────────────
-_MAX_FUNDER_ROWS = 100  # funder×token rows fed into the cross-token funder graph
+_MAX_FUNDER_ROWS = 100  # funder x token rows fed into the cross-token funder graph
 _MIN_CROSS_TOKEN_FUNDER_TOKENS = 2  # launches a funder must seed to be a graph node
 _MIN_TEMPORAL_MEMBERS = 2  # wallets entering in the same block = lockstep
 _TEMPORAL_BLOCK_WINDOW = 3  # consecutive blocks merged into a rapid sequence
