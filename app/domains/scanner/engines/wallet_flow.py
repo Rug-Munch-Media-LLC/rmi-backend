@@ -47,7 +47,6 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     _query_batch_labels,
     _query_contract_addresses,
@@ -61,6 +60,7 @@ from app.domains.scanner.engines._indexer_port import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 # Legacy module-local names kept so existing unit tests that patch
 # ``wallet_flow._redis_get`` / ``wallet_flow._redis_set`` keep intercepting the

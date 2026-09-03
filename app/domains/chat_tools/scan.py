@@ -8,7 +8,7 @@ on any error/timeout and NEVER raises.
 from __future__ import annotations
 
 import textwrap
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.core.logging import get_logger
 
@@ -77,16 +77,16 @@ async def _exec_scan(message: str) -> str | None:
         lines.append(f"| Risk Flags | {', '.join(flags[:5])} |")
 
     if is_honeypot:
-        lines.append(f"| ❌ Honeypot | **YES** — cannot sell |")
+        lines.append("| ❌ Honeypot | **YES** — cannot sell |")
     if is_mintable:
-        lines.append(f"| ⚠️ Mintable | Supply can be inflated |")
+        lines.append("| ⚠️ Mintable | Supply can be inflated |")
     if owner_renounced is not None:
         lines.append(f"| Owner Renounced | {'✅ Yes' if owner_renounced else '❌ No'} |")
     if top10_pct is not None:
         lines.append(f"| Top 10 Holders | {_v(top10_pct)}% of supply |")
 
     lines.append(f"| Token Age | {_v(created_at)} |")
-    lines.append(f"| Scan Time | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} |")
+    lines.append(f"| Scan Time | {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')} |")
 
     # Risk breakdown
     if safety <= 30:

@@ -19,7 +19,6 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import run_sync, to_iso
 from app.domains.scanner.engines._deployer_fingerprint_helpers import (
     _assign_risk_bucket,
@@ -34,6 +33,7 @@ from app.domains.scanner.engines._deployer_fingerprint_queries import (
     _query_per_token_deployments,
     _query_token_dex_stats,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 

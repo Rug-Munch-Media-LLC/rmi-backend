@@ -65,7 +65,6 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -75,6 +74,7 @@ from app.domains.scanner.engines._funding_queries import (
     _query_wallet_first_funder,
     _query_wallet_stats,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines.own_wallet_map import (
     _classify_funder_cex,
     _classify_funder_mixer,

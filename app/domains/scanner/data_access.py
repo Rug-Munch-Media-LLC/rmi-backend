@@ -25,7 +25,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.config import (
     B2_BUCKET,
     B2_PATH_PREFIX,
@@ -33,6 +32,7 @@ from app.domains.scanner.config import (
     DataAccessMode,
     resolve_data_access_mode,
 )
+from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 

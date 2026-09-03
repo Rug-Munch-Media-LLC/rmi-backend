@@ -61,7 +61,7 @@ async def _run_with_retry(
                 asyncio.gather(coro),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("chat_tool_retry_timeout attempt=%d/%d", attempt + 1, 1 + max_retries)
         except Exception:
             logger.warning("chat_tool_retry_error attempt=%d/%d", attempt + 1, 1 + max_retries)

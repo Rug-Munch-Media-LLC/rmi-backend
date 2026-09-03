@@ -67,7 +67,6 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
-from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines._attack_helpers import (
     _CH_DB,
     _RESULT_CACHE,
@@ -86,6 +85,7 @@ from app.domains.scanner.engines._common import (
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
+from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.engines.own_dex_data.format import _normalize_amount
 from app.domains.scanner.engines.own_dex_data.query import get_token_price_simple
 
