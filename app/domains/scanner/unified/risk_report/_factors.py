@@ -11,10 +11,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from app.domains.scanner.unified.risk_report._extract import _f, _factor, _i
-from app.domains.scanner.unified.risk_report._model import ClusterInfo, RiskFactor
 
 if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult
+    from app.domains.scanner.unified.risk_report._model import ClusterInfo, RiskFactor
+
 
 def _build_factors(
     r: ScanResult,

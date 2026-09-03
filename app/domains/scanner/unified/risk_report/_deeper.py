@@ -6,9 +6,10 @@ explaining the evidence behind each factor, grouped by report section.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app.domains.scanner.unified.risk_report._model import RiskFactor
+if TYPE_CHECKING:
+    from app.domains.scanner.unified.risk_report._model import RiskFactor
 
 
 def _build_deeper_analysis(

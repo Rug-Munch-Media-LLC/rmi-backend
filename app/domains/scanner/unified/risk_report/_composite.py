@@ -7,6 +7,8 @@ KNOWN factors and maps it to a scam / rug / risky / ok / unknown verdict.
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.domains.scanner.unified.risk_report._model import (
     _MIN_KNOWN_FOR_DETERMINATION,
     _RISKY_MIN,
@@ -41,7 +43,7 @@ def _composite_and_determination(
         w = FACTOR_WEIGHTS.get(f.key, 1.0)
         total += float(f.risk_score) * w
         total_w += w
-    composite = int(round(total / total_w)) if total_w > 0 else 50
+    composite = round(total / total_w) if total_w > 0 else 50
 
     determination: str
     if bool(honeypot.get("is_honeypot")) or composite >= _SCAM_MIN:

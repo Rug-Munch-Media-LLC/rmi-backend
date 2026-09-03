@@ -69,9 +69,12 @@ from app.domains.scanner.unified.risk_report._model import (
 from app.domains.scanner.unified.risk_report._phase import run_risk_report_phase
 
 __all__ = [
+    "FACTOR_LABELS",
+    "FACTOR_WEIGHTS",
     "ClusterInfo",
     "RiskFactor",
     "RiskReport",
+    "_composite_and_determination",
     "build_risk_report",
     "format_risk_report",
     "run_risk_report_phase",
