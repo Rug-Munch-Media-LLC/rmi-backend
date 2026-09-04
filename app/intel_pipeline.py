@@ -99,8 +99,8 @@ async def classify_scam_risk(text: str) -> dict[str, Any]:
             for label, keywords in SCAM_KEYWORDS.items():
                 if any(kw in content for kw in keywords):
                     scores[label] = scores.get(label, 0) + 0.1
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.warning("Pipeline error: %s", e)
 
     if not scores:
         return {
@@ -239,8 +239,8 @@ async def label_wallet(wallet_data: dict[str, Any]) -> dict[str, Any]:
                         if label not in confidence_scores:
                             confidence_scores[label] = 0
                         confidence_scores[label] = min(confidence_scores[label] + 0.15, 1.0)
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.warning("Pipeline error: %s", e)
 
     labels = [
         {"label": k, "confidence": v}

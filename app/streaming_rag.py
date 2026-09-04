@@ -211,8 +211,8 @@ async def _publish_to_redis(watch_id: str, watch: dict[str, Any]) -> None:
             ),
         )
         await r.close()
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning("Streaming error: %s", e)
 
 
 async def list_active_watches() -> list[dict[str, Any]]:

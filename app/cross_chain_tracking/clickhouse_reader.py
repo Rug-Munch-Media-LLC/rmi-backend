@@ -43,12 +43,17 @@ CLICKHOUSE_DB = os.getenv("CHAIN_INDEXER_CLICKHOUSE_DB", "lite_chain_indexer")
 MAX_BATCH_SIZE = 100_000
 
 
+_ch_client: Any = None
+
+
 def _get_client() -> Any | None:
-    """Lazy-init ClickHouse client for chain-indexer data."""
+    global _ch_client
+    if _ch_client is not None:
+        return _ch_client
     try:
         import clickhouse_driver
 
-        client = clickhouse_driver.Client(
+        _ch_client = clickhouse_driver.Client(
             host=CLICKHOUSE_HOST,
             port=CLICKHOUSE_PORT,
             user=CLICKHOUSE_USER,
@@ -57,12 +62,11 @@ def _get_client() -> Any | None:
             connect_timeout=10,
             send_receive_timeout=60,
         )
-        client.execute("SELECT 1")
-        return client
+        return _ch_client
     except ImportError:
-        logger.warning("clickhouse_driver not installed — deployer queries disabled")
+        logger.warning("clickhouse_driver not installed")
     except Exception as e:
-        logger.warning("ClickHouse (chain-indexer) connection failed: %s", e)
+        logger.warning("ClickHouse connection failed: %s", e)
     return None
 
 

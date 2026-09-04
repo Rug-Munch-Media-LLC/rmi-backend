@@ -451,8 +451,8 @@ class UnifiedProvider:
                         if gmgn_data.get(key) is not None and result.get(key) is None:
                             result[key] = gmgn_data[key]
                     result["source_chain"].append("gmgn")
-            except Exception:  # noqa: S110 — best-effort rate limiting
-                pass
+            except Exception as e:
+                logger.warning("GMGN enrichment error: %s", e)
 
             # Birdeye (holder count, security)
             try:
@@ -463,8 +463,8 @@ class UnifiedProvider:
                     if birdeye_data.get("security"):
                         result["security"] = birdeye_data["security"]
                     result["source_chain"].append("birdeye")
-            except Exception:  # noqa: S110 — intentional best-effort
-                pass
+            except Exception as e:
+                logger.warning("Birdeye enrichment error: %s", e)
 
             # Phase 3: OHLCV from GeckoTerminal (free)
             if not result.get("ohlcv"):
@@ -473,8 +473,8 @@ class UnifiedProvider:
                     if ohlcv:
                         result["ohlcv"] = ohlcv
                         result["source_chain"].append("geckoterminal")
-                except Exception:  # noqa: S110 — best-effort rate limiting
-                    pass
+                except Exception as e:
+                    logger.warning("GeckoTerminal OHLCV error: %s", e)
 
             # Cache full result for 60s
             await cache.set("full", result, mint, ttl=60)
@@ -510,8 +510,8 @@ class UnifiedProvider:
                         },
                         "top_holders": (data.get("top_holders") or [])[:20],
                     }
-        except Exception:  # noqa: S110 — intentional best-effort
-            pass
+        except Exception as e:
+            logger.warning("Scanner cache error: %s", e)
         return None
 
     async def _fetch_dexscreener_full(self, mint: str, chain: str) -> dict[str, Any] | None:

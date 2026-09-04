@@ -569,8 +569,8 @@ async def search_clusters_by_description(
                     r.get("metadata", {}).get("vector", []),
                 )
                 r["metadata"]["auto_label"] = labeling
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning("Clustering error: %s", e)
 
     return results
 

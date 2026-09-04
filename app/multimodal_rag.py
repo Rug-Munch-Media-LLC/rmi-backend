@@ -73,14 +73,14 @@ def compute_image_hash(image_bytes: bytes, hash_size: int = 16) -> str:
                     decompressed = zlib.decompress(pixel_data)
                     # Convert to 16x16 grayscale by averaging blocks
                     return _hash_from_raw(decompressed, width, height, hash_size)
-                except zlib.error:
-                    pass
+                except zlib.error as e:
+                    logger.warning("RAG error: %s", e)
 
         # Fallback: hash raw bytes (file-level similarity)
         return _hash_from_raw(image_bytes, 1, len(image_bytes), hash_size)
 
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning("RAG error: %s", e)
 
     # Ultimate fallback: SHA-based hash of raw bytes
     return hashlib.sha256(image_bytes).hexdigest()[: hash_size * 2]
@@ -314,8 +314,8 @@ def extract_text_from_image_hints(image_bytes: bytes) -> dict[str, list[str]]:
         text = "".join(chr(b) for b in image_bytes if 32 <= b < 127)
         # Limit to first 10K chars
         text = text[:10000]
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning("RAG error: %s", e)
 
     results = {
         "eth_addresses": [],

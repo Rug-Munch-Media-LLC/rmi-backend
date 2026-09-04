@@ -546,8 +546,8 @@ async def build_bm25_from_redis(
 
             load_dotenv(env_path, override=True)
             break
-        except (ConnectionError, OSError):
-            pass
+        except (ConnectionError, OSError) as e:
+            logger.warning("BM25 error: %s", e)
 
     if collections is None:
         collections = [
