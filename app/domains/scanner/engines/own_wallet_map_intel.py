@@ -5,14 +5,14 @@ from __future__ import annotations
 """Holder/funder classification + CEX-funding intel (de-godding 2026-08-23)."""
 
 
-from datetime import UTC, datetime, timedelta
-from typing import Any
+from datetime import UTC, datetime, timedelta  # noqa: E402
+from typing import Any  # noqa: E402
 
-from app.domains.scanner.engines._logging import get_logger
+from app.domains.scanner.engines._logging import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
-from app.domains.scanner.engines.own_wallet_map_support import (
+from app.domains.scanner.engines.own_wallet_map_support import (  # noqa: E402
     _CEX_DISPLAY,
     _FISH_PCT,
     _FRESH_WALLET_DAYS,
