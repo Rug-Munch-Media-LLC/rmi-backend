@@ -17,8 +17,10 @@ class RAGUnavailableError(Exception):
 # client. Binding it through this module keeps engines free of
 # app.core.redis; post-split, set_redis_port() wires a standalone pool.
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any  # noqa: E402
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _redis_factory: Callable[[], Any] | None = None
 

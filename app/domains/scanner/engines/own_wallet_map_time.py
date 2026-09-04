@@ -8,13 +8,13 @@ from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.domains.scanner.engines._common import (
+from app.domains.scanner.engines._common import (  # noqa: E402
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
     run_sync,
 )
-from app.domains.scanner.engines._funding_queries import _query_funder_tx_counts
-from app.domains.scanner.engines.own_wallet_map_support import (
+from app.domains.scanner.engines._funding_queries import _query_funder_tx_counts  # noqa: E402
+from app.domains.scanner.engines.own_wallet_map_support import (  # noqa: E402
     _FRESH_WALLET_HOURS,
     _MAX_HOLDERS,
     _RECENT_FUNDED_HOURS,
@@ -27,6 +27,7 @@ from app.domains.scanner.engines.own_wallet_map_support import (
 
 _WALLET_MAP_CACHE: dict[str, dict[str, Any]] = {}
 
+
 async def _is_fresh_funder(funder: str, chain_norm: str) -> bool:
     """True when the funder has < 10 total on-chain transfers (fresh heuristic)."""
     try:
@@ -36,6 +37,7 @@ async def _is_fresh_funder(funder: str, chain_norm: str) -> bool:
     except Exception as exc:
         logger.debug("wallet_map_funder_tx_count_failed: %s", exc)
     return False
+
 
 def _compute_buyer_timing(holders: list[dict[str, Any]]) -> dict[str, Any]:
     """Fresh-wallet + recently-funded % over the classified first-buyers.
@@ -93,6 +95,7 @@ def _compute_buyer_timing(holders: list[dict[str, Any]]) -> dict[str, Any]:
         "breakdown": breakdown,
     }
 
+
 def _build_timing_lines(timing: dict[str, Any]) -> tuple[str, str]:
     """Display lines for the deep scan, e.g. ``🌱 Fresh wallets: 62% (created <24h before buy)``.
 
@@ -115,6 +118,7 @@ def _build_timing_lines(timing: dict[str, Any]) -> tuple[str, str]:
         )
     return fresh_line, funded_line
 
+
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
     return _common_get_cache_stats(
@@ -123,6 +127,7 @@ def get_cache_stats() -> dict[str, Any]:
         _WALLET_MAP_CACHE_TTL,
         extra={"max_holders": _MAX_HOLDERS},
     )
+
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""

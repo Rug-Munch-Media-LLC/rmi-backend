@@ -201,7 +201,6 @@ async def chat_with_context(
 
     # ── Step 3: Build system prompt with enterprise voice ──
     today = datetime.now(UTC).strftime("%A, %B %d, %Y")
-    has_web = bool(web_text)
     system_prompt = textwrap.dedent(f"""\
     You are the RugMunch crypto intelligence assistant — an institutional-grade Web3 analyst.
     Today is {today}.
