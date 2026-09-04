@@ -14,11 +14,12 @@ from typing import Any, cast
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
 from app.core.errors import AppError, ValidationError
 from app.core.logging import get_logger
+from app.core.shared_utils import validate_public_url
 from app.routers.x402_advanced_tools.gate import require_x402_advanced_payment
 
 logger = get_logger("x402.premium")
@@ -42,6 +43,11 @@ class WebhookRegisterRequest(BaseModel):
     events: list[str] = Field(default=["rug_pull", "whale_move", "price_crash"], description="Events to monitor")
     address: str | None = Field(default=None, description="Specific address to watch (optional)")
     chain: str = Field(default="all", description="Chain filter")
+
+    @field_validator("url")
+    @classmethod
+    def _validate_url(cls, v: str) -> str:
+        return validate_public_url(v)
 
 
 class InvestigationRequest(BaseModel):

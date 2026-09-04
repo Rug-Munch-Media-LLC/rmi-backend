@@ -16,7 +16,10 @@ Usage::
 
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
+from urllib.parse import urlparse
 
 # ── Address regex patterns (single source of truth) ────────────────
 # These replace the 12+ identical copies scattered across the codebase.
@@ -190,6 +193,40 @@ def validate_wallet_address(address: str) -> tuple[bool, str]:
     return False, ""
 
 
+def validate_public_url(url: str) -> str:
+    """SSRF guard: only public http/https URLs are allowed.
+
+    Blocks private / loopback / link-local / reserved ranges:
+      127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16
+    and only permits http/https schemes. Resolves the hostname and requires
+    every resolved address to be a global (public) unicast address.
+
+    Returns the validated URL on success, raises ValueError on violation.
+    Callers must also disable redirect-following so a crafted 2xx->internal
+    redirect cannot bypass this check.
+    """
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError("Only http/https URLs are allowed")
+    host = parsed.hostname
+    if not host:
+        raise ValueError("URL must include a host")
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise ValueError(f"Unable to resolve host {host}: {exc}") from exc
+    if not infos:
+        raise ValueError(f"Host {host} does not resolve")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        if not ip.is_global:
+            raise ValueError("Only public hosts are allowed")
+    return url
+
+
 __all__ = [
     "CHAIN_ALIASES",
     "EVM_ADDRESS_RE",
@@ -200,5 +237,6 @@ __all__ = [
     "is_valid_address",
     "normalize_chain",
     "validate_eip55_checksum",
+    "validate_public_url",
     "validate_wallet_address",
 ]
