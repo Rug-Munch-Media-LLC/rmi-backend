@@ -367,9 +367,9 @@ async def ensure_schema() -> bool:
     try:
         import asyncpg
 
-        from app.core.db_pool import PG_URL
+        from app.config import settings
 
-        conn = await asyncpg.connect(PG_URL)
+        conn = await asyncpg.connect(settings.database_url)
         try:
             await conn.execute(_PG_SCHEMA_SQL)
         finally:
@@ -410,9 +410,9 @@ async def persist_clusters(stories: list[StoryCluster]) -> int:
 
         import asyncpg
 
-        from app.core.db_pool import PG_URL
+        from app.config import settings
 
-        conn = await asyncpg.connect(PG_URL)
+        conn = await asyncpg.connect(settings.database_url)
         try:
             # Load existing rows for merge
             ids = [s.cluster_id for s in stories]
@@ -488,9 +488,9 @@ async def load_recent_clusters(limit: int = 50) -> list[dict[str, Any]]:
 
         import asyncpg
 
-        from app.core.db_pool import PG_URL
+        from app.config import settings
 
-        conn = await asyncpg.connect(PG_URL)
+        conn = await asyncpg.connect(settings.database_url)
         try:
             rows = await conn.fetch(
                 "SELECT * FROM news_clusters ORDER BY last_updated DESC LIMIT $1",
@@ -596,9 +596,9 @@ async def load_story_sources(cluster_id: str) -> dict[str, Any] | None:
 
         import asyncpg
 
-        from app.core.db_pool import PG_URL
+        from app.config import settings
 
-        conn = await asyncpg.connect(PG_URL)
+        conn = await asyncpg.connect(settings.database_url)
         try:
             row = await conn.fetchrow(
                 "SELECT * FROM news_clusters WHERE cluster_id = $1",

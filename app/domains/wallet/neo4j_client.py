@@ -26,6 +26,7 @@ log = get_logger(__name__)
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+NEO4J_ENABLED = os.getenv("NEO4J_ENABLED", "false").lower() == "true"
 
 _driver: Any = None
 
@@ -33,6 +34,8 @@ _driver: Any = None
 def get_neo4j_driver() -> Any:
     """Lazy-init Neo4j Bolt driver. Returns None if unavailable."""
     global _driver
+    if not NEO4J_ENABLED:
+        return None
     if _driver is not None:
         return _driver
 

@@ -141,10 +141,10 @@ async def _ensure_schema() -> bool:
     try:
         import asyncpg
 
-        from app.core.db_pool import PG_URL
+        from app.config import settings
 
         # Strip SQLAlchemy driver suffix (e.g. +asyncpg) for asyncpg.connect()
-        _pg_dsn = PG_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+        _pg_dsn = settings.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
         conn = await asyncpg.connect(_pg_dsn)
         try:
             await conn.execute(_THREAT_DOMAINS_SCHEMA)
@@ -161,10 +161,10 @@ async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, i
     try:
         import asyncpg
 
-        from app.core.db_pool import PG_URL
+        from app.config import settings
 
         # Strip SQLAlchemy driver suffix (e.g. +asyncpg) for asyncpg.connect()
-        _pg_dsn = PG_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+        _pg_dsn = settings.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
         conn = await asyncpg.connect(_pg_dsn)
         try:
             await conn.execute(

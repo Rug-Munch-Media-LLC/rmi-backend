@@ -333,5 +333,5 @@ def get_default_analytics() -> DuckDBAnalytics:
     """
     global _default_instance
     if _default_instance is None:
-        _default_instance = DuckDBAnalytics()
+        _default_instance = DuckDBAnalytics(memory_limit="2GB")
     return _default_instance

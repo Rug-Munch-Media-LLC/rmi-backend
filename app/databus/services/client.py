@@ -24,6 +24,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.redis import get_redis
 from app.databus.access_control import access_controller
 from app.databus.cache import CacheLayer, get_cache
 from app.databus.providers import ProviderChain, ProviderTier, build_provider_chains
@@ -450,25 +451,15 @@ class DataBus:
                         ]
                         # Write-through to Redis cache
                         try:
-                            import os
-
-                            import redis as sync_redis
-
-                            r = sync_redis.Redis(
-                                host=os.getenv("REDIS_HOST", "rmi-redis"),
-                                port=6379,
-                                password=os.getenv("REDIS_PASSWORD", ""),
-                                decode_responses=True,
-                                socket_connect_timeout=2,
-                            )
-                            for label_d in label_dicts:
-                                lc = label_d.get("chain", chain or "ethereum")
-                                r.setex(
-                                    f"rmi:label:{lc}:{address}",
-                                    3600,
-                                    json.dumps(label_d),
-                                )
-                            r.close()
+                            r = get_redis()
+                            if r is not None:
+                                for label_d in label_dicts:
+                                    lc = label_d.get("chain", chain or "ethereum")
+                                    r.setex(
+                                        f"rmi:label:{lc}:{address}",
+                                        3600,
+                                        json.dumps(label_d),
+                                    )
                         except (
                             ValueError,
                             ConnectionError,
@@ -500,42 +491,31 @@ class DataBus:
 
                 # Layer 2: Redis hot cache — 4.29M frequently-accessed labels
                 try:
-                    import os
-
-                    import redis as sync_redis
-
-                    r = sync_redis.Redis(
-                        host=os.getenv("REDIS_HOST", "rmi-redis"),
-                        port=6379,
-                        password=os.getenv("REDIS_PASSWORD", ""),
-                        decode_responses=True,
-                        socket_connect_timeout=2,
-                    )
-                    for c in [
-                        "solana",
-                        "ethereum",
-                        "bsc",
-                        "base",
-                        "arbitrum",
-                        "optimism",
-                        "polygon",
-                    ]:
-                        data = r.get(f"rmi:label:{c}:{address}")
-                        if data:
-                            r.close()
-                            return {
-                                "data": {
-                                    "labels": [json.loads(data)],
-                                    "address": address,
+                    r = get_redis()
+                    if r is not None:
+                        for c in [
+                            "solana",
+                            "ethereum",
+                            "bsc",
+                            "base",
+                            "arbitrum",
+                            "optimism",
+                            "polygon",
+                        ]:
+                            data = r.get(f"rmi:label:{c}:{address}")
+                            if data:
+                                return {
+                                    "data": {
+                                        "labels": [json.loads(data)],
+                                        "address": address,
+                                        "source": "wallet_memory_bank",
+                                        "total": "4.29M+",
+                                    },
                                     "source": "wallet_memory_bank",
-                                    "total": "4.29M+",
-                                },
-                                "source": "wallet_memory_bank",
-                                "tier": "local",
-                                "is_local": True,
-                                "cached": True,
-                            }
-                    r.close()
+                                    "tier": "local",
+                                    "is_local": True,
+                                    "cached": True,
+                                }
                 except (
                     ConnectionError,
                     OSError,
@@ -556,29 +536,18 @@ class DataBus:
                 and address
             ):
                 try:
-                    import os
-
-                    import redis
-
-                    r = redis.Redis(
-                        host=os.getenv("REDIS_HOST", "rmi-redis"),
-                        port=6379,
-                        password=os.getenv("REDIS_PASSWORD", ""),
-                        decode_responses=True,
-                        socket_connect_timeout=2,
-                    )
-                    scan_key = f"sentinelscan:{address}" if not chain else f"sentinelscan:{chain}:{address}"
-                    cached = r.get(scan_key)
-                    if cached:
-                        r.close()
-                        return {
-                            "data": json.loads(cached),
-                            "source": "sentinel_scanner",
-                            "tier": "local",
-                            "is_local": True,
-                            "cached": True,
-                        }
-                    r.close()
+                    r = get_redis()
+                    if r is not None:
+                        scan_key = f"sentinelscan:{address}" if not chain else f"sentinelscan:{chain}:{address}"
+                        cached = r.get(scan_key)
+                        if cached:
+                            return {
+                                "data": json.loads(cached),
+                                "source": "sentinel_scanner",
+                                "tier": "local",
+                                "is_local": True,
+                                "cached": True,
+                            }
                 except (
                     ConnectionError,
                     OSError,
@@ -626,28 +595,17 @@ class DataBus:
             # ── PRICE: check Redis price cache ──
             if data_type == "token_price" and address:
                 try:
-                    import os
-
-                    import redis
-
-                    r = redis.Redis(
-                        host=os.getenv("REDIS_HOST", "rmi-redis"),
-                        port=6379,
-                        password=os.getenv("REDIS_PASSWORD", ""),
-                        decode_responses=True,
-                        socket_connect_timeout=2,
-                    )
-                    cached = r.get(f"price:{address.lower()}")
-                    if cached:
-                        r.close()
-                        return {
-                            "data": json.loads(cached),
-                            "source": "local_price_cache",
-                            "tier": "local",
-                            "is_local": True,
-                            "cached": True,
-                        }
-                    r.close()
+                    r = get_redis()
+                    if r is not None:
+                        cached = r.get(f"price:{address.lower()}")
+                        if cached:
+                            return {
+                                "data": json.loads(cached),
+                                "source": "local_price_cache",
+                                "tier": "local",
+                                "is_local": True,
+                                "cached": True,
+                            }
                 except (
                     ConnectionError,
                     OSError,
