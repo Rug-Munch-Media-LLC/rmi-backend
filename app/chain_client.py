@@ -129,8 +129,8 @@ class ChainClient:
                         all_failed = False
                         await _chain_cb.record_success()
                         return r.json()
-            except httpx.HTTPError:
-                pass
+            except httpx.HTTPError as e:
+                logger.warning("Chain client error: %s", e)
 
         if all_failed:
             await _chain_cb.record_failure(is_server_error=True)

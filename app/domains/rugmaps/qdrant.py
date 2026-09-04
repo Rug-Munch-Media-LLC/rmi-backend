@@ -94,6 +94,16 @@ class RugMapsQdrant:
                     hnsw_config=models.HnswConfigDiff(m=16, ef_construct=200),
                 )
                 logger.info("rugmaps_qdrant_created collection=%s dim=%d", name, dim)
+                await self.client.create_payload_index(
+                    collection_name=name,
+                    field_name="chain",
+                    field_schema=models.PayloadSchemaType.KEYWORD,
+                )
+                await self.client.create_payload_index(
+                    collection_name=name,
+                    field_name="address",
+                    field_schema=models.PayloadSchemaType.KEYWORD,
+                )
                 results[name] = True
             except Exception as e:
                 logger.warning("rugmaps_qdrant_create_error collection=%s err=%s", name, e)

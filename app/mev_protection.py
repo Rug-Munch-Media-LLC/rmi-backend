@@ -395,8 +395,8 @@ async def _check_historical_mev(chain: str, token_address: str | None = None) ->
                 detail=detail,
                 suggestion=suggestion,
             )
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.warning("MEV error: %s", e)
     except Exception as e:
         logger.debug(f"Historical MEV check failed: {e}")
 
@@ -676,8 +676,8 @@ def mev_shield_analysis(
                     ),
                 )
                 return future.result().to_dict()
-    except RuntimeError:
-        pass
+    except RuntimeError as e:
+        logger.warning("MEV error: %s", e)
     return asyncio.run(
         analyze_transaction_risk(
             chain=chain,
