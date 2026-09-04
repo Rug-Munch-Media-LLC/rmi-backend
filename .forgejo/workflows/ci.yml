@@ -368,6 +368,18 @@ jobs:
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec bash -n {} \;
 
+  docker-lint:
+    # hadolint gate: lints the root Dockerfile for best-practice violations.
+    # Runs the hadolint image directly as the job container (no Docker daemon
+    # needed in CI, matching the other container-based jobs).
+    runs-on: docker-x64
+    container:
+      image: hadolint/hadolint:latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Hadolint Dockerfile
+        run: hadolint Dockerfile
+
   layerlint:
     runs-on: docker-x64
     container:
