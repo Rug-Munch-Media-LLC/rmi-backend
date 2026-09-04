@@ -6,11 +6,12 @@ are injected via ``Depends()`` so they can be mocked in tests.
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
@@ -27,6 +28,16 @@ router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
 class TokenScanRequest(BaseModel):
     address: str
     chain: str = "solana"
+
+    @model_validator(mode="after")
+    def validate_address(self) -> TokenScanRequest:
+        if self.chain == "solana":
+            if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", self.address):
+                raise ValueError("Invalid Solana address (expected 32-44 base58 chars)")
+        else:
+            if not re.match(r"^0x[0-9a-fA-F]{40}$", self.address):
+                raise ValueError("Invalid EVM address (expected 0x + 40 hex chars)")
+        return self
 
 
 class WalletScanRequest(BaseModel):

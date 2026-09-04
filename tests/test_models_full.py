@@ -31,25 +31,25 @@ class TestTokenScanRequest:
     def test_chain_overridden(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        req = TokenScanRequest(address="0xabc", chain="ethereum")
+        req = TokenScanRequest(address="0x1234567890abcdef1234567890abcdef12345678", chain="ethereum")
         assert req.chain == "ethereum"
 
     def test_chain_default(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        req = TokenScanRequest(address="0xabc")
+        req = TokenScanRequest(address="9WzDXwBbmkg8ZTbNMqUxkQ4oSzf4vKq2J8U5Z5Y5Y5Y5")
         assert req.chain == "solana"
 
-    def test_address_empty(self):
+    def test_address_empty_rejected(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        req = TokenScanRequest(address="")
-        assert req.address == ""
+        with pytest.raises(ValidationError):
+            TokenScanRequest(address="")
 
     def test_address_long(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        long_addr = "0x" + "a" * 254
+        long_addr = "9WzDXwBbmkg8ZTbNMqUxkQ4oSzf4vKq2J8U5Z5Y5Y5Y5"
         req = TokenScanRequest(address=long_addr)
         assert req.address == long_addr
 
@@ -62,9 +62,9 @@ class TestTokenScanRequest:
     def test_serialization_roundtrip(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        orig = TokenScanRequest(address="0xabc", chain="ethereum")
+        orig = TokenScanRequest(address="0x1234567890abcdef1234567890abcdef12345678", chain="ethereum")
         data = orig.model_dump()
-        assert data["address"] == "0xabc"
+        assert data["address"] == "0x1234567890abcdef1234567890abcdef12345678"
         assert data["chain"] == "ethereum"
 
         restored = TokenScanRequest(**data)

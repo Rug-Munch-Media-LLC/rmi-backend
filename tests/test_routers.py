@@ -193,7 +193,7 @@ async def test_scanner_endpoint_public_without_auth(scanner_client):
     """POST /api/v2/scanner/token/scan is public (Tier 0) — no 401 without auth."""
     response = await scanner_client.post(
         "/api/v2/scanner/token/scan",
-        json={"address": "0xtoken", "chain": "ethereum"},
+        json={"address": "0x1234567890abcdef1234567890abcdef12345678", "chain": "ethereum"},
     )
     assert response.status_code == 200, response.text
     assert "status" in response.json()
@@ -234,7 +234,9 @@ async def test_market_routes_public(client):
 async def test_scanner_routes_public(scanner_client):
     """Scanner v2 router endpoints are public (Tier 0) — no auth required."""
     for endpoint in ("/api/v2/scanner/token/scan", "/api/v2/scanner/wallet/scan"):
-        resp = await scanner_client.post(endpoint, json={"address": "0xtest", "chain": "ethereum"})
+        resp = await scanner_client.post(
+            endpoint, json={"address": "0x1234567890abcdef1234567890abcdef12345678", "chain": "ethereum"}
+        )
         assert resp.status_code == 200, f"{endpoint} should be publicly accessible: {resp.text[:200]}"
 
 
@@ -525,7 +527,7 @@ class TestTokenScanRequest:
     def test_chain_override(self):
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        req = TokenScanRequest(address="0xtoken", chain="ethereum")
+        req = TokenScanRequest(address="0x1234567890abcdef1234567890abcdef12345678", chain="ethereum")
         assert req.chain == "ethereum"
 
     def test_address_required(self):

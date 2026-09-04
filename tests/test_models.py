@@ -43,12 +43,12 @@ class TestTokenScanRequest:
         with pytest.raises(ValidationError):
             TokenScanRequest()
 
-    def test_empty_address_allowed(self):
-        """Address field is a string, empty string is technically valid."""
+    def test_empty_address_rejected(self):
+        """Empty address is now rejected by the address validator."""
         from app.routers.unified_scanner_router import TokenScanRequest
 
-        req = TokenScanRequest(address="")
-        assert req.address == ""
+        with pytest.raises(ValidationError):
+            TokenScanRequest(address="")
 
 
 class TestWalletScanRequest:

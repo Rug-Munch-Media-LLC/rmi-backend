@@ -199,12 +199,12 @@ class TestTokenScanV2:
         """POST /api/v2/scanner/token/scan → 200 with the scan result fields."""
         resp = sync_client.post(
             "/api/v2/scanner/token/scan",
-            json={"address": "0xAbC1234567890AbC1234567890AbC1234567890", "chain": "ethereum"},
+            json={"address": "0x1234567890abcdef1234567890abcdef12345678", "chain": "ethereum"},
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["status"] == "ok"
-        assert body["token"] == "0xAbC1234567890AbC1234567890AbC1234567890"
+        assert body["token"] == "0x1234567890abcdef1234567890abcdef12345678"
         assert body["chain"] == "ethereum"
         assert body["safety_score"] == 80.0
         assert body["risk_level"] == "low"
@@ -224,7 +224,7 @@ class TestTokenScanV2:
         mock_scanner.scan = flagged_scan
         resp = sync_client.post(
             "/api/v2/scanner/token/scan",
-            json={"address": "0xBAD", "chain": "ethereum"},
+            json={"address": "0x1234567890abcdef1234567890abcdef12345678", "chain": "ethereum"},
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["risk_flags"] == ["honeypot_detected", "lp_not_locked"]
@@ -242,7 +242,7 @@ class TestTokenScanV2:
         mock_scanner.scan = tiered_scan
         resp = sync_client.post(
             "/api/v2/scanner/token/scan",
-            json={"address": "0xPRO", "chain": "ethereum"},
+            json={"address": "0x1234567890abcdef1234567890abcdef12345678", "chain": "ethereum"},
             headers={"X-Payment-Verified": "true"},
         )
         assert resp.status_code == 200, resp.text
@@ -273,17 +273,20 @@ class TestTokenScanV2:
         mock_scanner.scan = recording_scan
         r1 = sync_client.post(
             "/api/v2/scanner/token/scan",
-            json={"address": "0xAAA", "chain": "ethereum"},
+            json={"address": "0x1234567890abcdef1234567890abcdef12345678", "chain": "ethereum"},
         )
         r2 = sync_client.post(
             "/api/v2/scanner/token/scan",
-            json={"address": "0xBBB", "chain": "ethereum"},
+            json={"address": "0xabcdef1234567890abcdef1234567890abcdef12", "chain": "ethereum"},
         )
         assert r1.status_code == 200
         assert r2.status_code == 200
-        assert r1.json()["token"] == "0xAAA"
-        assert r2.json()["token"] == "0xBBB"
-        assert set(seen_addresses) == {"0xAAA", "0xBBB"}
+        assert r1.json()["token"] == "0x1234567890abcdef1234567890abcdef12345678"
+        assert r2.json()["token"] == "0xabcdef1234567890abcdef1234567890abcdef12"
+        assert set(seen_addresses) == {
+            "0x1234567890abcdef1234567890abcdef12345678",
+            "0xabcdef1234567890abcdef1234567890abcdef12",
+        }
 
 
 class TestTokenScanStatusV2:
