@@ -27,7 +27,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
-from app.auth import require_public_profile
+from app.auth import require_auth, require_public_profile
 from app.core.errors import AppError, ValidationError
 from app.core.logging import get_logger
 
@@ -1025,3 +1025,181 @@ async def post_scanner_alert(
         _NEWS_CACHE["articles"] = [article, *_NEWS_CACHE.get("articles", [])]
         _NEWS_CACHE["total"] = len(_NEWS_CACHE["articles"])
     return {"status": "injected", "id": article["id"]}
+
+
+# ─── Bot Push: POST /api/v1/news/articles + /ingest ──────────────
+# Lets the rugmunchbot push articles into the Qdrant news_v2 corpus.
+# Each article is deduped by URL hash, rated, and stored via the
+# existing rugbrain ingest lane (embed + store). Fail-open on Qdrant.
+
+
+class BotArticle(BaseModel):
+    """A single article pushed by the bot."""
+
+    title: str = ""
+    url: str = ""
+    source: str = ""
+    description: str | None = None
+    published_at: str | None = None
+    image_url: str | None = None
+    tokens_mentioned: list[str] = Field(default_factory=list)
+
+
+class BotArticlesRequest(BaseModel):
+    """Request body for POST /api/v1/news/articles."""
+
+    articles: list[BotArticle] = Field(default_factory=list)
+
+
+class BotIngestRequest(BaseModel):
+    """Request body for POST /api/v1/news/ingest (raw text + URL)."""
+
+    title: str = ""
+    url: str = ""
+    source: str = ""
+    content: str = ""
+    published_at: str | None = None
+    image_url: str | None = None
+    tokens_mentioned: list[str] = Field(default_factory=list)
+
+
+def _url_hash(url: str) -> str:
+    """Stable URL hash for dedup (normalised URL → sha256 prefix)."""
+    norm = url.strip().rstrip("/").lower()
+    return hashlib.sha256(norm.encode()).hexdigest()[:24]
+
+
+async def _qdrant_available() -> bool:
+    """Lightweight Qdrant reachability probe (fail-closed on error)."""
+    try:
+        import httpx
+
+        from app.integrations.rugbrain_client import _qdrant_base
+
+        base = _qdrant_base()
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(f"{base}/collections")
+        return r.status_code == 200
+    except Exception as e:
+        logger.warning("news_qdrant_probe_failed err=%s", e)
+        return False
+
+
+async def _news_url_exists(url_hash: str) -> bool:
+    """True if a news_v2 point already carries this URL hash (dedup)."""
+    filters = [_qdrant_match_filter("metadata.url_hash", url_hash)]
+    points = await _scroll_news_v2(filters=filters, limit=5)
+    return bool(points)
+
+
+async def _store_bot_article(article: BotArticle) -> bool:
+    """Rate + store a single article into Qdrant news_v2 (fail-open)."""
+    from app.integrations.rugbrain_client import rugbrain_ingest
+
+    content = article.description or article.title
+    rating = _rate_article_dict(
+        {
+            "title": article.title,
+            "description": article.description or "",
+            "source": article.source,
+        }
+    )
+    metadata = {
+        "title": article.title,
+        "url": article.url,
+        "url_hash": _url_hash(article.url),
+        "source": article.source,
+        "published_at": article.published_at or "",
+        "image_url": article.image_url or "",
+        "tokens_mentioned": article.tokens_mentioned or [],
+        "category": "news",
+        "news_id": f"bot:{_url_hash(article.url)}",
+        "factuality": rating.get("factuality", "reported"),
+        "source_reputation": rating.get("source_reputation", "unknown"),
+        "market_impact": rating.get("market_impact", "low"),
+        "sentiment": rating.get("sentiment", "NEUTRAL"),
+        "sentiment_score": rating.get("sentiment_score", 0.0),
+        "rating_confidence": rating.get("confidence", 0.3),
+        "ingested_at": datetime.now(UTC).isoformat(),
+    }
+    ok = await rugbrain_ingest(
+        content=content,
+        collection="news_v2",
+        doc_id=f"news:{_url_hash(article.url)}",
+        metadata=metadata,
+        source=article.source or "bot",
+    )
+    return bool(ok)
+
+
+@router.post("/articles")
+async def post_news_articles(
+    req: BotArticlesRequest,
+    _auth: dict[str, Any] = Depends(require_auth),
+) -> dict[str, Any]:
+    """Push a batch of articles from the bot.
+
+    For each article: dedup against Qdrant news_v2 by URL hash; if new,
+    rate + store; if duplicate, skip. Fail-open when Qdrant is down.
+    """
+    received = len(req.articles)
+    if not req.articles:
+        return {"received": 0, "stored": 0, "duplicates": 0}
+    if not await _qdrant_available():
+        logger.warning("news_push_qdrant_unavailable received=%d", received)
+        return {"received": received, "stored": 0, "error": "qdrant unavailable"}
+
+    stored = 0
+    duplicates = 0
+    for article in req.articles:
+        if not article.url:
+            continue
+        try:
+            if await _news_url_exists(_url_hash(article.url)):
+                duplicates += 1
+                continue
+            if await _store_bot_article(article):
+                stored += 1
+            else:
+                duplicates += 1  # store failed → not stored
+        except Exception as e:
+            logger.warning("news_article_push_failed url=%s err=%s", article.url, e)
+            duplicates += 1
+    return {"received": received, "stored": stored, "duplicates": duplicates}
+
+
+@router.post("/ingest")
+async def post_news_ingest(
+    req: BotIngestRequest,
+    _auth: dict[str, Any] = Depends(require_auth),
+) -> dict[str, Any]:
+    """Alternative bulk-ingest: raw article text + URL through the RAG pipeline.
+
+    Same dedup + rating + store logic as POST /articles, but accepts a single
+    raw article (title + content + URL) instead of a structured batch.
+    """
+    received = 1
+    if not req.url:
+        return {"received": received, "stored": 0, "duplicates": 0}
+    if not await _qdrant_available():
+        logger.warning("news_ingest_qdrant_unavailable url=%s", req.url)
+        return {"received": received, "stored": 0, "error": "qdrant unavailable"}
+
+    try:
+        if await _news_url_exists(_url_hash(req.url)):
+            return {"received": received, "stored": 0, "duplicates": 1}
+        article = BotArticle(
+            title=req.title,
+            url=req.url,
+            source=req.source,
+            description=req.content or req.title,
+            published_at=req.published_at,
+            image_url=req.image_url,
+            tokens_mentioned=req.tokens_mentioned,
+        )
+        if await _store_bot_article(article):
+            return {"received": received, "stored": 1, "duplicates": 0}
+        return {"received": received, "stored": 0, "duplicates": 0}
+    except Exception as e:
+        logger.warning("news_ingest_failed url=%s err=%s", req.url, e)
+        return {"received": received, "stored": 0, "error": "qdrant unavailable"}
