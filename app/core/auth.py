@@ -49,18 +49,16 @@ import hashlib
 import json
 import secrets
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
+from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import Mount, Route as StarletteRoute
 
 from app.config import settings
 from app.core.logging import get_logger
 from app.core.problem_details import ProblemDetail
-
-if TYPE_CHECKING:
-    from fastapi import Request
 
 log = get_logger(__name__)
 
@@ -554,3 +552,19 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request.url.path,
                 request.method,
             )
+
+
+async def require_internal_key(request: Request) -> dict[str, Any]:
+    """Require the internal service-to-service key (X-Internal-Key).
+
+    Internal services (e.g. rugmunchbot) authenticate with the
+    ``X-Internal-Key`` header carrying ``RMI_INTERNAL_KEY`` (falls back to
+    ``RMI_AUTH_TOKEN`` when the internal key is not configured). Comparison
+    is constant-time. Raises 401 when the header is missing or invalid.
+    """
+    presented = (request.headers.get("X-Internal-Key") or "").strip()
+    if not presented:
+        raise HTTPException(status_code=401, detail="X-Internal-Key header required")
+    if not _constant_time_in(presented, {RMI_INTERNAL_KEY, RMI_AUTH_TOKEN}):
+        raise HTTPException(status_code=401, detail="Unauthorized — invalid internal key")
+    return {"auth_method": "internal_key"}
