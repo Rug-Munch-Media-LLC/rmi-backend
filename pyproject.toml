@@ -44,6 +44,46 @@ dependencies = [
     "python-whois==0.9.6",  # WHOIS lookups (app/osint/domain.py)
     "phonenumbers==9.0.37",  # phone validation/carrier (app/osint/phone.py)
     "rapidocr-onnxruntime==1.4.4",  # OCR (app/ocr_utils.py)
+    # Merged from requirements.txt (2026-09-05) — pyproject.toml is now the
+    # single source of truth; requirements.txt is just `-e .`.
+    "uvicorn[standard]>=0.32.0",
+    "rapidfuzz>=3.14.0",
+    "python-telegram-bot[job-queue]>=21.0",
+    "pillow>=10.0.0",
+    "supabase>=2.0.0",
+    "python-jose[cryptography]>=3.3.1",
+    "aiohttp>=3.14.3",  # transitive-vuln floor: PYSEC-2026-3545/3546/3547
+    "feedparser>=6.0.11",
+    "websockets>=13.0",
+    "gunicorn>=23.0.0",
+    "requests>=2.32.0",
+    "numpy>=1.26.0",
+    "sentence-transformers>=3.0.0",
+    # NOTE: torch/faiss-cpu need the CPU wheel index. PEP 621 cannot express
+    # --extra-index-url; the Docker build must pass
+    # --extra-index-url https://download.pytorch.org/whl/cpu
+    "torch>=2.3.0",
+    "faiss-cpu>=1.8.0",
+    "pandas>=2.2.0",
+    "cloudscraper>=1.2.71",
+    "eth-account>=0.13.0",
+    "pynacl>=1.5.0",
+    "base58>=2.1.0",
+    "solana>=0.34.0",
+    "slowapi>=0.1.10",
+    "psutil>=5.9",
+    "bip-utils>=2.12",
+    "email-validator>=2.0.0",
+    "defusedxml>=0.7.1",
+    "bcrypt>=4.2.0",
+    "pyotp>=2.9.0",
+    "qrcode>=7.4.0",
+    "asyncpg>=0.30.0",
+    "neo4j>=5.0.0",
+    "temporalio>=1.0.0",
+    "cachetools>=5.3.0",
+    "clickhouse-driver>=0.2.0",
+    "prometheus-client>=0.20.0",  # Metrics (prometheus endpoint + middleware)
 ]
 
 [project.optional-dependencies]
@@ -66,6 +106,9 @@ otel = [
     "opentelemetry-instrumentation-redis>=0.46b0",
     "opentelemetry-instrumentation-logging>=0.46b0",
     "opentelemetry-instrumentation-aiohttp-client>=0.46b0",
+    # Merged from requirements-otel.txt (2026-09-05)
+    "opentelemetry-exporter-otlp-proto-grpc>=1.30.0",
+    "arize-phoenix-otel>=0.4.0",  # Phoenix (Arize) RAG observability (app/rag/tracing.py)
     # transitive-vuln floor: PYSEC-2026-3545/3546/3547 fixed in 3.14.2/3.14.3
     "aiohttp>=3.14.3",
 ]
