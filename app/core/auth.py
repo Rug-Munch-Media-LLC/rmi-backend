@@ -45,7 +45,10 @@ hits a protected endpoint without an ``X-Consumer-ID`` header.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import secrets
+import time
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -193,6 +196,89 @@ def _constant_time_in(candidate: str, valid: set[str]) -> bool:
     return any(key and secrets.compare_digest(candidate_b, key.encode("utf-8")) for key in valid)
 
 
+# ── Redis-backed admin API keys (rmi:api_keys) ──────────────────────────────
+# The admin panel (app/routers/admin/backend.py) creates and revokes API keys
+# in the Redis hash ``rmi:api_keys``. The auth middleware must consult that
+# store so a revoked key is actually rejected — otherwise revocation is a
+# no-op and a "revoked" key keeps authenticating. Keys are stored as a sha256
+# hash of the raw key (the raw value is only shown once at creation), so we
+# hash the presented key and match against stored key_hash values.
+#
+# Read-through cache: the store is small (admin-created keys) and this runs on
+# every request, so we cache the set of valid (active, unexpired) key hashes
+# for a short TTL. A revoked key takes effect within the TTL (5 min), matching
+# the existing degenfeed_storage.py pattern.
+
+_ADMIN_API_KEYS_CACHE_TTL = 300  # 5 min — short enough to revoke quickly
+_admin_api_keys_cache: tuple[float, set[str]] | None = None
+
+
+def _invalidate_admin_api_keys_cache() -> None:
+    """Drop the cached valid-key set so the next request re-reads Redis."""
+    global _admin_api_keys_cache
+    _admin_api_keys_cache = None
+
+
+async def _valid_admin_api_key_hashes() -> set[str]:
+    """Return the set of sha256 hashes of currently-valid (active, unexpired)
+    admin API keys from the Redis ``rmi:api_keys`` store.
+
+    Uses a short-TTL read-through cache. Returns an empty set when Redis is
+    unavailable or the store is empty — callers fall back to env-var secrets.
+    """
+    global _admin_api_keys_cache
+    now = time.monotonic()
+    if _admin_api_keys_cache is not None:
+        cached_at, hashes = _admin_api_keys_cache
+        if now - cached_at < _ADMIN_API_KEYS_CACHE_TTL:
+            return hashes
+
+    hashes: set[str] = set()
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is not None:
+            raw = await r.hgetall("rmi:api_keys")
+            for data in raw.values():
+                try:
+                    d = json.loads(data)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if d.get("status") != "active":
+                    continue
+                # Expiry check — expires_at is a unix timestamp.
+                expires_at = d.get("expires_at")
+                if expires_at and isinstance(expires_at, (int, float)) and expires_at < time.time():
+                    continue
+                key_hash = d.get("key_hash")
+                if key_hash:
+                    hashes.add(key_hash)
+    except Exception as exc:  # pragma: no cover - defensive
+        log.warning("admin_api_keys_lookup_failed err=%s", exc)
+
+    _admin_api_keys_cache = (now, hashes)
+    return hashes
+
+
+async def _is_valid_admin_api_key(api_key: str) -> bool:
+    """True when the presented key matches an active (non-revoked, unexpired)
+    admin API key in the Redis ``rmi:api_keys`` store.
+
+    This is the enforcement that makes admin-panel revocation actually take
+    effect: a key whose status was flipped to ``revoked`` is no longer in the
+    valid set and is rejected.
+    """
+    if not api_key:
+        return False
+    candidate_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+    valid = await _valid_admin_api_key_hashes()
+    # The values compared are sha256 hashes (one-way), not raw secrets, so
+    # plain set membership is safe — an attacker cannot recover the key from
+    # the hash, and the hash is not transmitted.
+    return candidate_hash in valid
+
+
 def _path_has_route(path: str, routes: list[Any]) -> bool:
     """Check if a path matches any registered route. Simple prefix-based approach."""
 
@@ -296,6 +382,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if self._has_valid_shared_secret(request):
             return None
 
+        # Tier 1b — Redis-backed admin API keys (rmi:api_keys). A key created
+        # via the admin panel that is still active (not revoked, unexpired).
+        if await self._has_valid_admin_api_key(request):
+            request.state.auth_method = "shared_secret"
+            return None
+
         # Tier 2 — per-user JWT via Authorization: Bearer
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
@@ -344,6 +436,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Tier 1 — shared secrets (X-API-Key, X-RMI-Key, Bearer <secret>)
         if self._has_valid_shared_secret(request):
+            request.state.auth_method = "shared_secret"
+            return None
+
+        # Tier 1b — Redis-backed admin API keys (rmi:api_keys).
+        if await self._has_valid_admin_api_key(request):
             request.state.auth_method = "shared_secret"
             return None
 
@@ -426,6 +523,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return True
 
         return False
+
+    async def _has_valid_admin_api_key(self, request: Request) -> bool:
+        """Accept an X-API-Key that matches an active admin API key in the
+        Redis ``rmi:api_keys`` store (created via the admin panel).
+
+        This is the enforcement that makes admin-panel revocation effective:
+        a key whose status was flipped to ``revoked`` is rejected here.
+        """
+        api_key = (request.headers.get("X-API-Key") or "").strip()
+        if not api_key:
+            return False
+        return await _is_valid_admin_api_key(api_key)
 
     # ── Consumer attribution ──────────────────────────────────────────────
 

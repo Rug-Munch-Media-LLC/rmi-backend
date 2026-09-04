@@ -534,6 +534,15 @@ async def revoke_api_key(
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Revoke failed") from exc
 
+    # Drop the auth middleware's cached valid-key set so the revocation takes
+    # effect immediately instead of waiting for the TTL.
+    try:
+        from app.core.auth import _invalidate_admin_api_keys_cache
+
+        _invalidate_admin_api_keys_cache()
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("api_key_cache_invalidate_failed err=%s", exc)
+
     await AuditLogger.log(
         admin_id=session["admin_id"],
         admin_email=session["admin_email"],
@@ -542,6 +551,72 @@ async def revoke_api_key(
         resource_id=key_id,
     )
     return {"status": "revoked", "id": key_id}
+
+
+@backend_router.post("/api-keys/{key_id}/rotate")
+async def rotate_api_key(
+    key_id: str,
+    session: dict[str, Any] = Depends(require_admin_session),
+) -> dict[str, Any]:
+    """Rotate an API key: revoke the old key and issue a new one.
+
+    The new key inherits the old key's name, scopes, and expiry window. The
+    raw new key is returned exactly once (only its sha256 hash is stored), so
+    callers must persist it immediately.
+    """
+    import hashlib
+
+    try:
+        r = _redis()
+        data = await r.hget("rmi:api_keys", key_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Key not found")
+        d = json.loads(data)
+
+        # Revoke the old key.
+        d["status"] = "revoked"
+        d["revoked_at"] = datetime.now(UTC).isoformat()
+        d["revoked_by"] = session["admin_email"]
+        await r.hset("rmi:api_keys", key_id, json.dumps(d))
+
+        # Issue a new key inheriting name/scopes/expiry.
+        new_key_id = f"key_{secrets.token_hex(8)}"
+        api_key = f"rmi_{secrets.token_urlsafe(32)}"
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+        new_data = {
+            "name": d.get("name", "Rotated key"),
+            "key_hash": key_hash,
+            "scopes": d.get("scopes", []),
+            "status": "active",
+            "created_at": datetime.now(UTC).isoformat(),
+            "created_by": session["admin_email"],
+            "expires_at": d.get("expires_at"),
+            "rotated_from": key_id,
+        }
+        await r.hset("rmi:api_keys", new_key_id, json.dumps(new_data))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Key rotation failed") from exc
+
+    # Drop the auth middleware's cached valid-key set so the old key is
+    # rejected and the new key is accepted immediately.
+    try:
+        from app.core.auth import _invalidate_admin_api_keys_cache
+
+        _invalidate_admin_api_keys_cache()
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("api_key_cache_invalidate_failed err=%s", exc)
+
+    await AuditLogger.log(
+        admin_id=session["admin_id"],
+        admin_email=session["admin_email"],
+        action="rotate_api_key",
+        resource_type="api_key",
+        resource_id=new_key_id,
+    )
+    return {"status": "rotated", "old_id": key_id, "id": new_key_id, "api_key": api_key}
 
 
 # ══════════════════════════════════════════════
