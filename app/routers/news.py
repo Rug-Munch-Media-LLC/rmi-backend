@@ -27,7 +27,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
-from app.auth import require_auth, require_public_profile
+from app.auth import require_public_profile
+from app.core.auth import require_internal_key
 from app.core.errors import AppError, ValidationError
 from app.core.logging import get_logger
 
@@ -1135,7 +1136,7 @@ async def _store_bot_article(article: BotArticle) -> bool:
 @router.post("/articles")
 async def post_news_articles(
     req: BotArticlesRequest,
-    _auth: dict[str, Any] = Depends(require_auth),
+    _auth: dict[str, Any] = Depends(require_internal_key),
 ) -> dict[str, Any]:
     """Push a batch of articles from the bot.
 
@@ -1171,7 +1172,7 @@ async def post_news_articles(
 @router.post("/ingest")
 async def post_news_ingest(
     req: BotIngestRequest,
-    _auth: dict[str, Any] = Depends(require_auth),
+    _auth: dict[str, Any] = Depends(require_internal_key),
 ) -> dict[str, Any]:
     """Alternative bulk-ingest: raw article text + URL through the RAG pipeline.
 
