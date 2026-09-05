@@ -246,9 +246,13 @@ class ANNIndex:
 
         try:
             index = faiss.read_index(index_path)
-            with open(id_map_path, "rb") as f:
-                # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                id_list = pickle.load(f)  # nosec B301 - id_map is self-written local cache (pickle.dump in _build), not remote/user data
+            try:
+                with open(id_map_path) as f:
+                    id_list = json.load(f)
+            except (ValueError, UnicodeDecodeError):
+                logger.warning("Loading legacy pickle artifact — re-export to new format needed")
+                with open(id_map_path, "rb") as f:
+                    id_list = pickle.load(f)
             self._indexes[collection] = index
             self._id_maps[collection] = id_list
             self._meta[collection] = {

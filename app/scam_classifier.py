@@ -216,9 +216,7 @@ class ScamClassifier:
         """Load model from disk if available."""
         if os.path.exists(MODEL_PATH):
             try:
-                with open(MODEL_PATH, "rb") as f:
-                    # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                    self.model = pickle.load(f)  # nosec B301 - model is a bundled local artifact (Docker image), not user input
+                self.model = self._load_model(MODEL_PATH)
                 if os.path.exists(FEATURE_NAMES_PATH):
                     with open(FEATURE_NAMES_PATH) as f:
                         meta = json.load(f)
@@ -233,6 +231,20 @@ class ScamClassifier:
             except Exception as e:
                 logger.warning(f"Failed to load classifier: {e}")
                 self.model = None
+
+    @staticmethod
+    def _load_model(path: Path) -> Any:
+        """Load model from safetensors (preferred) with legacy pickle fallback."""
+        from safetensors.torch import load_file
+
+        try:
+            tensors = load_file(str(path))
+            logger.info("Loaded model from safetensors format")
+            return tensors
+        except Exception:
+            logger.warning("Loading legacy pickle artifact — re-export to new format needed")
+            with open(path, "rb") as f:
+                return pickle.load(f)
 
     def _save(self) -> None:
         """Persist model and metadata to disk."""

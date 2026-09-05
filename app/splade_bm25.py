@@ -358,16 +358,21 @@ class BM25Index:
 
     @classmethod
     def load(cls, path: str) -> BM25Index | None:
-        """Load BM25 index from disk."""
+        """Load BM25 index from disk (JSON preferred, legacy pickle fallback)."""
+        import json
         import os
         import pickle
 
         if not os.path.exists(path):
             return None
         try:
-            with open(path, "rb") as f:
-                # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                data = pickle.load(f)  # nosec B301 - index is self-persisted local artifact written by save(), not user input
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+            except (ValueError, UnicodeDecodeError):
+                logger.warning("Loading legacy pickle artifact — re-export to new format needed")
+                with open(path, "rb") as f:
+                    data = pickle.load(f)
             idx = cls(k1=data["k1"], b=data["b"], epsilon=data["epsilon"])
             idx.doc_count = data["doc_count"]
             idx.avg_dl = data["avg_dl"]

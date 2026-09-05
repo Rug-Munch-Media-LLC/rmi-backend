@@ -15,6 +15,7 @@ Graph-based fraud detection (no ML):
 
 from __future__ import annotations
 
+import json
 import os
 import pickle
 from collections import Counter
@@ -95,9 +96,7 @@ class FraudGNNDetector:
                 local_files_only=False,
             )
 
-            with open(model_path, "rb") as f:
-                # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                self.model = pickle.load(f)  # nosec B301 - model from pinned operator-controlled HF repo, not user input
+            self.model = self._load_model_file(model_path)
 
             # Try loading scaler
             try:
@@ -108,9 +107,7 @@ class FraudGNNDetector:
                     cache_dir=str(MODEL_DIR / "hf_cache"),
                     local_files_only=False,
                 )
-                with open(scaler_path, "rb") as f:
-                    # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                    self.scaler = pickle.load(f)  # nosec B301 - scaler from pinned operator-controlled HF repo, not user input
+                self.scaler = self._load_scaler_file(scaler_path)
             except (ConnectionError, OSError, TimeoutError):
                 self.scaler = None
 
@@ -118,6 +115,33 @@ class FraudGNNDetector:
             logger.info(f"Loaded HF fraud model: {self.model_type}")
         except ImportError:
             raise ImportError("huggingface_hub not installed") from None
+
+    @staticmethod
+    def _load_model_file(path: str) -> Any:
+        """Load GNN model from safetensors (preferred) with legacy pickle fallback."""
+        from safetensors.torch import load_file
+
+        try:
+            tensors = load_file(path)
+            logger.info("Loaded fraud GNN model from safetensors format")
+            return tensors
+        except Exception:
+            logger.warning("Loading legacy pickle artifact — re-export to new format needed")
+            with open(path, "rb") as f:
+                return pickle.load(f)
+
+    @staticmethod
+    def _load_scaler_file(path: str) -> Any:
+        """Load scaler params from JSON (preferred) with legacy pickle fallback."""
+        try:
+            with open(path) as f:
+                params = json.load(f)
+            logger.info("Loaded scaler from JSON format")
+            return params
+        except (ValueError, UnicodeDecodeError):
+            logger.warning("Loading legacy pickle artifact — re-export to new format needed")
+            with open(path, "rb") as f:
+                return pickle.load(f)
 
     def _load_fallback_model(self) -> None:
         """Fallback: simple sklearn Random Forest trained on common heuristics."""
