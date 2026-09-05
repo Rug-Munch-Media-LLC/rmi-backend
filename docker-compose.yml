@@ -264,6 +264,8 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # JWT secret sourced from gopass via scripts/set-jwt-secret.sh
+      JWT_SECRET: ${JWT_SECRET}
       # Point PostgreSQL client to the Docker container instead of localhost
       POSTGRES_HOST: rmi-postgres
       # RAG embeddings/reranking (Infinity OpenAI-compatible server)
