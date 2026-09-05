@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -169,21 +169,27 @@ def _sanitize_comment_body(body: str) -> str:
     return text[:_COMMENT_BODY_MAX]
 
 
-def _coerce_reaction(value: str | None) -> Literal["like", "dislike"] | None:
-    if value in ("like", "dislike"):
-        return cast("Literal['like', 'dislike']", value)
+def _coerce_reaction(value: str | None) -> str | None:
+    """Pass through a known reaction key, else None (unknown/legacy values)."""
+    if value in _REACTION_KEYS:
+        return value
     return None
 
 
+#: Full reaction vocabulary: legacy like/dislike + degen sentiment reactions.
+_REACTION_KEYS = ("like", "dislike", "bullish", "bearish", "important", "scam")
+
+
 class ReactionRequest(BaseModel):
-    reaction: Literal["like", "dislike"]
+    reaction: Literal["like", "dislike", "bullish", "bearish", "important", "scam"]
 
 
 class ReactionsSummary(BaseModel):
     news_id: str
     like_count: int = 0
     dislike_count: int = 0
-    my_reaction: Literal["like", "dislike"] | None = None
+    counts: dict[str, int] = Field(default_factory=dict)
+    my_reaction: str | None = None
 
 
 class CommentCreate(BaseModel):
@@ -202,7 +208,7 @@ class CommentOut(BaseModel):
     deleted: bool = False
     like_count: int = 0
     dislike_count: int = 0
-    my_reaction: Literal["like", "dislike"] | None = None
+    my_reaction: str | None = None
     is_mine: bool = False
 
 
@@ -215,7 +221,7 @@ class CommentReactionResponse(BaseModel):
     comment_id: str
     like_count: int = 0
     dislike_count: int = 0
-    my_reaction: Literal["like", "dislike"] | None = None
+    my_reaction: str | None = None
 
 
 __all__ = [
