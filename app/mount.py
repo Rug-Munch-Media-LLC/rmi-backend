@@ -116,6 +116,7 @@ ROUTER_MODULES: Final[list[str]] = [
     # Auth domain — email/wallet/2FA auth (mounted 2026-08-19, was unmounted → 404s)
     "app.domains.auth",  # /api/v1/auth/* (register, login, user/me, cookie-token, logout, telegram)
     "app.domains.auth.compat",  # /api/v1/auth/* (me, profile, wallet, change-password, delete-account, privacy-settings)
+    "app.routers.auth",  # /auth/* (public signup, login, premium tier signup)
     # API version index (root-level /api listing)
     "app.routers.v1.api_index",  # /api (version index)
     # Market intel — canonical /api/v1/market/* implementation. Mounted
