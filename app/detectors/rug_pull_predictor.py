@@ -120,6 +120,7 @@ class RugPullAnalysis:
     summary: str = ""
     recommendations: list[str] = field(default_factory=list)
     analysis_timestamp: str = ""
+    historical_patterns: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -140,6 +141,7 @@ class RugPullAnalysis:
             ],
             "summary": self.summary,
             "recommendations": self.recommendations,
+            "historical_patterns": self.historical_patterns,
             "analyzed_at": self.analysis_timestamp,
         }
 
@@ -568,6 +570,36 @@ async def predict_rug_pull(
     if recommendations:
         recommendations.append("Always verify with RugShield or SENTINEL deep scan before trading")
 
+    # ── RAG learning loop: reference similar confirmed rugs ──────────
+    # Search the Qdrant ``rug_patterns`` collection (populated by the
+    # learning loop from every confirmed rug) for behavioral fingerprints
+    # matching this token's scan profile. Fail-open: empty list on error.
+    historical_patterns: list[dict[str, Any]] = []
+    try:
+        from app.ai.rug_learning import find_similar_rugs
+
+        scan_profile: dict[str, Any] = {
+            "price_usd": None,
+            "liquidity_usd": next((s.details.get("liquidity_usd") for s in signals if s.signal == "liquidity"), None),
+            "safety_score": 100 - overall_score,
+            "risk_level": overall_level.value,
+            "risk_flags": [f for s in signals for f in s.findings][:10],
+        }
+        historical_patterns = await find_similar_rugs(
+            scan_result=scan_profile,
+            chain=chain,
+            address=token_address,
+            limit=3,
+        )
+        if historical_patterns:
+            top = historical_patterns[0]
+            recommendations.append(
+                f"Matches {len(historical_patterns)} confirmed rug(s) — closest: "
+                f"{top.get('rug_type', 'unknown')} (similarity {top.get('similarity', 0):.0%})"
+            )
+    except Exception as e:
+        logger.debug("historical_rug_lookup_failed: %s", e)
+
     return RugPullAnalysis(
         token_address=token_address,
         chain=chain,
@@ -579,6 +611,7 @@ async def predict_rug_pull(
         summary=summary,
         recommendations=recommendations or ["No specific concerns detected"],
         analysis_timestamp=datetime.now(UTC).isoformat(),
+        historical_patterns=historical_patterns,
     )
 
 
