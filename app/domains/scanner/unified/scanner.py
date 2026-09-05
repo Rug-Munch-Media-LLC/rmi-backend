@@ -249,6 +249,7 @@ class UnifiedTokenScanner:
         chain: str = "solana",
         tier: str = "free",
         admin_key: str | None = None,
+        scan_mode: str = "advanced",
     ) -> ScanResult:
         """Full token security scan.
 
@@ -271,6 +272,14 @@ class UnifiedTokenScanner:
         (Redis result cache written by ``persist_result``), the cached result
         is returned with ``cached=True`` instead of re-scoring with drifting
         external data.
+
+        ``scan_mode``:
+          "basic"    — fast modules only (core identity: metadata, price,
+                       liquidity, basic security). Background deep/premium/
+                       SENTINEL phases are skipped entirely; the response
+                       returns as soon as the core phase completes.
+          "advanced" — full scan (same as deepscan): all modules including
+                       premium/SENTINEL via the background continuation.
         """
         # ── Cache fast path: serve the 1h cached result when present ──
         # Elite/admin (premium SENTINEL deep scans) always run fresh — the
@@ -347,6 +356,12 @@ class UnifiedTokenScanner:
         # ── Background continuation: deep/intel/SENTINEL/news + persistence ──
         # Heavy phases run as a background task so the HTTP response returns
         # promptly. ``asyncio.shield`` keeps it alive if the 25s budget expires.
+        # Basic mode skips them entirely — fast modules only, ~3s response.
+        if scan_mode == "basic":
+            result.background_status = "complete"
+            result.scan_duration_ms = (time.monotonic() - start) * 1000
+            return result
+
         bg_task = asyncio.create_task(self._run_background_phases(result, address, chain, tier, admin_key))
         self._track_background_task(bg_task)
 

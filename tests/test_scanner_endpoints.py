@@ -188,7 +188,7 @@ def mock_scanner():
 
     scanner = AsyncMock()
 
-    async def fake_scan(address, chain="solana", tier="free", admin_key=None):
+    async def fake_scan(address, chain="solana", tier="free", admin_key=None, scan_mode="advanced"):
         return _make_result(address, chain)
 
     scanner.scan = fake_scan
@@ -226,7 +226,7 @@ class TestTokenScanV2:
     def test_scan_risk_flags_propagate(self, sync_client, mock_scanner) -> None:
         """risk_flags from the ScanResult are returned verbatim."""
 
-        async def flagged_scan(address, chain="solana", tier="free", admin_key=None):
+        async def flagged_scan(address, chain="solana", tier="free", admin_key=None, scan_mode="advanced"):
             return _make_result(
                 address,
                 chain,
@@ -248,7 +248,7 @@ class TestTokenScanV2:
         (TOP-100 #8, 2026-08-23). The header is ignored; tier stays 'free'."""
         seen = {}
 
-        async def tiered_scan(address, chain="solana", tier="free", admin_key=None):
+        async def tiered_scan(address, chain="solana", tier="free", admin_key=None, scan_mode="advanced"):
             seen["tier"] = tier
             return _make_result(address, chain, tier=tier)
 
@@ -279,7 +279,7 @@ class TestTokenScanV2:
         """Two scan requests don't share scanner state — each returns its own token."""
         seen_addresses = []
 
-        async def recording_scan(address, chain="solana", tier="free", admin_key=None):
+        async def recording_scan(address, chain="solana", tier="free", admin_key=None, scan_mode="advanced"):
             seen_addresses.append(address)
             return _make_result(address, chain)
 
