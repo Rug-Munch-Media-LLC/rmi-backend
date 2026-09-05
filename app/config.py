@@ -101,6 +101,20 @@ class Settings(BaseSettings):
         description="Frontend URL for OAuth redirects and CORS. Set FRONTEND_URL env var.",
     )
 
+    # ── Bot / repo paths (generic defaults; set in production env) ──────
+    bot_users_db_path: str = Field(
+        default="data/bot_users.db",
+        description="Path to the Telegram bot users SQLite DB. Set BOT_USERS_DB_PATH env var.",
+    )
+    bot_launcher_path: str = Field(
+        default="secure_launcher.py",
+        description="Path to the standalone bot secure launcher. Set BOT_LAUNCHER_PATH env var.",
+    )
+    repo_base_path: str = Field(
+        default=".",
+        description="Base directory containing checked-out repos. Set REPO_BASE_PATH env var.",
+    )
+
     # ── Database / Cache ────────────────────────────────────────────────
     database_url: str = Field(
         default="postgresql+asyncpg://rmi:rmi@localhost/rmi",

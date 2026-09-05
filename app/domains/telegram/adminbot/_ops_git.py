@@ -31,14 +31,14 @@ def git_status(repo_name: str) -> dict[str, Any]:
     if not _validate_name(repo_name):
         return _err(f"Invalid repo name: '{repo_name}'")
 
-    base_path = f"/srv/work/repos/{repo_name}"
+    base_path = os.getenv("REPO_BASE_PATH", ".") + f"/{repo_name}"
     if not os.path.isdir(base_path):
         # Try alternative locations
         alt = f"/root/{repo_name}"
         if os.path.isdir(alt):
             base_path = alt
         else:
-            return _err(f"Repo not found at /srv/work/repos/{repo_name}")
+            return _err(f"Repo not found under REPO_BASE_PATH: {repo_name}")
 
     # Get branch, status, and recent commits
     branch_r = _run_subprocess(["git", "branch", "--show-current"], timeout=5, cwd=base_path)

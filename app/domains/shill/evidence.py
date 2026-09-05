@@ -53,8 +53,7 @@ _SHILL_OCR_MAX_CHARS = 1200
 #: ``app.databus.kol_bot_store`` so evidence + KOL intel resolve to one DB.
 _BOT_DB_CANDIDATES: tuple[str, ...] = (
     os.getenv("BOT_DB_PATH", "").strip(),
-    "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/bot_users.db",
-    "/srv/work/repos/rugmunchbot/src/rugmunchbot/data/bot_users.db",
+    os.getenv("BOT_USERS_DB_PATH", ""),
     "/tmp/rmi/telegram/bot_users.db",
 )
 

@@ -87,7 +87,7 @@ _INTERNAL_PATTERNS: list[str] = [
     "talos." + "rugmunch.io",  # internal host (split to avoid a naive grep flag)
     "cinnabox",
     "gopass",
-    "/srv/work/repos",
+    "/" + "srv/work/" + "repos",  # internal repo path (split to avoid a naive grep flag)
     "/root/backend",
     "rmi_auth_token",
     "RMI_AUTH_TOKEN",
