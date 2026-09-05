@@ -1,216 +1,26 @@
-"""
-RugCharts News & Market Data Provider
-======================================
-Redis-backed cached news aggregation. All endpoints serve from
-Redis (instant response). A background task refreshes every 5 min.
-
-Data sources:
-  - CoinGecko (prices, trending)
-  - Alternative.me (Fear & Greed Index)
-  - Polymarket (prediction markets)
-  - CryptoPanic (news sentiment - if key)
-  - 75+ RSS feeds (CoinTelegraph, Decrypt, The Block, etc.)
-  - Existing MCP servers (feargreed, prediction-market, jupiter)
-"""
+"""News and market data fetching: CoinGecko, Alternative.me, Polymarket,
+CryptoPanic, and RSS feeds."""
 
 from __future__ import annotations
 
 import asyncio
-import json
-import os
-import time
 from datetime import UTC, datetime
 from typing import Any, cast
 
 import httpx
-import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
-from app.databus.vault import resolve_key
+from app.databus.news_provider.cache import _cache_set, _cached
+from app.databus.news_provider.helpers import (
+    COINGECKO_BASE,
+    COINGECKO_KEY,
+    CRYPTOPANIC_API_KEY,
+    FEAR_GREED_URL,
+    POLYMARKET_URL,
+    hashlib_quick,
+)
 
 logger = get_logger("news_provider")
-
-# ── Free API endpoints (no keys needed) ────────────────────────────
-
-COINGECKO_BASE = "https://api.coingecko.com/api/v3"
-FEAR_GREED_URL = "https://api.alternative.me/fng/?limit=1"
-POLYMARKET_URL = "https://gamma-api.polymarket.com/events"
-COINGECKO_KEY = resolve_key("COINGECKO_API_KEY")
-CRYPTOPANIC_API_KEY = resolve_key("CRYPTOPANIC_API_KEY").strip()
-
-# ── Redis config ───────────────────────────────────────────────────
-REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "") or None
-NEWS_CACHE_KEY = "rmi:news:full_feed"
-NEWS_CACHE_TTL = 300  # 5 minutes
-MARKET_BRIEF_KEY = "rmi:news:market_brief"
-MARKET_BRIEF_TTL = 60  # 1 minute
-
-CACHE = {}  # In-memory fallback cache with TTL
-
-
-def _cached(key: str, ttl: int = 60) -> dict[str, Any] | None:
-    if key in CACHE:
-        data, ts = CACHE[key]
-        if time.time() - ts < ttl:
-            return data
-    return None
-
-
-def _cache_set(key: str, data: dict[str, Any]) -> None:
-    CACHE[key] = (data, time.time())
-
-
-async def _get_redis() -> aioredis.Redis | None:
-    """Get async Redis connection."""
-    try:
-        r = aioredis.Redis(
-            host=REDIS_HOST,
-            port=REDIS_PORT,
-            password=REDIS_PASSWORD,
-            decode_responses=True,
-            socket_connect_timeout=2,
-            socket_timeout=3,
-        )
-        await r.ping()
-        return r
-    except Exception as e:
-        logger.debug(f"Redis unavailable: {e}")
-        return None
-
-
-async def _redis_get(key: str) -> dict[str, Any] | None:
-    """Read JSON from Redis."""
-    try:
-        r = await _get_redis()
-        if r:
-            data = await r.get(key)
-            await r.close()
-            if data:
-                return json.loads(data)
-    except Exception as e:
-        logger.debug(f"Redis get failed: {e}")
-    return None
-
-
-async def _redis_set(key: str, data: dict[str, Any], ttl: int = 300) -> None:
-    """Write JSON to Redis with TTL."""
-    try:
-        r = await _get_redis()
-        if r:
-            await r.setex(key, ttl, json.dumps(data, default=str))
-            await r.close()
-            logger.debug(f"Redis set {key} TTL={ttl}s")
-    except Exception as e:
-        logger.debug(f"Redis set failed: {e}")
-
-
-# ── Top RSS feeds (the "TOP_50_FEEDS" list; 75+ after 2026-08-16 expansion) ──
-# Curated from the 170+ feed list — fast, reliable, high-signal sources.
-# All entries added 2026-08-16 were live-probed (HTTP 200 + feedparser parse
-# + fresh items within 30 days) before inclusion; a feed that later dies is
-# skipped at fetch time by the fail-open per-feed handler (never blocks the
-# batch), and the registry-level probe (scripts/test_news_sources.py +
-# app/databus/news_source_health.py) tracks VERIFIED/STALE/DEAD for pruning.
-TOP_50_FEEDS = [
-    # ---- Tier 1: Major News Outlets (fastest, always up) ----
-    ("https://cointelegraph.com/rss", "CoinTelegraph"),
-    ("https://decrypt.co/feed", "Decrypt"),
-    ("https://blockworks.co/feed", "Blockworks"),
-    ("https://www.theblock.co/rss.xml", "The Block"),
-    ("https://thedefiant.io/feed", "The Defiant"),
-    ("https://www.bankless.com/feed", "Bankless"),
-    ("https://bitcoinmagazine.com/feed", "Bitcoin Magazine"),
-    ("https://protos.com/feed/", "Protos"),
-    ("https://beincrypto.com/feed/", "BeInCrypto"),
-    ("https://unchainedcrypto.com/feed/", "Unchained"),
-    ("https://coindesk.com/arc/outboundfeeds/rss/", "CoinDesk"),
-    ("https://cryptoslate.com/feed/", "CryptoSlate"),
-    ("https://cryptobriefing.com/feed/", "CryptoBriefing"),
-    ("https://cryptopotato.com/feed/", "CryptoPotato"),
-    ("https://dailyhodl.com/feed/", "Daily Hodl"),
-    ("https://www.newsbtc.com/feed/", "NewsBTC"),
-    ("https://bitcoinist.com/feed/", "Bitcoinist"),
-    # ---- Tier 2: Security Firms ----
-    ("https://peckshield.medium.com/feed", "PeckShield"),
-    ("https://slowmist.medium.com/feed", "SlowMist"),
-    ("https://certik.medium.com/feed", "CertiK"),
-    ("https://immunefi.medium.com/feed", "Immunefi"),
-    ("https://blog.trailofbits.com/feed/", "Trail of Bits"),
-    ("https://www.chainalysis.com/blog/feed/", "Chainalysis"),
-    ("https://blog.openzeppelin.com/feed/", "OpenZeppelin"),
-    # ---- Tier 3: Research & Analytics ----
-    ("https://insights.glassnode.com/feed/", "Glassnode"),
-    ("https://dune.com/blog/feed", "Dune Analytics"),
-    ("https://messari.io/feed", "Messari"),
-    ("https://defillama.com/feed", "DeFi Llama"),
-    # ---- Tier 4: Protocol Blogs ----
-    ("https://blog.ethereum.org/feed.xml", "Ethereum Foundation"),
-    ("https://solana.com/news/feed", "Solana"),
-    ("https://blog.arbitrum.io/feed", "Arbitrum"),
-    ("https://blog.optimism.io/feed", "Optimism"),
-    ("https://polygon.technology/blog/feed", "Polygon"),
-    ("https://blog.sui.io/feed", "Sui"),
-    ("https://blog.cosmos.network/feed", "Cosmos"),
-    # ---- Tier 5: DeFi Protocols ----
-    ("https://uniswap.org/blog/feed.xml", "Uniswap"),
-    ("https://aave.com/blog/rss.xml", "Aave"),
-    ("https://blog.chain.link/feed", "Chainlink"),
-    ("https://blog.makerdao.com/feed/", "MakerDAO"),
-    ("https://blog.lido.fi/feed", "Lido"),
-    # ---- Tier 6: Exchange Blogs ----
-    ("https://blog.coinbase.com/feed", "Coinbase"),
-    ("https://blog.kraken.com/feed/", "Kraken"),
-    ("https://www.binance.com/en/feed/news", "Binance"),
-    ("https://blog.bitfinex.com/feed/", "Bitfinex"),
-    ("https://blog.ledger.com/feed/", "Ledger"),
-    # ---- Tier 7: VC & Investment ----
-    ("https://a16zcrypto.com/feed/", "a16z Crypto"),
-    ("https://www.paradigm.xyz/feed", "Paradigm"),
-    ("https://panteracapital.com/feed/", "Pantera Capital"),
-    ("https://multicolin.capital/feed/", "Multicoin Capital"),
-    ("https://variant.fund/feed/", "Variant Fund"),
-    # ---- Tier 8: Market Data ----
-    ("https://www.tradingview.com/blog/feed/", "TradingView"),
-    ("https://blog.santiment.net/feed/", "Santiment"),
-    ("https://blog.coinmarketcap.com/feed/", "CoinMarketCap"),
-    ("https://www.coingecko.com/en/blog/feed", "CoinGecko Blog"),
-    # ---- Tier 9: Security/Threat Intel ----
-    ("https://www.bleepingcomputer.com/feed/", "BleepingComputer"),
-    ("https://www.web3isgoinggreat.com/feed", "W3IGG"),
-    ("https://krebsonsecurity.com/feed/", "Krebs on Security"),
-    # ---- Tier 10: News outlets (expansion 2026-08-16, live-probed) ----
-    ("https://www.coingape.com/feed/", "CoinGape"),
-    ("https://zycrypto.com/feed/", "ZyCrypto"),
-    ("https://ambcrypto.com/feed/", "AMBCrypto"),
-    ("https://coinpedia.org/feed/", "Coinpedia"),
-    ("https://crypto.news/feed/", "Crypto.news"),
-    ("https://blockonomi.com/feed/", "Blockonomi"),
-    ("https://cryptodaily.co.uk/feed/", "CryptoDaily"),
-    ("https://news.bitcoin.com/feed/", "Bitcoin.com News"),
-    ("https://watcher.guru/feed/", "Watcher Guru"),
-    ("https://cryptonews.com/feed/", "Cryptonews.com"),
-    ("https://www.trustnodes.com/feed", "Trustnodes"),
-    ("https://www.cryptopolitan.com/feed/", "Cryptopolitan"),
-    ("https://u.today/rss", "U.Today"),
-    ("https://nulltx.com/feed/", "NullTX"),
-    ("https://www.crypto-news-flash.com/feed/", "Crypto News Flash"),
-    ("https://www.thecoinrepublic.com/feed/", "Coin Republic"),
-    ("https://coinedition.com/feed/", "Coin Edition"),
-    ("https://www.crypto-reporter.com/feed/", "Crypto Reporter"),
-    ("https://www.cointribune.com/en/feed/", "CoinTribune"),
-    ("https://themerkle.com/feed/", "The Merkle"),
-    ("https://www.coinspeaker.com/feed/", "CoinSpeaker"),
-    ("https://dailycoin.com/feed/", "DailyCoin"),
-    ("https://www.bitcoinsistemi.com/en/feed/", "Bitcoin Sistemi (EN)"),
-    # ---- Tier 11: Exchange & market blogs (expansion 2026-08-16) ----
-    ("https://www.financemagnates.com/cryptocurrency/feed/", "Finance Magnates Crypto"),
-    ("https://www.investing.com/rss/news_25.rss", "Investing.com Crypto"),
-    ("https://www.bitget.com/news/feed", "Bitget"),
-    # ---- Tier 12: Security firms (expansion 2026-08-16, live-probed) ----
-    ("https://blog.verichains.io/feed", "Verichains"),
-]
 
 
 # ── 1. COINGECKO - Prices, trending, market data ───────────────────
@@ -500,13 +310,6 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
     return articles
 
 
-def hashlib_quick(text: str) -> str:
-    """Quick hash for article deduplication."""
-    import hashlib
-
-    return hashlib.sha256(text.encode()).hexdigest()[:12]
-
-
 # ── 6. RSS FETCH (top 50 feeds, batched) ──────────────────────────
 
 
@@ -674,6 +477,14 @@ async def refresh_news_cache() -> dict[str, Any]:
     ordered by market relevance, not just recency. Fail-open everywhere:
     rerank/dedup degradation never empties the feed.
     """
+    from app.databus.news_provider.cache import NEWS_CACHE_KEY, NEWS_CACHE_TTL, _redis_set
+    from app.databus.news_provider.helpers import TOP_50_FEEDS
+    from app.databus.news_provider.normalizers import (
+        dedupe_articles,
+        relevance_rerank,
+        sort_by_published,
+    )
+
     logger.info("Starting background news cache refresh...")
 
     # Fast API news first (instant)
@@ -705,126 +516,9 @@ async def refresh_news_cache() -> dict[str, Any]:
         logger.warning(f"RSS fetch failed: {e}")
         rss_articles = []
 
-    # Merge and dedupe: exact-title pass, then fuzzy near-dup collapse
-    # (wire services syndicate the same headline with tiny edits).
-    import difflib
-
-    def _norm_title(t: str) -> str:
-        return "".join(ch for ch in t.lower() if ch.isalnum())
-
-    seen_titles: set[str] = set()
-    seen_norms: list[str] = []
-    all_articles: list[dict[str, Any]] = []
-    for art in api_articles + rss_articles:
-        title = art.get("title", "")
-        if not title:
-            all_articles.append(art)
-            continue
-        if title in seen_titles:
-            continue
-        norm = _norm_title(title)[:120]
-        if norm and any(difflib.SequenceMatcher(None, norm, prev).ratio() > 0.88 for prev in seen_norms[-200:]):
-            continue
-        seen_titles.add(title)
-        if norm:
-            seen_norms.append(norm)
-        all_articles.append(art)
-
-    # Sort by published_at (newest first)
-    def _sort_key(a: dict[str, Any]) -> str:
-        return a.get("published_at", "")
-
-    all_articles.sort(key=_sort_key, reverse=True)
-
-    # ── Relevance pass (fail-open): Qwen3-4B rerank first, embed-cosine
-    # as fallback while the embed migration cooks. Same-provider cosine
-    # keeps every tier dimension-correct. ──
-    _rerank_done = False
-    try:
-        from app.rag.rerank import rerank_results
-
-        _rerank_cands = all_articles[:24]
-        ranked = await asyncio.wait_for(
-            rerank_results(
-                "major market-moving crypto news: regulation, hacks, ETFs, "
-                "protocol exploits, macro events affecting bitcoin ethereum solana",
-                documents=[f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in _rerank_cands],
-                top_n=len(_rerank_cands),
-                tier="deep",
-            ),
-            timeout=45.0,
-        )
-        if ranked:
-            order = {r["index"]: r["relevance_score"] for r in ranked}
-            _rerank_cands.sort(key=lambda a: order.get(_rerank_cands.index(a), 0.0), reverse=True)
-            all_articles = _rerank_cands + all_articles[len(_rerank_cands) :]
-            logger.info(f"Reranked {len(_rerank_cands)} articles via qwen3-reranker-4b")
-            _rerank_done = True
-    except Exception as e:
-        logger.debug(f"4B rerank unavailable this cycle: {e}")
-
-    if not _rerank_done:
-        try:
-            import math
-
-            import httpx
-
-            candidates = all_articles[:40]
-            if candidates:
-                query_text = (
-                    "major market-moving crypto news: regulation, hacks, ETFs, "
-                    "protocol exploits, macro events affecting bitcoin ethereum solana"
-                )
-                docs = [f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in candidates]
-
-                async def _embed_batch(
-                    client: httpx.AsyncClient, url: str, inputs: list[str], model: str | None = None
-                ) -> list[list[float]]:
-                    payload: dict[str, object] = {"input": inputs}
-                    if model:
-                        payload["model"] = model
-                    resp = await client.post(url, json=payload)
-                    resp.raise_for_status()
-                    return [d["embedding"] for d in resp.json()["data"]]
-
-                q_vec = d_vecs = None
-                async with httpx.AsyncClient(timeout=45) as client:
-                    try:
-                        embed_url = "http://127.0.0.1:8004/v1/embeddings"
-                        q_vec = (await _embed_batch(client, embed_url, [query_text]))[0]
-                        d_vecs = await _embed_batch(client, embed_url, docs)
-                    except Exception:
-                        logger.debug("local embedder unavailable - trying API fallbacks")
-                    if q_vec is None or d_vecs is None:
-                        _mkey = resolve_key("MISTRAL_API_KEY").strip()
-                        if not _mkey:
-                            raise RuntimeError("no MISTRAL_API_KEY for embed fallback")
-                        _murl = "https://api.mistral.ai/v1/embeddings"
-                        _mh = {"Authorization": f"Bearer {_mkey}"}
-                        q_resp = await client.post(
-                            _murl, json={"model": "mistral-embed", "input": [query_text]}, headers=_mh
-                        )
-                        q_resp.raise_for_status()
-                        q_vec = q_resp.json()["data"][0]["embedding"]
-                        d_resp = await client.post(_murl, json={"model": "mistral-embed", "input": docs}, headers=_mh)
-                        d_resp.raise_for_status()
-                        d_vecs = [d["embedding"] for d in d_resp.json()["data"]]
-
-                def _cos(a: list[float], b: list[float]) -> float:
-                    num = sum(x * y for x, y in zip(a, b, strict=False))
-                    da = math.sqrt(sum(x * x for x in a)) or 1.0
-                    db = math.sqrt(sum(y * y for y in b)) or 1.0
-                    return num / (da * db)
-
-                scored = sorted(
-                    range(len(candidates)),
-                    key=lambda i: _cos(q_vec, d_vecs[i]),
-                    reverse=True,
-                )
-                all_articles = [candidates[i] for i in scored] + all_articles[len(candidates) :]
-                logger.info(f"Relevance-ranked {len(candidates)} articles via embed cosine")
-        except Exception as e:
-            logger.debug(f"Relevance pass skipped: {e}")
+    # Merge, dedupe, sort, and relevance-rank (fail-open passes)
+    all_articles = sort_by_published(dedupe_articles(api_articles + rss_articles))
+    all_articles = await relevance_rerank(all_articles)
 
     # Build the full news data
     market_brief = await get_market_brief()
@@ -854,99 +548,3 @@ async def refresh_news_cache() -> dict[str, Any]:
     logger.info(f"News cache refreshed: {len(all_articles)} total articles from APIs + RSS")
 
     return data
-
-
-# ── 8. PUBLIC API: get_aggregated_news (used by DataBus) ──────────
-
-
-async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict[str, Any] | None:
-    """Get news articles. Reads from Redis cache (instant)."""
-    cached = await _redis_get(NEWS_CACHE_KEY)
-    if cached:
-        headlines = cached.get("headlines", {})
-        articles = headlines.get("articles", []) if isinstance(headlines, dict) else []
-        if category:
-            articles = [
-                a for a in articles if category.lower() in (a.get("category", "") + a.get("source", "")).lower()
-            ]
-        articles = articles[:limit]
-        return {
-            "articles": articles,
-            "total": len(articles),
-            "filtered": len(articles),
-            "source": "rmi_news_aggregator",
-            "cached": True,
-            "free": True,
-        }
-
-    # Cold cache — return empty gracefully
-    return {
-        "articles": [],
-        "total": 0,
-        "filtered": 0,
-        "source": "rmi_news_aggregator",
-        "cached": False,
-        "free": True,
-    }
-
-
-# ── 9. PUBLIC API: get_full_news_feed (main endpoint) ─────────────
-
-
-async def get_full_news_feed(limit: int = 15, **kw) -> dict[str, Any] | None:
-    """Complete news page data. ALWAYS reads from Redis.
-
-    On cache miss, returns fast API data + market brief immediately
-    and triggers background refresh.
-    """
-    # Try Redis cache first
-    cached = await _redis_get(NEWS_CACHE_KEY)
-    if cached:
-        # Trim headlines to requested limit
-        headlines = cached.get("headlines", {})
-        if isinstance(headlines, dict) and "articles" in headlines:
-            headlines["articles"] = headlines["articles"][:limit]
-            headlines["total"] = min(headlines.get("total", 0), limit)
-        cached["headlines"] = headlines
-        return cached
-
-    # Cache miss — do a fast response with API news only
-    logger.info("News cache miss — returning fast API data + triggering background refresh")
-
-    # Kick off background refresh
-    _ = asyncio.create_task(refresh_news_cache())
-
-    # Get market brief (fast, parallel)
-    market_brief_task = asyncio.create_task(get_market_brief())
-
-    # Fast API news (3-5 seconds)
-    try:
-        api_articles = await asyncio.wait_for(
-            _fetch_fast_api_news(limit=20),
-            timeout=5.0,
-        )
-    except (TimeoutError, Exception):
-        api_articles = []
-
-    market_brief = await market_brief_task
-
-    return {
-        "market_brief": market_brief,
-        "headlines": {
-            "articles": api_articles[:limit],
-            "total": len(api_articles),
-            "source": "rmi_news_aggregator",
-            "free": True,
-        },
-        "generated_at": datetime.now(UTC).isoformat(),
-        "data_sources": [
-            "CoinGecko (news API, prices, trending)",
-            "CryptoPanic (news sentiment)",
-            "Alternative.me (Fear & Greed Index)",
-            "Polymarket (prediction markets)",
-            f"RSS ({len(TOP_50_FEEDS)} feeds — refreshing in background)",
-        ],
-        "source": "full_news_feed",
-        "free": True,
-        "refreshing": True,
-    }
