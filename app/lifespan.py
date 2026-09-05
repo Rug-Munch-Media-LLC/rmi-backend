@@ -234,6 +234,23 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("x_shill_ingest_background_start_failed err=%s", exc)
 
+    # 13. Scheduled Telegram channel ingest — sweeps monitored channels
+    #     (TELEGRAM_MONITORED_CHANNELS env, falling back to the enabled
+    #     news-kind registry channels) every 15 minutes and embeds the
+    #     normalized articles into Qdrant news_v2.
+    tg_ingest_task = None
+    try:
+        import asyncio as _asyncio
+        import os as _os
+
+        from app.domains.news_ingest.scheduler import start_ingest_scheduler
+
+        _tg_interval = max(5, int(_os.getenv("RMI_TG_INGEST_INTERVAL_MINUTES", "15")))
+        tg_ingest_task = await start_ingest_scheduler(_tg_interval, first_delay_seconds=90)
+        log.info("tg_news_ingest_background_started interval_min=%d", _tg_interval)
+    except Exception as exc:
+        log.warning("tg_news_ingest_background_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -276,6 +293,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.info("x_shill_ingest_background_cancelled")
         except Exception as exc:
             log.debug("x_shill_ingest_cancel_failed err=%s", exc)
+
+    # Scheduled Telegram channel ingest background task shutdown
+    if tg_ingest_task is not None:
+        try:
+            from app.domains.news_ingest.scheduler import stop_ingest_scheduler
+
+            await stop_ingest_scheduler(tg_ingest_task)
+        except Exception as exc:
+            log.debug("tg_news_ingest_cancel_failed err=%s", exc)
 
     # Webhook engine shutdown (only if it was started)
     if webhook_engine is not None:
