@@ -158,12 +158,13 @@ async def run_ingest_cycle(
     ingested = 0
     errors: list[str] = []
     now = datetime.now(UTC).isoformat()
-    persisted: list[Any] = []
     if fresh:
         from app.integrations.rugbrain_client import rugbrain_ingest
 
+        persisted: list[Any] = []
         for article in fresh:
-            doc_id = f"tg_news:{article.source_channel}:{article.message_id}"
+            fingerprint = article.content_hash or article.source_url or article.title or ""
+            doc_id = f"tg_news:{article.source_channel}:{fingerprint[:64]}"
             content = (article.body or article.title or "")[:2000]
             metadata = {
                 "kind": "news_article",
@@ -202,7 +203,7 @@ async def run_ingest_cycle(
         "skipped_seen": skipped,
         "ingested": ingested,
         "errors": errors[:5],
-        "indexed_at": now if persisted else None,
+        "indexed_at": now if fresh else None,
     }
     logger.info(
         "news_ingest_cycle channels=%d swept=%d fresh=%d ingested=%d skipped=%d",
