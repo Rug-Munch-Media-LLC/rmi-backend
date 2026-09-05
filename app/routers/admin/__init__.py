@@ -51,6 +51,8 @@ def _include_sub_routers():
         ("server", "server_router"),
         ("mail", "mail_router"),
         ("pg_stats", "pg_stats_router"),
+        ("content_health", "content_health_router"),
+        ("ingest", "ingest_router"),
     ]:
         try:
             module = importlib.import_module(f".{name}", __package__)
