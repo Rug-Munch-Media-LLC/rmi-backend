@@ -20,8 +20,12 @@ from defusedxml import ElementTree as SafeET
 from app.caching_shield.rss_sources import fetch_rss_feeds
 from app.core.logging import get_logger
 from app.feed_quality_pipeline import LRUCache
+from app.feed_quality_pipeline.pipeline import run_quality_pipeline
 
 logger = get_logger("social_feed")
+
+#: Tweets scoring below this are dropped from the feed.
+QUALITY_GATE_THRESHOLD = 0.3
 
 # X API v2 (primary) — Bearer token from env; nitter RSS is fallback
 TWITTER_API = "https://api.twitter.com/2"
@@ -271,6 +275,13 @@ async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
                 rss_fallback = bool(rss_articles)
             except (ConnectionError, OSError, TimeoutError):
                 pass
+
+    # Quality gate: validate → dedup → score before serving. Fail-open.
+    try:
+        scored_tweets = await run_quality_pipeline(tweets, provider_group="social", source="x")
+        tweets = [t for t in scored_tweets if t.get("quality_score", 0.0) >= QUALITY_GATE_THRESHOLD]
+    except Exception as exc:
+        logger.debug("twitter_quality_pipeline_failed err=%s", str(exc)[:160])
 
     result = {
         "tweets": sorted(tweets, key=lambda t: t.get("published", ""), reverse=True)[:limit],

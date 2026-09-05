@@ -30,8 +30,12 @@ from app.domains.news_ingest.ingest import (
     mark_articles_ingested,
     sweep_channels,
 )
+from app.feed_quality_pipeline.pipeline import run_quality_pipeline
 
 logger = get_logger(__name__)
+
+#: Articles scoring below this are dropped before the Qdrant upsert.
+QUALITY_GATE_THRESHOLD = 0.3
 
 # ── Pure sweep clock (original stub API) ────────────────────────────────────
 
@@ -159,6 +163,47 @@ async def run_ingest_cycle(
     articles = await sweep_channels(client, channels, limit=limit)
     fresh, skipped = filter_seen_articles(articles, DEFAULT_DEDUP_COLLECTION)
 
+    # Quality gate: validate → dedup → score before persisting. Fail-open —
+    # a pipeline failure must never block ingestion entirely.
+    quality_scores: dict[int, float] = {}
+    if fresh:
+        try:
+            scored = await run_quality_pipeline(
+                [
+                    {
+                        "_idx": i,
+                        "id": article.content_hash or article.source_url or article.title or str(i),
+                        "title": article.title or "",
+                        "content": (article.body or article.title or "")[:2000],
+                        "url": article.source_url or "",
+                        "author": article.source_channel or "",
+                        "published": article.posted_at.isoformat() if article.posted_at else "",
+                        "categories": [article.category] if article.category else [],
+                        "source": "telegram",
+                    }
+                    for i, article in enumerate(fresh)
+                ],
+                provider_group="news",
+                source="telegram",
+            )
+            quality_scores = {d["_idx"]: float(d.get("quality_score", 0.0)) for d in scored}
+            kept = [
+                (i, article) for i, article in enumerate(fresh) if quality_scores.get(i, 0.0) >= QUALITY_GATE_THRESHOLD
+            ]
+            dropped = len(fresh) - len(kept)
+            fresh = [article for _, article in kept]
+            # Re-key scores to the filtered list positions for the metadata payload.
+            quality_scores = {new_i: quality_scores[old_i] for new_i, (old_i, _) in enumerate(kept)}
+            if dropped:
+                logger.info(
+                    "news_ingest_quality_gate dropped=%d kept=%d threshold=%.2f",
+                    dropped,
+                    len(fresh),
+                    QUALITY_GATE_THRESHOLD,
+                )
+        except Exception as exc:  # fail-open
+            logger.warning("news_ingest_quality_pipeline_failed err=%s", str(exc)[:160])
+
     ingested = 0
     errors: list[str] = []
     now = datetime.now(UTC).isoformat()
@@ -166,7 +211,7 @@ async def run_ingest_cycle(
         from app.integrations.rugbrain_client import rugbrain_ingest
 
         persisted: list[Any] = []
-        for article in fresh:
+        for idx, article in enumerate(fresh):
             fingerprint = article.content_hash or article.source_url or article.title or ""
             doc_id = f"tg_news:{article.source_channel}:{fingerprint[:64]}"
             content = (article.body or article.title or "")[:2000]
@@ -179,6 +224,7 @@ async def run_ingest_cycle(
                 "posted_at": article.posted_at.isoformat() if article.posted_at else None,
                 "ingestion": "telegram_scheduled",
                 "indexed_at": now,
+                "quality_score": round(quality_scores.get(idx, 0.0), 4),
             }
             try:
                 ok = await rugbrain_ingest(
