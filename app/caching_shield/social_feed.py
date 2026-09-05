@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -20,6 +21,10 @@ from app.core.logging import get_logger
 from app.feed_quality_pipeline import LRUCache
 
 logger = get_logger("social_feed")
+
+# X API v2 (primary) — Bearer token from env; nitter RSS is fallback
+TWITTER_API = "https://api.twitter.com/2"
+TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN", "")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TOP 50 CRYPTO X ACCOUNTS - by influence/relevance
@@ -167,8 +172,76 @@ def _cache_set(key: str, data: dict[str, Any], ttl: int) -> None:
     _cache.set(key, data, ttl)
 
 
+def _tweet_record(account: dict[str, Any], text: str, url: str, published: str, tweet_id: str) -> dict[str, Any]:
+    return {
+        "id": tweet_id,
+        "text": text,
+        "author": account["name"],
+        "handle": account["handle"],
+        "followers": account["followers"],
+        "pfp": f"https://unavatar.io/twitter/{account['handle']}",
+        "url": url,
+        "published": published,
+        "source": "x",
+        "type": "tweet",
+    }
+
+
+async def _fetch_twitter_api(client: httpx.AsyncClient, account: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fetch recent tweets for one account via X API v2 (primary path)."""
+    url = f"{TWITTER_API}/users/by/username/{account['handle']}/tweets"
+    r = await client.get(
+        url,
+        headers={"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"},
+        params={"max_results": 3, "tweet.fields": "created_at"},
+    )
+    if r.status_code != 200:
+        return []
+    tweets: list[dict[str, Any]] = []
+    for t in r.json().get("data", [])[:3]:
+        text = t.get("text", "")
+        if not text or text.startswith("RT @"):
+            continue
+        tweets.append(
+            _tweet_record(
+                account,
+                text,
+                f"https://x.com/{account['handle']}/status/{t['id']}",
+                t.get("created_at", ""),
+                str(t["id"])[:12],
+            )
+        )
+    return tweets
+
+
+async def _fetch_nitter(client: httpx.AsyncClient, account: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fetch recent tweets for one account via nitter RSS (fallback path)."""
+    nitter_url = f"https://nitter.net/{account['handle']}/rss"
+    r = await client.get(nitter_url)
+    if r.status_code != 200:
+        return []
+    root = SafeET.fromstring(r.text)
+    tweets: list[dict[str, Any]] = []
+    for item in root.findall(".//item")[:3]:
+        title = item.find("title").text if item.find("title") is not None else ""
+        link = item.find("link").text if item.find("link") is not None else ""
+        item.find("description").text if item.find("description") is not None else ""
+        pubdate = item.find("pubDate").text if item.find("pubDate") is not None else ""
+        if title and "RT @" not in title:
+            tweets.append(
+                _tweet_record(
+                    account,
+                    title.replace(f"{account['name']}: ", ""),
+                    link,
+                    pubdate,
+                    hashlib.sha256(link.encode()).hexdigest()[:12],
+                )
+            )
+    return tweets
+
+
 async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
-    """Get top crypto tweets via Nitter (free, no auth, cached)."""
+    """Get top crypto tweets. X API v2 primary, nitter RSS fallback, fail-open."""
     cache_key = f"twitter_feed_{limit}"
     cached = _cache_get(cache_key)
     if cached:
@@ -178,35 +251,20 @@ async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=15) as c:
         for account in TOP_CRYPTO_ACCOUNTS[:30]:  # Top 15 to minimize calls
             try:
-                # Try Nitter (free, no auth)
-                nitter_url = f"https://nitter.net/{account['handle']}/rss"
-                r = await c.get(nitter_url)
-
-                if r.status_code == 200:
-                    root = SafeET.fromstring(r.text)
-                    for item in root.findall(".//item")[:3]:
-                        title = item.find("title").text if item.find("title") is not None else ""
-                        link = item.find("link").text if item.find("link") is not None else ""
-                        item.find("description").text if item.find("description") is not None else ""
-                        pubdate = item.find("pubDate").text if item.find("pubDate") is not None else ""
-
-                        if title and "RT @" not in title:
-                            tweets.append(
-                                {
-                                    "id": hashlib.sha256(link.encode()).hexdigest()[:12],
-                                    "text": title.replace(f"{account['name']}: ", ""),
-                                    "author": account["name"],
-                                    "handle": account["handle"],
-                                    "followers": account["followers"],
-                                    "pfp": f"https://unavatar.io/twitter/{account['handle']}",
-                                    "url": link,
-                                    "published": pubdate,
-                                    "source": "x",
-                                    "type": "tweet",
-                                }
-                            )
+                if TWITTER_BEARER_TOKEN:
+                    tweets.extend(await _fetch_twitter_api(c, account))
+                else:
+                    tweets.extend(await _fetch_nitter(c, account))
             except (ConnectionError, OSError, TimeoutError):
                 continue
+
+        # Fallback: X API yielded nothing (or no token) → try nitter RSS
+        if not tweets:
+            for account in TOP_CRYPTO_ACCOUNTS[:30]:
+                try:
+                    tweets.extend(await _fetch_nitter(c, account))
+                except (ConnectionError, OSError, TimeoutError):
+                    continue
 
     result = {
         "tweets": sorted(tweets, key=lambda t: t.get("published", ""), reverse=True)[:limit],
