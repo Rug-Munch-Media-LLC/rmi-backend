@@ -481,8 +481,8 @@ async def request_refund(request: Request) -> JSONResponse:
                         "amount_atoms": refund_info.get("amount_atoms"),
                         "chain": refund_info.get("chain"),
                     }
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.error(f"request_refund failed: {e}")
 
         refund_reason = requester_reason or "User-requested refund"
         refund_chain = "unknown"
@@ -499,8 +499,8 @@ async def request_refund(request: Request) -> JSONResponse:
                     refund_payer = refund_info.get("payer", requester_payer)
                     refund_amount = refund_info.get("amount_atoms", "0")
                     payment_timestamp = refund_info.get("flagged_at")
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.error(f"request_refund failed: {e}")
         elif spent_data:
             try:
                 spent_info = json.loads(spent_data)

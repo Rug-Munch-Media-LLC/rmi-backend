@@ -246,8 +246,8 @@ def _resolve_api_key() -> str:
             value = fh.read().strip()
         if value:
             return value
-    except (OSError, UnicodeDecodeError):
-        pass
+    except (OSError, UnicodeDecodeError) as e:
+        logger.warning(f"_resolve_api_key failed: {e}")
     try:
         value = (
             subprocess.check_output(  # noqa: S603 — gopass is the canonical secret store
@@ -261,8 +261,8 @@ def _resolve_api_key() -> str:
         )
         if value:
             return value
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        logger.warning(f"_resolve_api_key failed: {e}")
     return ""
 
 
@@ -431,8 +431,8 @@ def _decode_user_id(value: Any) -> str:
         decoded = base64.b64decode(s).decode("utf-8")
         if decoded.startswith("User:"):
             return decoded[len("User:") :].strip()
-    except ValueError:
-        pass
+    except ValueError as e:
+        logger.warning(f"_decode_user_id failed: {e}")
     return s
 
 
@@ -732,10 +732,10 @@ def _cache_clear(handle: str | None = None) -> int:
                     try:
                         os.remove(os.path.join(APIPASS_CACHE_DIR, name))
                         removed += 1
-                    except OSError:
-                        pass
-    except OSError:
-        pass
+                    except OSError as e:
+                        logger.warning(f"_cache_clear failed: {e}")
+    except OSError as e:
+        logger.warning(f"_cache_clear failed: {e}")
     return removed
 
 

@@ -236,8 +236,8 @@ def _score_freshness(results: list[dict[str, Any]]) -> float:
                 dt = datetime.fromisoformat(created.replace("Z", "+00:00")) if isinstance(created, str) else created
                 age = (now - dt).days if hasattr(dt, "days") else 365
                 ages_days.append(age)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.warning(f"_score_freshness failed: {e}")
 
     if not ages_days:
         return 0.5  # no freshness data, neutral

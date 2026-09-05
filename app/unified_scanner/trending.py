@@ -84,8 +84,8 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         }
                     )
                 sources_used.append("geckoterminal")
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"get_trending_tokens failed: {e}")
 
         try:
             resp = await client.get("https://api.coingecko.com/api/v3/search/trending")
@@ -106,8 +106,8 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         }
                     )
                 sources_used.append("coingecko")
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"get_trending_tokens failed: {e}")
 
     seen = set()
     unique = []
@@ -163,8 +163,8 @@ async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> d
                                 "dex": pair.get("dexId", ""),
                             }
                         )
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"get_new_launches failed: {e}")
 
     chain_key = chain or "all"
     if chain_key not in LAST_KNOWN_LAUNCHES:

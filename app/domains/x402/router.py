@@ -191,8 +191,8 @@ async def usage(request: Request) -> UsageResponse:
             day = datetime.now(UTC).strftime("%Y%m%d")
             key = f"x402:rl:{agent_id}:{day}"
             daily_calls = int(await catalog._redis.get(key) or 0)
-        except (ConnectionError, OSError):
-            pass
+        except (ConnectionError, OSError) as e:
+            get_logger(__name__).error(f"usage failed: {e}")
     if catalog._health.postgres:
         try:
             async with catalog._pg_pool.acquire() as conn:

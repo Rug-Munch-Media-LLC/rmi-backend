@@ -575,8 +575,8 @@ class GasTraceAnalyzer:
                             tz=UTC,
                         )
                         result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    except (ConnectionError, OSError, TimeoutError):
-                        pass
+                    except (ConnectionError, OSError, TimeoutError) as e:
+                        logger.error(f"_get_solana_wallet_info failed: {e}")
 
             # Get transaction count (first page gives us an idea)
             txs = FreeSolscanClient.account_transactions(address, page=1, page_size=20)
@@ -593,8 +593,8 @@ class GasTraceAnalyzer:
                             try:
                                 dt = datetime.fromtimestamp(int(bt), tz=UTC)
                                 result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                            except (ConnectionError, OSError, TimeoutError):
-                                pass
+                            except (ConnectionError, OSError, TimeoutError) as e:
+                                logger.error(f"_get_solana_wallet_info failed: {e}")
 
             # Also check transfers to get a more complete picture
             transfers = FreeSolscanClient.account_transfers(address, page=1, page_size=20)
@@ -651,8 +651,8 @@ class GasTraceAnalyzer:
                             try:
                                 dt = datetime.fromtimestamp(ts, tz=UTC)
                                 result["first_seen"] = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-                            except (ConnectionError, OSError, TimeoutError):
-                                pass
+                            except (ConnectionError, OSError, TimeoutError) as e:
+                                logger.error(f"_get_evm_wallet_info failed: {e}")
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"EVM wallet info error for {address}: {e}")

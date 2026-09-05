@@ -61,8 +61,8 @@ class EVMConnector(ChainConnector):
                         from web3.middleware import ExtraDataToPOAMiddleware
 
                         self._w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-                    except ImportError:
-                        pass
+                    except ImportError as e:
+                        logger.debug(f"w3 failed: {e}")
         return self._w3
 
     async def get_native_balance(self, address: str) -> float:

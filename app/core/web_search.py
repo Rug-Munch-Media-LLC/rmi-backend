@@ -98,8 +98,8 @@ async def searxng_search(query: str, max_results: int = 5) -> list[dict[str, str
                     parsed = json.loads(cached)
                     if isinstance(parsed, list):
                         return parsed[:max_results]
-                except (TypeError, json.JSONDecodeError):
-                    pass
+                except (TypeError, json.JSONDecodeError) as e:
+                    logger.warning(f"searxng_search failed: {e}")
     except Exception:  # noqa: S110 — cache is best-effort
         pass
 

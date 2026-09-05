@@ -381,8 +381,8 @@ class ScamIngestionPipeline:
                             )
                             if ok:
                                 count += 1
-                        except (AttributeError, ImportError):
-                            pass
+                        except (AttributeError, ImportError) as e:
+                            logger.debug(f"run_full_ingestion failed: {e}")
                     stats["sources"][source_name] = count
                     stats["total"] += count
                     logger.info(f"Ingested {count} docs from {source_name}")

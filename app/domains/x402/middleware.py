@@ -354,8 +354,8 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
         result = await verify_payment({"txHash": tx_hash, "accepted": {"network": "base"}})
         if result.get("verified", False):
             return True
-    except ImportError:
-        pass
+    except ImportError as e:
+        get_logger("wp.x402").debug(f"verify_payment_on_chain failed: {e}")
     except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
         get_logger("wp.x402").error(f"verify_payment_on_chain error: {e}")
 

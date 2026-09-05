@@ -215,8 +215,8 @@ async def list_news(
             import asyncio
 
             asyncio.create_task(persist_clusters(stories))
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            log.warning(f"list_news failed: {e}")
         # Return clusters as synthetic items (representative title, first source)
         clustered_items = []
         for s in stories:
@@ -336,8 +336,8 @@ async def trending_news(
                 try:
                     if d.get("ingested_at"):
                         hours_old = max(0, (now.timestamp() - float(d["ingested_at"])) / 3600)
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    log.warning(f"trending_news failed: {e}")
                 item = _adapt_legacy_row(d)
                 item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
                 items.append(item)

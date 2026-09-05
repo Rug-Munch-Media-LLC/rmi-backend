@@ -53,8 +53,8 @@ class PriceOracle:
                     if price:
                         self._cache[upper] = float(price)
                         return float(price)
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"get_price failed: {e}")
         return 0.0
 
     def estimate_native_price(self, chain: str) -> float:

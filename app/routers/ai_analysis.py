@@ -466,8 +466,8 @@ def _parse_ai_response(content: str) -> dict[str, Any] | None:
         if match:
             try:
                 return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"_parse_ai_response failed: {e}")
     return None
 
 

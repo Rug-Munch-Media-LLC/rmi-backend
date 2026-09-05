@@ -8,6 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi.responses import JSONResponse
 
+from app.core.logging import get_logger
+
+logger = get_logger("middleware")
+
 if TYPE_CHECKING:
     from fastapi import Request
 
@@ -46,8 +50,8 @@ async def cache_middleware(request: Request, call_next) -> Any:
         cached = get_cached(tool, params)
         if cached:
             return JSONResponse(content=cached, headers={"X-Cache": "HIT", "X-Cache-TTL": "60"})
-    except (AttributeError, ImportError, json.JSONDecodeError):
-        pass
+    except (AttributeError, ImportError, json.JSONDecodeError) as e:
+        logger.debug(f"cache_middleware failed: {e}")
 
     response = await call_next(request)
     if response.status_code == 200:
@@ -62,8 +66,8 @@ async def cache_middleware(request: Request, call_next) -> Any:
                 status_code=response.status_code,
                 headers={**dict(response.headers), "X-Cache": "MISS"},
             )
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"cache_middleware failed: {e}")
     return response
 
 
@@ -103,8 +107,8 @@ async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
                         "detail": "System is in emergency lockdown.",
                     },
                 )
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"emergency_lockdown_middleware failed: {e}")
     return await call_next(request)
 
 

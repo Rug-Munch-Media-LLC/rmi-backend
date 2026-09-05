@@ -212,8 +212,8 @@ class ContractDiffAnalyzer:
             try:
                 if pattern.lower() in raw:
                     found.append(pattern.decode(errors="replace"))
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.error(f"_scan_rug_patterns failed: {e}")
         return found
 
     def _compute_similarity(self, selectors_a: list[str], selectors_b: list[str]) -> float:
@@ -374,8 +374,8 @@ class ContractDiffAnalyzer:
                 if report.citations and report.warnings:
                     cit_str = build_citation_string(report.citations, report.warnings[-1])
                     report.warnings[-1] += f" {cit_str}"
-            except (AttributeError, ImportError):
-                pass
+            except (AttributeError, ImportError) as e:
+                logger.debug(f"analyze failed: {e}")
 
         except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)

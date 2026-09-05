@@ -456,8 +456,8 @@ async def fetch_all(max_per_source: int = 8) -> list[Article]:
 
                         _store_article(aid, article)
                         new_articles.append(article)
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"fetch_source failed: {e}")
 
     await asyncio.gather(*[fetch_source(s) for s in NEWS_SOURCES])
     return new_articles

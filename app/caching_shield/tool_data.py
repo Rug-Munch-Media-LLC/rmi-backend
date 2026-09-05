@@ -16,6 +16,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.caching_shield.unified_layer import get_data_layer
+from app.core.logging import get_logger
+
+logger = get_logger("tool_data")
 
 
 class ToolData:
@@ -76,8 +79,8 @@ class ToolData:
                 if isinstance(result, dict) and set(result.keys()) <= {"error"}:
                     return None
                 return result
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning(f"call_tool failed: {e}")
 
         try:
             r = await self._layer.fetch(tool_id, **params)
@@ -88,8 +91,8 @@ class ToolData:
                 if set(result.keys()) <= {"error", "tool"}:
                     return None
                 return result
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"call_tool failed: {e}")
 
         # Tool not available via DataBus - return None so middleware falls back
         return None

@@ -74,8 +74,8 @@ class EVMConnector(ChainConnector):
                         from web3.middleware import ExtraDataToPOAMiddleware
 
                         self._w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-                    except ImportError:
-                        pass
+                    except ImportError as e:
+                        logger.debug(f"w3 failed: {e}")
         return self._w3
 
     async def get_native_balance(self, address: str) -> float:
@@ -109,8 +109,8 @@ class EVMConnector(ChainConnector):
                         }
                     )
                     checked.add(token_addr.lower())
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning(f"get_token_balances failed: {e}")
         try:
             latest = await asyncio.to_thread(self.w3.eth.block_number)
             from_block = max(latest - 5000, 0)
@@ -150,8 +150,8 @@ class EVMConnector(ChainConnector):
                                 "decimals": dec,
                             }
                         )
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.warning(f"get_token_balances failed: {e}")
                 if len(results) >= MAX_TOKENS_PER_WALLET:
                     break
         except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
@@ -212,8 +212,8 @@ class SolanaConnector(ChainConnector):
                             "decimals": token_amount.get("decimals", 0),
                         }
                     )
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.warning(f"get_token_balances failed: {e}")
         except (ValueError, KeyError, TypeError) as e:
             logger.debug("get_token_balances_error", exc_info=True)
             logger.warning(f"solana token balances error: {e}")

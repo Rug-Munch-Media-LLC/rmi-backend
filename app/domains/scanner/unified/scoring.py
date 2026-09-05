@@ -50,9 +50,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult
 
+from app.core.logging import get_logger
 from app.domains.scanner.engines.news_sentiment import HIGH_MEDIA_ATTENTION_THRESHOLD
 from app.domains.scanner.unified._evidence import build_evidence
 from app.domains.scanner.unified._score_helpers import apply_sentinel_scoring, build_breakdown
+
+logger = get_logger("scoring")
 
 # Dimension weights — the maximum points each dimension can contribute
 # toward the safety score. 35 + 25 + 15 + 15 + 10 = 100.
@@ -147,8 +150,8 @@ def _is_bluechip(r: ScanResult) -> bool:
         try:
             if int(ha.get("total_holders") or 0) > BLUECHIP_HOLDER_COUNT:
                 return True
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.error(f"_is_bluechip failed: {e}")
     return False
 
 

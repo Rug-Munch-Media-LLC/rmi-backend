@@ -61,8 +61,8 @@ async def admin_disk(request: Request, _=Depends(verify_admin)) -> dict[str, Any
                         "percent": usage.percent,
                     }
                 )
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                logger.warning(f"admin_disk failed: {e}")
         return {"disks": disks}
     except Exception as e:
         return {"error": str(e)}
@@ -210,7 +210,7 @@ async def admin_updates(request: Request, _=Depends(verify_admin)) -> dict[str, 
                     )
             result["python_packages_detail"] = pkg_list[:20]
             result["python_packages"] = len(pkg_list)
-    except (TimeoutError, FileNotFoundError):
-        pass
+    except (TimeoutError, FileNotFoundError) as e:
+        logger.warning(f"_size_sort failed: {e}")
 
     return result

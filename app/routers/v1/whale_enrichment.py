@@ -111,8 +111,8 @@ def stable_decimals(token: str, meta_decimals: Any = None) -> int:
     try:
         if meta_decimals is not None and int(meta_decimals) > 0:
             return int(meta_decimals)
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as e:
+        logger.warning(f"stable_decimals failed: {e}")
     return STABLECOIN_DECIMALS.get((token or "").lower(), _DEFAULT_STABLE_DECIMALS_FALLBACK)
 
 

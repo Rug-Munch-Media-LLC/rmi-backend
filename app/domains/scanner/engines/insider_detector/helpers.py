@@ -5,6 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.logging import get_logger
+
+logger = get_logger("helpers")
+
 
 def _parse_timestamp(ts: Any) -> float | None:
     """Parse a timestamp from various formats."""
@@ -18,8 +22,8 @@ def _parse_timestamp(ts: Any) -> float | None:
         try:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             return dt.timestamp()
-        except (ValueError, AttributeError):
-            pass
+        except (ValueError, AttributeError) as e:
+            logger.error(f"_parse_timestamp failed: {e}")
     return None
 
 

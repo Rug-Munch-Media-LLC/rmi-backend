@@ -470,8 +470,8 @@ class UnifiedRateLimiter:
                 r, headers = await self._acquire_redis(redis, key, _rate, _burst, tokens)
                 wait = float(headers.get("Retry-After", 0))
                 return (r, wait)
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning(f"acquire_provider failed: {e}")
         r, headers = await self._acquire_memory(key, _rate, _burst, tokens)
         wait = float(headers.get("Retry-After", 0))
         return (r, wait)
@@ -725,8 +725,8 @@ def get_user_tier(user_id: str) -> Tier:
         tier = r.get(f"rmi:user_tier:{_hash_identifier(user_id)}")
         if tier:
             return Tier(tier)
-    except (ConnectionError, OSError, TimeoutError, RedisError):
-        pass
+    except (ConnectionError, OSError, TimeoutError, RedisError) as e:
+        logger.warning(f"get_user_tier failed: {e}")
     return Tier.FREE
 
 

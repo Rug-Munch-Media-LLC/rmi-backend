@@ -498,8 +498,8 @@ async def predict_rug_pull(
                 if pairs:
                     token_symbol = pairs[0].get("baseToken", {}).get("symbol", "")
                     token_name = pairs[0].get("baseToken", {}).get("name", "")
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.error(f"predict_rug_pull failed: {e}")
         results = await asyncio.gather(
             _analyze_liquidity(client, token_address, chain),
             _analyze_holder_concentration(client, token_address, chain),

@@ -354,8 +354,8 @@ class ANNIndex:
                     result["metadata"] = doc.get("metadata", {})
                     result["source"] = doc.get("source", "")
                     result["severity"] = doc.get("severity", "")
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.warning(f"search failed: {e}")
             results.append(result)
 
         results.sort(key=lambda x: x["similarity"], reverse=True)

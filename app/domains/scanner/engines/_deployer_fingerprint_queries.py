@@ -189,8 +189,8 @@ def _query_token_dex_stats(
                 for pool_addr in _get_pools_for_token(pair_cache, t_addr):
                     pools.add(pool_addr)
                     pool_to_tokens.setdefault(pool_addr, set()).add(t_addr)
-        except (ValueError, OSError):
-            pass
+        except (ValueError, OSError) as e:
+            logger.error(f"_query_token_dex_stats failed: {e}")
 
     where_parts = ["type = 'swap'"]
     params: dict[str, Any] = {"tokens": tuple(token_addrs)}

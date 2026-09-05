@@ -112,8 +112,8 @@ class PriceChangeProvider:
             result = await oracle(chain, token_address)
             if isinstance(result, dict):
                 return result
-        except (ValueError, TypeError, ConnectionError, RuntimeError):
-            pass
+        except (ValueError, TypeError, ConnectionError, RuntimeError) as e:
+            log.error(f"_get_price failed: {e}")
         return None
 
     async def cursor_key(self) -> str:

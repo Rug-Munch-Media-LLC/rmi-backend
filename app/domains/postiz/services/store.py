@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 class PostizStore:
     """In-memory store for Postiz operations.
 
-    TODO: Replace with Postgres + SQLAlchemy models + Alembic migrations.
+    FIXME(issue): Replace with Postgres + SQLAlchemy models + Alembic migrations.
     See app/domains/analytics/ for an example of the full DB-backed pattern.
     """
 

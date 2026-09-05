@@ -44,10 +44,10 @@ class CrossChainEntityTracker:
         # Start with deployer matching (if the address is a deployer)
         profile = await self.deployer_matcher.resolve_deployer(address, chain)
 
-        # TODO: Add EVM address portability expansion
-        # TODO: Add bridge mapping from wallet_memory
-        # TODO: Add behavioral fingerprinting
-        # TODO: Add fund flow tracing
+        # FIXME(issue): Add EVM address portability expansion
+        # FIXME(issue): Add bridge mapping from wallet_memory
+        # FIXME(issue): Add behavioral fingerprinting
+        # FIXME(issue): Add fund flow tracing
 
         return profile
 

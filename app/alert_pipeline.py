@@ -148,8 +148,8 @@ async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict[st
                 alerts.append(alert)
                 if len(alerts) >= limit:
                     break
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"get_recent_alerts failed: {e}")
 
         return alerts
     except Exception as e:
@@ -251,8 +251,8 @@ async def scan_known_scams(limit: int = 3) -> int:
                         age_h = (time.time() - datetime.fromisoformat(added.replace("Z", "+00:00")).timestamp()) / 3600
                         if age_h < 24:
                             recent_count += 1
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.warning(f"scan_known_scams failed: {e}")
 
         await r.close()
 

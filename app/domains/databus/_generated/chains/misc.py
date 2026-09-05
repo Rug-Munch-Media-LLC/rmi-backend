@@ -34,8 +34,8 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"_passthrough_hyperliquid failed: {e}")
         return None
 
     chains["hyperliquid"] = ProviderChain(
@@ -54,8 +54,8 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid-action?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"_passthrough_hyperliquid_action failed: {e}")
         return None
 
     chains["hyperliquid_action"] = ProviderChain(
@@ -80,8 +80,8 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 r = await c.get(f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}")
                 if r.status_code == 200:
                     return r.json()
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"_passthrough_insider_wallets failed: {e}")
         return None
 
     chains["insider_wallets"] = ProviderChain(
@@ -101,8 +101,8 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 r = await c.get(f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}")
                 if r.status_code == 200:
                     return r.json()
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"_passthrough_prediction_signals failed: {e}")
         return None
 
     chains["prediction_signals"] = ProviderChain(

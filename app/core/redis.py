@@ -168,8 +168,8 @@ def _mark_degraded() -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_down("redis")
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_mark_degraded failed: {e}")
 
 
 def _mark_healthy() -> None:
@@ -180,8 +180,8 @@ def _mark_healthy() -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_healthy("redis")
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_mark_healthy failed: {e}")
 
 
 def is_redis_degraded() -> bool:

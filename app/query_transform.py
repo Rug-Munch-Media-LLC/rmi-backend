@@ -182,8 +182,8 @@ async def hyde_transform(query: str) -> str:
         if cached:
             logger.debug(f"HyDE cache hit: {query[:60]}")
             return cached
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"hyde_transform failed: {e}")
 
     # Try LLM-based HyDE
     llm_result = await _call_llm(
@@ -201,8 +201,8 @@ async def hyde_transform(query: str) -> str:
     try:
         r = await _get_redis()
         await r.setex(cache_key, 86400, result)
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"hyde_transform failed: {e}")
 
     return result
 

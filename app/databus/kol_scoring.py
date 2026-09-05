@@ -128,8 +128,8 @@ def _load_known_scammers() -> set[str]:
         loaded = load_known_scammers()
         if isinstance(loaded, set):
             return {str(h).lower().lstrip("@") for h in loaded}
-    except (ImportError, AttributeError, OSError, ValueError):
-        pass
+    except (ImportError, AttributeError, OSError, ValueError) as e:
+        logger.debug(f"_load_known_scammers failed: {e}")
     path = Path(__file__).resolve().parent / "known_scammers.json"
     if not path.is_file():
         return set()
@@ -166,8 +166,8 @@ def _load_kol_rug_history() -> dict[str, list[dict[str, Any]]]:
         loaded = load_kol_rug_history()
         if isinstance(loaded, dict):
             return {str(h).lower().lstrip("@"): list(v) for h, v in loaded.items()}
-    except (ImportError, AttributeError, OSError, ValueError):
-        pass
+    except (ImportError, AttributeError, OSError, ValueError) as e:
+        logger.debug(f"_load_kol_rug_history failed: {e}")
     path = Path(__file__).resolve().parent / "kol_rug_history.json"
     if not path.is_file():
         return {}
@@ -228,8 +228,8 @@ def _wallet_attribution_confidence(handle: str) -> float:
             conf = get_wallet_confidence(handle)
             if isinstance(conf, (int, float)):
                 return max(0.0, min(1.0, float(conf)))
-    except (ImportError, AttributeError, TypeError, ValueError):
-        pass
+    except (ImportError, AttributeError, TypeError, ValueError) as e:
+        logger.debug(f"_wallet_attribution_confidence failed: {e}")
     return 0.0
 
 
@@ -247,8 +247,8 @@ def _load_calls(handle: str) -> list[dict[str, Any]]:
         data = social_intel.KOL_DATABASE.get(key)
         if data:
             calls.extend(data.get("calls", []))
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"_load_calls failed: {e}")
     calls.extend(
         {
             "token": o.token,
@@ -272,8 +272,8 @@ def _shill_alert_count(handle: str) -> int:
         for campaign in social_intel.DETECTED_CAMPAIGNS:
             if key in {str(k).lower().lstrip("@") for k in campaign.get("kols_involved", [])}:
                 count += 1
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"_shill_alert_count failed: {e}")
     return count
 
 
@@ -285,8 +285,8 @@ def _deleted_alert_count(handle: str) -> int:
         from app.databus import account_alias
 
         count += account_alias.deleted_post_count(handle=key)
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"_deleted_alert_count failed: {e}")
     return count
 
 

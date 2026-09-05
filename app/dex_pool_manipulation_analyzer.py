@@ -602,8 +602,8 @@ class DEXPoolManipulationAnalyzer:
                 )
                 return signal
 
-        except (ZeroDivisionError, IndexError):
-            pass
+        except (ZeroDivisionError, IndexError) as e:
+            logger.warning(f"_analyze_price_manipulation failed: {e}")
 
         return None
 

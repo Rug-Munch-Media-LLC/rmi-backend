@@ -80,8 +80,8 @@ class PredictionMarketService:
                 cached = await redis.get(cache_key)
                 if cached:
                     return [dict_to_market(d) for d in json.loads(cached)]
-            except (ConnectionError, OSError, json.JSONDecodeError):
-                pass
+            except (ConnectionError, OSError, json.JSONDecodeError) as e:
+                logger.warning(f"search failed: {e}")
 
         results = await asyncio.gather(
             polymarket_source.search(self._http, query),
@@ -134,8 +134,8 @@ class PredictionMarketService:
                 cached = await redis.get(cache_key)
                 if cached:
                     return dict_to_digest(json.loads(cached))
-            except (ConnectionError, OSError, json.JSONDecodeError):
-                pass
+            except (ConnectionError, OSError, json.JSONDecodeError) as e:
+                logger.warning(f"security_digest failed: {e}")
 
         all_markets: list[PredictionMarket] = []
         searches = [self.search(q, security_only=False) for q in SECURITY_QUERIES]

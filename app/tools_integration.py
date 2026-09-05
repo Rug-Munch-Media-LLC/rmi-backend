@@ -64,8 +64,8 @@ async def ollama_list_models() -> list[str]:
             r = await c.get(f"{OLLAMA_URL}/api/tags")
             if r.status_code == 200:
                 return [m["name"] for m in r.json().get("models", [])]
-    except (httpx.HTTPError, TimeoutError, OSError):
-        pass
+    except (httpx.HTTPError, TimeoutError, OSError) as e:
+        logger.warning(f"ollama_list_models failed: {e}")
     return []
 
 
@@ -92,28 +92,19 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict[str, Any]:
 
         # Get bytecode
         code = subprocess.run(
-            [CAST_PATH, "code", address, "--rpc-url", rpc],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        shell=False)
+            [CAST_PATH, "code", address, "--rpc-url", rpc], capture_output=True, text=True, timeout=15, shell=False
+        )
         bytecode = code.stdout.strip()
 
         # Get nonce
         nonce = subprocess.run(
-            [CAST_PATH, "nonce", address, "--rpc-url", rpc],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        shell=False)
+            [CAST_PATH, "nonce", address, "--rpc-url", rpc], capture_output=True, text=True, timeout=10, shell=False
+        )
 
         # Get balance
         balance = subprocess.run(
-            [CAST_PATH, "balance", address, "--rpc-url", rpc],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        shell=False)
+            [CAST_PATH, "balance", address, "--rpc-url", rpc], capture_output=True, text=True, timeout=10, shell=False
+        )
 
         return {
             "address": address,
@@ -149,11 +140,12 @@ def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=15,
-        shell=False)
+            shell=False,
+        )
         if result.returncode == 0:
             return json.loads(result.stdout)
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
-        pass
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as e:
+        logger.warning(f"cast_tx_decode failed: {e}")
     return {"error": "Decode failed", "tx_hash": tx_hash}
 
 
@@ -168,7 +160,8 @@ def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict[str,
             capture_output=True,
             text=True,
             timeout=60,
-        shell=False)
+            shell=False,
+        )
         return {
             "address": contract_address,
             "chain": chain,
@@ -213,8 +206,8 @@ def ccxt_get_prices(symbols: list[str] | None = None) -> dict[str, Any]:
                             "change_24h": ticker.get("percentage", ticker.get("change", 0)),
                             "volume_24h": ticker.get("quoteVolume", ticker.get("baseVolume", 0)),
                         }
-                except (ConnectionError, TimeoutError, OSError):
-                    pass
+                except (ConnectionError, TimeoutError, OSError) as e:
+                    logger.warning(f"ccxt_get_prices failed: {e}")
         return {
             "prices": results,
             "exchanges": list(exchanges.keys()),
@@ -310,7 +303,8 @@ def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=30,
-        shell=False)
+            shell=False,
+        )
         if result.returncode == 0:
             posts = json.loads(result.stdout) if result.stdout.strip() else []
             return {"feed": feed_url, "posts": posts, "count": len(posts)}
@@ -348,8 +342,8 @@ async def vault_get_secret(path: str) -> dict[str, Any] | None:
             r = await client.get(f"{VAULT_ADDR}/v1/{path}", headers={"X-Vault-Token": "root"})
             if r.status_code == 200:
                 return r.json().get("data", {}).get("data", {})
-    except (httpx.HTTPError, TimeoutError, OSError):
-        pass
+    except (httpx.HTTPError, TimeoutError, OSError) as e:
+        logger.warning(f"vault_get_secret failed: {e}")
     return None
 
 
@@ -360,8 +354,8 @@ async def vault_list_secrets(path: str = "secret") -> list[str]:
             r = await client.get(f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"})
             if r.status_code == 200:
                 return r.json().get("data", {}).get("keys", [])
-    except (httpx.HTTPError, TimeoutError, OSError):
-        pass
+    except (httpx.HTTPError, TimeoutError, OSError) as e:
+        logger.warning(f"vault_list_secrets failed: {e}")
     return []
 
 

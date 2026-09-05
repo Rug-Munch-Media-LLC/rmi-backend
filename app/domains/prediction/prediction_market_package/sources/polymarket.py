@@ -98,8 +98,8 @@ async def detail(http_client: Any, slug: str) -> PredictionMarket | None:
                         live_price = float(price_data.get("price", pm.probability_yes))
                         pm.probability_yes = live_price
                         pm.probability_no = 1.0 - live_price
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.warning(f"detail failed: {e}")
         return pm
     except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
         logger.debug("detail_error", exc_info=True)

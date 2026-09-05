@@ -281,8 +281,8 @@ class RpcCacheClient:
                 cached = await self.get(method, params, chain)
                 if cached:
                     return cached
-            except TimeoutError:
-                pass
+            except TimeoutError as e:
+                logger.warning(f"query_with_cache failed: {e}")
         event = asyncio.Event()
         async with self._populating_lock:
             self._populating[key] = event
@@ -363,14 +363,14 @@ class RpcCacheClient:
                                 if cached and address.lower() in json.dumps(cached, default=str).lower():
                                     await redis.delete(key_str)
                                     deleted += 1
-                        except (ConnectionError, OSError, json.JSONDecodeError):
-                            pass
+                        except (ConnectionError, OSError, json.JSONDecodeError) as e:
+                            logger.warning(f"invalidate_address failed: {e}")
                     if cursor == 0:
                         break
                 if deleted:
                     logger.debug(f"Invalidated {deleted} cache entries for {address[:12]}...")
-            except (ConnectionError, OSError, json.JSONDecodeError):
-                pass
+            except (ConnectionError, OSError, json.JSONDecodeError) as e:
+                logger.warning(f"invalidate_address failed: {e}")
 
     # ── Health ──────────────────────────────────────────────────────────
 
@@ -381,8 +381,8 @@ class RpcCacheClient:
             try:
                 await redis.ping()
                 redis_ok = True
-            except (ConnectionError, OSError):
-                pass
+            except (ConnectionError, OSError) as e:
+                logger.warning(f"health failed: {e}")
         async with self._l1_lock:
             l1_size = len(self._l1)
         return {

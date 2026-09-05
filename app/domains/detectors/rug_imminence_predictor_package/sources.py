@@ -117,8 +117,8 @@ async def check_deployer_history(deployer: str, chain: str) -> dict[str, Any]:
             result["total_deployed"] = len(scam_records)
             result["rug_tokens"] = len([r for r in scam_records if r.get("type") == "rug"])
             result["active_tokens"] = len([r for r in scam_records if r.get("active", False)])
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"check_deployer_history failed: {e}")
     return result
 
 
@@ -134,8 +134,8 @@ async def check_lp_lock(address: str, chain: str) -> dict[str, Any]:
             result["locked"] = lp_info.get("locked", False)
             result["unlocked"] = not result["locked"]
             result["unlock_date"] = lp_info.get("unlock_date")
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"check_lp_lock failed: {e}")
     return result
 
 

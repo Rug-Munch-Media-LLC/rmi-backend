@@ -236,8 +236,8 @@ async def dashboard(session: dict[str, Any] = Depends(verify_session)) -> dict[s
         try:
             row = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()
             stats["total_users"] = row["c"] if row else 0
-        except sqlite3.Error:
-            pass
+        except sqlite3.Error as e:
+            logger.warning(f"dashboard failed: {e}")
         finally:
             conn.close()
 

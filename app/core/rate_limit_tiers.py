@@ -108,8 +108,8 @@ async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
     try:
         r = _get_tier_redis()
         r.set(f"rmi:user_tier:{_hash_identifier(req.user_id)}", req.tier.value)
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"upgrade_tier failed: {e}")
 
     return {
         "status": "upgraded",

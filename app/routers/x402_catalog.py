@@ -408,8 +408,8 @@ def get_catalog() -> Any:
                     }
                     services.add("rmi-databus")
                     categories.add(category)
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug(f"get_catalog failed: {e}")
     except ImportError:
         all_tools = {}
         services = set()

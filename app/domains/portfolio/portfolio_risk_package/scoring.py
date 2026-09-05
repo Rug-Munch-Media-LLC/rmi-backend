@@ -25,8 +25,8 @@ class TokenRiskScorer:
             import importlib
 
             self._scanner_available = importlib.util.find_spec("app.unified_scanner") is not None
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug(f"_try_import_scanner failed: {e}")
 
     async def score_token(self, chain: str, address: str, symbol: str) -> dict[str, Any]:
         if not address or address == "0x0000000000000000000000000000000000000000":
@@ -46,8 +46,8 @@ class TokenRiskScorer:
                         "risk_flags": result.get("risk_flags", []),
                         "reason": "Scanner",
                     }
-            except (AttributeError, ImportError):
-                pass
+            except (AttributeError, ImportError) as e:
+                logger.debug(f"score_token failed: {e}")
         return self._heuristic_score(chain, address, symbol)
 
     def _heuristic_score(self, chain: str, address: str, symbol: str) -> dict[str, Any]:

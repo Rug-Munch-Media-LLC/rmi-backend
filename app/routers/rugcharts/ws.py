@@ -219,8 +219,8 @@ async def ws_trades(
                 msg = json.loads(raw)
                 if msg.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
-    except WebSocketDisconnect:
-        pass
+    except WebSocketDisconnect as e:
+        logger.warning(f"ws_trades failed: {e}")
     except Exception as e:
         logger.debug(f"ws_trades disconnect {chain}/{token}: {e}")
     finally:

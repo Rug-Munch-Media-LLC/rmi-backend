@@ -143,8 +143,8 @@ class DataBus:
 
                         ws = get_ws_manager()
                         await ws.broadcast(data_type, result)
-                    except (AttributeError, ImportError):
-                        pass
+                    except (AttributeError, ImportError) as e:
+                        logger.debug(f"_swr_refresh failed: {e}")
         except (ConnectionError, OSError, TimeoutError) as e:
             logger.debug(f"SWR refresh failed for {data_type}: {e}")
 
@@ -295,8 +295,8 @@ class DataBus:
             try:
                 result = await asyncio.wait_for(future, timeout=30)
                 return result
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning(f"fetch failed: {e}")
 
         # ── 5.5 LOCAL PRECHECK ──
         local_result = await self._local_precheck(data_type, **kwargs)
@@ -367,8 +367,8 @@ class DataBus:
                     doc_id=doc_id,
                     metadata={"data_type": data_type, "source": source, "tier": tier},
                 )
-            except (AttributeError, ImportError, json.JSONDecodeError):
-                pass
+            except (AttributeError, ImportError, json.JSONDecodeError) as e:
+                logger.debug(f"fetch failed: {e}")
 
         # ── 10. WEBSOCKET BROADCAST ──
         if data_type in (
@@ -384,8 +384,8 @@ class DataBus:
                 from app.databus.ws_stream import databus_ws_broadcast
 
                 await databus_ws_broadcast(data_type, result)
-            except (AttributeError, ImportError):
-                pass
+            except (AttributeError, ImportError) as e:
+                logger.debug(f"fetch failed: {e}")
 
         # ── 11. RESOLVE DEDUP ──
         self._dedup.resolve(dedup_key, result)

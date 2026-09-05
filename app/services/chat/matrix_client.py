@@ -129,8 +129,8 @@ class MatrixClient:
                 err_data = response.json()
                 errcode = err_data.get("errcode")
                 err_body = err_data.get("error", err_body)
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"_request failed: {e}")
 
             if errcode == "M_FORBIDDEN" or errcode == "M_UNKNOWN_TOKEN":
                 raise MatrixAuthError(err_body, response.status_code, errcode)

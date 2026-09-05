@@ -148,8 +148,8 @@ async def _check_defillama_context(token_address: str, chain: str) -> dict[str, 
                         result["yield_pools_found"] = len(pools)
                         result["max_apy"] = max((float(p.get("apy", 0) or 0) for p in pools[:5]), default=0)
                         result["source"] = "defillama_yields"
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError):
-                pass
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
+                logger.error(f"_check_defillama_context failed: {e}")
 
     except httpx.TimeoutException:
         logger.debug("defillama_context_timeout", chain=chain)

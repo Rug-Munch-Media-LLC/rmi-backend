@@ -31,6 +31,10 @@ import os
 import time
 from typing import TYPE_CHECKING, Any
 
+from app.core.logging import get_logger
+
+logger = get_logger("cache_manager")
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -257,8 +261,8 @@ class RMICache:
                 raw = await redis_client.get(f"rmi:cache:{key}")
                 if raw:
                     return json.loads(raw)
-        except (ConnectionError, OSError, json.JSONDecodeError):
-            pass
+        except (ConnectionError, OSError, json.JSONDecodeError) as e:
+            logger.warning(f"_redis_get failed: {e}")
         return None
 
     async def _redis_set(self, key: str, value: Any, ttl: int) -> None:
@@ -268,8 +272,8 @@ class RMICache:
         try:
             if await self._redis_ping():
                 await redis_client.setex(f"rmi:cache:{key}", ttl, json.dumps(value, default=str))
-        except (ConnectionError, OSError, json.JSONDecodeError):
-            pass
+        except (ConnectionError, OSError, json.JSONDecodeError) as e:
+            logger.warning(f"_redis_set failed: {e}")
 
     def _mem_get(self, key: str) -> Any | None:
         entry = self._memory.get(key)
@@ -425,8 +429,8 @@ class RMICache:
         try:
             if self._redis and self._redis_available:
                 await self._redis.delete(f"rmi:cache:{key}")
-        except (ConnectionError, OSError):
-            pass
+        except (ConnectionError, OSError) as e:
+            logger.warning(f"invalidate failed: {e}")
         self._memory.pop(key, None)
 
 

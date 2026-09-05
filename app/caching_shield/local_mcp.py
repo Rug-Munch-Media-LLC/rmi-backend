@@ -160,8 +160,8 @@ class LocalMCPClient:
                         return {"command": ["node", bin_val]}
                     if isinstance(bin_val, dict):
                         return {"command": ["node", next(iter(bin_val.values()))]}
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"_find_entrypoint failed: {e}")
 
         # Check for Python entrypoint
         for entry in ["server.py", "mcp_server.py", "main.py", "__main__.py"]:

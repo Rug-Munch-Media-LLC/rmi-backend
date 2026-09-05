@@ -7,6 +7,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.data_fusion.config import IQR_MULTIPLIER, MAX_OUTLIER_PERCENTAGE
+from app.core.logging import get_logger
+
+logger = get_logger("helpers")
 
 
 def _remove_outliers(values: list[float]) -> list[float]:
@@ -87,8 +90,8 @@ def _extract_price(data: dict[str, Any]) -> float | None:
         if val is not None:
             try:
                 return float(val)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.warning(f"_extract_price failed: {e}")
     return None
 
 

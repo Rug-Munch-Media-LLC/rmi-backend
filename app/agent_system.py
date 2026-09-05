@@ -428,8 +428,8 @@ async def check_cache(msg: str, agent_id: str) -> str | None:
         if cached:
             logger.info(f"Cache hit for {agent_id}: {cache_key}")
             return cached.decode() if isinstance(cached, bytes) else cached
-    except (ConnectionError, OSError):
-        pass
+    except (ConnectionError, OSError) as e:
+        logger.warning(f"check_cache failed: {e}")
     return None
 
 
@@ -449,8 +449,8 @@ async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -
         # Only cache if response is substantive (>200 chars)
         if len(response) > 200:
             r.setex(cache_key, ttl, response[:4000])  # Cap stored size
-    except (ConnectionError, OSError):
-        pass
+    except (ConnectionError, OSError) as e:
+        logger.warning(f"store_cache failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -535,8 +535,8 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                 if txt:
                                     full_response += txt
                                     yield {"type": "token", "text": txt}
-                            except json.JSONDecodeError:
-                                pass
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"route_and_stream failed: {e}")
                     if full_response:
                         await store_cache(msg, agent_id, full_response)
                     yield {"type": "done"}
@@ -603,8 +603,8 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}
-                                except json.JSONDecodeError:
-                                    pass
+                                except json.JSONDecodeError as e:
+                                    logger.warning(f"route_and_stream failed: {e}")
                         if full_response:
                             await store_cache(msg, agent_id, full_response)
                         yield {"type": "done"}

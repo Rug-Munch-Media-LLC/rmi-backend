@@ -101,48 +101,48 @@ async def _gather_all_data() -> dict[str, Any]:
         from app.databus.news_provider import get_market_brief
 
         data["market"] = await get_market_brief()
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_gather_all_data failed: {e}")
 
     # News intel
     try:
         from app.databus.news_intel import aggregate_all_news
 
         data["news"] = await aggregate_all_news(limit=20)
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_gather_all_data failed: {e}")
 
     # CT Rundown
     try:
         from app.databus.x_intel import fetch_ct_rundown
 
         data["ct"] = await fetch_ct_rundown(limit=15)
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_gather_all_data failed: {e}")
 
     # Social metrics
     try:
         from app.databus.social_intel import get_social_metrics
 
         data["social"] = await get_social_metrics()
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_gather_all_data failed: {e}")
 
     # Fear & Greed
     try:
         from app.databus.news_provider import get_fear_greed
 
         data["fear_greed"] = await get_fear_greed()
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_gather_all_data failed: {e}")
 
     # Prediction markets
     try:
         from app.databus.news_provider import get_prediction_markets
 
         data["prediction_markets"] = await get_prediction_markets(limit=5)
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_gather_all_data failed: {e}")
 
     # ── RAG-powered top stories from our knowledge base ──
     try:

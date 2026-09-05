@@ -172,5 +172,5 @@ def flush_sentry(timeout: float = 2.0) -> None:
         import sentry_sdk
 
         sentry_sdk.flush(timeout=timeout)
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        log.warning(f"flush_sentry failed: {e}")

@@ -281,8 +281,8 @@ class EIP7702Facilitator(Facilitator):
             try:
                 if log_data and log_data.startswith("0x") and len(log_data) >= 66:
                     actual_amount = str(int(log_data[:66], 16))
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.error(f"_verify_erc20 failed: {e}")
 
             if amount_atoms and actual_amount and actual_amount != amount_atoms:
                 logger.warning(

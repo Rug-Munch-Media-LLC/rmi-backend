@@ -108,8 +108,8 @@ class CrossChainIdentityResolver:
             data = await r.get(key)
             if data:
                 return json.loads(data)
-        except (ConnectionError, OSError, json.JSONDecodeError):
-            pass
+        except (ConnectionError, OSError, json.JSONDecodeError) as e:
+            logger.warning(f"resolve_linked_addresses failed: {e}")
 
         return {}
 

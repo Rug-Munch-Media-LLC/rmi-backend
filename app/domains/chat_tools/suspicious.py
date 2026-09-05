@@ -108,8 +108,8 @@ def _launch_age_seconds(launch: dict[str, Any]) -> float | None:
         age = launch.get("age_seconds")
         if age is not None and float(age) > 0:
             return float(age)
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as e:
+        logger.warning(f"_launch_age_seconds failed: {e}")
     created = launch.get("created_at")
     if created is None:
         return None

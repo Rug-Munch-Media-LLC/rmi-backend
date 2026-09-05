@@ -118,8 +118,8 @@ async def handle_webhook(
             return {"status": "duplicate", "event_id": event_id}
         r.setex(f"webhook:dedup:{service}:{event_id}", 3600, "1")
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"handle_webhook failed: {e}")
 
     # ── 3. Store in DataBus cache ──
     event_type = payload.get("type") or payload.get("event") or "unknown"
@@ -140,8 +140,8 @@ async def handle_webhook(
             ),
         )
         r.close()
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.error(f"handle_webhook failed: {e}")
 
     # ── 4. Index in RAG for intelligence ──
     # DEPRECATED (v3): the legacy RAG permanence endpoint
@@ -173,8 +173,8 @@ async def handle_webhook(
                 "title": routed.get("importance", 0.0),
                 "description": routing,
             }
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"handle_webhook failed: {e}")
     except Exception:
         logger.debug("webhook_alert_router_unavailable", service=service, exc_info=True)
 

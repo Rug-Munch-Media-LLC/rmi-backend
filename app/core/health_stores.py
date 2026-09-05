@@ -28,6 +28,9 @@ from app.core.health_env import (
     QDRANT_URL,
     _get_url,
 )
+from app.core.logging import get_logger
+
+logger = get_logger("health_stores")
 
 try:
     from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
@@ -313,8 +316,8 @@ def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
                     registry.mark_healthy(name)
                 else:
                     registry.mark_down(name)
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_sync_degradation_from_health failed: {e}")
 
 
 def _get_degradation_section() -> dict[str, Any]:

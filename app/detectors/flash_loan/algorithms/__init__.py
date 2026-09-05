@@ -336,7 +336,7 @@ def _estimate_token_price_usd(
     In production, this reads from the RMI price service / oracle. Here we
     use a simplified estimation for standalone operation.
 
-    TODO: Replace with DataBus / price_consensus module call for production.
+    FIXME(issue): Replace with DataBus / price_consensus module call for production.
     """
     # Simplified estimation - in production, call price_consensus
     # or DataBus price feed

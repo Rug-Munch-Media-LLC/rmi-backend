@@ -116,8 +116,8 @@ def _first_wallet(raw: Any) -> str:
                 return w.strip()
             if isinstance(w, dict) and str(w.get("address") or "").strip():
                 return str(w["address"]).strip()
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as e:
+        logger.warning(f"_first_wallet failed: {e}")
     return ""
 
 

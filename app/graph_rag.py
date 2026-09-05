@@ -75,8 +75,8 @@ async def detect_communities(
                 target = parts[1] if len(parts) > 1 else parts[0]
                 if target in node_ids or target in {b.decode() if isinstance(b, bytes) else b for b in node_ids}:
                     adjacency[nid].add(target)
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"detect_communities failed: {e}")
 
     # 3. Label propagation
     n_iter = 5
@@ -211,8 +211,8 @@ What is the risk profile? Limit to 3 sentences."""
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]["content"]
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.warning(f"build_community_narrative failed: {e}")
 
     return heuristic
 

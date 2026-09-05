@@ -476,8 +476,8 @@ class FraudGraphDetector:
                 cycle_wallets.update(cycle)
                 if cycles_found >= MAX_CYCLES_SAMPLED:
                     break
-        except (nx.NetworkXError, ValueError):
-            pass
+        except (nx.NetworkXError, ValueError) as e:
+            logger.warning(f"_score_cycles failed: {e}")
 
         if cycles_found:
             score = min(100.0, 35.0 + scc_ratio * 45.0 + min(cycles_found, 5) * 4.0)

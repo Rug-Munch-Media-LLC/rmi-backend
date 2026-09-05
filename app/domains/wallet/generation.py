@@ -39,22 +39,22 @@ try:
     )
 
     _HAS_BIP_UTILS = True
-except ImportError:
-    pass
+except ImportError as e:
+    logger.debug(f"operation failed: {e}")
 
 try:
     import base58
 
     _HAS_BASE58 = True
-except ImportError:
-    pass
+except ImportError as e:
+    logger.debug(f"operation failed: {e}")
 
 try:
     from nacl.signing import SigningKey as NaClSigningKey
 
     _HAS_NACL = True
-except ImportError:
-    pass
+except ImportError as e:
+    logger.debug(f"operation failed: {e}")
 
 
 class WalletGenerationMixin:

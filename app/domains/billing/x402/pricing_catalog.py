@@ -412,8 +412,8 @@ def _load_tool_prices() -> None:
         from app.canonical_tools import CANONICAL_TOOL_PRICES
 
         TOOL_PRICES.update(CANONICAL_TOOL_PRICES)
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"_load_tool_prices failed: {e}")
 
     gateway_base = None
     for candidate in [
@@ -522,8 +522,8 @@ def _get_pay_to_address(chain: str) -> str:
         for w in mgr._wallets.values():
             if w.chain == chain and w.x402_enabled and w.status == "active":
                 return w.address
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_get_pay_to_address failed: {e}")
     if chain == "eth":
         return os.getenv("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9")
     if chain == "sol":

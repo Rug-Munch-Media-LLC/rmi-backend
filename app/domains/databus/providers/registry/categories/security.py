@@ -6,7 +6,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.logging import get_logger
+
 from ...base import Provider, ProviderChain, ProviderTier
+
+logger = get_logger("security")
 
 
 def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
@@ -100,8 +104,8 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
                 )
             ],
         )
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"build_security_chains failed: {e}")
 
     try:
         from app.databus.token_security import get_check_matrix_endpoint, run_full_scan
@@ -126,8 +130,8 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
                 ),
             ],
         )
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"build_security_chains failed: {e}")
 
     # ── token_launches — always available via chain-indexer ClickHouse ──
     chains["token_launches"] = ProviderChain(
@@ -341,8 +345,8 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
                 )
             ],
         )
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"build_security_chains failed: {e}")
 
     # ── lite_chain_indexer_patterns — on-chain behavioral scam patterns ──
     chains["lite_chain_indexer_patterns"] = ProviderChain(
@@ -501,8 +505,8 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
                 )
             ],
         )
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"build_security_chains failed: {e}")
 
     # ── Threat intelligence check (known scams, malicious patterns, risk) ──
     chains["threat_check"] = ProviderChain(

@@ -137,8 +137,8 @@ async def _audit_solana(address: str) -> dict[str, Any]:
                 "sellers_24h": pair.get("txns", {}).get("h24", {}).get("sells", 0),
             }
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_audit_solana failed: {e}")
 
     # Layer 2: Solana RPC - get account info
     try:
@@ -149,8 +149,8 @@ async def _audit_solana(address: str) -> dict[str, Any]:
             result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
         else:
             result["account_exists"] = False  # type: ignore[assignment]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_audit_solana failed: {e}")
 
     # Layer 3: Birdeye public API
     try:
@@ -161,8 +161,8 @@ async def _audit_solana(address: str) -> dict[str, Any]:
         if data and data.get("data"):
             result["birdeye"] = data["data"]
             result["sources_used"].append("birdeye")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_audit_solana failed: {e}")
 
     # Layer 4: Jupiter token list
     try:
@@ -177,8 +177,8 @@ async def _audit_solana(address: str) -> dict[str, Any]:
                     "logo": token.get("logoURI"),  # type: ignore[attr-defined]
                 }
                 result["sources_used"].append("jupiter")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_audit_solana failed: {e}")
 
     # Layer 5: Coingecko
     try:
@@ -186,8 +186,8 @@ async def _audit_solana(address: str) -> dict[str, Any]:
         if data:
             result["coingecko"] = {"name": data.get("name"), "symbol": data.get("symbol")}  # type: ignore[assignment]
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_audit_solana failed: {e}")
 
     # Compute risk score from available data
     risk_score = 0
@@ -262,8 +262,8 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
                 "price_change_24h": pair.get("priceChange", {}).get("h24", 0),
             }
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_audit_evm failed: {e}")
 
     # Layer 2: Basescan / Etherscan
     explorer_key = "BASESCAN_KEY" if chain == "base" else "ETHERSCAN_KEY"
@@ -281,8 +281,8 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
             else:
                 result["verified"] = False  # type: ignore[assignment]
                 result["findings"].append("Contract not verified on explorer")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_audit_evm failed: {e}")
 
     # Layer 3: Chain RPC
     try:
@@ -293,8 +293,8 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
         else:
             result["is_contract"] = False  # type: ignore[assignment]
             result["findings"].append("Address is not a contract")  # type: ignore[attr-defined]
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.error(f"_audit_evm failed: {e}")
 
     # Risk computation
     risk_score = 0

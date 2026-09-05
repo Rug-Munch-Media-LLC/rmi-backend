@@ -20,7 +20,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# TODO: migrate to async httpx.AsyncClient — this class uses sync httpx.get()
+# FIXME(issue): migrate to async httpx.AsyncClient — this class uses sync httpx.get()
 # but may be called from async contexts. See async-http-patterns skill for pattern.
 
 # Circuit breaker for DeFiLlama API (sync — uses SimpleCircuitBreaker pending async migration)

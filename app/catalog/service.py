@@ -443,8 +443,8 @@ class CatalogService:
                 cached = await self._redis.get(cache_key)
                 if cached:
                     return json.loads(cached)
-            except (ConnectionError, OSError, json.JSONDecodeError):
-                pass
+            except (ConnectionError, OSError, json.JSONDecodeError) as e:
+                log.warning(f"get_token_risk failed: {e}")
 
         token = await self.get_token(chain, address)
         deployer_reputation: int | None = None

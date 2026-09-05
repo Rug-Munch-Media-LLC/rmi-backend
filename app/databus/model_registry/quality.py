@@ -132,10 +132,10 @@ async def review_content(content: str, content_type: str = "article") -> dict[st
                             "issues": issues,
                             "fixed_version": review_data.get("fixed_version", content),
                         }
-                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                    pass
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                    logger.warning(f"review_content failed: {e}")
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.warning(f"review_content failed: {e}")
 
     # Fix if needed
     fixed = content

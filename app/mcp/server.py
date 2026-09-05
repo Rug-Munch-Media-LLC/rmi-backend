@@ -187,7 +187,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     # ── TIERS 1-2 moat tools (June 23-24 2026) ───────────────────
     if name == "analytics_query":
         # T13: Run read-only SQL via embedded DuckDB
-        # TODO: M3 moat TIER 2 - add API key check before opening to public
+        # FIXME(issue): M3 moat TIER 2 - add API key check before opening to public
         from app.core.duckdb_analytics import DuckDBAnalytics
 
         sql = arguments.get("sql", "").strip()

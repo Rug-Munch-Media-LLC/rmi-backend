@@ -555,8 +555,8 @@ async def detect_social_engineering(
                                     )
                 except (TimeoutError, Exception):  # noqa: S110 — intentional best-effort
                     pass
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.error(f"detect_social_engineering failed: {e}")
 
     # ── Final scoring ──
     final_score = min(100, round(total_score))

@@ -75,8 +75,8 @@ async def _save_local_metrics() -> None:
         }
         await r.setex("rag:metrics", 3600, json.dumps(data))
         await r.close()
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"_save_local_metrics failed: {e}")
 
 
 def trace_embedding(duration_ms: float, dims: int = 2560, model: str = "qwen3-embedding-4b") -> None:

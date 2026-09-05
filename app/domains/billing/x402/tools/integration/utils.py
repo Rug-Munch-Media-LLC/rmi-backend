@@ -13,7 +13,11 @@ import aiohttp
 import httpx
 import requests
 
+from app.core.logging import get_logger
+
 from .models import CHAIN_SUFFIXES, NETWORKS
+
+logger = get_logger("utils")
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -335,8 +339,8 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
             if base_tool:
                 target = base_tool
                 injected_chain = pricing.get("chain")
-        except (ImportError, KeyError):
-            pass
+        except (ImportError, KeyError) as e:
+            logger.debug(f"resolve_tool_alias failed: {e}")
 
         if target is None:
             last_underscore = tool_id.rfind("_")

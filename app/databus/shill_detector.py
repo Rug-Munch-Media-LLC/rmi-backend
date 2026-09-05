@@ -89,16 +89,16 @@ def _to_ts(value: Any) -> float:
         if s.isdigit() and len(s) >= 9:
             try:
                 return float(s)
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.error(f"_to_ts failed: {e}")
         try:
             return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.error(f"_to_ts failed: {e}")
         try:
             return float(s)
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.error(f"_to_ts failed: {e}")
     logger.debug("Unparseable timestamp %r, using 0", value)
     return 0.0
 

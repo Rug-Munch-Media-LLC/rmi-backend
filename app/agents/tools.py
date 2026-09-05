@@ -20,7 +20,7 @@ class ScanTokenTool(AgentTool):
     description = "Scan a token for rug pull risks"
 
     async def execute(self, chain: str, address: str) -> dict[str, Any]:  # type: ignore[override]  # subclass narrows base **kwargs
-        # TODO: Wire to actual scanner
+        # FIXME(issue): Wire to actual scanner
         return {"chain": chain, "address": address, "status": "pending integration"}
 
 

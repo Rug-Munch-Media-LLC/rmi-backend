@@ -101,8 +101,8 @@ class IntelligentWebhookProcessor:
                 labels = await cache.get("wallet_labels", wallet)
                 if labels:
                     enriched["labels"] = labels if isinstance(labels, list) else [labels]
-            except (AttributeError, ImportError):
-                pass
+            except (AttributeError, ImportError) as e:
+                logger.debug(f"_enrich_wallet failed: {e}")
 
             # Entity registry check
             try:
@@ -113,8 +113,8 @@ class IntelligentWebhookProcessor:
                 if match and match.entity_name:
                     enriched["is_exchange"] = match.entity_type in ("cex", "defi")
                     enriched["labels"].append(f"{match.entity_type}:{match.entity_name}")
-            except (AttributeError, ImportError):
-                pass
+            except (AttributeError, ImportError) as e:
+                logger.debug(f"_enrich_wallet failed: {e}")
 
         except Exception as e:
             logger.debug(f"Wallet enrichment failed: {e}")
@@ -134,8 +134,8 @@ class IntelligentWebhookProcessor:
                 if cluster_id:
                     self._cluster_cache[wallet] = cluster_id
                     return cluster_id
-        except (AttributeError, ImportError):
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"_check_cluster failed: {e}")
         return None
 
     async def _check_scam_registry(self, wallet: str) -> bool:
@@ -147,8 +147,8 @@ class IntelligentWebhookProcessor:
             sr = get_spam_registry()
             if wallet in sr._scam_addresses:
                 return True
-        except (AttributeError, ImportError):
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"_check_scam_registry failed: {e}")
 
         # Threat feeds
         try:
@@ -158,8 +158,8 @@ class IntelligentWebhookProcessor:
             result = await feeds.check_cryptoscamdb(wallet)
             if result and result.get("is_scam"):
                 return True
-        except (AttributeError, ImportError):
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"_check_scam_registry failed: {e}")
 
         return False
 

@@ -489,8 +489,8 @@ async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum"
                 return cached_data
             return None
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning(f"analyze_volume_authenticity failed: {e}")
 
     signals = []
     tx_count = 0
@@ -584,8 +584,8 @@ async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum"
         r = _redis_connect()
         r.setex(cache_key, CACHE_TTL, json.dumps(output, default=str))
         r.close()
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"analyze_volume_authenticity failed: {e}")
 
     return output
 

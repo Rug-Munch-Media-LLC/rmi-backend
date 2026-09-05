@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import os
 
+from app.core.logging import get_logger
+
+logger = get_logger("key_loader")
+
 
 def load_key(name: str) -> str:
     """Load an API key with multiple fallback sources.
@@ -32,8 +36,8 @@ def load_key(name: str) -> str:
                 key = f.read().strip()
                 if key:
                     return key
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"load_key failed: {e}")
 
     # 3. Central secrets file
     secrets_path = "/root/.secrets/sentinel_enrichment_keys.env"
@@ -45,8 +49,8 @@ def load_key(name: str) -> str:
                         key = line.split("=", 1)[1].split("#")[0].strip()
                         if key:
                             return key
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"load_key failed: {e}")
 
     return ""
 

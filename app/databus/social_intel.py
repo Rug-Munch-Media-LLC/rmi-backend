@@ -339,8 +339,8 @@ async def detect_shill_campaigns(posts: list[dict[str, Any]] | None = None, **kw
                                 "detected_at": datetime.now(UTC).isoformat(),
                             }
                         )
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.warning(f"detect_shill_campaigns failed: {e}")
 
     # Deleted-post signal: KOLs retracting calls on a token after the fact is
     # a suspicious retraction pattern — flag it as a shill indicator.
@@ -363,8 +363,8 @@ async def detect_shill_campaigns(posts: list[dict[str, Any]] | None = None, **kw
                     "detected_at": datetime.now(UTC).isoformat(),
                 }
             )
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"detect_shill_campaigns failed: {e}")
 
     # Store detected campaigns
     DETECTED_CAMPAIGNS.extend(campaigns)

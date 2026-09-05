@@ -382,8 +382,8 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
                 result["owner_address"] = hp_result.token.owner_address or ""
                 result["is_proxy"] = hp_result.token.is_proxy
                 result["source"] = "honeypot_detector"
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug(f"_check_ownership_renounced failed: {e}")
         except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("ownership_honeypot_failed", error=str(e)[:60])
 

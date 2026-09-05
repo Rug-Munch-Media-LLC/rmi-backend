@@ -101,8 +101,8 @@ async def compute_deployer_posterior(
                 import json as _json
 
                 return _json.loads(cached)
-        except (ConnectionError, OSError, json.JSONDecodeError):
-            pass
+        except (ConnectionError, OSError, json.JSONDecodeError) as e:
+            log.warning(f"compute_deployer_posterior failed: {e}")
 
     # ── Update prior from observations ──
     alpha = float(PRIOR_WEIGHTS["prior_alpha"])
@@ -163,8 +163,8 @@ async def compute_deployer_posterior(
             import json as _json
 
             await catalog._redis.setex(cache_key, 3600, _json.dumps(result))
-        except (ConnectionError, OSError, json.JSONDecodeError):
-            pass
+        except (ConnectionError, OSError, json.JSONDecodeError) as e:
+            log.warning(f"compute_deployer_posterior failed: {e}")
 
     return result
 

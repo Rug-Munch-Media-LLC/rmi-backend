@@ -654,8 +654,8 @@ class LiquidityVerifier:
                 if "lp burned" in description or "liquidity burned" in description:
                     # Weak signal - corroborate with burn-address check
                     pass
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_check_solana_lp_burn failed: {e}")
 
         return False
 

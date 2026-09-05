@@ -189,8 +189,8 @@ def _compute_best_performing(
                     hour = int(scheduled[11:13])
                     slot = f"{hour:02d}:00"
                     by_time[slot].append(er)
-                except (ValueError, IndexError):
-                    pass
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"_compute_best_performing failed: {e}")
 
     # Sort each platform
     for pid in by_platform:

@@ -36,8 +36,8 @@ try:
     )
     _redis.ping()
     REDIS_AVAILABLE = True
-except (ConnectionError, OSError):
-    pass
+except (ConnectionError, OSError) as e:
+    logger.warning(f"operation failed: {e}")
 
 
 def _cache_get(key: str) -> str | None:
@@ -47,8 +47,8 @@ def _cache_get(key: str) -> str | None:
             if value is None:
                 return None
             return value.decode() if isinstance(value, bytes) else value
-        except (ConnectionError, OSError):
-            pass
+        except (ConnectionError, OSError) as e:
+            logger.warning(f"_cache_get failed: {e}")
     return None
 
 

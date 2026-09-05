@@ -386,8 +386,8 @@ class PumpFunAnalyzer:
             resp = await self.client.post(url, json=payload, timeout=10)
             if resp.status_code == 200:
                 return resp.json().get("result")
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_fetch_parsed_transaction failed: {e}")
         return None
 
     def _extract_buyer_from_tx(self, tx: dict[str, Any], buyer_map: dict[str, BuyerProfile]) -> None:

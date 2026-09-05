@@ -147,15 +147,15 @@ class TransportMixin:
         if raw:
             try:
                 return float(raw)
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.warning(f"_parse_reset failed: {e}")
         try:
             body = resp.json()
             raw = body.get("reset_at") if isinstance(body, dict) else None
             if raw:
                 return float(raw)
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.warning(f"_parse_reset failed: {e}")
         return None
 
     # ═══════════════════════════════════════════════════════════════

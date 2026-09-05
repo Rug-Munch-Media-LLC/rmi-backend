@@ -132,10 +132,10 @@ def chunk_document(
             ast_chunks = chunk_solidity_ast(text)
             if ast_chunks:
                 return [Chunk(index=i, content=c) for i, c in enumerate(ast_chunks[:max_chunks])]
-        except ImportError:
-            pass
-        except AttributeError:
-            pass
+        except ImportError as e:
+            logger.debug(f"chunk_document failed: {e}")
+        except AttributeError as e:
+            logger.warning(f"chunk_document failed: {e}")
 
     chunks = []
     start = 0

@@ -516,8 +516,8 @@ class StaticAnalyzer:
                     tmp_parent = os.path.dirname(sol_path)
                     if tmp_parent.startswith("/tmp/"):  # nosec B108 — defensive prefix check for cleanup, not temp creation  # noqa: S108
                         shutil.rmtree(tmp_parent, ignore_errors=True)
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.error(f"analyze failed: {e}")
 
             elif not report.used_heimdall_fallback:
                 warnings_msg = "Contract source not available and Heimdall not installed"
@@ -553,7 +553,7 @@ class StaticAnalyzer:
             for i, w in enumerate(report.warnings):
                 if rag_cits:
                     report.warnings[i] = build_citation_string(rag_cits, w)
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"analyze failed: {e}")
 
         return report

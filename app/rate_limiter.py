@@ -174,8 +174,8 @@ class RateTracker:
                     "minute": int(minute or 0),
                     "total": int(total or 0),
                 }
-            except (ConnectionError, OSError):
-                pass
+            except (ConnectionError, OSError) as e:
+                logger.warning(f"_get_counts failed: {e}")
 
         # Fallback to memory
         return self._memory.get(provider_id, {"day": 0, "minute": 0, "total": 0})
@@ -195,8 +195,8 @@ class RateTracker:
                 pipe.incr(f"rmi:rate:{provider_id}:total")
                 await pipe.execute()
                 return
-            except (ConnectionError, OSError):
-                pass
+            except (ConnectionError, OSError) as e:
+                logger.warning(f"_incr failed: {e}")
 
         # Memory fallback
         mem = self._memory.setdefault(provider_id, {"day": 0, "minute": 0, "total": 0})
@@ -313,8 +313,8 @@ class EmbeddingCache:
             # Save 500 most recent entries with full vectors
             entries = {k: [v[0], v[1]] for k, v in list(self._cache.items())[-500:]}
             r.setex("embed_cache:data", 86400, json.dumps(entries))
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"_save_to_redis failed: {e}")
 
     def load_from_redis(self) -> None:
         """Restore cache from Redis on startup."""

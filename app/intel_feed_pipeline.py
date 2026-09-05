@@ -385,8 +385,8 @@ class OnChainScanner:
                 if resp.status_code == 200:
                     data = resp.json()
                     return data.get("result", {}).get(address.lower(), {})
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.warning(f"check_token_security failed: {e}")
         return {}
 
 
@@ -549,10 +549,10 @@ class IntelPipeline:
                             if doc.get("stored_at", "") < old_cutoff:
                                 await r.delete(f"rag:{coll}:{did}")
                                 await r.srem(f"rag:idx:{coll}", did)
-                        except json.JSONDecodeError:
-                            pass
-        except json.JSONDecodeError:
-            pass
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"run_cycle failed: {e}")
+        except json.JSONDecodeError as e:
+            logger.warning(f"run_cycle failed: {e}")
 
         return {
             "status": "completed",
@@ -595,8 +595,8 @@ class IntelPipeline:
                                 "stored_at": doc.get("stored_at", ""),
                             }
                         )
-                    except (ConnectionError, OSError, TimeoutError):
-                        pass
+                    except (ConnectionError, OSError, TimeoutError) as e:
+                        logger.warning(f"get_latest_intel failed: {e}")
 
         results.sort(key=lambda x: x.get("stored_at", ""), reverse=True)
         return results[:limit]
