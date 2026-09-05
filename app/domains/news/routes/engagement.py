@@ -24,7 +24,7 @@ The optional ``wallet`` claim is the wallet fallback identity.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -66,16 +66,24 @@ async def _resolve_identity(request: Request) -> tuple[str | None, bool]:
     return None, True
 
 
-async def _reaction_counts(catalog: Any, news_id: str) -> tuple[int, int]:
-    """(like_count, dislike_count) for a news item."""
+async def _reaction_counts(catalog: Any, news_id: str) -> dict[str, int]:
+    """Counts per reaction key for a news item (like/dislike/bullish/…)."""
     async with catalog._pg_pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT COUNT(*) FILTER (WHERE reaction = 'like')::int AS like_count, "
-            "COUNT(*) FILTER (WHERE reaction = 'dislike')::int AS dislike_count "
-            "FROM news_reactions WHERE news_id = $1",
+        rows = await conn.fetch(
+            "SELECT reaction, COUNT(*)::int AS n FROM news_reactions WHERE news_id = $1 GROUP BY reaction",
             news_id,
         )
-    return ((row["like_count"] if row else 0), (row["dislike_count"] if row else 0))
+    return {row["reaction"]: row["n"] for row in rows}
+
+
+def _summary(news_id: str, counts: dict[str, int], my_reaction: str | None) -> ReactionsSummary:
+    return ReactionsSummary(
+        news_id=news_id,
+        like_count=counts.get("like", 0),
+        dislike_count=counts.get("dislike", 0),
+        counts=counts,
+        my_reaction=my_reaction,
+    )
 
 
 # ── POST /api/v1/news/{news_id}/react ─────────────────────────────
@@ -112,13 +120,29 @@ async def react_to_news(news_id: str, req: ReactionRequest, request: Request) ->
                 user_id,
                 req.reaction,
             )
-    like_count, dislike_count = await _reaction_counts(catalog, news_id)
-    return ReactionsSummary(
-        news_id=news_id,
-        like_count=like_count,
-        dislike_count=dislike_count,
-        my_reaction=None if toggled_off else req.reaction,
-    )
+    counts = await _reaction_counts(catalog, news_id)
+    return _summary(news_id, counts, None if toggled_off else req.reaction)
+
+
+# ── DELETE /api/v1/news/{news_id}/react ───────────────────────────
+@router.delete("/news/{news_id}/react", response_model=ReactionsSummary)
+async def remove_news_reaction(news_id: str, request: Request) -> ReactionsSummary:
+    """Remove the caller's reaction on a news item. Auth required."""
+    user_id, guest = await _resolve_identity(request)
+    if guest or not user_id:
+        raise HTTPException(401, "authentication required to react")
+    catalog = get_catalog()
+    await catalog._init_stores()
+    if not catalog._health.postgres:
+        raise HTTPException(503, "postgres unavailable")
+    async with catalog._pg_pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM news_reactions WHERE news_id=$1 AND user_id=$2",
+            news_id,
+            user_id,
+        )
+    counts = await _reaction_counts(catalog, news_id)
+    return _summary(news_id, counts, None)
 
 
 # ── GET /api/v1/news/{news_id}/reactions ──────────────────────────
@@ -129,9 +153,9 @@ async def get_news_reactions(news_id: str, request: Request) -> ReactionsSummary
     await catalog._init_stores()
     if not catalog._health.postgres:
         raise HTTPException(503, "postgres unavailable")
-    like_count, dislike_count = await _reaction_counts(catalog, news_id)
+    counts = await _reaction_counts(catalog, news_id)
     user_id, _ = await _resolve_identity(request)
-    my_reaction: Literal["like", "dislike"] | None = None
+    my_reaction: str | None = None
     if user_id:
         async with catalog._pg_pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -140,12 +164,7 @@ async def get_news_reactions(news_id: str, request: Request) -> ReactionsSummary
                 user_id,
             )
         my_reaction = _coerce_reaction(row["reaction"] if row else None)
-    return ReactionsSummary(
-        news_id=news_id,
-        like_count=like_count,
-        dislike_count=dislike_count,
-        my_reaction=my_reaction,
-    )
+    return _summary(news_id, counts, my_reaction)
 
 
 # ── GET /api/v1/news/{news_id}/comments ───────────────────────────
@@ -314,7 +333,7 @@ async def react_to_comment(comment_id: str, req: ReactionRequest, request: Reque
     await catalog._init_stores()
     if not catalog._health.postgres:
         raise HTTPException(503, "postgres unavailable")
-    my_reaction: Literal["like", "dislike"] | None = None
+    my_reaction: str | None = None
     async with catalog._pg_pool.acquire() as conn:
         exists = await conn.fetchrow("SELECT 1 FROM news_comments WHERE id=$1", cid)
         if not exists:
@@ -361,5 +380,6 @@ __all__ = [
     "list_comments",
     "react_to_comment",
     "react_to_news",
+    "remove_news_reaction",
     "router",
 ]

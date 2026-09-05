@@ -166,7 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_x402_agent ON x402_receipts(agent_id);
 CREATE TABLE IF NOT EXISTS news_reactions (
     news_id    TEXT NOT NULL,
     user_id    TEXT NOT NULL,
-    reaction   TEXT NOT NULL CHECK (reaction IN ('like', 'dislike')),
+    reaction   TEXT NOT NULL CHECK (reaction IN ('like', 'dislike', 'bullish', 'bearish', 'important', 'scam')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (news_id, user_id)
 );
@@ -191,7 +191,7 @@ CREATE INDEX IF NOT EXISTS idx_news_comments_created ON news_comments(created_at
 CREATE TABLE IF NOT EXISTS news_comment_reactions (
     comment_id UUID NOT NULL REFERENCES news_comments(id) ON DELETE CASCADE,
     user_id    TEXT NOT NULL,
-    reaction   TEXT NOT NULL CHECK (reaction IN ('like', 'dislike')),
+    reaction   TEXT NOT NULL CHECK (reaction IN ('like', 'dislike', 'bullish', 'bearish', 'important', 'scam')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (comment_id, user_id)
 );
