@@ -68,6 +68,12 @@ from app.api.v1.admin.wallet_labels_stats import (  # noqa: E402 — module docs
 
 api_v1_router.append(admin_wallet_labels_stats_router)
 
+from app.api.v1.admin.deployer_repo_stats import (  # noqa: E402 — module docstring precedes import block
+    router as admin_deployer_repo_stats_router,
+)
+
+api_v1_router.append(admin_deployer_repo_stats_router)
+
 from app.api.v1.catalog import router as catalog_router  # noqa: E402 — module docstring precedes import block
 
 api_v1_router.append(catalog_router)
