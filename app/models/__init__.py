@@ -53,6 +53,10 @@ from app.models.live import (  # noqa: E402 — module docstring precedes import
     ViewerXPTransaction,
 )
 from app.models.payment import Payment  # noqa: E402 — module docstring precedes import block
+from app.models.portfolio import (  # noqa: E402 — module docstring precedes import block
+    UserPortfolioEntry,
+    UserWatchlistEntry,
+)
 from app.models.scan import ScanResult  # noqa: E402 — module docstring precedes import block
 from app.models.token import Token  # noqa: E402 — module docstring precedes import block
 from app.models.user import User  # noqa: E402 — module docstring precedes import block
@@ -83,6 +87,8 @@ __all__ = [
     "User",
     "UserAchievement",
     "UserChallenge",
+    "UserPortfolioEntry",
+    "UserWatchlistEntry",
     "ViewEvent",
     "ViewerXPTransaction",
 ]
