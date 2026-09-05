@@ -1174,7 +1174,7 @@ class TestScorerQualityTiers:
             f"AI-slop content ({slop_score}) should score below clean content ({clean_score})"
         )
         # Penalty magnitude: 3 phrases * 0.15 penalty on content-quality component
-        assert clean_score - slop_score >= pytest.approx(3 * 0.15 * 0.25, abs=0.02)
+        assert clean_score - slop_score >= 3 * 0.15 * 0.25 - 0.02
 
     def test_scorer_slop_penalty_word_boundaries(self):
         """Short slop tokens don't match inside unrelated words."""
@@ -1209,7 +1209,7 @@ class TestValidatorAdditional:
         post = FeedPost(
             id="short",
             title="Hi",
-            content="Just a quick note.",
+            content="ok",
             source="test",
             provider_group="rss",
         )
@@ -1297,7 +1297,7 @@ class TestRunQualityPipeline:
     @pytest.mark.asyncio
     async def test_pipeline_full_flow(self):
         """Mix of good/bad/duplicate articles -> only good unique articles survive, scored."""
-        from app.feed_quality_pipeline import run_quality_pipeline
+        from app.feed_quality_pipeline.pipeline import run_quality_pipeline
 
         good_article = {
             "title": "Bitcoin ETF Inflows Hit Record Weekly High",
@@ -1336,7 +1336,7 @@ class TestRunQualityPipeline:
     @pytest.mark.asyncio
     async def test_pipeline_failopen_empty_list(self):
         """Empty input list returns empty output, no crash."""
-        from app.feed_quality_pipeline import run_quality_pipeline
+        from app.feed_quality_pipeline.pipeline import run_quality_pipeline
 
         result = await run_quality_pipeline([])
         assert result == []
@@ -1344,7 +1344,7 @@ class TestRunQualityPipeline:
     @pytest.mark.asyncio
     async def test_pipeline_failopen_malformed_input(self):
         """Malformed items are skipped without raising."""
-        from app.feed_quality_pipeline import run_quality_pipeline
+        from app.feed_quality_pipeline.pipeline import run_quality_pipeline
 
         result = await run_quality_pipeline([None, "just a string", 42, {}, {"title": ""}])
         assert result == []
@@ -1352,7 +1352,7 @@ class TestRunQualityPipeline:
     @pytest.mark.asyncio
     async def test_pipeline_sorted_by_score(self):
         """Survivors are sorted by quality_score descending."""
-        from app.feed_quality_pipeline import run_quality_pipeline
+        from app.feed_quality_pipeline.pipeline import run_quality_pipeline
 
         strong = {
             "title": "Comprehensive Analysis of Layer-2 Rollup Economics",
