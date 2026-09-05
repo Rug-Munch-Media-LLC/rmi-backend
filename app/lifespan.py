@@ -295,6 +295,35 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("wallet_label_sync_background_start_failed err=%s", exc)
 
+    # 16. RAG rug learning loop — every 30 minutes, sweep tokens scanned in
+    #     the last 7 days; when a token is confirmed as a rug (price crash
+    #     90%+, liquidity pulled, dev sold all), embed its behavioral
+    #     fingerprint into Qdrant ``rug_patterns`` so future scans find
+    #     similar historical rugs. Failure never breaks startup.
+    rug_learning_task = None
+    try:
+        import asyncio as _asyncio
+        import os as _os
+
+        from app.ai.rug_learning import run_rug_learning_sweep
+
+        _rl_interval = max(600, int(_os.getenv("RMI_RUG_LEARNING_INTERVAL", "1800")))
+
+        async def _rug_learning_loop() -> None:
+            """Learn from confirmed rugs every interval (default 30 min)."""
+            await _asyncio.sleep(240)  # Let app settle before first sweep
+            while True:
+                try:
+                    await run_rug_learning_sweep()
+                except Exception as exc:
+                    log.warning("rug_learning_sweep_failed err=%s", exc)
+                await _asyncio.sleep(_rl_interval)
+
+        rug_learning_task = _asyncio.create_task(_rug_learning_loop())
+        log.info("rug_learning_background_started interval_s=%d", _rl_interval)
+    except Exception as exc:
+        log.warning("rug_learning_background_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -362,6 +391,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.info("wallet_label_sync_background_cancelled")
         except Exception as exc:
             log.debug("wallet_label_sync_cancel_failed err=%s", exc)
+
+    # RAG rug learning loop background task shutdown
+    if rug_learning_task is not None:
+        try:
+            rug_learning_task.cancel()
+            log.info("rug_learning_background_cancelled")
+        except Exception as exc:
+            log.debug("rug_learning_cancel_failed err=%s", exc)
 
     # Webhook engine shutdown (only if it was started)
     if webhook_engine is not None:
