@@ -24,6 +24,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.routers.rugmaps_router._helpers import RugMapsRequest
+from app.routers.rugmaps_router.analysis import router as analysis_router
 from app.routers.rugmaps_router.clusters import router as clusters_router
 from app.routers.rugmaps_router.flows import router as flows_router
 from app.routers.rugmaps_router.tokens import router as tokens_router
@@ -32,5 +33,6 @@ router = APIRouter(prefix="/api/v1/rugmaps", tags=["rugmaps"])
 router.include_router(tokens_router)
 router.include_router(clusters_router)
 router.include_router(flows_router)
+router.include_router(analysis_router)
 
 __all__ = ["RugMapsRequest", "router"]
