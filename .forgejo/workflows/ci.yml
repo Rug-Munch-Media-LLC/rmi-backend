@@ -115,23 +115,25 @@ jobs:
       - name: Install semgrep
         run: pip install semgrep
       - name: Semgrep SAST scan (community rules)
-        # ADVISORY until the 58-finding backlog is triaged (2026-08-23):
-        # 53x sqlalchemy-execute-raw-query = parameterized ClickHouse text()
-        # pattern class; 2x avoid-sqlalchemy-text (analytics router);
-        # 2x ws:// in databus internals; 1x nan-injection FP (django rule).
-        # Triage = annotate genuinely-parameterized sites or refactor to ORM,
-        # then restore --error to make this blocking again.
+        # BLOCKING — findings triaged 2026-09-05. Exclusions live in
+        # .semgrep/exclude-rules.txt (58x parameterized ClickHouse text(),
+        # 2x avoid-sqlalchemy-text parameterized where_clause, 2x ws://
+        # docstring/rewrite literals, 1x nan-injection FP annotated inline
+        # with nosemgrep). Re-triage before removing any exclusion.
         run: |
+          EXCLUDE_RULES=$(grep -v '^#' .semgrep/exclude-rules.txt | grep -v '^$' | sed 's/^/--exclude-rule=/' | tr '\n' ' ')
           semgrep scan --config=auto \
             --severity=ERROR \
+            $EXCLUDE_RULES \
+            --error \
             --exclude='tests/' \
             --exclude='alembic/' \
             --exclude='app/_archive/' \
             --exclude='app/legacy/' \
             --sarif \
             --output=semgrep.sarif \
-            app/ || true
-          echo "semgrep findings: $(python3 -c "import json;print(len(json.load(open('semgrep.sarif'))['runs'][0]['results']))" 2>/dev/null || echo '?') (advisory — see comment above)"
+            app/
+          echo "semgrep findings: $(python3 -c "import json;print(len(json.load(open('semgrep.sarif'))['runs'][0]['results']))" 2>/dev/null || echo '?') (blocking — see comment above)"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
