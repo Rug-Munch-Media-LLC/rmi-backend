@@ -460,6 +460,46 @@ class FeedQualityPipeline:
 _pipeline: FeedQualityPipeline | None = None
 
 
+async def run_quality_pipeline(
+    items: list[dict[str, Any]],
+    *,
+    provider_group: str = "rss",
+    source: str = "ingest",
+) -> list[dict[str, Any]]:
+    """Run raw content dicts through validate → dedup → score.
+
+    Convenience entry point for ingestion flows (news scheduler, social
+    feed) that already hold content as plain dicts. Each item is converted
+    to a :class:`FeedPost`, validated, deduplicated within this batch, and
+    scored. Items that fail validation or are duplicates are dropped.
+
+    Returns the surviving input dicts (copies) annotated with a
+    ``quality_score`` (0.0-1.0), sorted by score descending. Never raises
+    for per-item issues; a totally invalid item is simply skipped.
+    """
+    pipeline = await get_feed_pipeline()
+    dedup = ContentDeduplicator()  # per-batch dedup — callers own cross-cycle dedup
+
+    scored: list[tuple[int, float, dict[str, Any]]] = []
+    for idx, item in enumerate(items):
+        post = pipeline._dict_to_post(item, source, provider_group)
+        if post is None:
+            continue
+        is_valid, reason = pipeline._validator.validate_post(post)
+        if not is_valid:
+            logger.debug("quality_validation_removed", reason=reason)
+            continue
+        if dedup.is_duplicate(post):
+            continue
+        post.score = pipeline._scorer.score_post(post)
+        annotated = dict(item)
+        annotated["quality_score"] = round(post.score, 4)
+        scored.append((idx, post.score, annotated))
+
+    scored.sort(key=lambda t: t[1], reverse=True)
+    return [annotated for _, _, annotated in scored]
+
+
 async def get_feed_pipeline() -> FeedQualityPipeline:
     """Get singleton feed quality pipeline."""
     global _pipeline
@@ -499,4 +539,5 @@ __all__ = [
     "FeedQualityPipeline",
     "get_feed_pipeline",
     "health_route",
+    "run_quality_pipeline",
 ]
