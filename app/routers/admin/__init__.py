@@ -50,6 +50,7 @@ def _include_sub_routers():
         ("dify", "dify_router"),
         ("server", "server_router"),
         ("mail", "mail_router"),
+        ("pg_stats", "pg_stats_router"),
     ]:
         try:
             module = importlib.import_module(f".{name}", __package__)
