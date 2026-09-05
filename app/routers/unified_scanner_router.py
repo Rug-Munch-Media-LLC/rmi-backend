@@ -244,7 +244,9 @@ async def deepscan_token(
         result = await scanner.scan(
             address=body.address, chain=body.chain, tier="elite", admin_key=admin_key, scan_mode="advanced"
         )
-        return await _attach_ai_verdict(_format_scan_response(result, scan_mode="advanced"))
+        payload = _format_scan_response(result, scan_mode="advanced")
+        payload.update(await _enrich_token_metadata(body.chain, body.address))
+        return await _attach_ai_verdict(payload)
     except Exception as e:
         raise AppError(f"Deep scan failed: {str(e)[:200]}", status_code=500) from e
 
@@ -273,7 +275,10 @@ async def _run_scan(
             admin_key=admin_key,
             scan_mode=scan_mode,
         )
-        return await _attach_ai_verdict(_format_scan_response(result, scan_mode=scan_mode))
+        payload = _format_scan_response(result, scan_mode=scan_mode)
+        # DexScreener enrichment (icons/socials/dev info) — best-effort merge.
+        payload.update(await _enrich_token_metadata(body.chain, body.address))
+        return await _attach_ai_verdict(payload)
     except Exception as e:
         raise AppError(f"Scan failed: {str(e)[:200]}", status_code=500) from e
 
@@ -335,6 +340,59 @@ def _deep_links(token: str, chain: str) -> dict[str, str]:
         links["defined"] = f"https://defined.fi/{c}/{t}"
     links["geckoterminal"] = f"https://www.geckoterminal.com/{c}/tokens/{t}"
     return links
+
+
+def _calculate_dev_sold_pct(pair: dict[str, Any]) -> float | None:
+    """Best-effort dev-sold percentage from a DexScreener pair payload.
+
+    DexScreener exposes dev holdings (when present) as a percentage of
+    supply still held by the dev wallet; sold % is the complement. Returns
+    None when the field is absent or out of a sane range.
+    """
+    info = pair.get("info") if isinstance(pair, dict) else None
+    dev = info.get("devHoldings") if isinstance(info, dict) else None
+    if isinstance(dev, (int, float)) and 0 <= dev <= 100:
+        return round(100 - dev, 2)
+    return None
+
+
+async def _enrich_token_metadata(chain: str, address: str) -> dict[str, Any]:
+    """Fetch token icon, social links, and dev info from DexScreener.
+
+    Merged into the scan response as a flat ``token_metadata`` block so thin
+    clients (bot + site) can render icons/socials without extra calls.
+    Best-effort: any failure returns {} and the scan response is unchanged.
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{address}")
+            if resp.status_code == 200:
+                data = resp.json()
+                pairs = data.get("pairs") or []
+                if pairs:
+                    p = pairs[0]
+                    info = p.get("info") or {}
+                    socials = info.get("socials") or []
+                    websites = info.get("websites") or []
+                    social_by_type = {
+                        s.get("type", "").lower(): s.get("url", "") for s in socials if isinstance(s, dict)
+                    }
+                    return {
+                        "token_icon": info.get("imageUrl", ""),
+                        "social_links": {
+                            "twitter": social_by_type.get("twitter", ""),
+                            "telegram": social_by_type.get("telegram", ""),
+                            "website": (websites[0].get("url", "") if websites else ""),
+                        },
+                        "dev_sold_pct": _calculate_dev_sold_pct(p),
+                        "dev_holdings_pct": info.get("devHoldings", 0),
+                        "dex_screener_url": p.get("url", ""),
+                    }
+    except Exception as exc:  # enrichment must never break a scan
+        logger.debug("DexScreener token metadata enrichment failed: %s", exc)
+    return {}
 
 
 def _format_scan_response(result: Any, scan_mode: str = "basic") -> dict[str, Any]:
