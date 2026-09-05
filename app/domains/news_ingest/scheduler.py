@@ -281,6 +281,132 @@ async def run_ingest_cycle(
     return stats
 
 
+async def run_pryscraper_ingest_cycle() -> dict[str, Any]:
+    """Fetch news from Pryscraper and ingest into Qdrant ``news_v2``.
+
+    Mirrors :func:`run_ingest_cycle` for the Pryscraper bridge source:
+    search → quality pipeline → Redis dedup → Qdrant upsert → mark seen.
+    Fail-open per stage; stats are best-effort.
+    """
+    from app.domains.news_ingest.models import NewsArticle
+    from app.services.pryscraper_client import PryscraperClient
+
+    client = PryscraperClient()
+    try:
+        results = await client.search_news(
+            query="crypto OR bitcoin OR ethereum OR solana OR defi OR rug OR scam",
+            limit=30,
+        )
+    finally:
+        await client.aclose()
+
+    raw_articles: list[dict[str, Any]] = []
+    if results.get("success"):
+        articles = results.get("articles", [])
+        if isinstance(articles, list):
+            raw_articles = [a for a in articles if isinstance(a, dict)]
+    if not raw_articles:
+        logger.info("pryscraper_ingest_cycle no_articles err=%s", str(results.get("error", ""))[:160])
+        return {"status": "ok", "swept": 0, "fresh": 0, "ingested": 0, "errors": []}
+
+    # Quality gate: validate → dedup → score. Fail-open — a pipeline failure
+    # must never block ingestion entirely.
+    try:
+        scored = await run_quality_pipeline(
+            [
+                {
+                    "id": a.get("url") or a.get("title") or str(i),
+                    "title": a.get("title") or "",
+                    "content": (a.get("description") or a.get("title") or "")[:2000],
+                    "url": a.get("url") or "",
+                    "source": "pryscraper",
+                }
+                for i, a in enumerate(raw_articles)
+            ],
+            provider_group="news",
+            source="pryscraper",
+        )
+    except Exception as exc:  # fail-open
+        logger.warning("pryscraper_ingest_quality_pipeline_failed err=%s", str(exc)[:160])
+        scored = raw_articles
+    articles = [a for a in scored if float(a.get("quality_score", 0.0)) >= QUALITY_GATE_THRESHOLD]
+
+    # Normalize to NewsArticle so the shared Redis dedup sets apply.
+    normalized = [
+        NewsArticle(
+            title=(a.get("title") or "")[:120],
+            body=(a.get("description") or a.get("title") or "")[:2000],
+            source_channel="pryscraper",
+            source_url=a.get("url") or "",
+            category="crypto_news",
+            content_hash=a.get("id") or "",
+        )
+        for a in articles
+    ]
+    fresh, skipped = filter_seen_articles(normalized, "pryscraper_news")
+
+    ingested = 0
+    errors: list[str] = []
+    now = datetime.now(UTC).isoformat()
+    if fresh:
+        from app.integrations.rugbrain_client import rugbrain_ingest
+
+        persisted: list[NewsArticle] = []
+        for article in fresh:
+            doc_id = f"pry_news:{article.content_hash[:64]}" if article.content_hash else None
+            content = f"{article.title} {article.body}".strip()[:2000]
+            try:
+                ok = await rugbrain_ingest(
+                    content=content,
+                    collection=NEWS_COLLECTION,
+                    doc_id=doc_id,
+                    metadata={
+                        "kind": "news_article",
+                        "title": article.title[:200],
+                        "source": "pryscraper",
+                        "url": article.source_url,
+                        "ingestion": "pryscraper_scheduled",
+                        "indexed_at": now,
+                    },
+                    source="pryscraper",
+                )
+            except Exception as exc:
+                ok = False
+                errors.append(f"{doc_id or article.source_url}: {exc!s}"[:200])
+            if ok:
+                ingested += 1
+                persisted.append(article)
+            else:
+                errors.append(f"{doc_id or article.source_url}: ingest_failed")
+        if persisted:
+            mark_articles_ingested(persisted, "pryscraper_news")
+
+    try:
+        from app.domains.content.content_stats import record_fetch
+
+        await record_fetch("pryscraper", ingested=ingested, errors=len(errors))
+    except Exception as exc:  # stats are best-effort
+        logger.debug("content_stats_write_failed err=%s", str(exc)[:160])
+
+    stats = {
+        "status": "ok",
+        "swept": len(raw_articles),
+        "fresh": len(fresh),
+        "skipped_seen": skipped,
+        "ingested": ingested,
+        "errors": errors[:5],
+        "indexed_at": now if fresh else None,
+    }
+    logger.info(
+        "pryscraper_ingest_cycle swept=%d fresh=%d ingested=%d skipped=%d",
+        len(raw_articles),
+        len(fresh),
+        ingested,
+        skipped,
+    )
+    return stats
+
+
 async def start_ingest_scheduler(
     interval_minutes: int = _DEFAULT_INTERVAL_MINUTES,
     *,
@@ -305,6 +431,33 @@ async def start_ingest_scheduler(
 
     task = asyncio.create_task(_loop())
     logger.info("news_ingest_scheduler_started interval_min=%d", interval)
+    return task
+
+
+async def start_pryscraper_scheduler(
+    interval_minutes: int = 30,
+    *,
+    first_delay_seconds: int = 120,
+) -> asyncio.Task[None]:
+    """Run :func:`run_pryscraper_ingest_cycle` on an interval as a background task.
+
+    The first cycle runs after *first_delay_seconds* (lets the app settle),
+    then every *interval_minutes*. Returns the created task so the caller
+    can cancel it on shutdown.
+    """
+    interval = max(1, int(interval_minutes)) * 60
+
+    async def _loop() -> None:
+        await asyncio.sleep(first_delay_seconds)
+        while True:
+            try:
+                await run_pryscraper_ingest_cycle()
+            except Exception as exc:  # never kill the loop
+                logger.warning("pryscraper_ingest_cycle_failed err=%s", str(exc)[:200])
+            await asyncio.sleep(interval)
+
+    task = asyncio.create_task(_loop())
+    logger.info("pryscraper_ingest_scheduler_started interval_min=%d", interval)
     return task
 
 

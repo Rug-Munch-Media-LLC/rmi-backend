@@ -251,6 +251,22 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("tg_news_ingest_background_start_failed err=%s", exc)
 
+    # 14. Scheduled Pryscraper news ingest — searches the Pry web
+    #     intelligence engine for crypto news every 30 minutes and embeds
+    #     the quality-gated articles into Qdrant news_v2.
+    pry_ingest_task = None
+    try:
+        import asyncio as _asyncio
+        import os as _os
+
+        from app.domains.news_ingest.scheduler import start_pryscraper_scheduler
+
+        _pry_interval = max(5, int(_os.getenv("RMI_PRY_INGEST_INTERVAL_MINUTES", "30")))
+        pry_ingest_task = await start_pryscraper_scheduler(_pry_interval, first_delay_seconds=120)
+        log.info("pryscraper_news_ingest_background_started interval_min=%d", _pry_interval)
+    except Exception as exc:
+        log.warning("pryscraper_news_ingest_background_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -302,6 +318,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await stop_ingest_scheduler(tg_ingest_task)
         except Exception as exc:
             log.debug("tg_news_ingest_cancel_failed err=%s", exc)
+
+    # Scheduled Pryscraper news ingest background task shutdown
+    if pry_ingest_task is not None:
+        try:
+            pry_ingest_task.cancel()
+            log.info("pryscraper_news_ingest_background_cancelled")
+        except Exception as exc:
+            log.debug("pryscraper_news_ingest_cancel_failed err=%s", exc)
 
     # Webhook engine shutdown (only if it was started)
     if webhook_engine is not None:
