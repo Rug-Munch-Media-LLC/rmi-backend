@@ -125,10 +125,10 @@ class TestRugchartsOhlcv:
         import app.routers.rugcharts as rc
 
         fake_candles = _candles(10)
-        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=fake_candles))
+        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=fake_candles))
         gecko = AsyncMock(return_value=[])
-        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_gecko", gecko)
-        monkeypatch.setattr(rc.routes, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
+        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_gecko", gecko)
+        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/solana/0xabc?timeframe=1h&limit=10")
         assert resp.status_code == 200, resp.text
@@ -151,10 +151,10 @@ class TestRugchartsOhlcv:
         its candles are returned verbatim."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
+        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
         gecko = AsyncMock(return_value=_candles(5))
-        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_gecko", gecko)
-        monkeypatch.setattr(rc.routes, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
+        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_gecko", gecko)
+        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/ethereum/0xdef?timeframe=1h&limit=5")
         assert resp.status_code == 200, resp.text
@@ -189,7 +189,7 @@ class TestRugchartsTrending:
                 "source": "new_launch",
             },
         ]
-        monkeypatch.setattr(rc.routes, "_fetch_dexscreener_trending", AsyncMock(return_value=(tokens, False)))
+        monkeypatch.setattr(rc.routes.trending, "_fetch_dexscreener_trending", AsyncMock(return_value=(tokens, False)))
 
         resp = client.get("/api/v1/rugcharts/trending?chain=solana&limit=10")
         assert resp.status_code == 200, resp.text
@@ -210,10 +210,10 @@ class TestRugchartsIntel:
         real TA, a prediction, and an intel brief."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc.routes, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
-        monkeypatch.setattr(rc.routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=_candles(24)))
+        monkeypatch.setattr(rc.routes.intel, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
+        monkeypatch.setattr(rc.routes.intel, "_fetch_ohlcv_gecko", AsyncMock(return_value=_candles(24)))
         monkeypatch.setattr(
-            rc.routes,
+            rc.routes.intel,
             "_compute_rug_score",
             lambda pair_info, vol_auth: {
                 "score": 72,
@@ -343,7 +343,7 @@ class TestRugchartsWhales:
                 "chain": "solana",
             },
         ]
-        monkeypatch.setattr(rc.routes, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=trades))
+        monkeypatch.setattr(rc.routes.intel, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=trades))
 
         resp = client.get("/api/v1/rugcharts/whales/solana/0xTOKEN")
         assert resp.status_code == 200, resp.text
@@ -364,7 +364,7 @@ class TestRugchartsWhales:
         import app.routers.rugcharts as rc
 
         mock = AsyncMock(return_value=[])
-        monkeypatch.setattr(rc.routes, "_fetch_whale_trades_clickhouse", mock)
+        monkeypatch.setattr(rc.routes.intel, "_fetch_whale_trades_clickhouse", mock)
 
         client.get("/api/v1/rugcharts/whales/ethereum/0xABC?limit=50&min_usd=50000")
         mock.assert_awaited_once_with("0xABC", "ethereum", 50, 50_000.0)
@@ -373,7 +373,7 @@ class TestRugchartsWhales:
         """No whale rows → empty lists and zero counts (soft overlay)."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc.routes, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=[]))
+        monkeypatch.setattr(rc.routes.intel, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=[]))
 
         resp = client.get("/api/v1/rugcharts/whales/base/0xEMPTY")
         assert resp.status_code == 200, resp.text

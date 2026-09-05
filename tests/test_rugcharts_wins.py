@@ -69,7 +69,7 @@ def client(app):
 
 class TestOhlcvSourceHonesty:
     def test_clickhouse_source_reported_when_ch_serves(self, client: TestClient, monkeypatch) -> None:
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import ohlcv as routes
 
         monkeypatch.setattr(routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=_candles(4)))
         monkeypatch.setattr(routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=[]))
@@ -81,7 +81,7 @@ class TestOhlcvSourceHonesty:
         assert data["fallback_used"] is False
 
     def test_gecko_source_reported_on_fallback(self, client: TestClient, monkeypatch) -> None:
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import ohlcv as routes
 
         monkeypatch.setattr(routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
         monkeypatch.setattr(routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=_candles(3)))
@@ -95,7 +95,7 @@ class TestOhlcvSourceHonesty:
         assert data["candles"][0]["time"] == 1_700_000_000
 
     def test_none_source_when_everything_fails(self, client: TestClient, monkeypatch) -> None:
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import ohlcv as routes
 
         monkeypatch.setattr(routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
         monkeypatch.setattr(routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=[]))
@@ -114,7 +114,7 @@ class TestOhlcvSourceHonesty:
 class TestHolderLadder:
     def test_analyze_uses_clickhouse_tier_for_evm(self, client: TestClient, monkeypatch) -> None:
         import app.routers.rugcharts.helpers as helpers
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import trending as routes
 
         pair = {
             "name": "T/WETH",
@@ -145,7 +145,7 @@ class TestHolderLadder:
 
     def test_analyze_null_holders_when_all_tiers_fail(self, client: TestClient, monkeypatch) -> None:
         import app.routers.rugcharts.helpers as helpers
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import trending as routes
 
         monkeypatch.setattr(routes, "_fetch_pair_info", AsyncMock(return_value={}))
 

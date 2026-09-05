@@ -129,7 +129,7 @@ def client(app):
 
 class TestVolumeAnalysisEndpoint:
     def test_endpoint_returns_breakdown_and_bias(self, client: TestClient, monkeypatch) -> None:
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import intel as routes
 
         # Raw UNLABELED trades that genuinely classify: 6 machine-gun trades
         # (60s apart, $100 each) → bot; one $250 whale; one organic sell.
@@ -151,7 +151,7 @@ class TestVolumeAnalysisEndpoint:
         assert all("evidence" in f for f in bias["factors"])
 
     def test_endpoint_empty_trades_still_200(self, client: TestClient, monkeypatch) -> None:
-        import app.routers.rugcharts.routes as routes
+        from app.routers.rugcharts.routes import intel as routes
 
         monkeypatch.setattr(routes, "_fetch_recent_trades_clickhouse", AsyncMock(return_value=[]))
         resp = client.get("/api/v1/rugcharts/volume-analysis/solana/MINT")
