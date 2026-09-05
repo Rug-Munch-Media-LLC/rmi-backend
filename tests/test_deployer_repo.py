@@ -25,18 +25,23 @@ class FakeCH:
         if q.startswith("INSERT"):
             self.inserts.extend(params)
             return []
-        if "SELECT token_address" in q:  # get_deployer_history
+        if "SELECT token_address" in q:  # get_deployer_history (7 cols)
             addr, chain = params["addr"], params["chain"]
-            return [r for r in self.rows if r[0] == addr and r[1] == chain]
-        if "SELECT token_symbol" in q:  # update_outcome lookup
+            matched = sorted(
+                (r[2:9] for r in self.rows if r[0] == addr and r[1] == chain), key=lambda r: r[2], reverse=True
+            )
+            return matched
+        if "SELECT token_symbol" in q:  # update_outcome lookup (5 cols)
             addr, chain, token = params["addr"], params["chain"], params["token"]
-            return [r for r in self.rows if r[0] == addr and r[1] == chain and r[2] == token]
+            return [
+                (r[3], r[4], r[5], r[6], r[7]) for r in self.rows if r[0] == addr and r[1] == chain and r[2] == token
+            ]
         if "GROUP BY deployer_address" in q and "HAVING total_launches > 1" in q:
             return self._repeat_rows(params["chain"])
         if "uniqExact" in q:
             return [self._stats_row()]
         if "count() FROM" in q:
-            return [(len([1 for d, *_ in self._grouped() if len(d) > 1]),)]
+            return [(len([1 for d, rows in self._grouped().items() if len(rows) > 1]),)]
         if q == "SELECT 1":
             return []
         return []
