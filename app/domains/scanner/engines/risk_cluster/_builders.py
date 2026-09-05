@@ -1,5 +1,16 @@
 """Pure graph builders for the risk_cluster package (no database).
 
+DEPRECATED DUPLICATES: the canonical implementations of the pure graph
+builders below (``build_funder_tree``, ``detect_shared_deployer_networks``,
+``detect_cross_token_clusters``, ``detect_cross_token_funder_graphs``,
+``detect_temporal_clusters``) live in
+``rugmunch_scanner.unified.engines.risk_cluster.detection``. This module
+keeps local copies only as a fallback for environments where the
+``rugmunch_scanner`` package is not installed; when it is available the
+canonical versions are imported at the bottom of this file and shadow the
+local definitions. Do not add new detection logic here — add it to
+rugmunch-scanner and let this module re-export it.
+
 These take plain dicts / tuples so they are unit-testable without a database.
 They build the funder tree, shared-deployer networks, cross-token cluster
 graph, cross-token funder graph and temporal (lockstep) clusters.
@@ -7,6 +18,7 @@ graph, cross-token funder graph and temporal (lockstep) clusters.
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from app.domains.scanner.engines.risk_cluster._constants import (
@@ -331,3 +343,15 @@ def detect_temporal_clusters(
             )
 
     return sorted(clusters, key=lambda c: c["members"], reverse=True)
+
+
+# Prefer the canonical implementations from rugmunch-scanner. The local
+# definitions above remain only as a fallback when that package is absent.
+with contextlib.suppress(ImportError):  # pragma: no cover - deployment-dependent
+    from rugmunch_scanner.unified.engines.risk_cluster.detection import (  # noqa: F401
+        build_funder_tree,
+        detect_cross_token_clusters,
+        detect_cross_token_funder_graphs,
+        detect_shared_deployer_networks,
+        detect_temporal_clusters,
+    )
