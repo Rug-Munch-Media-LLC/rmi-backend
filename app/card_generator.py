@@ -370,8 +370,8 @@ def generate_card(card_type: str, data: dict[str, Any]) -> dict[str, Any]:
                             value = format_wallet_short(str(value))
                         else:
                             value = field_config["format"].format(**{field_name: value, **data})
-                    except (ConnectionError, OSError, TimeoutError):
-                        pass
+                    except (ConnectionError, OSError, TimeoutError) as e:
+                        logger.warning(f"generate_card failed: {e}")
 
                 # Draw text
                 position = field_config["position"]

@@ -229,8 +229,8 @@ class OHLCVEngine:
             if cached:
                 r.close()
                 return json.loads(cached)
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.warning(f"get_candles failed: {e}")
 
         try:
             r = _redis() if "r" not in dir() or not r else r
@@ -243,8 +243,8 @@ class OHLCVEngine:
                 try:
                     c = json.loads(item)
                     candles.append(c)
-                except (httpx.HTTPError, json.JSONDecodeError):
-                    pass
+                except (httpx.HTTPError, json.JSONDecodeError) as e:
+                    logger.warning(f"get_candles failed: {e}")
 
             # Sort by timestamp ascending
             candles.sort(key=lambda x: x["timestamp"])
@@ -356,8 +356,8 @@ async def fetch_ohlcv(
             "authentic_score": auth.get("authentic_score", 100),
             "risk_level": auth.get("risk_level", "UNKNOWN"),
         }
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning(f"fetch_ohlcv failed: {e}")
 
     return {
         "candles": candles,

@@ -184,8 +184,8 @@ async def databus_websocket(ws: WebSocket, channel: str) -> None:
                     break
             except WebSocketDisconnect:
                 break
-    except WebSocketDisconnect:
-        pass
+    except WebSocketDisconnect as e:
+        logger.warning(f"databus_websocket failed: {e}")
     finally:
         ws_manager.disconnect(ws, channel)
 

@@ -363,8 +363,8 @@ def bundle_signal(result: dict[str, Any]) -> str | None:
     if bundle_pct is not None:
         try:
             return f"bundled: {round(float(bundle_pct))}% snipers"
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.error(f"bundle_signal failed: {e}")
 
     if result.get("sniper_count"):
         return "sniper cluster"

@@ -13,7 +13,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.logging import get_logger
 from app.domains.scanner.tracing.models import GraphEdge, GraphNode, TraceGraph, WalletHop
+
+logger = get_logger("graph")
 
 
 def _short_label(address: str) -> str:
@@ -54,8 +57,8 @@ def build_cluster_graph(
                 old = int(edges[key].value or "0")
                 new = int(value or "0")
                 edges[key].value = str(old + new)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.error(f"_add_edge failed: {e}")
             return
         edges[key] = GraphEdge(source=src, target=dst, value=value, token=token_l, event=event)
         if token_l:

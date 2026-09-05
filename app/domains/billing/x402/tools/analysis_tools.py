@@ -22,6 +22,7 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, HTTPException
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     GenericRequest,
     SentimentRequest,
@@ -29,6 +30,8 @@ from app.domains.billing.x402.shared import (
     fetch_with_fallback,
     record_x402_payment,
 )
+
+logger = get_logger("analysis_tools")
 
 sub_router = APIRouter(tags=["x402-analysis-tools"])
 
@@ -51,8 +54,8 @@ async def _sentiment_analysis(token: str, chain: str) -> dict[str, Any]:
                 "sentiment_votes_up": data.get("public_interest_stats", {}).get("alexa_rank", 0),
             }
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_sentiment_analysis failed: {e}")
 
     # Layer 2: DexScreener social links
     try:
@@ -66,8 +69,8 @@ async def _sentiment_analysis(token: str, chain: str) -> dict[str, Any]:
                 "website": info.get("websites", [{}])[0].get("url") if info.get("websites") else None,
             }
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_sentiment_analysis failed: {e}")
 
     # Layer 3: CoinGecko community data
     try:
@@ -80,8 +83,8 @@ async def _sentiment_analysis(token: str, chain: str) -> dict[str, Any]:
         if data and data.get("community_data"):
             result["community"] = data["community_data"]
             result["sources_used"].append("coingecko_community")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_sentiment_analysis failed: {e}")
 
     # Layer 4: DefiLlama - protocol mentions
     try:
@@ -95,8 +98,8 @@ async def _sentiment_analysis(token: str, chain: str) -> dict[str, Any]:
                     "chains": protocol.get("chains"),  # type: ignore[attr-defined]
                 }
                 result["sources_used"].append("defillama")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_sentiment_analysis failed: {e}")
 
     # Compute sentiment score
     score = 50  # neutral baseline
@@ -289,8 +292,8 @@ async def _twitter_profile(query: str) -> dict[str, Any]:
                 result["source"] = "nitter"
                 result["sources_used"].append("nitter")  # type: ignore[attr-defined]
                 break
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_twitter_profile failed: {e}")
 
     # Layer 2: DuckDuckGo search
     try:
@@ -300,8 +303,8 @@ async def _twitter_profile(query: str) -> dict[str, Any]:
         if data:
             result["duckduckgo_results"] = True  # type: ignore[assignment]
             result["sources_used"].append("duckduckgo")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.error(f"_twitter_profile failed: {e}")
 
     return result
 
@@ -343,8 +346,8 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, Any]:
             )
             if data:
                 tweets.append({"source": "duckduckgo"})
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"twitter_timeline failed: {e}")
 
         await record_x402_payment("tw_timeline", "0.01", query)
         return {
@@ -379,8 +382,8 @@ async def twitter_search(req: GenericRequest) -> dict[str, Any]:
             )
             if data:
                 results.append({"source": "duckduckgo"})
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"twitter_search failed: {e}")
 
         await record_x402_payment("tw_search", "0.01", query)
         return {
@@ -412,8 +415,8 @@ async def _social_signal(query: str) -> dict[str, Any]:
             result["cryptopanic_count"] = len(data["results"])  # type: ignore[assignment]
             result["cryptopanic_sentiment"] = sum(1 for r in data["results"] if r.get("sentiment") == "positive")  # type: ignore[assignment]
             result["sources_used"].append("cryptopanic")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_social_signal failed: {e}")
 
     # Reddit
     try:
@@ -421,8 +424,8 @@ async def _social_signal(query: str) -> dict[str, Any]:
         if data and data.get("data", {}).get("children"):
             result["reddit_count"] = len(data["data"]["children"])  # type: ignore[assignment]
             result["sources_used"].append("reddit")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_social_signal failed: {e}")
 
     result["total_mentions"] = result.get("cryptopanic_count", 0) + result.get("reddit_count", 0)  # type: ignore[assignment, operator]
     result["sentiment_score"] = result.get("cryptopanic_sentiment", 0) / max(1, result.get("cryptopanic_count", 1))  # type: ignore[assignment, operator, type-var]
@@ -464,8 +467,8 @@ async def _nft_wash_detector(collection: str) -> dict[str, Any]:
             result["floor_price"] = data.get("floorPrice")  # type: ignore[assignment]
             result["volume_24h"] = data.get("volume24h")  # type: ignore[assignment]
             result["sources_used"].append("nftpricefloor")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_nft_wash_detector failed: {e}")
 
     # OpenSea stats (public endpoint)
     try:
@@ -480,8 +483,8 @@ async def _nft_wash_detector(collection: str) -> dict[str, Any]:
                 "one_day_sales": stats.get("one_day_sales"),
             }
             result["sources_used"].append("opensea")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_nft_wash_detector failed: {e}")
 
     # Wash trading signals
     os_stats = result.get("opensea", {})
@@ -541,8 +544,8 @@ async def _bridge_security() -> dict[str, Any]:
                     }
                 )
             result["sources_used"].append("defillama")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_bridge_security failed: {e}")
 
     # DeFiLlama protocols (check for bridge exploits)
     try:
@@ -552,8 +555,8 @@ async def _bridge_security() -> dict[str, Any]:
             result["bridge_count"] = len(bridge_protocols)  # type: ignore[assignment]
             result["total_bridge_tvl"] = sum(p.get("tvl", 0) for p in bridge_protocols)  # type: ignore[assignment, attr-defined]
             result["sources_used"].append("defillama_protocols")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_bridge_security failed: {e}")
 
     return result
 

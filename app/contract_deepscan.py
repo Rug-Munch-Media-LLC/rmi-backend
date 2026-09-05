@@ -19,7 +19,7 @@ import httpx
 
 from app.core.logging import get_logger
 
-# TODO: migrate _fetch_source_code to async httpx.AsyncClient
+# FIXME(issue): migrate _fetch_source_code to async httpx.AsyncClient
 # Currently uses sync httpx.get() inside a sync function chain.
 
 logger = get_logger(__name__)
@@ -262,7 +262,8 @@ class MythrilScanner:
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes for symbolic execution
-            shell=False)
+                shell=False,
+            )
 
             # Parse output (Mythril outputs in YAML/JSON mixed format)
             # For now, return simple structure

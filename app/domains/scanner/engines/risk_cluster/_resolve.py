@@ -28,6 +28,7 @@ from app.domains.scanner.engines.risk_cluster._queries import (
 
 logger = get_logger(__name__)
 
+
 async def _resolve_launch_anchor(token_address: str, chain_norm: str) -> tuple[int | None, float | None]:
     """Resolve (anchor_block, anchor_ts) from deployer_events, else earliest transfer.
 
@@ -41,14 +42,14 @@ async def _resolve_launch_anchor(token_address: str, chain_norm: str) -> tuple[i
             block = int(rows[0][0])
             ts = to_epoch(rows[0][1])
             return block, ts
-    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError):
-        pass
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as e:
+        logger.error(f"_resolve_launch_anchor failed: {e}")
     try:
         rows = await run_sync(_query_earliest_transfer, token_address, chain_norm)
         if rows and rows[0] and rows[0][0]:
             return int(rows[0][0]), to_epoch(rows[0][1])
-    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError):
-        pass
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as e:
+        logger.error(f"_resolve_launch_anchor failed: {e}")
     return None, None
 
 

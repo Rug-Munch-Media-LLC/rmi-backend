@@ -146,8 +146,8 @@ try:
     from app.routers._expanded_aliases import EXPANDED_ALIASES
 
     TOOL_ALIASES.update(EXPANDED_ALIASES)
-except (AttributeError, ImportError):
-    pass
+except (AttributeError, ImportError) as e:
+    logger.debug(f"operation failed: {e}")
 
 
 # Supported payment tokens across all chains
@@ -311,8 +311,8 @@ def _resolve_pay_to(chain: str) -> str:
         for w in mgr._wallets.values():
             if w.chain == wm_chain and w.x402_enabled and w.status == "active":
                 return w.address
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_resolve_pay_to failed: {e}")
     # Fallback: env vars
     fallbacks = {
         "base": "X402_EVM_PAY_TO",

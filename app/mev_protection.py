@@ -196,8 +196,8 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
                 score = 0.2
                 findings.append("Low mempool activity")
                 details.append(f"{pending} pending transactions - lower MEV likelihood")
-        except (ValueError, KeyError):
-            pass
+        except (ValueError, KeyError) as e:
+            logger.warning(f"_check_mempool_risk failed: {e}")
 
     # Check gas prices in pending pool
     result2 = await _fetch_free_rpc(chain, "txpool_content")
@@ -221,8 +221,8 @@ async def _check_mempool_risk(chain: str, pair_address: str | None = None) -> Me
                     score = max(score, 0.45)
                     findings.append("Elevated gas prices")
                     details.append(f"Avg gas: {avg_gas:.1f} gwei - some MEV extraction likely")
-        except (ValueError, KeyError):
-            pass
+        except (ValueError, KeyError) as e:
+            logger.warning(f"_check_mempool_risk failed: {e}")
 
     finding = "; ".join(findings) if findings else "Mempool looks quiet"
     detail = "; ".join(details) if details else "No unusual mempool activity detected"

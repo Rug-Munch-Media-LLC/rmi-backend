@@ -152,16 +152,16 @@ class CryptoEmbedder:
                 self._cache_hits += 1
                 return json.loads(data)
             self._cache_misses += 1
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"_cache_get failed: {e}")
         return None
 
     async def _cache_set(self, key: str, vector: list[float], ttl: int = 86400) -> None:
         try:
             r = await self._get_redis()
             await r.setex(key, ttl, json.dumps(vector))
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"_cache_set failed: {e}")
 
     # ─── SPECIALIZED EMBED METHODS ──────────────────────────────
 

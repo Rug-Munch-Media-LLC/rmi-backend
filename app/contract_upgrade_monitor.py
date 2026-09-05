@@ -197,8 +197,8 @@ async def _background_refresh(url: str, headers: dict[str, Any] | None, timeout:
             resp = await client.get(url, headers=headers or {})
             if resp.status_code == 200:
                 _cache[cache_key] = (time.time(), resp.json())
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.warning(f"_background_refresh failed: {e}")
 
 
 # ── RPC Storage Slot Reader ──────────────────────────────────────
@@ -532,8 +532,8 @@ async def check_timelock(address: str, chain: str) -> str | None:
         result = await read_storage_slot(admin, delay_slot, chain)
         if result and int(result, 16) > 0:
             return "active"
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"check_timelock failed: {e}")
 
     return "no_timelock"
 

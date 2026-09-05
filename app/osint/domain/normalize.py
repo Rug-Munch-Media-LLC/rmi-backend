@@ -9,6 +9,10 @@ from __future__ import annotations
 import ipaddress
 import re
 
+from app.core.logging import get_logger
+
+logger = get_logger("normalize")
+
 #: Domain pattern: labels of 1-63 chars, at least two labels, TLD of 2-63
 #: letters, total length <= 253 (RFC 1035/1123, applied post-IDNA).
 _DOMAIN_RE = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
@@ -37,8 +41,8 @@ def normalize_domain(value: str) -> str:
 
     try:
         ipaddress.ip_address(raw)
-    except ValueError:
-        pass
+    except ValueError as e:
+        logger.warning(f"normalize_domain failed: {e}")
     else:
         raise ValueError(f"expected a domain name, got an IP address: {raw!r}")
 

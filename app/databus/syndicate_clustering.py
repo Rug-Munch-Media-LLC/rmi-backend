@@ -31,6 +31,10 @@ from datetime import datetime
 from itertools import combinations
 from typing import Any
 
+from app.core.logging import get_logger
+
+logger = get_logger("syndicate_clustering")
+
 # ═══════════════════════════════════════════════════════════════════════
 # Small helpers (mirror shill_detector normalization; no logging deps)
 # ═══════════════════════════════════════════════════════════════════════
@@ -53,16 +57,16 @@ def _to_ts(value: Any) -> float:
         if s.isdigit() and len(s) >= 9:
             try:
                 return float(s)
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.warning(f"_to_ts failed: {e}")
         try:
             return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.warning(f"_to_ts failed: {e}")
         try:
             return float(s)
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.warning(f"_to_ts failed: {e}")
     return 0.0
 
 

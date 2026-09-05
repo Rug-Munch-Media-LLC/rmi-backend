@@ -242,8 +242,8 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
                     if ds_data:
                         pair = ds_data["pairs"][0]
                         result["liquidity_usd"] = float(pair.get("liquidity", {}).get("usd", 0) or 0)
-                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                    pass
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                    logger.error(f"_check_liquidity_lock_multi failed: {e}")
 
                 from app.domains.scanner.metrics import record_check_source
 
@@ -278,8 +278,8 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
             result["warnings"] = hp_result.warnings
             result["source"] = "honeypot_detector"
             return result
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"_check_liquidity_lock_multi failed: {e}")
     except (KeyError, TypeError) as e:
         logger.debug("honeypot_liquidity_failed", error=str(e))
 

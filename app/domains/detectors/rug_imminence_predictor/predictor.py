@@ -50,8 +50,8 @@ class RugImminencePredictor:
                 expiry = datetime.fromisoformat(result.last_updated)
                 if datetime.now(UTC) < expiry:
                     return result
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.error(f"_get_cached failed: {e}")
             del self._cache[key]
         return None
 
@@ -672,8 +672,8 @@ class RugImminencePredictor:
                 result["total_deployed"] = len(scam_records)
                 result["rug_tokens"] = len([r for r in scam_records if r.get("type") == "rug"])
                 result["active_tokens"] = len([r for r in scam_records if r.get("active", False)])
-        except (ImportError, AttributeError):
-            pass
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"_check_deployer_history failed: {e}")
         return result
 
     async def _check_lp_lock(self, address: str, chain: str) -> dict[str, Any]:
@@ -685,8 +685,8 @@ class RugImminencePredictor:
             lp_info = await verifier.check_lock(address, chain)  # type: ignore[attr-defined]
             if lp_info:
                 result.update(lp_info)
-        except (ImportError, AttributeError):
-            pass
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"_check_lp_lock failed: {e}")
         return result
 
     async def _fetch_holder_data(self, address: str, chain: str) -> dict[str, Any] | None:

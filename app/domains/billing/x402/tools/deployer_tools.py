@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, HTTPException
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     GenericRequest,
     InsiderRequest,
@@ -26,6 +27,8 @@ from app.domains.billing.x402.shared import (
     record_x402_payment,
     rpc_call,
 )
+
+logger = get_logger("deployer_tools")
 
 sub_router = APIRouter(tags=["x402-deployer-tools"])
 
@@ -54,8 +57,8 @@ async def _insider_tracking(creator: str, chain: str) -> dict[str, Any]:
             result["associated_tokens"] = tokens  # type: ignore[assignment]
             result["token_count"] = len(tokens)  # type: ignore[assignment]
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_insider_tracking failed: {e}")
 
     # Layer 2: Solana RPC - wallet activity
     if chain == "solana":
@@ -64,16 +67,16 @@ async def _insider_tracking(creator: str, chain: str) -> dict[str, Any]:
             if balance is not None:
                 result["creator_balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_balance")  # type: ignore[attr-defined]
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.error(f"_insider_tracking failed: {e}")
 
         try:
             sigs = await rpc_call("solana", "getSignaturesForAddress", [creator, {"limit": 50}])
             if sigs:
                 result["recent_txs"] = len(sigs)  # type: ignore[assignment]
                 result["sources_used"].append("solana_txs")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_insider_tracking failed: {e}")
 
     # Layer 3: Etherscan/BaseScan
     if chain in ["base", "ethereum"]:
@@ -89,8 +92,8 @@ async def _insider_tracking(creator: str, chain: str) -> dict[str, Any]:
                 if data and data.get("result"):
                     result["explorer_txs"] = len(data["result"])  # type: ignore[assignment]
                     result["sources_used"].append(f"{chain}_explorer")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_insider_tracking failed: {e}")
 
     # Risk assessment
     risk = "low"

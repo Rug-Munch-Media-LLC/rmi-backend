@@ -405,8 +405,8 @@ class IntelligenceAggregationLayer:
             result = label_wallet(address, chain)
             if result and result.get("confidence") == "HIGH":
                 return result["name"]
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug(f"_check_known_entities failed: {e}")
         return None
 
     def _check_gmgn_pattern(self, address: str, chain: str) -> str | None:

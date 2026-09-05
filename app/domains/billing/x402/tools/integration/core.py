@@ -13,6 +13,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     td,
 )
@@ -29,6 +30,8 @@ from .utils import (
     format_openai_tool,
     resolve_tool_alias,
 )
+
+logger = get_logger("core")
 
 sub_router = APIRouter(tags=["x402-integration"])
 
@@ -450,8 +453,8 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
             from app.routers.x402_enforcement import TOOL_PRICES
 
             pricing_info = TOOL_PRICES.get(tool_id, {})
-        except (ImportError, KeyError):
-            pass
+        except (ImportError, KeyError) as e:
+            logger.debug(f"tool_alias_dispatcher_get failed: {e}")
         if pricing_info:
             return JSONResponse(
                 content={

@@ -91,8 +91,8 @@ class RugImminencePredictor:
                 expiry = datetime.fromisoformat(result.last_updated)
                 if datetime.now(UTC) < expiry:
                     return result
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.error(f"_get_cached failed: {e}")
             del self._cache[key]
         return None
 

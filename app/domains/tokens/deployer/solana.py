@@ -218,8 +218,8 @@ class SolanaDeployer(ChainDeployer):
             from metaplex.metadata import get_metadata
 
             metadata = get_metadata(self.client, contract_address)
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"get_token_info failed: {e}")
         return {"address": contract_address, "decimals": decimals, "supply": str(supply), "metadata": metadata}
 
     async def get_balance(self, contract_address: str, wallet_address: str) -> str:

@@ -79,6 +79,6 @@ async def tron_transactions(address: str, limit: int = 10) -> dict[str, Any] | N
                     "count": len(txs),
                     "provider": "trongrid",
                 }
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"tron_transactions failed: {e}")
     return None

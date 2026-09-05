@@ -83,8 +83,8 @@ class AdminUserStore:
                 if supabase_url and supabase_key:
                     client = create_client(supabase_url, supabase_key)
                     client.table("admin_users").upsert(admin).execute()
-            except (ConnectionError, OSError, json.JSONDecodeError):
-                pass
+            except (ConnectionError, OSError, json.JSONDecodeError) as e:
+                logger.warning(f"save_admin failed: {e}")
 
             return True
         except (ConnectionError, TimeoutError, ValueError) as e:

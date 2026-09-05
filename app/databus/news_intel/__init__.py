@@ -219,8 +219,8 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict[str, Any]:
         from app.domains.news.news_service import fetch_all_news
 
         tasks.append(fetch_all_news())
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"aggregate_all_news failed: {e}")
 
     tasks.append(_fetch_x_crypto())
 

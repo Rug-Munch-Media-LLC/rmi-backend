@@ -44,6 +44,7 @@ os.environ.setdefault("ENVIRONMENT", "dev")
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("GNN_MODEL_DIR", str(Path(tempfile.gettempdir()) / "rmi-benchmark-gnn"))
 
+from app.core.logging import get_logger
 from app.fraud_gnn import FraudGNNDetector
 from app.ml_datasets.adapters import address_to_fingerprint
 from app.ml_datasets.eval import evaluate
@@ -57,6 +58,8 @@ from app.ml_datasets.loaders import (
     load_defihacklabs,
     load_realcats,
 )
+
+logger = get_logger("benchmark")
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -197,13 +200,13 @@ def _auto_load(args: argparse.Namespace) -> tuple[LabeledDataset, str]:
     try:
         ds = load_defihacklabs(cache_dir=cache, limit=limit)
         return ds, "cached" if ds.from_cache else "network"
-    except DatasetDownloadError:
-        pass
+    except DatasetDownloadError as e:
+        logger.warning(f"_auto_load failed: {e}")
     try:
         ds = load_realcats(cache_dir=cache, chains=(args.chain,), limit=limit)
         return ds, "cached" if ds.from_cache else "network"
-    except DatasetDownloadError:
-        pass
+    except DatasetDownloadError as e:
+        logger.warning(f"_auto_load failed: {e}")
     print("[benchmark] no dataset parsed (offline?); using the synthetic fixture.", file=sys.stderr)
     return build_synthetic_dataset(limit=_default_limit("synthetic", args.limit)), "synthetic-fixture"
 

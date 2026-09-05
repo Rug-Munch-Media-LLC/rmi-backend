@@ -315,8 +315,8 @@ class KOLWalletAttributor:
                 resolved = await get_label_service().resolve(address, "ethereum")
                 if resolved:
                     labels.extend(resolved.get("labels", []) or [])
-            except (ImportError, RuntimeError):
-                pass
+            except (ImportError, RuntimeError) as e:
+                logger.debug(f"_public_tagging failed: {e}")
             labels.extend(await _arkham_labels(self._client, address))
             labels.extend(await _lookonchain_labels(self._client, address))
 
@@ -384,8 +384,8 @@ class KOLWalletAttributor:
                                     signals=[_SIG_AIRDROP],
                                 )
                             )
-            except (ImportError, RuntimeError):
-                pass
+            except (ImportError, RuntimeError) as e:
+                logger.debug(f"_airdrop_poap_evidence failed: {e}")
         return links
 
     # ── Method 5: verified KOL list ───────────────────────────────

@@ -109,8 +109,8 @@ async def human_execute(req: Any) -> dict[str, Any]:
             verified = True
             verification_method = f"facilitator:{result.facilitator}"
             facilitator_used = result.facilitator
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"human_execute failed: {e}")
     except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning(f"Payment verification via facilitator failed: {e}")
 

@@ -511,8 +511,8 @@ class WashTradingDetector:
                             try:
                                 dt = datetime.fromisoformat(block_ts.replace("Z", "+00:00"))
                                 timestamp = int(dt.timestamp() * 1000)
-                            except (ValueError, AttributeError):
-                                pass
+                            except (ValueError, AttributeError) as e:
+                                logger.error(f"_fetch_evm_transfers failed: {e}")
 
                         transfers.append(
                             TransferRecord(

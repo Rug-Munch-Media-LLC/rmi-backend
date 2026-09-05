@@ -78,8 +78,8 @@ def _parse_outcome(market: dict[str, Any]) -> str | None:
                 return "Yes"
             if float(prices[1]) > 0.99:
                 return "No"
-    except (ValueError, TypeError, ImportError):
-        pass
+    except (ValueError, TypeError, ImportError) as e:
+        logger.debug(f"_parse_outcome failed: {e}")
     return None
 
 

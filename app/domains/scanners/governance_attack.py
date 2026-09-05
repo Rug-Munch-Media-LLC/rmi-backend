@@ -284,8 +284,8 @@ class GovernanceAttackDetector:
                 quorum_raw = int(quorum_result, 16)
                 # OpenZeppelin stores quorum as numerator / 1000 (e.g. 4 = 0.4%)
                 params.quorum_threshold_pct = quorum_raw / 1000.0 if quorum_raw < 1000 else quorum_raw / 1e18 * 100
-            except (ValueError, ZeroDivisionError):
-                pass
+            except (ValueError, ZeroDivisionError) as e:
+                logger.error(f"_check_evm_governance failed: {e}")
 
         # Try to read proposal threshold (PROPOSAL_THRESHOLD selector: 0xb12d4e26)
         threshold_result = await self._eth_call(token_address, "0xb12d4e26", chain)
@@ -293,8 +293,8 @@ class GovernanceAttackDetector:
             try:
                 threshold_raw = int(threshold_result, 16)
                 params.proposal_threshold_pct = threshold_raw / 1e18 * 100
-            except (ValueError, ZeroDivisionError):
-                pass
+            except (ValueError, ZeroDivisionError) as e:
+                logger.error(f"_check_evm_governance failed: {e}")
 
         # Try to read voting period (VOTING_PERIOD selector: 0x02f310d7)
         voting_result = await self._eth_call(token_address, "0x02f310d7", chain)
@@ -312,7 +312,9 @@ class GovernanceAttackDetector:
 
         return params
 
-    def _check_solana_governance(self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None) -> GovernanceParams:
+    def _check_solana_governance(
+        self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None
+    ) -> GovernanceParams:
         """Infer governance risk for Solana SPL tokens.
 
         Solana doesn't have governor contracts in the EVM sense.
@@ -488,7 +490,7 @@ class GovernanceAttackDetector:
             for i, w in enumerate(report.warnings):
                 if rag_cits:
                     report.warnings[i] = build_citation_string(rag_cits, w)
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"analyze failed: {e}")
 
         return report

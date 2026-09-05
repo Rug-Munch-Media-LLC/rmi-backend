@@ -392,8 +392,8 @@ class DecompilerAnalyzer:
                                         if name:
                                             # We'll add these to decompiled_functions later
                                             pass
-                            except json.JSONDecodeError:
-                                pass
+                            except json.JSONDecodeError as e:
+                                logger.error(f"_heimdall_decompile failed: {e}")
 
             if decompiled_source:
                 return True, decompiled_source, output_path
@@ -637,7 +637,7 @@ class DecompilerAnalyzer:
             for i, w in enumerate(report.warnings):
                 if rag_cits:
                     report.warnings[i] = build_citation_string(rag_cits, w)
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"analyze failed: {e}")
 
         return report

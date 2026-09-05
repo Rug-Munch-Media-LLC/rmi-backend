@@ -3,7 +3,7 @@
 Currently returns []. The schema for internal labels (community
 contributions, RMI-curated tags) is being designed separately.
 
-TODO: query Postgres internal_labels table once schema lands.
+FIXME(issue): query Postgres internal_labels table once schema lands.
 """
 
 from __future__ import annotations

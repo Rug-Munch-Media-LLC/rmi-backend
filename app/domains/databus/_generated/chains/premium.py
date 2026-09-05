@@ -131,8 +131,8 @@ def build_premium_chains(chains: dict[str, ProviderChain]) -> None:
                 )
             ],
         )
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"build_premium_chains failed: {e}")
 
     # ── ARKHAM WEBSOCKET - real-time intelligence streaming ──
     try:

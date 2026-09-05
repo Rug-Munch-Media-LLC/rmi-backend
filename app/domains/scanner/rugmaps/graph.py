@@ -248,8 +248,8 @@ async def get_entity_info(address: str) -> dict[str, Any] | None:
         entity = await query_wallet_entity(address)
         if entity:
             return entity
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"get_entity_info failed: {e}")
     except Exception as exc:
         logger.debug("Neo4j get_entity_info failed for %s: %s", address[:12], exc)
 
@@ -259,8 +259,8 @@ async def get_entity_info(address: str) -> dict[str, Any] | None:
 
         entity = await get_cluster_entity(address)
         return entity
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"get_entity_info failed: {e}")
     except Exception as exc:
         logger.debug("Cluster get_entity_info failed for %s: %s", address[:12], exc)
     return None

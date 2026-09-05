@@ -512,8 +512,8 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
                                             "url": f"https://x.com/{handle}/status/{tweet.get('id_str', '')}",
                                         }
                                     )
-                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                            pass
+                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                            logger.warning(f"_cookie_scrape_x failed: {e}")
         return posts
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"Cookie scrape failed: {e}")
@@ -656,8 +656,8 @@ def score_ct_post(post: dict[str, Any], account: dict[str, Any]) -> float:
                 datetime.now(UTC) - datetime.fromisoformat(created.replace("Z", "+00:00"))
             ).total_seconds() / 3600
             score += max(0, 5 - age_hours * 0.5)  # 5 points now, 0 after 10 hours
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"score_ct_post failed: {e}")
 
     # Content signals
     text = post.get("text", "")

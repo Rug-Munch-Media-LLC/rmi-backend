@@ -248,8 +248,8 @@ async def finalize_background(
 
         modules_run_list = [{"module": m, "status": "success", "result": {}} for m in result.modules_run]
         record_token_scan_coverage(result.enrichment_sources, modules_run_list)
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"finalize_background failed: {e}")
     except Exception as exc:
         logger.warning("token scan coverage recording failed: %s", exc)
 
@@ -289,8 +289,8 @@ async def finalize_background(
         # response past the 25s budget.
         if alert_task is not None:
             await asyncio.wait_for(asyncio.shield(alert_task), timeout=5)
-    except TimeoutError:
-        pass
+    except TimeoutError as e:
+        logger.error(f"finalize_background failed: {e}")
 
     # ── Auto-label high-risk deployer wallets (fire-and-forget) ──
     try:

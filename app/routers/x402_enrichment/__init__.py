@@ -220,8 +220,8 @@ def enrich_tool_response(
                     ),
                 )
             r.ltrim("x402:recent:addresses", 0, 999)
-        except (ConnectionError, TimeoutError, OSError):
-            pass
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.error(f"enrich_tool_response failed: {e}")
 
     return raw_result
 

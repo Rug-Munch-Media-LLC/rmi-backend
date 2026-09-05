@@ -1,6 +1,6 @@
 """Chainbase source - placeholder, requires API key.
 
-TODO: add CHAINBASE_API_KEY to gopass + env. Free tier: 50K calls/month.
+FIXME(issue): add CHAINBASE_API_KEY to gopass + env. Free tier: 50K calls/month.
 
 For now returns []. Stub.
 """

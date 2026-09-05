@@ -259,8 +259,8 @@ class WalletDrainScanner:
                                     "tx_hash": tx.get("hash", ""),
                                 }
                             )
-                    except (ValueError, IndexError):
-                        pass
+                    except (ValueError, IndexError) as e:
+                        logger.error(f"_scan_evm failed: {e}")
 
                 elif sig == "0xa22cb465":  # setApprovalForAll
                     result["total_approvals_scanned"] += 1

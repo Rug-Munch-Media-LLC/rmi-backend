@@ -193,8 +193,8 @@ class WsClientManager:
             if redis:
                 await redis.ping()
                 redis_ok = True
-        except (ConnectionError, OSError):
-            pass
+        except (ConnectionError, OSError) as e:
+            logger.warning(f"stats failed: {e}")
 
         async with self._lock:
             client_counts = {ch: len(clients) for ch, clients in self._clients.items()}

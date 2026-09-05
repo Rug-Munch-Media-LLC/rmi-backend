@@ -291,8 +291,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.domains.threat.certstream_listener import stop_listener
 
         await stop_listener(certstream_task)
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        log.debug(f"_x_shill_loop failed: {e}")
 
     # RAG news ingestion background task shutdown
     if rag_ingest_task is not None:
@@ -351,6 +351,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         flush_sentry(timeout=2.0)
         flush_langfuse()
         shutdown_otel()
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        log.debug(f"_x_shill_loop failed: {e}")
     log.info("rmi_backend_shutdown")

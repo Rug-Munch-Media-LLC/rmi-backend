@@ -108,8 +108,8 @@ class WalletDBMixin:
             try:
                 with open(self.KEYSTORE_PATH) as f:
                     keystore = json.load(f)
-            except (AttributeError, ImportError):
-                pass
+            except (AttributeError, ImportError) as e:
+                logger.debug(f"_store_mnemonic failed: {e}")
 
         keystore[wallet_id] = {
             "encrypted_mnemonic": encrypted,

@@ -1,6 +1,6 @@
 """Open Labels Initiative (OLI) source - placeholder.
 
-TODO: wire up when OLI endpoint is confirmed. GitHub repo:
+FIXME(issue): wire up when OLI endpoint is confirmed. GitHub repo:
   https://github.com/openlabelsinitiative/OLI
 
 For now returns []. Stub.

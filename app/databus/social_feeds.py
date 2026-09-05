@@ -499,8 +499,8 @@ def sync_nitter_sources_from_tracked(top_n: int = 100, sources_file: str | None 
         try:
             if tier is not None and int(tier) in (1, 2):
                 return int(tier)
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.warning(f"_priority failed: {e}")
         weight = float(acc.get("weight") or 0)
         return 1 if weight >= 0.85 else 2 if weight >= 0.7 else 3
 

@@ -10,6 +10,10 @@ from typing import Any
 import httpx
 from fastapi import APIRouter
 
+from app.core.logging import get_logger
+
+logger = get_logger("agent_memory")
+
 MEMGRAPH_URI = os.getenv("MEMGRAPH_URI", "bolt://localhost:7687")
 MEMGRAPH_USER = os.getenv("MEMGRAPH_USER", "")
 MEMGRAPH_PASS = os.getenv("MEMGRAPH_PASSWORD", "")
@@ -28,8 +32,8 @@ async def _run_query(query: str, params: dict[str, Any] | None = None) -> list[A
             )
             if r.status_code == 200:
                 return r.json().get("data", [])
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.warning(f"_run_query failed: {e}")
     return []
 
 

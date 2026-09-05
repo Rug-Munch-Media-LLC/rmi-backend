@@ -191,8 +191,8 @@ class L2RedisCache:
         try:
             async for key in self._redis.scan_iter(f"{self._prefix}*"):
                 await self._redis.delete(key)
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.warning(f"clear failed: {e}")
 
     def stats(self) -> dict[str, Any]:
         total = self.hits + self.misses

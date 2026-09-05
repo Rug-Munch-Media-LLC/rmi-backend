@@ -414,8 +414,8 @@ class PryscraperClient:
             )
             if body.get("success"):
                 return body
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.warning(f"search_news failed: {e}")
 
         # Fallback: use scrape + parse pattern for news search
         search_url = f"https://news.google.com/search?q={query}&hl=en-US"

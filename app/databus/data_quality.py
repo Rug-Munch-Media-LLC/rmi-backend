@@ -668,8 +668,8 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
         r = _r()
         r.setex(cache_key, 300, json.dumps(base_report, default=str))
         r.close()
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"enhanced_token_report failed: {e}")
 
     return base_report
 

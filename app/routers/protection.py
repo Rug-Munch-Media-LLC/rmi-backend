@@ -476,8 +476,8 @@ async def get_domains() -> dict[str, Any] | dict[str, list[Any]]:
                                         domain = domain[4:]
                                     if domain:
                                         domains_set.add(domain)
-                                except (ValueError, TypeError):
-                                    pass
+                                except (ValueError, TypeError) as e:
+                                    logger.warning(f"get_domains failed: {e}")
                             break
         except TimeoutError:
             logger.debug("RAG query for domains timed out")

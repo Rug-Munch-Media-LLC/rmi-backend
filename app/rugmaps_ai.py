@@ -85,8 +85,8 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict[str, Any]]:
                     "risk_score": risk,
                     "risk_level": level,
                 }
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning(f"get_wallet_labels failed: {e}")
     except Exception as e:
         logger.warning(f"Label fetch error: {e}")
     return labels
@@ -340,8 +340,8 @@ def _parse_ai_json(content: str) -> dict[str, Any] | None:
         if match:
             try:
                 return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"_parse_ai_json failed: {e}")
     return None
 
 

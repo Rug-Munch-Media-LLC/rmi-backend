@@ -280,8 +280,8 @@ class WalletMonitor:
                             token_transfers=d.get("token_transfers", []),
                         )
                     )
-                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                    pass
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                    logger.warning(f"_process_tx failed: {e}")
         alerts = await self.alert_engine.evaluate(tx, history)
         if r and tx.to_addr and await r.sismember(SCAMMER_SET_KEY, tx.to_addr.lower()):
             alerts.append(

@@ -273,8 +273,8 @@ async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
                 rss_articles = await fetch_rss_feeds(limit)
                 tweets.extend(rss_articles)
                 rss_fallback = bool(rss_articles)
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.warning(f"get_twitter_feed failed: {e}")
 
     # Quality gate: validate → dedup → score before serving. Fail-open.
     try:

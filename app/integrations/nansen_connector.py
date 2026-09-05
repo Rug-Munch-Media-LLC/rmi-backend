@@ -21,7 +21,7 @@ from app.core.circuit_breaker import CircuitBreakerOpenError, SimpleCircuitBreak
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-# TODO: migrate to async httpx.AsyncClient — this class uses sync httpx.get()
+# FIXME(issue): migrate to async httpx.AsyncClient — this class uses sync httpx.get()
 # but may be called from async contexts. See async-http-patterns skill for pattern.
 
 # Circuit breaker for Nansen API (sync — pending async migration)
@@ -52,8 +52,8 @@ def _load_api_key() -> str:
                 key = f.read().strip()
                 if key:
                     return key
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning(f"_load_api_key failed: {e}")
     env_key = os.environ.get("NANSEN_API_KEY", "")
     if env_key:
         return env_key

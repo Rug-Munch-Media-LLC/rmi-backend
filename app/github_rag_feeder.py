@@ -185,8 +185,8 @@ def extract_from_repo(source: dict[str, Any]) -> list[dict[str, Any]]:
                     "tags": source.get("tags", []),
                 }
             )
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"extract_from_repo failed: {e}")
 
     logger.info("  %s: %d docs from %d files", source["repo"], len(docs), len(files[:max_files]))
     return docs

@@ -78,8 +78,8 @@ def get_backend_status(url: str = "http://127.0.0.1:8010") -> dict[str, Any]:
         response = httpx.get(f"{url}/health", timeout=2)
         if response.status_code == 200:
             return response.json()
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.warning(f"get_backend_status failed: {e}")
     return {"error": "Backend not reachable"}
 
 
@@ -97,8 +97,8 @@ def get_redis_status() -> dict[str, Any]:
                 "memory_used": info.get("used_memory_human", "unknown"),
                 "connections": info.get("connected_clients", 0),
             }
-    except (ConnectionError, OSError):
-        pass
+    except (ConnectionError, OSError) as e:
+        logger.warning(f"get_redis_status failed: {e}")
     return {"error": "Redis not reachable"}
 
 
@@ -191,23 +191,28 @@ class Dashboard:
     def _get_backend_pid(self) -> int | None:
         """Get backend process ID."""
         try:
-            result = subprocess.run(["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5, shell=False)
+            result = subprocess.run(
+                ["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5, shell=False
+            )
             if result.stdout.strip():
                 return int(result.stdout.strip())
-        except subprocess.TimeoutExpired:
-            pass
+        except subprocess.TimeoutExpired as e:
+            logger.warning(f"_get_backend_pid failed: {e}")
         return None
 
     def _start_backend(self) -> None:
         """Start backend server."""
         logger.info("\n{Colors.YELLOW}Starting backend...{Colors.RESET}")
         try:
-            subprocess.Popen(
-                ["python3", "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8010"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-                shell=False),
+            (
+                subprocess.Popen(
+                    ["python3", "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8010"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                    shell=False,
+                ),
+            )
             time.sleep(3)
             logger.info(f"{Colors.GREEN}Backend started!{Colors.RESET}")
         except Exception as e:

@@ -7,6 +7,10 @@ import json
 import os
 from typing import Any, cast
 
+from app.core.logging import get_logger
+
+logger = get_logger("llm_cache")
+
 _redis_cache_url = None
 _cache_ttl = None
 try:
@@ -33,8 +37,8 @@ def get_cached(prompt: str, model: str) -> dict[str, Any] | None:
         data = r.get(_cache_key(prompt, model))
         if data:
             return json.loads(data)
-    except (ConnectionError, OSError, json.JSONDecodeError):
-        pass
+    except (ConnectionError, OSError, json.JSONDecodeError) as e:
+        logger.warning(f"get_cached failed: {e}")
     return None
 
 
@@ -45,8 +49,8 @@ def set_cached(prompt: str, model: str, result: dict[str, Any], ttl: int = CACHE
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
         r.setex(_cache_key(prompt, model), ttl, json.dumps(result))
-    except (ConnectionError, OSError, json.JSONDecodeError):
-        pass
+    except (ConnectionError, OSError, json.JSONDecodeError) as e:
+        logger.warning(f"set_cached failed: {e}")
 
 
 def get_cache_stats() -> dict[str, Any]:

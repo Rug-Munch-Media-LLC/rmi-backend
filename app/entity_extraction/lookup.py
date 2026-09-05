@@ -287,8 +287,8 @@ class EntityLookup:
                             if member.get("doc_id") == doc_id:
                                 await r.zrem(entity_key, member_json)
                                 removed += 1
-                        except json.JSONDecodeError:
-                            pass
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"remove_doc failed: {e}")
                     if await r.zcard(entity_key) == 0:
                         await r.delete(entity_key)
 

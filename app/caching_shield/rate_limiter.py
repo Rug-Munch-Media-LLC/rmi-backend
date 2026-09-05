@@ -262,8 +262,8 @@ class RpcRateLimiter:
                 last = await redis.get(f"{BURST_PREFIX}{provider}")
                 if tokens is not None and last is not None:
                     return (float(tokens), float(last), 0)
-            except (ConnectionError, OSError):
-                pass
+            except (ConnectionError, OSError) as e:
+                logger.warning(f"get_bucket_state failed: {e}")
         async with self._mem_lock:
             bucket = self._mem_buckets.get(provider)
             if bucket:

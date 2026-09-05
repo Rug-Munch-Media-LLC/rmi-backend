@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from app.core import health as health_mod
 from app.core.health import DomainHealth
+from app.core.logging import get_logger
+
+logger = get_logger("alerts")
 
 
 def _read_env_file() -> dict[str, str]:
@@ -15,8 +18,8 @@ def _read_env_file() -> dict[str, str]:
                 if b"=" in chunk:
                     k, _, v = chunk.partition(b"=")
                     env[k.decode("utf-8", "replace")] = v.decode("utf-8", "replace")
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"_read_env_file failed: {e}")
     return env
 
 

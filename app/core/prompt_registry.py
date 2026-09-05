@@ -10,6 +10,10 @@ from typing import Any
 import yaml
 from fastapi import APIRouter
 
+from app.core.logging import get_logger
+
+logger = get_logger("prompt_registry")
+
 PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", str(Path(__file__).parent.parent.parent / "prompts")))
 router = APIRouter(prefix="/api/v1/prompts", tags=["prompts"])
 
@@ -38,8 +42,8 @@ def load_all_prompts() -> dict[str, dict[str, Any]]:
                     "max_tokens": data.get("max_tokens", 1024),
                     "file": str(f),
                 }
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"load_all_prompts failed: {e}")
     return _registry
 
 

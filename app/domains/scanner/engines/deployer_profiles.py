@@ -603,8 +603,8 @@ def _query_batch_token_lifecycle(
         for t in tokens:
             pair_cache = _load_pair_cache(t.get("chain") or chain or "")
             pools.update(_get_pools_for_token(pair_cache, t["token_address"]))
-    except (ImportError, ValueError, OSError):
-        pass
+    except (ImportError, ValueError, OSError) as e:
+        logger.debug(f"_query_batch_token_lifecycle failed: {e}")
 
     params: dict[str, Any] = {
         "deployer": deployer_address,

@@ -625,8 +625,8 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                             }
                         else:
                             results["RP05"] = {"status": "pass", "details": f"Age={age_hours:.0f}h"}
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning(f"run_quick_scan failed: {e}")
 
     # Volume authenticity
     try:
@@ -650,8 +650,8 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                 vl_ratio = volume_24h / liquidity
                 if vl_ratio > 5:
                     results["TA02"] = {"status": "warning", "details": f"V/L={vl_ratio:.1f}x"}
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning(f"run_quick_scan failed: {e}")
 
     # Compute final score
     score, band, color = TokenSecurityScorer.compute_score(results)
@@ -693,8 +693,8 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
             r.close()
             return json.loads(cached)
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning(f"run_full_scan failed: {e}")
 
     # Run quick scan
     result = await run_quick_scan(address, chain, **kw)
@@ -725,8 +725,8 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
         )
         r.setex(cache_key, CACHE_TTL, json.dumps(result, default=str))
         r.close()
-    except (ConnectionError, OSError, json.JSONDecodeError):
-        pass
+    except (ConnectionError, OSError, json.JSONDecodeError) as e:
+        logger.warning(f"run_full_scan failed: {e}")
 
     return result
 

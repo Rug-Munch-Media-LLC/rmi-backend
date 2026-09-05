@@ -82,8 +82,8 @@ async def _fetch_wallet_chain_data(address: str, chain: str) -> dict[str, Any]:
                         "sol_balance": bal / 1e9 if bal else 0,
                         "data_sources": ["solana_public"],
                     }
-            except (httpx.HTTPError, TimeoutError, OSError):
-                pass
+            except (httpx.HTTPError, TimeoutError, OSError) as e:
+                logger.error(f"_fetch_wallet_chain_data failed: {e}")
     else:
         onchain = await _fetch_moralis_wallet(address, chain)
         etherscan = await _fetch_etherscan_wallet(address, chain)
@@ -118,8 +118,8 @@ async def _fetch_wallet_chain_data(address: str, chain: str) -> dict[str, Any]:
                     ),
                 }
                 data_sources.append("dexscreener")
-    except (httpx.HTTPError, TimeoutError, OSError):
-        pass
+    except (httpx.HTTPError, TimeoutError, OSError) as e:
+        logger.error(f"_fetch_wallet_chain_data failed: {e}")
 
     return {
         "onchain": onchain,
@@ -445,8 +445,8 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
                 factors.unrealized_pnl_usd = float(pnl.get("unrealized", 0))
                 factors.win_rate = float(intel.get("win_rate", 0))
                 data_sources.append("gmgn")
-        except (ImportError, AttributeError, httpx.HTTPError):
-            pass
+        except (ImportError, AttributeError, httpx.HTTPError) as e:
+            logger.debug(f"scan_wallet failed: {e}")
 
         # NOTE: the entity-cluster block below was removed 2026-08 —
         # ``EntityClusteringEngine`` has no ``find_cluster`` method, so the
@@ -510,8 +510,8 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
                 factors.stablecoin_ratio = portfolio.get("stablecoin_pct", 0)
                 factors.bluechip_ratio = portfolio.get("bluechip_pct", 0)
                 factors.memecoin_ratio = portfolio.get("memecoin_pct", 0)
-        except (ImportError, AttributeError):
-            pass
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"scan_wallet failed: {e}")
 
     # ═══════════════════════════════════════════
     # Risk scoring
@@ -526,8 +526,8 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         from app.domains.scanner.metrics import record_token_scan_coverage
 
         record_token_scan_coverage(data_sources, modules_run)
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"scan_wallet failed: {e}")
     except Exception:  # noqa: S110 — optional dependency
         pass
 

@@ -318,8 +318,8 @@ async def fetch_dexlab(address: str) -> dict[str, Any]:
                     },
                     "source": "dexlab",
                 }
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_dexlab failed: {e}")
     return {}
 
 
@@ -338,8 +338,8 @@ async def fetch_step_finance(address: str) -> dict[str, Any]:
             if resp.status == 200:
                 data = await resp.json()
                 return {"step_finance": data, "source": "step_finance"}
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_step_finance failed: {e}")
     return {}
 
 
@@ -358,8 +358,8 @@ async def fetch_moonrank(address: str) -> dict[str, Any]:
             if resp.status == 200:
                 data = await resp.json()
                 return {"moonrank": data, "source": "moonrank"}
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_moonrank failed: {e}")
     return {}
 
 
@@ -378,8 +378,8 @@ async def fetch_unchained(address: str) -> dict[str, Any]:
             if resp.status == 200:
                 data = await resp.json()
                 return {"unchained": data, "source": "unchained"}
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_unchained failed: {e}")
     return {}
 
 
@@ -401,8 +401,8 @@ async def fetch_jito_search(address: str) -> dict[str, Any]:
             if resp.status == 200:
                 data = await resp.json()
                 return {"jito_bundles": data, "source": "jito"}
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_jito_search failed: {e}")
     return {}
 
 
@@ -421,8 +421,8 @@ async def fetch_orca_pools(address: str) -> dict[str, Any]:
             if resp.status == 200:
                 data = await resp.json()
                 return {"orca_pools": data, "source": "orca"}
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_orca_pools failed: {e}")
     return {}
 
 
@@ -441,8 +441,8 @@ async def fetch_raydium_pools(address: str) -> dict[str, Any]:
             if resp.status == 200:
                 data = await resp.json()
                 return {"raydium_pools": data, "source": "raydium"}
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_raydium_pools failed: {e}")
     return {}
 
 
@@ -469,8 +469,8 @@ async def scrape_twitter_search(token: str) -> dict[str, Any]:
                 tweets = re.findall(r'"text":"([^"]*)"', text)
                 result["mentions"] = tweets[:10]
                 result["mention_count"] = len(tweets)
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"scrape_twitter_search failed: {e}")
     return result
 
 
@@ -495,8 +495,8 @@ async def scrape_reddit_search(token: str) -> dict[str, Any]:
                     {"title": p["data"].get("title"), "score": p["data"].get("score")} for p in posts[:10]
                 ]
                 result["post_count"] = len(result["posts"])
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"scrape_reddit_search failed: {e}")
     return result
 
 
@@ -532,8 +532,8 @@ async def fetch_crypto_news_feeds(token: str = "") -> dict[str, Any]:
                             result["articles"] = titles[1:11]  # Skip feed title
                 except (aiohttp.ClientError, TimeoutError, OSError):
                     continue
-    except (aiohttp.ClientError, TimeoutError, OSError):
-        pass
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        logger.warning(f"fetch_crypto_news_feeds failed: {e}")
     return result
 
 
@@ -584,8 +584,8 @@ async def fetch_bigquery_public(address: str) -> dict[str, Any]:
         cached = await r.get(f"x402:bigquery:{address[:10]}")
         if cached:
             result["cached_data"] = json.loads(cached)
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"fetch_bigquery_public failed: {e}")
     return result
 
 

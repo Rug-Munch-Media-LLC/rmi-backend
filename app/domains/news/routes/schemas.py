@@ -15,6 +15,9 @@ from typing import Any, Literal, cast
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.catalog.models import utcnow
+from app.core.logging import get_logger
+
+logger = get_logger("schemas")
 
 # ── Time-decay scoring (per v4.0 §T28) ────────────────────────────
 SOURCE_AUTHORITY: dict[str, float] = {
@@ -137,8 +140,8 @@ def _adapt_legacy_row(row: dict[str, Any]) -> NewsItemOut:
                         break
                     except ValueError:
                         continue
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning(f"_adapt_legacy_row failed: {e}")
     return NewsItemOut(
         news_id=row.get("id", ""),
         url=row.get("url", ""),

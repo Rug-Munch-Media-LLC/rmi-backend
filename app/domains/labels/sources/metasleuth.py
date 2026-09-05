@@ -65,11 +65,12 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
                 capture_output=True,
                 text=True,
                 timeout=2,
-            shell=False)
+                shell=False,
+            )
             if result.returncode == 0 and result.stdout.strip():
                 api_key = result.stdout.strip()
-        except subprocess.TimeoutExpired:
-            pass
+        except subprocess.TimeoutExpired as e:
+            log.warning(f"query_metasleuth failed: {e}")
 
     if not api_key:
         log.debug("metasleuth_no_api_key configured, skipping")

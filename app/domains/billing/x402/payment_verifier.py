@@ -87,8 +87,8 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
                 return payload
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            logger.error(f"parse_x_pay_header failed: {e}")
 
         if stripped.startswith("x402 "):
             payload_str = stripped[5:].strip()
@@ -425,8 +425,8 @@ async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cf
                     status="fulfilled",
                 )
             )
-        except (AttributeError, ImportError):
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"self_verify_evm_usdc failed: {e}")
 
         logger.info(
             f"Verified USDC payment: {tx_hash[:16]}... on {chain_key} "

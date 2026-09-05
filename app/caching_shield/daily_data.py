@@ -58,8 +58,8 @@ async def get_fear_greed() -> dict[str, Any]:
                         "classification": current.get("value_classification", "Neutral"),
                         "timestamp": current.get("timestamp", ""),
                     }
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"get_fear_greed failed: {e}")
     return {"value": 50, "classification": "Neutral"}
 
 
@@ -79,8 +79,8 @@ async def get_top_movers() -> dict[str, Any]:
                     "trending": [c.get("item", {}).get("name") for c in coins[:5]],
                     "trending_score": [c.get("item", {}).get("market_cap_rank") for c in coins[:5]],
                 }
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"get_top_movers failed: {e}")
     return {"trending": [], "trending_score": []}
 
 
@@ -104,8 +104,8 @@ async def get_security_alerts() -> dict[str, Any]:
                                 "date": h.get("date", ""),
                             }
                         )
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"get_security_alerts failed: {e}")
 
     try:
         # Check RugCheck for recent rug pulls
@@ -119,8 +119,8 @@ async def get_security_alerts() -> dict[str, Any]:
                         "recent_scans": len(rug_data) if isinstance(rug_data, list) else 0,
                     }
                 )
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.warning(f"get_security_alerts failed: {e}")
 
     return {"alerts": alerts, "count": len(alerts)}
 
@@ -137,8 +137,8 @@ async def get_whale_activity() -> dict[str, Any]:
         if trending:
             high_volume = list(trending.get("data", trending.get("tokens", []))[:5])
             return {"trending_high_volume": len(high_volume), "chains": ["solana"]}
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"get_whale_activity failed: {e}")
     return {"trending_high_volume": 0}
 
 
@@ -159,8 +159,8 @@ async def get_prediction_markets() -> dict[str, Any]:
                         }
                     )
                 return {"active_markets": len(markets), "top_markets": markets}
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"get_prediction_markets failed: {e}")
     return {"active_markets": 0, "top_markets": []}
 
 

@@ -43,7 +43,7 @@ class AlertList(BaseModel):
 async def list_alerts() -> AlertList:
     """List all configured alert rules for the authenticated user.
 
-    TODO: wire up to Postgres once auth context is established.
+    FIXME(issue): wire up to Postgres once auth context is established.
     Returns empty list as a stub so the factory can mount successfully.
     """
     return AlertList(count=0, items=[])

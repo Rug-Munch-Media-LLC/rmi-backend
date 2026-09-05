@@ -23,6 +23,7 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, HTTPException
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     ClusterRequest,
     GenericRequest,
@@ -32,6 +33,8 @@ from app.domains.billing.x402.shared import (
     record_x402_payment,
     rpc_call,
 )
+
+logger = get_logger("wallet_tools")
 
 sub_router = APIRouter(tags=["x402-wallet-tools"])
 
@@ -51,8 +54,8 @@ async def _profile_wallet(address: str, chain: str) -> dict[str, Any]:
             if balance is not None:
                 result["balance_sol"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_profile_wallet failed: {e}")
 
         # Get recent transactions
         try:
@@ -73,8 +76,8 @@ async def _profile_wallet(address: str, chain: str) -> dict[str, Any]:
                         time_span = max(times) - min(times)
                         if time_span > 0:
                             result["tx_frequency"] = len(sigs) / (time_span / 86400)  # per day
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_profile_wallet failed: {e}")
 
         # Get token accounts
         try:
@@ -90,8 +93,8 @@ async def _profile_wallet(address: str, chain: str) -> dict[str, Any]:
             if token_accounts and token_accounts.get("value"):
                 result["token_count"] = len(token_accounts["value"])  # type: ignore[assignment]
                 result["sources_used"].append("solana_tokens")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_profile_wallet failed: {e}")
 
     # Layer 2: DexScreener - check if wallet has interacted with known tokens
     # (we can't directly query by wallet, but we use the balance/token data)
@@ -176,8 +179,8 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict[str
                 for p in trending
             ]
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_get_smart_money failed: {e}")
 
     # Layer 2: DefiLlama - top protocols by TVL change
     try:
@@ -186,8 +189,8 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict[str
             protocols = sorted(data, key=lambda p: p.get("chainTvls", {}).get(f"{chain}", 0), reverse=True)[:10]  # type: ignore[attr-defined]
             result["top_protocols"] = [{"name": p.get("name"), "tvl": p.get("tvl")} for p in protocols]  # type: ignore[attr-defined]
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_get_smart_money failed: {e}")
 
     # Layer 3: CoinGecko - top gainers
     try:
@@ -198,8 +201,8 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict[str
                 for c in data["coins"][:limit]
             ]
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_get_smart_money failed: {e}")
 
     # Layer 4: Pump.fun - new launches with high volume
     if chain == "solana":
@@ -220,8 +223,8 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict[str
                     if c.get("usdMarketCap", 0) > threshold
                 ]
                 result["sources_used"].append("pumpfun")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_get_smart_money failed: {e}")
 
     return result
 
@@ -278,13 +281,13 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict[str, A
                                 addr = acc.get("pubkey") if isinstance(acc, dict) else acc
                                 if addr and addr != address:
                                     counterparties.add(addr)
-                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                        pass
+                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                        logger.error(f"_cluster_analysis failed: {e}")
 
                 result["counterparties"] = list(counterparties)[:50]
                 result["cluster_size"] = len(counterparties)
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_cluster_analysis failed: {e}")
 
     # Layer 2: DexScreener - check if address is a known deployer
     # Layer 3: Etherscan/BaseScan for EVM chains
@@ -303,8 +306,8 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict[str, A
                 if data and data.get("result"):
                     result["tx_count"] = len(data["result"])
                     result["sources_used"].append(f"{chain}_explorer")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_cluster_analysis failed: {e}")
 
     # Layer 4: Compute cluster metrics
     result["cluster_risk"] = (
@@ -347,8 +350,8 @@ async def _whale_decoder(address: str, chain: str) -> dict[str, Any]:
             if balance is not None:
                 result["sol_balance"] = balance / 1e9
                 result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_whale_decoder failed: {e}")
 
         try:
             token_accounts = await rpc_call(
@@ -373,8 +376,8 @@ async def _whale_decoder(address: str, chain: str) -> dict[str, Any]:
                         }
                     )
                 result["sources_used"].append("solana_rpc_tokens")  # type: ignore[attr-defined]
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.error(f"_whale_decoder failed: {e}")
 
     # EVM chain balance
     elif chain in ["base", "ethereum", "bsc"]:
@@ -384,8 +387,8 @@ async def _whale_decoder(address: str, chain: str) -> dict[str, Any]:
                 result["native_balance_wei"] = balance
                 result["native_balance_eth"] = int(balance, 16) / 1e18  # type: ignore[assignment]
                 result["sources_used"].append(f"{chain}_rpc")  # type: ignore[attr-defined]
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.error(f"_whale_decoder failed: {e}")
 
     # DexScreener for recent activity
     try:
@@ -393,8 +396,8 @@ async def _whale_decoder(address: str, chain: str) -> dict[str, Any]:
         if data and data.get("pairs"):
             result["recent_pairs"] = len(data["pairs"])  # type: ignore[assignment]
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_whale_decoder failed: {e}")
 
     # Persona detection
     sol_balance = result.get("sol_balance", result.get("native_balance_eth", 0))
@@ -454,8 +457,8 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict[str, Any]
                 if balance is not None:
                     wallet_data["sol_balance"] = balance / 1e9
                     result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.error(f"_portfolio_tracker failed: {e}")
 
         # EVM balance
         elif chain in ["base", "ethereum", "bsc"]:
@@ -464,8 +467,8 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict[str, Any]
                 if balance:
                     wallet_data["native_balance"] = int(balance, 16) / 1e18  # type: ignore[assignment]
                     result["sources_used"].append(f"{chain}_rpc")  # type: ignore[attr-defined]
-            except (ConnectionError, OSError, TimeoutError):
-                pass
+            except (ConnectionError, OSError, TimeoutError) as e:
+                logger.error(f"_portfolio_tracker failed: {e}")
 
         result["wallets"].append(wallet_data)  # type: ignore[attr-defined]
 
@@ -514,8 +517,8 @@ async def _copy_trade_finder(chain: str) -> dict[str, Any]:
                 for p in gainers
             ]
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-        pass
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.error(f"_copy_trade_finder failed: {e}")
 
     result["smart_wallets"] = []  # Would need on-chain analysis for this
     result["copy_trades"] = []

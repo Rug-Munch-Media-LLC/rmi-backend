@@ -400,7 +400,7 @@ async def admin_moderate_comment(
 
     status = body.get("status", "approved")
 
-    # TODO: Implement comment moderation in bulletin_board.py
+    # FIXME(issue): Implement comment moderation in bulletin_board.py
 
     await AuditLogger.log(
         admin_id=admin["id"],

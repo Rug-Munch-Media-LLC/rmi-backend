@@ -51,8 +51,8 @@ def _try_mark_down(store: str) -> None:
         from app.core.degradation import get_registry
 
         get_registry().mark_down(store)
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"_try_mark_down failed: {e}")
     except Exception as e:
         logger.debug(f"Degradation registry mark_down failed: {e}")
 

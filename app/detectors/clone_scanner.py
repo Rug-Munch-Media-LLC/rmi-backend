@@ -667,8 +667,8 @@ class CloneScanner:
                 result["other_tokens"] = len(tokens)
                 # Flag if deployer created > 20 tokens
                 result["clone_deployer"] = len(tokens) > 20
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.error(f"_check_deployer_history failed: {e}")
 
         return result
 

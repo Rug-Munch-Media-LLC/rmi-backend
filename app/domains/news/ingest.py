@@ -277,8 +277,8 @@ async def ingest_all(
                                 "UPDATE news_items SET rag_embedding_id=$1 WHERE news_id=$2",
                                 [(point_id, str(iid)) for iid in doc["metadata"].get("item_ids", [])],
                             )
-                    except (ConnectionError, OSError):
-                        pass
+                    except (ConnectionError, OSError) as e:
+                        logger.warning(f"ingest_all failed: {e}")
         except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             log.warning("ingest_rag_fail: %s", e)

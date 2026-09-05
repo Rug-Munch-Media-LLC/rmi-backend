@@ -111,5 +111,5 @@ async def broadcast_ws_update(address: str, update: dict[str, Any]) -> None:
                 "timestamp": datetime.now(UTC).isoformat(),
             },
         )
-    except (AttributeError, ImportError):
-        pass
+    except (AttributeError, ImportError) as e:
+        logger.debug(f"broadcast_ws_update failed: {e}")

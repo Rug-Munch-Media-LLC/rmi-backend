@@ -82,8 +82,8 @@ async def _check_social_sentiment(token_address: str, chain: str, symbol: str = 
                 result["news_articles"] = news_data.get("articles", 0)
                 result["news_sentiment"] = news_data.get("sentiment", "neutral")
                 result["source"] = "news_fallback"
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug(f"_check_social_sentiment failed: {e}")
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("news_sentiment_fallback_failed", error=str(e)[:60])
 

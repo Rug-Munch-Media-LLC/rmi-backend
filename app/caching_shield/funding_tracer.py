@@ -377,8 +377,8 @@ async def _classify_address(address: str, chain_id: int) -> tuple[str, str]:
             if any(kw in label_lower for kw in ["dex", "swap", "exchange", "amm"]):
                 return ("dex", label_name)
             return ("known", label_name)
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug(f"_classify_address failed: {e}")
     except Exception as e:
         logger.debug(f"Label lookup failed: {e}")
 
@@ -405,8 +405,8 @@ async def _is_contract(address: str, chain_id: int) -> bool:
         if result and result.value:
             code = result.value
             return code != "0x" and len(str(code)) > 4
-    except (AttributeError, ConnectionError, ImportError, TimeoutError):
-        pass
+    except (AttributeError, ConnectionError, ImportError, TimeoutError) as e:
+        logger.debug(f"_is_contract failed: {e}")
     return False
 
 

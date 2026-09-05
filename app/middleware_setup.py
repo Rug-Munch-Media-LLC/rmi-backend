@@ -170,8 +170,8 @@ def _try_register_degradation_header(app: FastAPI) -> None:
                     header = get_registry().degraded_header
                     if header:
                         response.headers["X-Degraded-Stores"] = header
-                except (ImportError, RuntimeError):
-                    pass
+                except (ImportError, RuntimeError) as e:
+                    log.debug(f"dispatch failed: {e}")
                 return response
 
         app.add_middleware(DegradationHeaderMiddleware)

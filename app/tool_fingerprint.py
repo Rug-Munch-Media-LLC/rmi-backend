@@ -550,8 +550,8 @@ class ToolFingerprinter:
                 risk += 50
                 prev_scams = 1
                 flags.append("KNOWN_SCAMMER: Previously identified in scam database")
-        except (AttributeError, ImportError):
-            pass
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"profile_deployer failed: {e}")
 
         # Determine funding type
         if funding_type == "cex":

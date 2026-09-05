@@ -7,6 +7,10 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+from app.core.logging import get_logger
+
+logger = get_logger("helpers")
+
 
 def hash_ip(identifier: str) -> str:
     """Create a privacy-safe hash of an IP or identifier."""
@@ -98,8 +102,8 @@ def get_best_hour_str(views: list[dict[str, Any]]) -> str:
         try:
             dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
             hour_counts[dt.hour] += 1
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.warning(f"get_best_hour_str failed: {e}")
     if not hour_counts:
         return "14:00 UTC"
     best_hour = max(hour_counts, key=lambda h: hour_counts[h])
@@ -243,8 +247,8 @@ def aggregate_to_weekly(daily: list[dict[str, Any]]) -> list[dict[str, Any]]:
             dt = datetime.fromisoformat(d["date"])
             week = dt.strftime("%Y-W%W")
             weekly[week] += d["value"]
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.warning(f"aggregate_to_weekly failed: {e}")
     return [{"date": w, "value": v, "label": w} for w, v in sorted(weekly.items())]
 
 

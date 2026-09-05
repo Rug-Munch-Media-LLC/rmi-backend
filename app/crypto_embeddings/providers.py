@@ -153,8 +153,8 @@ class Qwen3Embedder:
                             if len(vec) == self.DIMS:
                                 results.append(vec)
                                 continue
-                except httpx.HTTPError:
-                    pass
+                except httpx.HTTPError as e:
+                    logger.warning(f"embed failed: {e}")
                 results.append([0.0] * self.DIMS)
         return results
 

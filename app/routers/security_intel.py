@@ -252,7 +252,7 @@ async def wallet_security_check(address: str, chain: str = "auto") -> dict[str, 
 @router.post("/wallet/analyze", dependencies=[Depends(get_rate_limit_dependency("secint4", rate=2.0, burst=5))])
 async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict[str, Any]:
     """ML behavioral analysis of wallet transactions."""
-    # TODO(security-intel): endpoints in this module call APIs that do not match
+    # FIXME(issue): endpoints in this module call APIs that do not match
     # the current class surfaces (ml_anomaly, CrossChainCorrelator,
     # TokenMetricAnomalyDetector, SentinelManager). They would raise
     # AttributeError at runtime; rework against the actual APIs.

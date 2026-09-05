@@ -16,6 +16,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
+from app.core.logging import get_logger
+
+logger = get_logger("_deployer_fingerprint_helpers")
+
 # ── Risk buckets ──────────────────────────────────────────────────────────
 RISK_BUCKETS = ("NEW", "REPEAT_CLEAN", "REPEAT_RUG", "FARM", "PROLIFIC")
 
@@ -70,8 +74,8 @@ def _assign_risk_bucket(metrics: dict[str, Any], now_naive: Any) -> str:
         try:
             if now_naive - first_seen < timedelta(days=7):
                 return "NEW"
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.error(f"_assign_risk_bucket failed: {e}")
 
     success_rate = metrics.get("success_rate")
 

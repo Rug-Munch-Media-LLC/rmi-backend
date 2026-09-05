@@ -13,7 +13,7 @@ therefore ships a deterministic, dependency-light adapter:
   (sha256 -> plausible per-feature range), so the benchmark is fully offline
   and reproducible.
 
-TODO(benchmark): replace the hash-synthesis stub with real on-chain
+FIXME(issue): replace the hash-synthesis stub with real on-chain
 enrichment once that pipeline is wired up.  Production currently passes a
 placeholder ``{"address": w, "tx_count": 1}`` fingerprint (see
 ``app.routers.wallet_clustering_router``); until a real

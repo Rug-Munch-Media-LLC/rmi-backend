@@ -108,8 +108,8 @@ def _wallet_label(wallet: str) -> tuple[str, str]:
         if match:
             name = match.entity_name or match.entity_type
             return f"{name} ({match.entity_type})", match.entity_type
-    except (AttributeError, ImportError, ValueError):
-        pass
+    except (AttributeError, ImportError, ValueError) as e:
+        logger.debug(f"_wallet_label failed: {e}")
 
     return _short(wallet), "unknown"
 
@@ -141,8 +141,8 @@ def _helius_amount_usd(payload: dict[str, Any], sol_price_usd: float | None = No
     if raw:
         try:
             return float(raw)
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.warning(f"_helius_amount_usd failed: {e}")
     total_lamports = 0
     for tr in payload.get("nativeTransfers") or []:
         if not isinstance(tr, dict):
@@ -361,8 +361,8 @@ def _throttle_wallet(service: str, wallet: str, event_id: str) -> str:
             r.setex(cooldown_key, COOLDOWN_SECONDS, "1")
         finally:
             r.close()
-    except (ConnectionError, OSError, TimeoutError):
-        pass
+    except (ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"_throttle_wallet failed: {e}")
     return "ok"
 
 
