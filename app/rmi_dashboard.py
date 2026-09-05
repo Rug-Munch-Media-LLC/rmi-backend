@@ -360,7 +360,7 @@ def launch_dashboard() -> None:
         dashboard = Dashboard()
         dashboard.run()
     except KeyboardInterrupt:
-        pass
+        logger.warning("Dashboard interrupted by user (Ctrl+C)")
     except Exception as e:
         logger.warning(f"{Colors.RED}Dashboard error: {e}{Colors.RESET}")
 

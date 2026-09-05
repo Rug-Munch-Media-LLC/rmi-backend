@@ -150,7 +150,8 @@ class RpcBatcher:
             await asyncio.sleep(BATCH_WINDOW_MS / 1000.0)
             await self._dispatch(provider)
         except asyncio.CancelledError:
-            pass
+            logger.warning("Batch dispatch timer cancelled for %s", provider)
+            raise
 
     async def _dispatch(self, provider: str) -> None:
         """Send accumulated requests as a single JSON-RPC batch."""
