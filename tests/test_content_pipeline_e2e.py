@@ -129,7 +129,7 @@ async def test_full_telegram_pipeline(mock_rugbrain):
     kwargs = mock_rugbrain.await_args.kwargs
     assert kwargs["collection"] == NEWS_COLLECTION == "news_v2"
     assert kwargs["source"] == "telegram"
-    assert kwargs["doc_id"].startswith("tg_news:cointelegraph:")
+    assert kwargs["doc_id"].startswith("tg_news:Cointelegraph:")
     metadata = kwargs["metadata"]
     assert metadata["kind"] == "news_article"
     assert metadata["source_channel"] == "Cointelegraph"
@@ -138,8 +138,8 @@ async def test_full_telegram_pipeline(mock_rugbrain):
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("no_redis_dedup", "mock_rugbrain")
-async def test_quality_gate_filters_low_score():
+@pytest.mark.usefixtures("no_redis_dedup")
+async def test_quality_gate_filters_low_score(mock_rugbrain):
     """An article scoring below the 0.3 gate is dropped before ingest."""
     client = _fake_telethon_client([_tg_message()])
 
@@ -256,10 +256,11 @@ async def test_quality_pipeline_scores_and_sorts():
 @pytest.mark.asyncio
 async def test_rerank_returns_relevant_results():
     """rugbrain_news_rerank orders results by rerank relevance score."""
+    # The rugbrain endpoint returns items already ranked by rerank score.
     items = [
-        {"id": "irrelevant", "title": "Unrelated story", "score": 0.12},
         {"id": "relevant", "title": "Bitcoin ETF record inflows", "score": 0.94},
         {"id": "mid", "title": "Bitcoin mining update", "score": 0.55},
+        {"id": "irrelevant", "title": "Unrelated story", "score": 0.12},
     ]
     response = MagicMock()
     response.status_code = 200
@@ -284,8 +285,8 @@ async def test_rerank_returns_relevant_results():
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("no_redis_dedup", "mock_rugbrain")
-async def test_failopen_on_qdrant_down():
+@pytest.mark.usefixtures("mock_rugbrain")
+async def test_failopen_on_qdrant_down(no_redis_dedup):
     """Qdrant/rugbrain outage never crashes the pipeline — fail-open."""
     # 1. Rerank lane: Qdrant direct search raises → rerank returns None.
     with (
