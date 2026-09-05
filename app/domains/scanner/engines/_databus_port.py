@@ -35,19 +35,33 @@ class _ProviderAdapter:
         # (the underlying provider accepts all of them); the old rigid
         # (chain, address) signature raised "unexpected keyword argument"
         # and silently killed the tier.
-        return self._dex_price(**kwargs)
+        # 2026-09-05: resolve through the provider module at CALL time —
+        # binding the function object at first default_port() call made
+        # unittest.mock.patch on the provider module a no-op after the
+        # adapter was cached, leaking one test's fake into every later test.
+        from app.domains.databus.providers.chains import dexscreener as _ds
+
+        return _ds._dexscreener_price(**kwargs)
 
     def coingecko_market(self, **kwargs: Any) -> Any:
-        return self._cg_market(**kwargs)
+        from app.domains.databus.providers.chains import free_security as _fs
+
+        return _fs._free_market_coingecko(**kwargs)
 
     def geckoterminal_market(self, **kwargs: Any) -> Any:
-        return self._gt_market(**kwargs)
+        from app.domains.databus.providers.chains import free_security as _fs
+
+        return _fs._free_market_geckoterminal(**kwargs)
 
     def paraswap_quote(self, *a: Any, **k: Any) -> Any:
-        return self._paraswap(*a, **k)
+        from app.domains.databus.providers.chains import free_security as _fs
+
+        return _fs._free_market_paraswap_quote(*a, **k)
 
     def oneinch_quote(self, *a: Any, **k: Any) -> Any:
-        return self._oneinch(*a, **k)
+        from app.domains.databus.providers.chains import free_security as _fs
+
+        return _fs._free_market_oneinch_quote(*a, **k)
 
 
 _adapter: _ProviderAdapter | None = None

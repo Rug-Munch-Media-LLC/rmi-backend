@@ -95,9 +95,9 @@ def verify_wallet_signature(message: str, signature: str, address: str, chain: s
             logger.warning(f"Error parsing nonce data: {e}")
             return False
 
-    except (ValueError, TypeError) as e:
+    except Exception:
         logger.debug("unknown_error", exc_info=True)
-        logger.warning(f"Redis not available for nonce verification: {e}")
+        logger.warning("Redis not available for nonce verification")
         # Continue with signature verification even if Redis is unavailable
         # This maintains backward compatibility
 

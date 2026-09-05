@@ -77,11 +77,11 @@ def _finding_dict(source: str, category: str, summary: str, confidence: str = "m
 
 @pytest.fixture
 def app() -> Any:
-    """Fresh FastAPI app with the OSINT router mounted (prefix /api/osint)."""
+    """Fresh FastAPI app with the OSINT router mounted (router-owned /api/v1/osint prefix)."""
     from app.factory import create_app
 
     app = create_app()
-    app.include_router(osint_router_mod.osint_router, prefix="/api/osint", tags=["osint"])
+    app.include_router(osint_router_mod.osint_router, tags=["osint"])  # router owns /api/v1/osint prefix
     return app
 
 
@@ -141,7 +141,7 @@ def fake_lookup(monkeypatch: pytest.MonkeyPatch) -> dict[str, Callable[..., Osin
 class TestGetTypesE2E:
     def test_types_lists_supported_targets_through_real_engine(self, client: TestClient) -> None:
         """GET /api/osint/types surfaces the real engine's TARGET_TYPES."""
-        resp = client.get("/api/osint/types")
+        resp = client.get("/api/v1/osint/types")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert "target_types" in body
@@ -181,7 +181,7 @@ class TestAggregateDomainE2E:
         )
 
         resp = client.post(
-            "/api/osint/aggregate",
+            "/api/v1/osint/aggregate",
             json={"target": "scam-example.com", "target_type": "domain"},
             headers=auth_headers,
         )
@@ -228,7 +228,7 @@ class TestAggregateWalletE2E:
         )
 
         resp = client.post(
-            "/api/osint/aggregate",
+            "/api/v1/osint/aggregate",
             json={"target": "0xBE0eB53FC46b790099138e3d32C721856d41e865", "target_type": "wallet"},
             headers=auth_headers,
         )
@@ -257,7 +257,7 @@ class TestGetSingleTypeE2E:
         )
         # spiderfoot unregistered -> engine records it as an error, not a crash.
 
-        resp = client.get("/api/osint/domain/scam-example.com")
+        resp = client.get("/api/v1/osint/domain/scam-example.com")
 
         assert resp.status_code == 200, resp.text
         body = resp.json()

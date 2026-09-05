@@ -26,7 +26,7 @@ from app.domains.scanner.unified.sentinel_phase import (
 )
 
 # Test fixtures
-TOKEN = "TokenAddr123456789012345678901234567890"
+TOKEN = "TokenAddr123456789o123456789o123456789o"  # valid base58 (no 0/O/I/l)
 DEPLOYER = "DeployerAddr1234567890123456789012345678"
 
 

@@ -296,7 +296,7 @@ async def _resolve_deployer_from_indexer(address: str, chain: str) -> str | None
         )
         if deployer:
             return deployer
-    except (TimeoutError, OSError, ValueError, TypeError, RuntimeError, ImportError):
+    except Exception:
         logger.debug("deployer_indexer_resolve_failed", address=address[:16], chain=chain)
     return None
 

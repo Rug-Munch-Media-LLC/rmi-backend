@@ -295,8 +295,17 @@ class EmbeddingCache:
         # Persist to Redis asynchronously (best-effort)
         self._save_to_redis()
 
+    _redis_save_disabled = False  # class-level circuit breaker
+
     def _save_to_redis(self) -> None:
-        """Persist cache to Redis so it survives restarts."""
+        """Persist cache to Redis so it survives restarts (best-effort).
+
+        Circuit-breaker: after the first failure (e.g. Redis requires auth),
+        persistence is disabled for the process — a synchronous Redis call in
+        the hot path of every ``set()`` must never stall or retry-loop.
+        """
+        if EmbeddingCache._redis_save_disabled:
+            return
         try:
             import json
 
@@ -313,8 +322,9 @@ class EmbeddingCache:
             # Save 500 most recent entries with full vectors
             entries = {k: [v[0], v[1]] for k, v in list(self._cache.items())[-500:]}
             r.setex("embed_cache:data", 86400, json.dumps(entries))
-        except json.JSONDecodeError as e:
-            logger.warning(f"_save_to_redis failed: {e}")
+        except Exception as e:
+            EmbeddingCache._redis_save_disabled = True
+            logger.warning(f"_save_to_redis disabled after failure: {e}")
 
     def load_from_redis(self) -> None:
         """Restore cache from Redis on startup."""

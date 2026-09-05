@@ -129,7 +129,7 @@ def test_deep_dive_doc_exists_and_covers_wired_sources() -> None:
 
 def _constants() -> dict:
     ns: dict = {}
-    const_file = ROOT / "app" / "rag" / "_crawler_constants.py"
+    const_file = ROOT / "app" / "utils" / "_crawler_constants.py"
     text = const_file.read_text(encoding="utf-8")
     # Minimal, safe extraction of the three registries we depend on.
     import ast

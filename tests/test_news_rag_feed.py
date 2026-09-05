@@ -178,6 +178,16 @@ class TestRagFeedRoute:
 class TestImageBackfill:
     """Image doctrine (2026-08-31): every rag-feed item carries an image."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_backfill_cache(self):
+        """The og:image cache is module-global — clear it so one test's
+        fetched URL can't leak into later tests."""
+        import app.routers.news as news_mod
+
+        news_mod._IMAGE_BACKFILL_CACHE.clear()
+        yield
+        news_mod._IMAGE_BACKFILL_CACHE.clear()
+
     async def test_missing_image_gets_placeholder(self, monkeypatch):
         items = [{"id": "a", "url": "https://example.com/a", "image_url": None}]
         await _backfill_images(items)

@@ -25,7 +25,8 @@ class TestProviderConfiguration:
         import app.rate_limiter as rl
 
         rl.configure_providers(has_openrouter_credits=False)
-        assert len(rl.PROVIDERS) >= 8
+        # 2026-08-29 consolidation: 4-tier ladder (local 4B → paid OR → free OR → hash)
+        assert len(rl.PROVIDERS) >= 4
         # OpenRouter should have lower RPD without credits
         for p in rl.PROVIDERS:
             if "openrouter" in p.id:
@@ -36,26 +37,28 @@ class TestProviderConfiguration:
         import app.rate_limiter as rl
 
         rl.configure_providers(has_openrouter_credits=True)
-        assert len(rl.PROVIDERS) >= 8
+        assert len(rl.PROVIDERS) >= 4
         for p in rl.PROVIDERS:
             if "openrouter" in p.id:
                 assert p.rpd == 1000
 
-    def test_provider_has_gemini(self):
-        """Provider list includes Gemini."""
+    def test_provider_has_local_first(self):
+        """Local Qwen3-4B provider is present and highest priority (Tier 1)."""
         from app.rate_limiter import PROVIDERS, configure_providers
 
         configure_providers(has_openrouter_credits=True)
-        gemini_ids = [p.id for p in PROVIDERS if p.id.startswith("gemini")]
-        assert len(gemini_ids) >= 1
+        local = [p for p in PROVIDERS if p.id == "qwen3_4b_local"]
+        assert len(local) == 1
+        assert local[0].free is True
+        assert local[0].priority == max(p.priority for p in PROVIDERS)
 
     def test_provider_has_local_fallback(self):
-        """Provider list includes local BGE fallback."""
+        """Provider list includes local Qwen3 fallback and hash last resort."""
         from app.rate_limiter import PROVIDERS, configure_providers
 
         configure_providers()
         ids = [p.id for p in PROVIDERS]
-        assert "local_bge" in ids
+        assert "qwen3_4b_local" in ids
         assert "hash" in ids
 
 
@@ -217,10 +220,19 @@ def test_internal_api_key():
         # Force reload the module to pick up the env var
         import importlib
 
+        from app.config import settings as _settings
         from app.core import internal_key
 
-        importlib.reload(internal_key)
-        key = internal_key.INTERNAL_API_KEY
+        # settings (loaded at import) takes priority over the env var — patch
+        # the instance attribute so the reload observes the patched value.
+        _orig = _settings.rmi_internal_key
+        _settings.rmi_internal_key = "test-internal-key-12345"
+        try:
+            importlib.reload(internal_key)
+            key = internal_key.INTERNAL_API_KEY
+        finally:
+            _settings.rmi_internal_key = _orig
+            importlib.reload(internal_key)
 
         assert isinstance(key, str)
         assert len(key) > 0

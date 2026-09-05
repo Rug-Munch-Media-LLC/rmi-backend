@@ -9,6 +9,7 @@ unittest.mock.patch.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 # Set required env vars BEFORE any app imports
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-thats-32-chars-long!")
@@ -16,9 +17,11 @@ os.environ.setdefault("ENVIRONMENT", "dev")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
-from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+_TMP_DIR = Path(os.environ.get("TMPDIR") or "test-tmp")  # S108: no literal /tmp
 
-import pytest
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch  # noqa: E402 — env vars must be set first
+
+import pytest  # noqa: E402 — env vars must be set first
 
 # ═══════════════════════════════════════════════════════════════════════
 #  1. Wallet Memory Label Importer (5 tests)
@@ -47,7 +50,7 @@ class TestLabelImporter:
             patch("builtins.open", mock_open()),
             patch("os.makedirs"),
         ):
-            result = await _download_file("https://example.com/labels.csv", "/tmp/labels.csv")
+            result = await _download_file("https://example.com/labels.csv", str(_TMP_DIR / "labels.csv"))
         assert result is True
 
     @pytest.mark.asyncio
@@ -64,7 +67,7 @@ class TestLabelImporter:
             "rugmunch_scanner.wallet_memory.label_importer.download._get_http",
             AsyncMock(return_value=mock_client),
         ):
-            result = await _download_file("https://example.com/missing.csv", "/tmp/missing.csv")
+            result = await _download_file("https://example.com/missing.csv", str(_TMP_DIR / "missing.csv"))
         assert result is False
 
     @pytest.mark.asyncio
@@ -192,8 +195,8 @@ class TestWalletMonitorWatchlist:
         from app.domains.wallet.wallet_monitor import WatchlistManager
 
         with (
-            patch("app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)),
-            patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()),
+            patch("app.domains.wallet.monitor.watchlist.get_redis", AsyncMock(return_value=mock_redis)),
+            patch("app.domains.wallet.monitor.config.redis_async", MagicMock()),
         ):
             result = await WatchlistManager.add(
                 "0x1234567890abcdef1234567890abcdef12345678",
@@ -209,8 +212,8 @@ class TestWalletMonitorWatchlist:
         from app.domains.wallet.wallet_monitor import WatchlistManager
 
         with (
-            patch("app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)),
-            patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()),
+            patch("app.domains.wallet.monitor.watchlist.get_redis", AsyncMock(return_value=mock_redis)),
+            patch("app.domains.wallet.monitor.config.redis_async", MagicMock()),
         ):
             result = await WatchlistManager.remove(
                 "0x1234567890abcdef1234567890abcdef12345678",
@@ -225,8 +228,8 @@ class TestWalletMonitorWatchlist:
         from app.domains.wallet.wallet_monitor import WatchlistManager
 
         with (
-            patch("app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)),
-            patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()),
+            patch("app.domains.wallet.monitor.watchlist.get_redis", AsyncMock(return_value=mock_redis)),
+            patch("app.domains.wallet.monitor.config.redis_async", MagicMock()),
         ):
             result = await WatchlistManager.is_watched(
                 "0x1234567890abcdef1234567890abcdef12345678",
@@ -241,8 +244,8 @@ class TestWalletMonitorWatchlist:
         from app.domains.wallet.wallet_monitor import WatchlistManager
 
         with (
-            patch("app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)),
-            patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()),
+            patch("app.domains.wallet.monitor.watchlist.get_redis", AsyncMock(return_value=mock_redis)),
+            patch("app.domains.wallet.monitor.config.redis_async", MagicMock()),
         ):
             result = await WatchlistManager.is_watched(
                 "0xnonexistent",
@@ -256,8 +259,8 @@ class TestWalletMonitorWatchlist:
         from app.domains.wallet.wallet_monitor import WatchlistManager
 
         with (
-            patch("app.domains.wallet.wallet_monitor._get_redis", AsyncMock(return_value=mock_redis)),
-            patch("app.domains.wallet.wallet_monitor.redis_async", MagicMock()),
+            patch("app.domains.wallet.monitor.watchlist.get_redis", AsyncMock(return_value=mock_redis)),
+            patch("app.domains.wallet.monitor.config.redis_async", MagicMock()),
         ):
             wallets = await WatchlistManager.list(chain="ethereum")
         assert len(wallets) == 2

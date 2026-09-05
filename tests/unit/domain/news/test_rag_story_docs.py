@@ -95,22 +95,6 @@ def test_unrelated_headlines_stay_separate() -> None:
 # ── Databus end-to-end: index_databus_news dedups 20 sources → 1 ingest ──
 
 
-class _FakeReport:
-    def __init__(self, accepted: int = 0, duplicate: bool = False) -> None:
-        self.accepted = accepted
-        self.duplicate = duplicate
-        self.errors: list[str] = []
-
-
-class _FakeIngestor:
-    def __init__(self) -> None:
-        self.calls: list[dict[str, object]] = []
-
-    async def ingest(self, **kw: object) -> _FakeReport:
-        self.calls.append(kw)
-        return _FakeReport(accepted=1)
-
-
 def _article(i: int) -> dict[str, object]:
     return {
         "title": _TITLE,
@@ -143,18 +127,22 @@ def test_index_databus_news_dedups_to_one_story_doc(monkeypatch: object) -> None
         "generated_at": "2026-08-01T12:00:00+00:00",
         "source": "news_intelligence_engine",
     }
-    fake = _FakeIngestor()
+    fake_calls: list[dict[str, object]] = []
+
+    async def _fake_ingest(**kw: object) -> bool:
+        fake_calls.append(kw)
+        return True
 
     monkeypatch.setattr("app.databus.news_intel.aggregate_all_news", _async_ok(fake_feed))
-    monkeypatch.setattr("app.rag.ingestion.BatchIngestor", lambda *a, **kw: fake)
+    monkeypatch.setattr("app.integrations.rugbrain_client.rugbrain_ingest", _fake_ingest)
 
     from app.databus.rag_ingestion import index_databus_news
 
     result = asyncio.run(index_databus_news(limit=50))
 
     assert result["status"] == "ok"
-    assert len(fake.calls) == 1, f"expected 1 story ingest, got {len(fake.calls)}"
-    call = fake.calls[0]
+    assert len(fake_calls) == 1, f"expected 1 story ingest, got {len(fake_calls)}"
+    call = fake_calls[0]
     meta = call["metadata"]
     assert isinstance(meta, dict)
     assert meta["source_count"] == 20

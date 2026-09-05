@@ -76,11 +76,11 @@ def _finding(source: str, category: str, summary: str, confidence: str = "medium
 
 @pytest.fixture
 def app() -> Any:
-    """Fresh FastAPI app with the OSINT router mounted (prefix /api/osint)."""
+    """Fresh FastAPI app with the OSINT router mounted (router-owned /api/v1/osint prefix)."""
     from app.factory import create_app
 
     app = create_app()
-    app.include_router(osint_router_mod.osint_router, prefix="/api/osint", tags=["osint"])
+    app.include_router(osint_router_mod.osint_router, tags=["osint"])  # router owns /api/v1/osint prefix
     return app
 
 
@@ -125,7 +125,7 @@ class TestGetTypes:
     def test_types_returns_engine_capability_listing(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """GET /api/osint/types mirrors the engine's TARGET_TYPES."""
         fake_engine.TARGET_TYPES = ["username", "domain"]
-        resp = client.get("/api/osint/types")
+        resp = client.get("/api/v1/osint/types")
         assert resp.status_code == 200, resp.text
         assert resp.json() == {"target_types": ["username", "domain"]}
 
@@ -134,7 +134,7 @@ class TestGetTypes:
     ) -> None:
         """Engine slot empty -> the router still lists the contract fallback."""
         monkeypatch.setattr(osint_router_mod, "_engine", None)
-        resp = client.get("/api/osint/types")
+        resp = client.get("/api/v1/osint/types")
         assert resp.status_code == 200, resp.text
         assert resp.json()["target_types"] == osint_router_mod.FALLBACK_TARGET_TYPES
 
@@ -151,7 +151,7 @@ class TestGetReport:
         )
         fake_engine.run_osint = lambda target, target_type, **_: report
 
-        resp = client.get("/api/osint/email/victim@example.com")
+        resp = client.get("/api/v1/osint/email/victim@example.com")
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -169,7 +169,7 @@ class TestGetReport:
 
     def test_get_report_422_unknown_target_type(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """An unsupported target type is rejected with a helpful 422."""
-        resp = client.get("/api/osint/bitcoin/abc")
+        resp = client.get("/api/v1/osint/bitcoin/abc")
         assert resp.status_code == 422, resp.text
         body = resp.json()
         assert "Unknown target type 'bitcoin'" in body["detail"]
@@ -179,42 +179,42 @@ class TestGetReport:
     def test_get_report_503_engine_missing(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Engine slot empty -> 503 with the availability detail."""
         monkeypatch.setattr(osint_router_mod, "_engine", None)
-        resp = client.get("/api/osint/email/a@b.com")
+        resp = client.get("/api/v1/osint/email/a@b.com")
         assert resp.status_code == 503, resp.text
         assert resp.json()["detail"] == "OSINT engine not available"
 
     def test_get_report_503_function_missing(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """Engine loaded but lacks run_osint -> 503 naming the missing function."""
         fake_engine.run_osint = None
-        resp = client.get("/api/osint/email/a@b.com")
+        resp = client.get("/api/v1/osint/email/a@b.com")
         assert resp.status_code == 503, resp.text
         assert "run_osint" in resp.json()["detail"]
 
     def test_get_report_maps_osint_not_available_to_503(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """Engine raising OsintNotAvailable (tool missing) -> 503."""
         fake_engine.run_osint = lambda *a, **k: (_ for _ in ()).throw(OsintNotAvailable("holehe not installed"))
-        resp = client.get("/api/osint/email/a@b.com")
+        resp = client.get("/api/v1/osint/email/a@b.com")
         assert resp.status_code == 503, resp.text
         assert "OSINT engine not available" in resp.json()["detail"]
 
     def test_get_report_maps_osint_error_to_500(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """Engine raising OsintError -> 500 with the message preserved."""
         fake_engine.run_osint = lambda *a, **k: (_ for _ in ()).throw(OsintError("upstream timeout"))
-        resp = client.get("/api/osint/email/a@b.com")
+        resp = client.get("/api/v1/osint/email/a@b.com")
         assert resp.status_code == 500, resp.text
         assert "upstream timeout" in resp.json()["detail"]
 
     def test_get_report_maps_value_error_to_422(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """Engine raising ValueError (garbage input) -> 422."""
         fake_engine.run_osint = lambda *a, **k: (_ for _ in ()).throw(ValueError("invalid domain name: 'x'"))
-        resp = client.get("/api/osint/domain/x")
+        resp = client.get("/api/v1/osint/domain/x")
         assert resp.status_code == 422, resp.text
         assert "invalid domain name" in resp.json()["detail"]
 
     def test_get_report_500_on_unexpected_engine_result(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """Engine returning a non-report value -> 500, never a crash or silent body."""
         fake_engine.run_osint = lambda *a, **k: "not a report"
-        resp = client.get("/api/osint/email/a@b.com")
+        resp = client.get("/api/v1/osint/email/a@b.com")
         assert resp.status_code == 500, resp.text
         assert "unexpected result" in resp.json()["detail"]
 
@@ -232,7 +232,7 @@ class TestGetReport:
         )
         fake_engine.run_osint = lambda target, target_type, **_: report
 
-        resp = client.get("/api/osint/domain/example.com")
+        resp = client.get("/api/v1/osint/domain/example.com")
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -250,13 +250,13 @@ class TestGetReport:
             return _report(target, target_type)
 
         monkeypatch.setattr(osint_router_mod, "_engine", _fake_engine(run_osint=run_osint_positional))
-        resp = client.get("/api/osint/username/soxoj")
+        resp = client.get("/api/v1/osint/username/soxoj")
         assert resp.status_code == 200, resp.text
         assert calls == [("soxoj", "username")]
 
     def test_get_report_timeout_query_validation(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
         """timeout below the 5s floor is rejected by FastAPI query validation."""
-        resp = client.get("/api/osint/email/a@b.com", params={"timeout": 2})
+        resp = client.get("/api/v1/osint/email/a@b.com", params={"timeout": 2})
         assert resp.status_code == 422, resp.text
 
     def test_get_report_passes_timeout_to_engine(self, client: TestClient, fake_engine: SimpleNamespace) -> None:
@@ -268,7 +268,7 @@ class TestGetReport:
             return _report(target, target_type)
 
         fake_engine.run_osint = run_osint
-        resp = client.get("/api/osint/username/soxoj", params={"timeout": 30})
+        resp = client.get("/api/v1/osint/username/soxoj", params={"timeout": 30})
         assert resp.status_code == 200, resp.text
         assert seen == {"target": "soxoj", "target_type": "username", "timeout": 30}
 
@@ -288,7 +288,9 @@ class TestAggregate:
         fake_engine.run_aggregate = lambda target, *, timeout, target_type=None: report
 
         resp = client.post(
-            "/api/osint/aggregate", json={"target": "scam-example.com", "target_type": "domain"}, headers=auth_headers
+            "/api/v1/osint/aggregate",
+            json={"target": "scam-example.com", "target_type": "domain"},
+            headers=auth_headers,
         )
 
         assert resp.status_code == 200, resp.text
@@ -308,7 +310,7 @@ class TestAggregate:
             return _report(target, "username")
 
         fake_engine.run_aggregate = run_aggregate
-        resp = client.post("/api/osint/aggregate", json={"target": "soxoj"}, headers=auth_headers)
+        resp = client.post("/api/v1/osint/aggregate", json={"target": "soxoj"}, headers=auth_headers)
         assert resp.status_code == 200, resp.text
         assert seen == {"target": "soxoj", "timeout": 60}
         assert "target_type" not in seen
@@ -318,7 +320,7 @@ class TestAggregate:
     ) -> None:
         """Engine slot empty -> aggregate 503s like the single lookup."""
         monkeypatch.setattr(osint_router_mod, "_engine", None)
-        resp = client.post("/api/osint/aggregate", json={"target": "soxoj"}, headers=auth_headers)
+        resp = client.post("/api/v1/osint/aggregate", json={"target": "soxoj"}, headers=auth_headers)
         assert resp.status_code == 503, resp.text
 
     def test_aggregate_maps_osint_not_available_to_503(
@@ -327,7 +329,9 @@ class TestAggregate:
         """Engine raising OsintNotAvailable -> 503 on aggregate too."""
         fake_engine.run_aggregate = lambda *a, **k: (_ for _ in ()).throw(OsintNotAvailable("spiderfoot offline"))
         resp = client.post(
-            "/api/osint/aggregate", json={"target": "scam-example.com", "target_type": "domain"}, headers=auth_headers
+            "/api/v1/osint/aggregate",
+            json={"target": "scam-example.com", "target_type": "domain"},
+            headers=auth_headers,
         )
         assert resp.status_code == 503, resp.text
         assert "spiderfoot offline" in resp.json()["detail"]
@@ -337,7 +341,7 @@ class TestAggregate:
     ) -> None:
         """Engine raising OsintError -> 500 on aggregate."""
         fake_engine.run_aggregate = lambda *a, **k: (_ for _ in ()).throw(OsintError("aggregate failed"))
-        resp = client.post("/api/osint/aggregate", json={"target": "soxoj"}, headers=auth_headers)
+        resp = client.post("/api/v1/osint/aggregate", json={"target": "soxoj"}, headers=auth_headers)
         assert resp.status_code == 500, resp.text
         assert "aggregate failed" in resp.json()["detail"]
 
@@ -353,7 +357,7 @@ class TestAggregate:
 
         monkeypatch.setattr(osint_router_mod, "_engine", _fake_engine(run_aggregate=run_aggregate_positional))
         resp = client.post(
-            "/api/osint/aggregate", json={"target": "soxoj", "target_type": "email"}, headers=auth_headers
+            "/api/v1/osint/aggregate", json={"target": "soxoj", "target_type": "email"}, headers=auth_headers
         )
         assert resp.status_code == 200, resp.text
         assert calls == [("soxoj", "email")]
@@ -362,14 +366,14 @@ class TestAggregate:
         self, client: TestClient, fake_engine: SimpleNamespace, auth_headers: dict[str, str]
     ) -> None:
         """Body without target -> Pydantic 422."""
-        resp = client.post("/api/osint/aggregate", json={"target_type": "email"}, headers=auth_headers)
+        resp = client.post("/api/v1/osint/aggregate", json={"target_type": "email"}, headers=auth_headers)
         assert resp.status_code == 422, resp.text
 
     def test_aggregate_422_invalid_body(
         self, client: TestClient, fake_engine: SimpleNamespace, auth_headers: dict[str, str]
     ) -> None:
         """Non-object body -> Pydantic 422."""
-        resp = client.post("/api/osint/aggregate", json="nonsense", headers=auth_headers)
+        resp = client.post("/api/v1/osint/aggregate", json="nonsense", headers=auth_headers)
         assert resp.status_code == 422, resp.text
 
 
@@ -413,7 +417,7 @@ class TestCache:
             raise AssertionError("engine must not run on a cache hit")
 
         fake_engine.run_osint = _explode
-        resp = client.get("/api/osint/email/victim@example.com")
+        resp = client.get("/api/v1/osint/email/victim@example.com")
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -428,13 +432,13 @@ class TestCache:
         report = _report("victim@example.com", "email")
         fake_engine.run_osint = lambda target, target_type, **_: report
 
-        first = client.get("/api/osint/email/victim@example.com")
+        first = client.get("/api/v1/osint/email/victim@example.com")
         assert first.status_code == 200, first.text
         assert first.json()["cached"] is False
         assert "osint:email:victim@example.com" in fake_redis.store
 
         fake_engine.run_osint = lambda *a, **k: (_ for _ in ()).throw(AssertionError("cache should have served this"))
-        second = client.get("/api/osint/email/victim@example.com")
+        second = client.get("/api/v1/osint/email/victim@example.com")
         assert second.status_code == 200, second.text
         assert second.json()["cached"] is True
 
@@ -445,7 +449,7 @@ class TestCache:
         report = _report("VICTIM@Example.COM", "email")
         fake_engine.run_osint = lambda target, target_type, **_: report
 
-        resp = client.get("/api/osint/email/VICTIM@Example.COM")
+        resp = client.get("/api/v1/osint/email/VICTIM@Example.COM")
         assert resp.status_code == 200, resp.text
         assert "osint:email:victim@example.com" in fake_redis.store
         assert "osint:email:VICTIM@Example.COM" not in fake_redis.store
@@ -457,7 +461,7 @@ class TestCache:
         report = _report("face-ref-1", "face")
         fake_engine.run_osint = lambda target, target_type, **_: report
 
-        resp = client.get("/api/osint/face/face-ref-1")
+        resp = client.get("/api/v1/osint/face/face-ref-1")
         assert resp.status_code == 200, resp.text
         assert resp.json()["cached"] is False
         assert "osint:face:face-ref-1" not in fake_redis.store
@@ -470,7 +474,7 @@ class TestCache:
         report = _report("victim@example.com", "email")
         fake_engine.run_osint = lambda target, target_type, **_: report
 
-        resp = client.get("/api/osint/email/victim@example.com")
+        resp = client.get("/api/v1/osint/email/victim@example.com")
         assert resp.status_code == 200, resp.text
         assert resp.json()["cached"] is False
 
@@ -482,7 +486,9 @@ class TestCache:
         fake_engine.run_aggregate = lambda target, *, timeout, target_type=None: report
 
         resp = client.post(
-            "/api/osint/aggregate", json={"target": "scam-example.com", "target_type": "domain"}, headers=auth_headers
+            "/api/v1/osint/aggregate",
+            json={"target": "scam-example.com", "target_type": "domain"},
+            headers=auth_headers,
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["cached"] is False

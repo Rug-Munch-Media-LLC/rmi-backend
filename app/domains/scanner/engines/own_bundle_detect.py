@@ -460,7 +460,7 @@ async def detect_same_slot_bundler(
         "is_bundled": False,
         "confidence": 0.0,
         "bundle_wallets": 0,
-        "note": "Same-slot detail unavailable - Helius data source offline",
+        "note": "[REVIEW] Same-slot detail unavailable - Helius data source offline",
     }
 
     # Surface the existing bundle-detection verdict (wallet count +
@@ -475,7 +475,7 @@ async def detect_same_slot_bundler(
         logger.debug("same_slot_bundle_fallback_failed: %s", exc)
 
     if chain != "solana":
-        result["note"] = "Same-slot analysis is Solana-only"
+        result["note"] = "[REVIEW] Same-slot analysis is Solana-only"
         _cache_bundle(cache_key, result)
         return result
 
@@ -489,7 +489,7 @@ async def detect_same_slot_bundler(
             result["note"] = ""
     except Exception as exc:  # pragma: no cover - defensive; never break the check
         logger.debug("same_slot_bundler_failed for %s: %s", token_address[:16], exc)
-        result["note"] = "Same-slot detail unavailable - Helius data source offline"
+        result["note"] = "[REVIEW] Same-slot detail unavailable - Helius data source offline"
 
     _cache_bundle(cache_key, result)
 

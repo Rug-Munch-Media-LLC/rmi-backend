@@ -63,7 +63,7 @@ async def test_seed_wallets_end_to_end() -> None:
     fake_ch = MagicMock()
     fake_ch.execute.return_value = SAMPLE_ROWS
 
-    def _fake_vectors(texts: list[str]) -> list[list[float]]:
+    def _fake_vectors(client, embed_url, texts: list[str]) -> list[list[float]]:
         return [[0.01] * 1024 for _ in texts]
 
     with (

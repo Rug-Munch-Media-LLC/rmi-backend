@@ -60,7 +60,7 @@ def client(app):
     try:
         tc = TestClient(app)
         tc.__enter__()
-    except Exception as exc:  # noqa: BLE001 — any boot failure = no live infra
+    except Exception as exc:
         pytest.skip(f"live infra unavailable for security suite: {exc}"[:180])
 
     # 2026-08-23 audit finding: both app.factory.create_app() and app.main.app

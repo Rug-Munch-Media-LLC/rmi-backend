@@ -8,7 +8,7 @@ legacy shim (app.wallet_manager_v2) must import cleanly.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path  # noqa: TC003 — used in fixture signatures at runtime
 
 import pytest
 
@@ -58,8 +58,16 @@ def test_legacy_shim_imports_cleanly() -> None:
 
 def test_get_wallet_manager_v2_password_keyword(tmp_path: Path) -> None:
     """Password must land in encryption_password, not vault_path."""
-    from app.domains.wallet.manager import get_wallet_manager_v2
+    from app.domains.wallet import manager as manager_mod
 
-    m = get_wallet_manager_v2(password="secret")
+    # The singleton may already exist from another test — reset it so this
+    # test's password kwarg actually constructs a fresh instance.
+    saved = manager_mod._manager_instance
+    manager_mod._manager_instance = None
+    try:
+        m = manager_mod.get_wallet_manager_v2(vault_path=str(tmp_path), password="secret")
+    finally:
+        pass
     assert m.encryption_password == "secret"
-    assert "data" in m.VAULT_PATH or "wallets" in m.VAULT_PATH
+    assert m.VAULT_PATH.endswith("vault.json")  # vault_path kwarg honored, not the password
+    manager_mod._manager_instance = saved

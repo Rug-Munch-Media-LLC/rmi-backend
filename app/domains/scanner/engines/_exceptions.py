@@ -38,14 +38,16 @@ def get_redis_async() -> Any:
     module and bound it as its own factory → infinite recursion on first
     call (RecursionError swallowed upstream → every funding/freshness
     engine silently returned nulls). Bind the real backend pool instead.
+    2026-09-05 FIX: resolve the backend at CALL time when no explicit
+    factory is bound — capturing the function object at first call made
+    ``patch("app.core.redis.get_redis_async")`` a no-op afterwards and
+    leaked real-Redis state into tests.
     """
-    if _redis_factory is None:
-        try:
-            # ASYNC pool — engines await this client (scoring.py, scanner.py,
-            # persistence.py all `await r.exists(...)` etc.).
-            from app.core.redis import get_redis_async as _backend_async_get
+    if _redis_factory is not None:
+        return _redis_factory()
+    try:
+        from app.core.redis import get_redis_async as _backend_async_get
 
-            set_redis_port(_backend_async_get)
-        except Exception:
-            return None
-    return _redis_factory()
+        return _backend_async_get()
+    except Exception:
+        return None

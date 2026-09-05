@@ -32,6 +32,19 @@ def app():
     return create_app()
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """The scan category allows 10 req/min (burst 2) — this file makes many
+    scan POSTs, so the in-memory token bucket 429s later tests. Reset the
+    limiter's in-memory buckets before each test."""
+    from app.core.rate_limiter import get_rate_limiter
+
+    limiter = get_rate_limiter()
+    limiter._mem_buckets.clear()
+    yield
+    limiter._mem_buckets.clear()
+
+
 @pytest.fixture
 async def client(app):
     """Create an async test client."""
