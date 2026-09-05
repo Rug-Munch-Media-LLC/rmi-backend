@@ -267,6 +267,34 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("pryscraper_news_ingest_background_start_failed err=%s", exc)
 
+    # 15. Wallet label RAG sync — embeds newly labeled wallets into the Qdrant
+    #     ``wallet_labels`` collection and runs auto_expand_labels to suggest
+    #     labels for similar wallets. Runs every 6 hours (configurable via
+    #     RMI_WALLET_LABEL_SYNC_INTERVAL). Failure never breaks startup.
+    wallet_label_task = None
+    try:
+        import asyncio as _asyncio
+        import os as _os
+
+        from app.wallet_memory.rag_labels import run_label_sync
+
+        _wl_interval = max(600, int(_os.getenv("RMI_WALLET_LABEL_SYNC_INTERVAL", "21600")))
+
+        async def _wallet_label_loop() -> None:
+            """Sync wallet labels into Qdrant every interval (default 6h)."""
+            await _asyncio.sleep(180)  # Let app settle before first sync
+            while True:
+                try:
+                    await run_label_sync()
+                except Exception as exc:
+                    log.warning("wallet_label_sync_failed err=%s", exc)
+                await _asyncio.sleep(_wl_interval)
+
+        wallet_label_task = _asyncio.create_task(_wallet_label_loop())
+        log.info("wallet_label_sync_background_started interval_s=%d", _wl_interval)
+    except Exception as exc:
+        log.warning("wallet_label_sync_background_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -326,6 +354,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.info("pryscraper_news_ingest_background_cancelled")
         except Exception as exc:
             log.debug("pryscraper_news_ingest_cancel_failed err=%s", exc)
+
+    # Wallet label RAG sync background task shutdown
+    if wallet_label_task is not None:
+        try:
+            wallet_label_task.cancel()
+            log.info("wallet_label_sync_background_cancelled")
+        except Exception as exc:
+            log.debug("wallet_label_sync_cancel_failed err=%s", exc)
 
     # Webhook engine shutdown (only if it was started)
     if webhook_engine is not None:
