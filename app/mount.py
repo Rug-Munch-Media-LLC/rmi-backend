@@ -361,6 +361,11 @@ def _try_mount(app: Any, module_path: str) -> bool:
             log.warning("router_missing path=%s (no `router` attribute)", module_path)
             return False
         app.include_router(router)
+        # Optional EXTRA_ROUTERS: prefix-less sibling routers a module wants
+        # mounted alongside its main `router` (e.g. unified_scanner_router's
+        # /api/v1/scanner backtest endpoints).
+        for extra in getattr(module, "EXTRA_ROUTERS", None) or []:
+            app.include_router(extra)
         log.info("router_mounted path=%s", module_path)
         return True
     except Exception as exc:

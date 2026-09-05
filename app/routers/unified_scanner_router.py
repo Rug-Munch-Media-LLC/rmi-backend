@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, is_dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, Request
@@ -24,6 +25,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v2/scanner", tags=["scanner-v2"])
+# Prefix-less router for the bot-facing /api/v1/scanner backtest endpoints
+# (mounted via mount.py EXTRA_ROUTERS support — see below).
+backtest_router = APIRouter(tags=["scanner-backtest"])
+EXTRA_ROUTERS: list[APIRouter] = [backtest_router]
 
 
 class TokenScanRequest(BaseModel):
@@ -73,6 +78,46 @@ def _detect_chain(address: str) -> str:
     if addr.startswith(("0x", "0X")):
         return "ethereum"
     return "solana"
+
+
+async def _verify_admin_dep(request: Request) -> bool:
+    """Admin gate for backtest endpoints.
+
+    Lazy import: ``app.routers.admin`` mounts its sub-routers at import
+    time, so importing it here at module load would pull the whole admin
+    panel into every scanner-router import.
+    """
+    from app.routers.admin import verify_admin
+
+    return await verify_admin(request)
+
+
+def _load_backtest_components() -> tuple[Any, Any, Any]:
+    """Import the rugmunch-scanner backtest framework (lazy, optional).
+
+    Returns ``(ScannerBacktester, KNOWN_RUGS, KNOWN_CLEAN)`` or raises
+    ``AppError(503)`` when the scanner package is not installed.
+    """
+    try:
+        from rugmunch_scanner.backtest.dataset import KNOWN_CLEAN, KNOWN_RUGS
+        from rugmunch_scanner.backtest.framework import ScannerBacktester
+    except ImportError as e:
+        raise AppError(
+            "Backtesting framework not available (rugmunch_scanner not installed)",
+            status_code=503,
+        ) from e
+    return ScannerBacktester, KNOWN_RUGS, KNOWN_CLEAN
+
+
+def _rates(matrix: dict[str, int]) -> dict[str, float | None]:
+    """False-positive / false-negative rates from a confusion matrix."""
+    fp = matrix["false_positives"]
+    fn = matrix["false_negatives"]
+    tn = matrix["true_negatives"]
+    tp = matrix["true_positives"]
+    fpr = fp / (fp + tn) if (fp + tn) > 0 else None
+    fnr = fn / (fn + tp) if (fn + tp) > 0 else None
+    return {"false_positive_rate": fpr, "false_negative_rate": fnr}
 
 
 def _serialize_rag_context(rag_ctx: Any) -> dict[str, Any] | None:
@@ -468,3 +513,55 @@ async def scan_wallet(
         }
     except Exception as e:
         raise AppError(f"Scan failed: {str(e)[:200]}", status_code=500) from e
+
+
+# ── Scanner backtest (bot /backtest + /accuracy admin commands) ──────
+# Lives on the prefix-less backtest_router: the bot calls /api/v1/scanner/*
+# while this module's main router prefix is /api/v2/scanner.
+
+
+@backtest_router.post("/api/v1/scanner/backtest", summary="Run scanner backtest against known rug/clean tokens")
+async def scanner_backtest(_=Depends(_verify_admin_dep)) -> dict[str, Any]:
+    """Run backtest using known rug/clean token datasets."""
+    backtester_cls, known_rugs, known_clean = _load_backtest_components()
+    backtester = backtester_cls(known_rugs=known_rugs, known_clean=known_clean)
+    try:
+        results = await backtester.run_backtest()
+    except Exception as e:
+        raise AppError(f"Backtest failed: {str(e)[:200]}", status_code=500) from e
+    matrix = {k: results[k] for k in ("true_positives", "false_positives", "false_negatives", "true_negatives")}
+    return {
+        "metrics": {"precision": results.get("precision"), "recall": results.get("recall"), "f1": results.get("f1")},
+        "confusion_matrix": matrix,
+        **_rates(matrix),
+        "sample_size": len(results.get("per_token_results", [])),
+        "per_token_results": results.get("per_token_results"),
+        "last_run": datetime.now(UTC).isoformat(),
+    }
+
+
+@backtest_router.get("/api/v1/scanner/accuracy", summary="Get scanner accuracy stats from last backtest")
+async def scanner_accuracy(_=Depends(_verify_admin_dep)) -> dict[str, Any]:
+    """Get precision/recall/F1 from the last backtest run."""
+    backtester_cls, known_rugs, known_clean = _load_backtest_components()
+    backtester = backtester_cls(known_rugs=known_rugs, known_clean=known_clean)
+    try:
+        results = await backtester.run_backtest()
+    except Exception as e:
+        raise AppError(f"Backtest failed: {str(e)[:200]}", status_code=500) from e
+    matrix = {k: results[k] for k in ("true_positives", "false_positives", "false_negatives", "true_negatives")}
+    return {
+        "metrics": {
+            "precision": results.get("precision"),
+            "recall": results.get("recall"),
+            "f1": results.get("f1"),
+            **_rates(matrix),
+        },
+        "confusion_matrix": matrix,
+        "true_positives": results.get("true_positives"),
+        "false_positives": results.get("false_positives"),
+        "false_negatives": results.get("false_negatives"),
+        "true_negatives": results.get("true_negatives"),
+        "sample_size": len(results.get("per_token_results", [])),
+        "last_run": datetime.now(UTC).isoformat(),
+    }
