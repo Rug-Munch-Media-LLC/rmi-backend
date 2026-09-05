@@ -12,8 +12,7 @@ Two layers:
 
 Channel list comes from the ``TELEGRAM_MONITORED_CHANNELS`` env var
 (comma-separated @usernames, leading ``@`` optional). When unset, the cycle
-falls back to the enabled news-kind channels from the tg registry (same
-source the daily pipeline uses).
+falls back to :data:`app.domains.news_ingest.channels.DEFAULT_MONITORED_CHANNELS`.
 """
 
 from __future__ import annotations
@@ -105,7 +104,8 @@ def channels_from_env(env: str | None = None) -> list[dict[str, Any]]:
     """Parse ``TELEGRAM_MONITORED_CHANNELS`` into source-config dicts.
 
     Comma-separated usernames; whitespace and leading ``@`` are stripped.
-    Empty/missing env → ``[]`` (caller falls back to the registry).
+    Empty/missing env → :data:`DEFAULT_MONITORED_CHANNELS` so the scheduler
+    always has channels to monitor.
     """
     raw = env if env is not None else os.getenv(CHANNELS_ENV, "")
     channels: list[dict[str, Any]] = []
@@ -113,6 +113,10 @@ def channels_from_env(env: str | None = None) -> list[dict[str, Any]]:
         username = part.strip().lstrip("@")
         if username:
             channels.append({"username": username, "category": "crypto_news"})
+    if not channels:
+        from app.domains.news_ingest.channels import DEFAULT_MONITORED_CHANNELS
+
+        return [dict(entry) for entry in DEFAULT_MONITORED_CHANNELS]
     return channels
 
 
@@ -194,6 +198,21 @@ async def run_ingest_cycle(
                 errors.append(f"{doc_id}: ingest_failed")
         if persisted:
             mark_articles_ingested(persisted, DEFAULT_DEDUP_COLLECTION)
+
+    try:
+        from app.domains.content.content_stats import record_channel_errors, record_fetch
+
+        await record_fetch("telegram", ingested=ingested, errors=len(errors))
+        per_channel: dict[str, int] = {}
+        for err in errors:
+            # error strings look like "tg_news:{channel}:{fingerprint}: ..."
+            parts = err.split(":", 2)
+            channel = parts[1] if len(parts) > 1 and parts[0] == "tg_news" else "unknown"
+            per_channel[channel] = per_channel.get(channel, 0) + 1
+        if per_channel:
+            await record_channel_errors(per_channel)
+    except Exception as exc:  # stats are best-effort
+        logger.debug("content_stats_write_failed err=%s", str(exc)[:160])
 
     stats = {
         "status": "ok",

@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 from defusedxml import ElementTree as SafeET
 
+from app.caching_shield.rss_sources import fetch_rss_feeds
 from app.core.logging import get_logger
 from app.feed_quality_pipeline import LRUCache
 
@@ -241,13 +242,15 @@ async def _fetch_nitter(client: httpx.AsyncClient, account: dict[str, Any]) -> l
 
 
 async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
-    """Get top crypto tweets. X API v2 primary, nitter RSS fallback, fail-open."""
+    """Get top crypto tweets. X API v2 primary, nitter RSS fallback, RSS news feeds last resort, fail-open."""
     cache_key = f"twitter_feed_{limit}"
     cached = _cache_get(cache_key)
     if cached:
         return cached
 
     tweets = []
+    fetch_errors = 0
+    mode = "x_api" if TWITTER_BEARER_TOKEN else "nitter"
     async with httpx.AsyncClient(timeout=15) as c:
         for account in TOP_CRYPTO_ACCOUNTS[:30]:  # Top 15 to minimize calls
             try:
@@ -256,15 +259,18 @@ async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
                 else:
                     tweets.extend(await _fetch_nitter(c, account))
             except (ConnectionError, OSError, TimeoutError):
+                fetch_errors += 1
                 continue
 
-        # Fallback: X API yielded nothing (or no token) → try nitter RSS
+        # Fallback tier 2: nitter yielded nothing → crypto RSS feeds
+        rss_fallback = False
         if not tweets:
-            for account in TOP_CRYPTO_ACCOUNTS[:30]:
-                try:
-                    tweets.extend(await _fetch_nitter(c, account))
-                except (ConnectionError, OSError, TimeoutError):
-                    continue
+            try:
+                rss_articles = await fetch_rss_feeds(limit)
+                tweets.extend(rss_articles)
+                rss_fallback = bool(rss_articles)
+            except (ConnectionError, OSError, TimeoutError):
+                pass
 
     result = {
         "tweets": sorted(tweets, key=lambda t: t.get("published", ""), reverse=True)[:limit],
@@ -274,6 +280,19 @@ async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
     }
 
     _cache_set(cache_key, result, TTL_NITTER if tweets else 60)
+
+    try:
+        from app.domains.content.content_stats import record_fetch
+
+        await record_fetch(
+            "x_twitter",
+            ingested=len(tweets),
+            errors=fetch_errors,
+            mode="rss_fallback" if rss_fallback else mode,
+        )
+    except Exception as exc:  # stats are best-effort
+        logger.debug("content_stats_write_failed err=%s", str(exc)[:160])
+
     return result
 
 
