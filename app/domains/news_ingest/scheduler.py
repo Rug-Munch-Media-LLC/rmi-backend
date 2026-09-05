@@ -1,15 +1,40 @@
-"""Scheduling stub: when to run channel sweeps each day.
+"""Scheduled Telegram channel ingest.
 
-Stub for wiring the ingester into a scheduler/cron later. ``daily_sweep_times``
-is the default clock; ``next_sweep_times`` is a pure, deterministic helper
-that computes the upcoming sweep datetimes for a given timezone.
+Two layers:
+  * Pure scheduling helpers (``daily_sweep_times``, ``sweep_schedule``,
+    ``next_sweep_times``) — the deterministic sweep clock used by tests and
+    the daily pipeline.
+  * The runtime scheduler (``run_ingest_cycle`` / ``start_ingest_scheduler``)
+    that wires the ingest pipeline (``read_channel_messages`` →
+    ``channel_message_to_article`` → Qdrant ``news_v2``) to a periodic
+    background cycle so monitored channels are swept even when the daily
+    content pipeline isn't running.
+
+Channel list comes from the ``TELEGRAM_MONITORED_CHANNELS`` env var
+(comma-separated @usernames, leading ``@`` optional). When unset, the cycle
+falls back to the enabled news-kind channels from the tg registry (same
+source the daily pipeline uses).
 """
 
 from __future__ import annotations
 
+import asyncio
+import os
 from datetime import UTC, datetime, time, timedelta, tzinfo
-from typing import Final
+from typing import Any, Final
 from zoneinfo import ZoneInfo
+
+from app.core.logging import get_logger
+from app.domains.news_ingest.ingest import (
+    DEFAULT_DEDUP_COLLECTION,
+    filter_seen_articles,
+    mark_articles_ingested,
+    sweep_channels,
+)
+
+logger = get_logger(__name__)
+
+# ── Pure sweep clock (original stub API) ────────────────────────────────────
 
 # Default sweep clock (UTC hours). A few times per day keeps Telegram rate
 # limits low while still catching breaking news.
@@ -63,3 +88,166 @@ def next_sweep_times(n_per_day: int, tz: tzinfo, *, now: datetime | None = None)
                     break
         day += timedelta(days=1)
     return results
+
+
+# ── Runtime ingest scheduler ────────────────────────────────────────────────
+
+#: Qdrant collection the normalized articles are embedded into.
+NEWS_COLLECTION = "news_v2"
+
+#: Env var holding the comma-separated list of monitored channel usernames.
+CHANNELS_ENV = "TELEGRAM_MONITORED_CHANNELS"
+
+_DEFAULT_INTERVAL_MINUTES = 15
+
+
+def channels_from_env(env: str | None = None) -> list[dict[str, Any]]:
+    """Parse ``TELEGRAM_MONITORED_CHANNELS`` into source-config dicts.
+
+    Comma-separated usernames; whitespace and leading ``@`` are stripped.
+    Empty/missing env → ``[]`` (caller falls back to the registry).
+    """
+    raw = env if env is not None else os.getenv(CHANNELS_ENV, "")
+    channels: list[dict[str, Any]] = []
+    for part in (raw or "").split(","):
+        username = part.strip().lstrip("@")
+        if username:
+            channels.append({"username": username, "category": "crypto_news"})
+    return channels
+
+
+async def run_ingest_cycle(
+    client: Any | None = None,
+    *,
+    limit: int = 50,
+    channels: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """One ingest sweep: read channels → normalize → embed into Qdrant.
+
+    Fail-open per channel (``sweep_channels`` contract). Articles already
+    recorded in the shared Redis dedup sets are skipped; dedup keys are
+    marked only after a successful Qdrant upsert so a transient outage
+    never permanently hides an un-persisted story.
+
+    Returns a stats dict for monitoring/logging.
+    """
+    if channels is None:
+        channels = channels_from_env()
+        if not channels:
+            # Fall back to the enabled news-kind registry channels.
+            try:
+                from app.domains.content.daily_pipeline import news_channels_from_registry
+
+                channels = news_channels_from_registry()
+            except Exception as exc:  # pragma: no cover — registry is optional
+                logger.debug("news_ingest_registry_fallback_failed err=%s", str(exc)[:160])
+                channels = []
+
+    if client is None:
+        try:
+            from app.domains.content.daily_pipeline import _build_telegram_client
+
+            client = await _build_telegram_client()
+        except Exception as exc:  # pragma: no cover — fail-open
+            logger.warning("news_ingest_client_unavailable err=%s", str(exc)[:160])
+            client = None
+
+    articles = await sweep_channels(client, channels, limit=limit)
+    fresh, skipped = filter_seen_articles(articles, DEFAULT_DEDUP_COLLECTION)
+
+    ingested = 0
+    errors: list[str] = []
+    now = datetime.now(UTC).isoformat()
+    persisted: list[Any] = []
+    if fresh:
+        from app.integrations.rugbrain_client import rugbrain_ingest
+
+        for article in fresh:
+            doc_id = f"tg_news:{article.source_channel}:{article.message_id}"
+            content = (article.body or article.title or "")[:2000]
+            metadata = {
+                "kind": "news_article",
+                "title": (article.title or "")[:200],
+                "source_channel": article.source_channel or "",
+                "source_url": article.source_url or "",
+                "category": article.category,
+                "posted_at": article.posted_at.isoformat() if article.posted_at else None,
+                "ingestion": "telegram_scheduled",
+                "indexed_at": now,
+            }
+            try:
+                ok = await rugbrain_ingest(
+                    content=content,
+                    collection=NEWS_COLLECTION,
+                    doc_id=doc_id,
+                    metadata=metadata,
+                    source="telegram",
+                )
+            except Exception as exc:
+                ok = False
+                errors.append(f"{doc_id}: {exc!s}"[:200])
+            if ok:
+                ingested += 1
+                persisted.append(article)
+            else:
+                errors.append(f"{doc_id}: ingest_failed")
+        if persisted:
+            mark_articles_ingested(persisted, DEFAULT_DEDUP_COLLECTION)
+
+    stats = {
+        "status": "ok",
+        "channels": len(channels),
+        "swept": len(articles),
+        "fresh": len(fresh),
+        "skipped_seen": skipped,
+        "ingested": ingested,
+        "errors": errors[:5],
+        "indexed_at": now if persisted else None,
+    }
+    logger.info(
+        "news_ingest_cycle channels=%d swept=%d fresh=%d ingested=%d skipped=%d",
+        len(channels),
+        len(articles),
+        len(fresh),
+        ingested,
+        skipped,
+    )
+    return stats
+
+
+async def start_ingest_scheduler(
+    interval_minutes: int = _DEFAULT_INTERVAL_MINUTES,
+    *,
+    first_delay_seconds: int = 60,
+) -> asyncio.Task[None]:
+    """Run :func:`run_ingest_cycle` on an interval as a background task.
+
+    The first cycle runs after *first_delay_seconds* (lets the app settle),
+    then every *interval_minutes*. Returns the created task so the caller
+    can cancel it on shutdown.
+    """
+    interval = max(1, int(interval_minutes)) * 60
+
+    async def _loop() -> None:
+        await asyncio.sleep(first_delay_seconds)
+        while True:
+            try:
+                await run_ingest_cycle()
+            except Exception as exc:  # never kill the loop
+                logger.warning("news_ingest_cycle_failed err=%s", str(exc)[:200])
+            await asyncio.sleep(interval)
+
+    task = asyncio.create_task(_loop())
+    logger.info("news_ingest_scheduler_started interval_min=%d", interval)
+    return task
+
+
+async def stop_ingest_scheduler(task: asyncio.Task[None] | None) -> None:
+    """Cancel the scheduler task (best-effort, never raises)."""
+    if task is None:
+        return
+    try:
+        task.cancel()
+        logger.info("news_ingest_scheduler_cancelled")
+    except Exception as exc:
+        logger.debug("news_ingest_scheduler_cancel_failed err=%s", exc)
