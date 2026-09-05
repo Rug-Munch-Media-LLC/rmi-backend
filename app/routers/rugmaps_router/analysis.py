@@ -1,5 +1,6 @@
 """Fresh-wallet & cluster-depth analysis routes (BubbleMaps-superior intel):
-/fresh-wallet-analysis/{chain}/{address}, /cluster-depth/{chain}/{address}.
+/fresh-wallet-analysis/{chain}/{address}, /cluster-depth/{chain}/{address},
+/wallet-classification/{chain}/{address}, /filtered-holders/{chain}/{address}.
 
 Both endpoints are GET, deterministic, and never fabricate data: when a
 signal cannot be derived from our holder graph / wallet-label stack, the
@@ -30,6 +31,59 @@ _CLUSTER_FIELDS = ("cluster_id", "bundle_id", "cluster", "bundle", "group_id")
 
 _EXCHANGE_CLASSES = {"cex", "exchange", "exchange_wallet"}
 _FRESH_CLASSES = {"sniper", "bot", "fresh", "new_wallet"}
+
+# Canonical wallet types surfaced by /wallet-classification. Exchange/DEX/
+# mixer/bridge wallets are "infrastructure" — flagged so the frontend can
+# filter them out of fresh-wallet / retail analysis.
+WALLET_TYPES = ("CEX", "DEX", "Mixer", "Bridge", "Whale", "Bot", "Sniper", "Dev", "Fresh", "Normal")
+_INFRA_TYPES = {"CEX", "DEX", "Mixer", "Bridge"}
+_FILTERABLE_TYPES = {"CEX", "DEX", "Mixer", "Bot", "Sniper"}
+
+
+def _classify_holder(label: dict[str, Any], age_days: float | None) -> str:
+    """Map a wallet-label record (+ optional age) to a canonical type.
+
+    Precedence: explicit infrastructure classes (CEX/DEX/mixer/bridge) beat
+    behavioral classes; unlabeled wallets younger than 7 days classify as
+    Fresh; everything else is Normal. Never guesses an entity name.
+    """
+    cls = str(label.get("class") or "").lower()
+    cat = str(label.get("entity_type") or label.get("category") or "").lower()
+    text = f"{label.get('label') or ''} {label.get('entity_name') or ''}".lower()
+
+    if cls in ("cex",) or "cex" in cat or "exchange" in cat or "exchange" in text or "binance" in text:
+        return "CEX"
+    if cls in ("dex",) or "dex" in cat or "amm" in cat or "router" in cat:
+        return "DEX"
+    if cls == "mixer" or "mixer" in cat or "tornado" in text:
+        return "Mixer"
+    if cls == "bridge" or "bridge" in cat:
+        return "Bridge"
+    if cls == "sniper" or "sniper" in text:
+        return "Sniper"
+    if cls == "bot" or "bot" in cat or "mev" in text:
+        return "Bot"
+    if cls == "dev" or "deployer" in cat or "developer" in cat:
+        return "Dev"
+    if cls == "whale" or "whale" in cat or "whale" in text:
+        return "Whale"
+    if age_days is not None and age_days < 7:
+        return "Fresh"
+    if cls in _FRESH_CLASSES:
+        return "Fresh"
+    return "Normal"
+
+
+def _first_seen(label: dict[str, Any], node: dict[str, Any]) -> float | None:
+    """First-seen epoch seconds from label record or node metadata; None when unknown."""
+    for src in (label, node):
+        v = _num(src, _FIRST_TX_FIELDS)
+        if v:
+            if v > 1e12:  # ms epoch
+                v /= 1000.0
+            if v > 1e9:
+                return v
+    return None
 
 
 def _num(node: dict[str, Any], fields: tuple[str, ...]) -> float | None:
@@ -301,5 +355,163 @@ async def cluster_depth(
         "cluster_count": len(clusters),
         "clustered_supply_pct": round(clustered_supply, 2) if clusters else None,
         "holder_count": len(holders),
+        "source": "holder_graph+wallet_labels",
+    }
+
+
+@router.get("/wallet-classification/{chain}/{address}")
+async def wallet_classification(
+    chain: str,
+    address: str,
+    limit: int = Query(100, ge=10, le=300),
+) -> dict[str, Any]:
+    """Per-holder wallet classification for a token — beyond BubbleMaps.
+
+    Classifies every tracked holder as one of: CEX, DEX, Mixer, Bridge,
+    Whale, Bot, Sniper, Dev, Fresh, Normal — using OUR wallet-label stack
+    (wallet_v2 Qdrant + ClickHouse wallet_memory + DataBus wallet scanner)
+    plus wallet-age derivation. Each entry carries the resolved entity name
+    (e.g. "Binance", "Uniswap V3") when known, supply %, and first-seen.
+
+    Infrastructure wallets (CEX/DEX/Mixer/Bridge) carry ``infra=true`` so
+    the frontend can filter them out of fresh-wallet / retail analysis.
+    """
+    holders = await _fetch_holders(address, chain, limit)
+    if not holders:
+        return {
+            "token": address,
+            "chain": chain,
+            "holders": [],
+            "type_counts": {},
+            "infra_supply_pct": None,
+            "holder_count": 0,
+            "source": "unavailable",
+        }
+
+    addresses = [_holder_address(h) for h in holders[:60]]
+    labels = await _fetch_labels([a for a in addresses if a], chain)
+
+    classified: list[dict[str, Any]] = []
+    type_counts: dict[str, int] = {}
+    infra_pct = 0.0
+    for h in holders:
+        addr = _holder_address(h)
+        if not addr:
+            continue
+        label = labels.get(addr.lower(), {})
+        age = _wallet_age_days(h, label)
+        wtype = _classify_holder(label, age)
+        pct = _holder_pct(h)
+        type_counts[wtype] = type_counts.get(wtype, 0) + 1
+        if wtype in _INFRA_TYPES:
+            infra_pct += pct
+        entity_name = label.get("entity_name") or label.get("label") or h.get("label") or None
+        classified.append(
+            {
+                "address": addr,
+                "type": wtype,
+                "entity_name": entity_name,
+                "supply_pct": round(pct, 4),
+                "first_seen": _first_seen(label, h),
+                "age_days": round(age, 1) if age is not None else None,
+                "risk_score": label.get("risk_score"),
+                "source": label.get("source") or None,
+                "infra": wtype in _INFRA_TYPES,
+                "filterable": wtype in _FILTERABLE_TYPES,
+            }
+        )
+
+    classified.sort(key=lambda c: -c["supply_pct"])
+    return {
+        "token": address,
+        "chain": chain,
+        "holders": classified,
+        "type_counts": type_counts,
+        "infra_supply_pct": round(infra_pct, 2) if infra_pct > 0 else None,
+        "holder_count": len(classified),
+        "tracked_supply_pct": round(sum(_holder_pct(h) for h in holders), 2),
+        "source": "holder_graph+wallet_labels",
+    }
+
+
+@router.get("/filtered-holders/{chain}/{address}")
+async def filtered_holders(
+    chain: str,
+    address: str,
+    limit: int = Query(100, ge=10, le=300),
+    exclude: str = Query(
+        "CEX,DEX,Mixer",
+        description="Comma-separated wallet types to exclude (CEX,DEX,Mixer,Bridge,Bot,Sniper)",
+    ),
+) -> dict[str, Any]:
+    """Organic-holder analysis — exchange/DEX/mixer wallets EXCLUDED.
+
+    Same holder derivation as /wallet-classification but drops known
+    infrastructure wallets (default: CEX, DEX, Mixer) so the remaining
+    distribution is the TRUE retail-vs-bot picture, not one polluted by
+    exchange hot wallets and AMM pools. ``excluded`` reports what was
+    removed (count + supply share) so the filter is auditable.
+    """
+    holders = await _fetch_holders(address, chain, limit)
+    if not holders:
+        return {
+            "token": address,
+            "chain": chain,
+            "holders": [],
+            "excluded": {"count": 0, "supply_pct": None, "types": {}},
+            "holder_count": 0,
+            "source": "unavailable",
+        }
+
+    addresses = [_holder_address(h) for h in holders[:60]]
+    labels = await _fetch_labels([a for a in addresses if a], chain)
+    exclude_set = {t.strip().upper() for t in exclude.split(",") if t.strip()} & set(WALLET_TYPES)
+
+    organic: list[dict[str, Any]] = []
+    excluded_types: dict[str, int] = {}
+    excluded_pct = 0.0
+    for h in holders:
+        addr = _holder_address(h)
+        if not addr:
+            continue
+        label = labels.get(addr.lower(), {})
+        age = _wallet_age_days(h, label)
+        wtype = _classify_holder(label, age)
+        pct = _holder_pct(h)
+        entry = {
+            "address": addr,
+            "type": wtype,
+            "entity_name": label.get("entity_name") or label.get("label") or h.get("label") or None,
+            "supply_pct": round(pct, 4),
+            "first_seen": _first_seen(label, h),
+            "age_days": round(age, 1) if age is not None else None,
+            "risk_score": label.get("risk_score"),
+            "source": label.get("source") or None,
+        }
+        if wtype in exclude_set:
+            excluded_types[wtype] = excluded_types.get(wtype, 0) + 1
+            excluded_pct += pct
+            continue
+        organic.append(entry)
+
+    organic.sort(key=lambda c: -c["supply_pct"])
+    organic_supply = sum(c["supply_pct"] for c in organic)
+    top1 = organic[0]["supply_pct"] if organic else None
+    top10 = round(sum(c["supply_pct"] for c in organic[:10]), 2) if organic else None
+
+    return {
+        "token": address,
+        "chain": chain,
+        "exclude": sorted(exclude_set),
+        "holders": organic,
+        "holder_count": len(organic),
+        "organic_supply_pct": round(organic_supply, 2) if organic else None,
+        "top10_concentration_pct": top10,
+        "top1_holder_pct": top1,
+        "excluded": {
+            "count": sum(excluded_types.values()),
+            "supply_pct": round(excluded_pct, 2) if excluded_pct > 0 else None,
+            "types": excluded_types,
+        },
         "source": "holder_graph+wallet_labels",
     }
