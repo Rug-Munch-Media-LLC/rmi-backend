@@ -55,6 +55,13 @@ def test_setup_phoenix_register_lazy_ok(monkeypatch: pytest.MonkeyPatch) -> None
     with the package present it enables tracing even if the server is not
     reachable yet. OTLP export failures are background/no-op, so span
     helpers still never raise."""
+    import importlib.util
+
+    try:
+        if importlib.util.find_spec("phoenix.otel") is None:
+            pytest.skip("arize-phoenix-otel extra not installed — setup must fail-open (covered by fail_open test)")
+    except ModuleNotFoundError:
+        pytest.skip("arize-phoenix-otel extra not installed — setup must fail-open (covered by fail_open test)")
     monkeypatch.setenv("PHOENIX_ENABLED", "true")
     monkeypatch.setenv("PHOENIX_ENDPOINT", "http://127.0.0.1:1")  # nothing listens
     assert tracing.setup_phoenix() is True

@@ -548,19 +548,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             burst=max(1, int(RATE_LIMIT_GLOBAL * 0.25)),
         )
         if not global_allowed:
-            return JSONResponse(
+            from app.core.security_headers import apply_security_headers
+
+            resp = JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded"},
                 headers=global_headers,
             )
+            # Limiter is outermost — its short-circuit bypasses the inner
+            # SecurityHeadersMiddleware, so apply headers here too.
+            apply_security_headers(resp, path=request.url.path)
+            return resp
 
         allowed, headers = await self.limiter.acquire_path(request.url.path, client_id)
         if not allowed:
-            return JSONResponse(
+            from app.core.security_headers import apply_security_headers
+
+            resp = JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded"},
                 headers=headers,
             )
+            apply_security_headers(resp, path=request.url.path)
+            return resp
         response = await call_next(request)
         for k, v in headers.items():
             response.headers[k] = str(v)

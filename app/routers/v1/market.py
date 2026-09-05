@@ -420,7 +420,14 @@ async def get_trending(
     limit: int = Query(default=50, ge=1, le=200),
     hours: int = Query(default=_TRENDING_WINDOW_HOURS, ge=1, le=168),
 ) -> dict[str, Any]:
-    """Trending tokens derived from our own indexed launches + transfer activity."""
+    """Trending tokens derived from our own indexed launches + transfer activity.
+
+    NOTE: in the FULL app this route is shadowed by the canonical
+    ``app/routers/market_intel/routes/market_data.py`` implementation
+    (mounted earlier — items/total/updated_at contract, see
+    tests/contract/test_api_contracts.py). This own-ClickHouse variant
+    serves when this router is mounted standalone (unit tests, embeds).
+    """
     own = await asyncio.to_thread(_trending_own_safe, chain, limit, hours)
     if own:
         return {"data": own, "source": "own_clickhouse", "count": len(own)}

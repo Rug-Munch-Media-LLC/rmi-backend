@@ -186,8 +186,9 @@ VERIFIED_ENTRIES = [
 
 
 def test_load_verified_kol_wallets(tmp_path) -> None:
-    # Missing file (still being compiled) → [].
-    assert load_verified_kol_wallets() == []
+    # Missing file → [] (the bundled verified_kol_wallets.json now exists,
+    # so exercise the missing-file path with an explicit nonexistent path).
+    assert load_verified_kol_wallets(str(tmp_path / "does-not-exist.json")) == []
 
     p = tmp_path / "verified_kol_wallets.json"
     p.write_text(json.dumps({"wallets": VERIFIED_ENTRIES}))

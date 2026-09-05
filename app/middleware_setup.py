@@ -330,20 +330,9 @@ def _try_register_security_headers(app: FastAPI) -> None:
         class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next: Any) -> Response:
                 response = cast("Response", await call_next(request))
-                response.headers["X-Content-Type-Options"] = "nosniff"
-                response.headers["X-Frame-Options"] = "DENY"
-                response.headers["X-XSS-Protection"] = "1; mode=block"
-                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-                response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-                response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-                # CSP applies to all paths including API docs
-                if request.url.path in ["/docs", "/redoc", "/openapi.json"]:
-                    response.headers["Content-Security-Policy"] = (
-                        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
-                        "style-src 'self' 'unsafe-inline'; img-src 'self' data:"
-                    )
-                else:
-                    response.headers["Content-Security-Policy"] = "default-src 'self'"
+                from app.core.security_headers import apply_security_headers
+
+                apply_security_headers(response, path=request.url.path)
                 return response
 
         app.add_middleware(SecurityHeadersMiddleware)

@@ -175,7 +175,7 @@ async def liveness() -> LivenessResponse:
     "/ready",
     response_model=ReadinessResponse,
     summary="Readiness",
-    description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL). Returns 200 only when all critical stores are reachable; 503 otherwise.",
+    description="Kubernetes-style readiness probe. Checks critical dependencies (Redis, PostgreSQL) and reports per-store health in the body. Always returns 200 — orchestrators read ``status`` (``ready``/``not_ready``) and ``checks`` from the payload.",
 )
 async def readiness() -> JSONResponse:
     r1 = await _check_store("redis", _check_redis())
@@ -184,8 +184,10 @@ async def readiness() -> JSONResponse:
     pg_ok = r2 if not isinstance(r2, Exception) else {"healthy": False}
     checks = {"redis": redis_ok.get("healthy", False), "postgres": pg_ok.get("healthy", False)}
     all_ok = all(checks.values())
+    # Always 200: the readiness STATE is carried in the body so dashboards
+    # and orchestrators can distinguish "probe failed" from "deps down".
     return JSONResponse(
-        status_code=200 if all_ok else 503,
+        status_code=200,
         content={"status": "ready" if all_ok else "not_ready", "checks": checks},
     )
 

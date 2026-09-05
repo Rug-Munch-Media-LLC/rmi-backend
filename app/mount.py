@@ -118,6 +118,11 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.domains.auth.compat",  # /api/v1/auth/* (me, profile, wallet, change-password, delete-account, privacy-settings)
     # API version index (root-level /api listing)
     "app.routers.v1.api_index",  # /api (version index)
+    # Market intel — canonical /api/v1/market/* implementation. Mounted
+    # BEFORE the v1 aggregator so its /market/trending (items/total/
+    # updated_at contract) wins over the v1/market.py own-ClickHouse
+    # variant, which otherwise shadows it (first-registered wins).
+    "app.routers.market_intel_router",  # /api/v1/market/*  (28 routes, CoinGecko + DexScreener + Polymarket). Uses LIVE app.services.prediction_market_intel.
     # v1 API aggregator (strangler fig — mounts all /api/v1/* routes)
     "app.routers.v1",  # /api/v1/* (aggregator)
     # DataBus core router — webhooks, cache, admin, convenience, premium, social, bitquery, market news
@@ -193,7 +198,7 @@ ROUTER_MODULES: Final[list[str]] = [
     # All routers below import cleanly with LIVE deps; no dead imports.
     # Mounted 2026-07-07 — 6 medium-wiring routers + news retry:
     "app.routers.news",  # /api/v1/news/{feed,headlines,sources,sentiment,categories,stats,comment,comments,internal/scanner-alert}  (9 routes, news_service.py live). Wave 1 deferred; resolved by moving domain.news catch-all to /api/v1/articles/{news_id}.
-    "app.routers.market_intel_router",  # /api/v1/market/*  (28 routes, CoinGecko + DexScreener + Polymarket). Uses LIVE app.services.prediction_market_intel.
+    # market_intel_router moved above the v1 aggregator (2026-09-05) — see note there.
     "app.routers.prediction_market_router",  # /api/v1/prediction-markets/*  (6 routes, prediction_market_service.py live)
     "app.routers.alpha_router",  # /api/v1/alpha/*  (1 route, prediction-market insider detection — premium alpha)
     "app.routers.scam_school",  # /scam-school/*  (11 routes, education platform). No prefix — paths absolute. DEPRECATED — use /api/v1/scam-school/*.

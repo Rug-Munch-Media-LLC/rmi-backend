@@ -26,6 +26,7 @@ def fake_client() -> MagicMock:
     client = MagicMock()
     client.collection_exists = AsyncMock(return_value=False)
     client.create_collection = AsyncMock(return_value=True)
+    client.create_payload_index = AsyncMock(return_value=True)
     client.get_collection = AsyncMock(return_value={})
     client.close = AsyncMock()
     return client

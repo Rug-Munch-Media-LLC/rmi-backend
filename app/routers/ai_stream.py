@@ -170,3 +170,51 @@ async def list_providers() -> dict[str, Any]:
             ],
         }
     }
+
+
+# ── Hugging Face free-tier analysis (bounded + fail-open) ──
+
+
+class HfAnalysisRequest(BaseModel):
+    prompt: str
+    task: str = "complex"
+    max_tokens: int | None = None
+
+
+@router.post("/hf")
+async def hf_analysis(body: HfAnalysisRequest) -> dict[str, Any]:
+    """Bounded community-chat ANALYSIS via the FREE Hugging Face tier.
+
+    Fail-open contract: ALWAYS returns 200 with ``response`` (possibly "")
+    plus an ``error`` explanation when the provider is unavailable. Never
+    raises — the free tier is best-effort enrichment, not a dependency.
+    """
+    hf_cfg = llm_config.get_hf_config()
+    if not (hf_cfg.get("api_key") or ""):
+        return {
+            "response": "",
+            "error": "HUGGINGFACE_API_KEY not set — free HF analysis unavailable",
+            "provider": "huggingface",
+            "model": hf_cfg.get("model") or llm_config.HF_MODEL,
+        }
+    try:
+        answer = await llm_config.chat_with_hf_fallback(
+            [{"role": "user", "content": body.prompt}],
+            max_tokens=body.max_tokens,
+        )
+    except Exception as exc:
+        logger.warning("hf_analysis_failed err=%s", str(exc)[:160])
+        answer = ""
+    if answer:
+        return {
+            "response": answer,
+            "error": "",
+            "provider": "huggingface",
+            "model": hf_cfg.get("model") or llm_config.HF_MODEL,
+        }
+    return {
+        "response": "",
+        "error": "Hugging Face inference failed (rate limit, timeout, or empty answer)",
+        "provider": "huggingface",
+        "model": hf_cfg.get("model") or llm_config.HF_MODEL,
+    }

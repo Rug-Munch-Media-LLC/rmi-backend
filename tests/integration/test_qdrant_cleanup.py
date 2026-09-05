@@ -21,9 +21,12 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 
 
 def _list_collections() -> list[str]:
-    """Fetch all Qdrant collection names."""
-    r = httpx.get(f"{QDRANT_URL}/collections", timeout=5.0)
-    r.raise_for_status()
+    """Fetch all Qdrant collection names. Skips when Qdrant is unreachable."""
+    try:
+        r = httpx.get(f"{QDRANT_URL}/collections", timeout=5.0)
+        r.raise_for_status()
+    except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
+        pytest.skip(f"Qdrant unreachable at {QDRANT_URL}: {exc}")
     return [c["name"] for c in r.json().get("result", {}).get("collections", [])]
 
 

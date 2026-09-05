@@ -26,7 +26,9 @@ print("=" * 60)
 print("CITATION VALIDATOR TESTS")
 print("=" * 60)
 
-from app.domains.reports.citation_validator import validate_section  # noqa: E402 — module docstring precedes import block
+from app.domains.reports.citation_validator import (  # noqa: E402 — banner prints above
+    validate_section,
+)
 
 
 def test_valid_citation():
@@ -170,7 +172,10 @@ print("\n" + "=" * 60)
 print("RISK COMPUTATION TESTS")
 print("=" * 60)
 
-from app.domains.reports.generator import _compute_risk_token, _compute_risk_wallet  # noqa: E402 — module docstring precedes import block
+from app.domains.reports.generator import (  # noqa: E402 — module docstring precedes import block
+    _compute_risk_token,
+    _compute_risk_wallet,
+)
 
 
 def test_compute_risk_token_low():

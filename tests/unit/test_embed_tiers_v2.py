@@ -38,7 +38,9 @@ def test_no_gemini_mistral_nvidia_bge_anywhere():
 def get_dispatcher_sync():
     import asyncio
 
-    return asyncio.get_event_loop().run_until_complete(get_dispatcher())
+    # asyncio.run: get_event_loop() is deprecated and raises RuntimeError
+    # when a previous test closed/changed the thread's event loop.
+    return asyncio.run(get_dispatcher())
 
 
 def test_no_fast_tier_remains():
@@ -91,11 +93,15 @@ def test_backup_account_separation():
 def test_all_dims_match_collection():
     configure_providers(True)
     d = get_dispatcher_sync()
+    min_dims = et.get_min_dims("user_search")
     for p in d._providers:
         if p.id == "hash":
             continue
-        msg = f"{p.id} below collection dim"
-        assert p.dims >= et.COLLECTION_DIM, msg
+        if p.dims < et.COLLECTION_DIM:
+            # Sub-dim providers (e.g. 1024-d free LFM) are allowed in the
+            # registry but MUST be excluded from corpus dispatch by the
+            # min-dims filter — they can never feed the 2560-d collection.
+            assert p.dims < min_dims, f"{p.id} sub-dim but not filtered by min_dims"
 
 
 # ── Tier mapping + guard ──────────────────────────────────────────────
@@ -146,7 +152,7 @@ def test_normalize_truncates_and_renormalizes():
 
 
 def test_normalize_passthrough_at_target():
-    v = [1.0] + [0.0] * 1023
+    v = [1.0] + [0.0] * 2559
     assert et.normalize_dims(v) == v
 
 
@@ -182,7 +188,8 @@ async def test_embed_prefers_local_and_normalizes(monkeypatch):
             return None
 
         def json(self):
-            return {"data": [{"index": 0, "embedding": [0.5] * 2048}]}
+            # Local qwen3-embedding-4b native output is 2560-d (collection contract)
+            return {"data": [{"index": 0, "embedding": [0.5] * 2560}]}
 
     class FakeHttp:
         async def __aenter__(self):
