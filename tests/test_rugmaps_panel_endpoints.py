@@ -160,7 +160,7 @@ class TestRugmapsDeployerTokens:
 
 class TestRugchartsPluginsAll:
     def test_plugins_composed_from_helpers(self, client: TestClient) -> None:
-        routes = "app.routers.rugcharts.routes"
+        routes = "app.routers.rugcharts.routes.trending"
         with (
             patch(f"{routes}._fetch_whale_trades_clickhouse", new=AsyncMock(return_value=[])),
             patch(
@@ -183,7 +183,7 @@ class TestRugchartsPluginsAll:
         assert "contract_risk" not in body["available"]
 
     def test_helper_failure_becomes_plugin_error(self, client: TestClient) -> None:
-        routes = "app.routers.rugcharts.routes"
+        routes = "app.routers.rugcharts.routes.trending"
         with (
             patch(f"{routes}._fetch_whale_trades_clickhouse", new=AsyncMock(return_value=[])),
             patch(f"{routes}._fetch_pair_info", new=AsyncMock(side_effect=RuntimeError("gecko down"))),
