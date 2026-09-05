@@ -295,6 +295,10 @@ ROUTER_MODULES: Final[list[str]] = [
     # Transaction tracing — receipt logs, 4byte decoding, wallet-hop graph
     "app.routers.tracing_router",  # /api/v1/tracing/* (decode, health)
     #
+    # User portfolio & watchlist CRUD — auth-scoped, Postgres-backed — mounted 2026-09-05
+    "app.routers.portfolio",  # /api/v1/portfolio/* (3 routes, user_portfolio table)
+    "app.routers.watchlist",  # /api/v1/watchlist/* (4 routes, user_watchlist table)
+    #
     # Live Trades API — real-time trade data with whale detection — mounted 2026-08-06
     "app.routers.live_trades",  # /api/v1/trades/* (feed, stats, per-token trades)
     #
