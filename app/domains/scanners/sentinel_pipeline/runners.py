@@ -454,6 +454,29 @@ async def run_sentinel_scan(
         except httpx.HTTPError:
             logger.debug("wallet_memory_feedback_error", exc_info=True)
 
+    # ── Deployer Repo: record every scan's deployer + attach history ──
+    # Persistent reputation: every scan records the deployer; the report
+    # carries the deployer's full launch/rug history back to the caller.
+    if dev_address:
+        try:
+            from app.ai.deployer_repo import get_deployer_repo
+
+            _repo = get_deployer_repo()
+            meta = report.metadata_fingerprint if isinstance(report.metadata_fingerprint, dict) else {}
+            await _repo.record_deployer(
+                dev_address,
+                chain,
+                token_address,
+                {
+                    "risk_score": float(report.composite_risk_score or 0),
+                    "symbol": str(meta.get("symbol") or "") if meta else "",
+                    "outcome": "pending",
+                },
+            )
+            report.deployer_repo_history = await _repo.get_deployer_history(dev_address, chain)
+        except Exception as exc:
+            logger.debug("deployer_repo_record_failed", error=str(exc)[:100])
+
     # ── Push Telegram alert for high/critical risk (or severe red flags) ──
     try:
         from app.domains.telegram.alert_hooks import send_scanner_alert, should_send_scanner_alert

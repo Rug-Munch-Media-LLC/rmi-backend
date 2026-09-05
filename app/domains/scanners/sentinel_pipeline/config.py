@@ -133,6 +133,8 @@ class SentinelReport:
     # Cross-token association (own engine — own_cross_token_link): recurring
     # funding clusters across prior launches + serial-launcher deployer link.
     cross_token_link: dict[str, Any] | None = None
+    # Deployer Repo: persistent deployer reputation history (app/ai/deployer_repo).
+    deployer_repo_history: dict[str, Any] | None = None
 
     # Module errors (module_name -> error message)
     errors: dict[str, str] = field(default_factory=dict)

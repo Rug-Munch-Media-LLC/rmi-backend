@@ -159,6 +159,28 @@ def _serialize_rag_context(rag_ctx: Any) -> dict[str, Any] | None:
         return None
 
 
+async def _attach_rug_prediction(payload: dict[str, Any], scan_mode: str) -> dict[str, Any]:
+    """Attach the AI rug prediction (``rug_pull_predictor`` tool) — fail-open.
+
+    Only runs in advanced/deepscan mode where all 7 signal families
+    (deployer, holders, liquidity, volume, bundles, tokenomics,
+    microstructure) have data. A fusion failure never breaks the scan.
+    """
+    if scan_mode != "advanced":
+        return payload
+    try:
+        from app.ai.rug_predictor import predict_rug_probability
+
+        prediction = await predict_rug_probability(
+            payload, str(payload.get("chain", "")), str(payload.get("token", ""))
+        )
+        payload["ai_rug_prediction"] = prediction
+    except Exception as exc:
+        logger.debug("AI rug prediction failed (fail-open): %s", exc)
+        payload["ai_rug_prediction"] = None
+    return payload
+
+
 async def _attach_ai_verdict(payload: dict[str, Any]) -> dict[str, Any]:
     """Attach the AI narrative verdict (fail-open) — async context required."""
     try:
@@ -246,7 +268,7 @@ async def deepscan_token(
         )
         payload = _format_scan_response(result, scan_mode="advanced")
         payload.update(await _enrich_token_metadata(body.chain, body.address))
-        return await _attach_ai_verdict(payload)
+        return await _attach_rug_prediction(await _attach_ai_verdict(payload), "advanced")
     except Exception as e:
         raise AppError(f"Deep scan failed: {str(e)[:200]}", status_code=500) from e
 
@@ -278,7 +300,7 @@ async def _run_scan(
         payload = _format_scan_response(result, scan_mode=scan_mode)
         # DexScreener enrichment (icons/socials/dev info) — best-effort merge.
         payload.update(await _enrich_token_metadata(body.chain, body.address))
-        return await _attach_ai_verdict(payload)
+        return await _attach_rug_prediction(await _attach_ai_verdict(payload), scan_mode)
     except Exception as e:
         raise AppError(f"Scan failed: {str(e)[:200]}", status_code=500) from e
 
