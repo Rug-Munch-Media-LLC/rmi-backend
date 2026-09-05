@@ -128,7 +128,7 @@ class TestFeedPipelineEdgeCases:
             raise RuntimeError("HTTP 429 Too Many Requests")
 
         # Trigger circuit breaker with repeated failures
-        for i in range(CIRCUIT_BREAKER_THRESHOLD + 1):
+        for _i in range(CIRCUIT_BREAKER_THRESHOLD + 1):
             result = await pipeline.fetch_provider("ratelimited_provider", ratelimited_fetcher, "test")
             assert result.error is not None
 
@@ -161,7 +161,7 @@ class TestFeedPipelineEdgeCases:
             ]
         )
 
-        posts, metrics = results
+        posts, _metrics = results
         # The valid post should survive
         valid_titles = [p.title for p in posts]
         assert "Valid Post" in valid_titles
@@ -189,10 +189,8 @@ class TestFeedPipelineEdgeCases:
         """Semaphore prevents too many concurrent fetches."""
         import app.feed_quality_pipeline as fqp
 
-        original_limit = fqp.MAX_CONCURRENT_FETCHES
         fqp.MAX_CONCURRENT_FETCHES = 2  # Reduce for test
 
-        sem = pipeline._semaphore
         # Replace semaphore
         pipeline._semaphore = asyncio.Semaphore(2)
 
@@ -567,7 +565,7 @@ class TestFeedPerformance:
             ]
         )
 
-        posts, metrics = results
+        posts, _metrics = results
         # Fast provider should succeed
         fast_titles = [p.title for p in posts if p.source == "fast_provider"]
         assert "Fast" in fast_titles
@@ -755,7 +753,7 @@ class TestContentValidator:
             source="test",
             provider_group="test",
         )
-        is_valid, reason = ContentValidator.validate_post(post)
+        is_valid, _reason = ContentValidator.validate_post(post)
         assert not is_valid
 
     def test_content_too_long_rejected(self):
@@ -1103,3 +1101,276 @@ class TestProviderHealthAdvanced:
         monitor = ProviderHealthMonitor()
         dashboard = monitor.get_dashboard()
         assert dashboard == {}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Feed Quality Pipeline — Comprehensive Coverage
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestScorerQualityTiers:
+    """Scorer distinguishes high-quality from low-quality content."""
+
+    def _make_post(self, **overrides) -> FeedPost:
+        defaults = {
+            "id": "tier_test",
+            "title": "",
+            "content": "",
+            "source": "test",
+            "provider_group": "rss",
+            "published": datetime.now(UTC).isoformat(),
+        }
+        defaults.update(overrides)
+        return FeedPost(**defaults)
+
+    def test_scorer_high_quality_content(self):
+        """A well-written article with real content scores >= 0.7."""
+        post = self._make_post(
+            title="Institutional Adoption Accelerates Across Ethereum Layer-2 Networks",
+            content=(
+                "Ethereum layer-2 networks recorded record transaction volumes this quarter as "
+                "institutional treasuries begin allocating to rollup-based settlement. Data from "
+                "three independent analytics firms confirms the trend, with average daily "
+                "transactions up 40% quarter over quarter. Analysts attribute the growth to "
+                "reduced fees and improved developer tooling across the ecosystem."
+            ),
+            author="Jane Analyst",
+            raw={"source_tier": 1},
+        )
+        score = FeedScorer.score_post(post)
+        assert score >= 0.7, f"High-quality article scored {score}, expected >= 0.7"
+
+    def test_scorer_low_quality_content(self):
+        """Garbage/spam content scores < 0.3."""
+        post = self._make_post(
+            title="",
+            content="ok",
+            provider_group="social",
+            published=(datetime.now(UTC) - timedelta(days=365)).isoformat(),
+        )
+        score = FeedScorer.score_post(post, creator_affinity=0.0)
+        assert score < 0.3, f"Low-quality content scored {score}, expected < 0.3"
+
+    def test_scorer_ai_slop_detection(self):
+        """Content with banned AI-slop phrases gets penalized."""
+        clean = self._make_post(
+            title="Market Roundup: Key Moves This Week",
+            content=(
+                "Markets moved sharply this week as several major protocols announced upgrades. "
+                "Analysts expect continued volatility through the end of the month."
+            ),
+        )
+        slop = self._make_post(
+            title="Market Roundup: Key Moves This Week",
+            content=(
+                "Markets moved sharply this week as several major protocols announced upgrades. "
+                "Analysts expect continued volatility through the end of the month. "
+                "Stay safe out there. NFA. DYOR."
+            ),
+        )
+        clean_score = FeedScorer.score_post(clean)
+        slop_score = FeedScorer.score_post(slop)
+        assert slop_score < clean_score, (
+            f"AI-slop content ({slop_score}) should score below clean content ({clean_score})"
+        )
+        # Penalty magnitude: 3 phrases * 0.15 penalty on content-quality component
+        assert clean_score - slop_score >= pytest.approx(3 * 0.15 * 0.25, abs=0.02)
+
+    def test_scorer_slop_penalty_word_boundaries(self):
+        """Short slop tokens don't match inside unrelated words."""
+        post = self._make_post(
+            title="Confidence in Markets",
+            content=(
+                "Investor confidence remains high despite volatility. The unified theory of "
+                "market cycles suggests patience wins."
+            ),
+        )
+        # "confidence" contains no banned token as a standalone word
+        score = FeedScorer.score_post(post)
+        assert score > 0.5
+
+
+class TestValidatorAdditional:
+    def test_validator_rejects_empty_title(self):
+        """Article with empty title and no content is rejected."""
+        post = FeedPost(
+            id="no_title",
+            title="",
+            content="",
+            source="test",
+            provider_group="rss",
+        )
+        is_valid, reason = ContentValidator.validate_post(post)
+        assert not is_valid
+        assert reason == "empty_content"
+
+    def test_validator_rejects_too_short(self):
+        """Article with < 50 chars content (and short title) is rejected."""
+        post = FeedPost(
+            id="short",
+            title="Hi",
+            content="Just a quick note.",
+            source="test",
+            provider_group="rss",
+        )
+        is_valid, reason = ContentValidator.validate_post(post)
+        assert not is_valid
+        assert reason == "content_too_short"
+
+    def test_validator_spam_pattern_rejected(self):
+        """Spam phrases like 'click here' are rejected."""
+        post = FeedPost(
+            id="spam",
+            title="Amazing Offer",
+            content="Click here to claim your free money now, limited time only for our readers today.",
+            source="test",
+            provider_group="rss",
+        )
+        is_valid, reason = ContentValidator.validate_post(post)
+        assert not is_valid
+        assert "spam_pattern" in reason
+
+
+class TestDeduplicatorBatch:
+    def test_deduplicator_removes_exact_duplicates(self):
+        """Same content twice -> second is removed."""
+        dedup = ContentDeduplicator()
+        post_a = FeedPost(
+            id="a",
+            title="Bitcoin Hits New High",
+            content="Bitcoin reached a new all-time high today amid strong buying pressure.",
+            source="ingest",
+            provider_group="rss",
+        )
+        post_b = FeedPost(
+            id="b",
+            title="Bitcoin Hits New High",
+            content="Bitcoin reached a new all-time high today amid strong buying pressure.",
+            source="ingest",
+            provider_group="rss",
+        )
+        assert not dedup.is_duplicate(post_a)
+        assert dedup.is_duplicate(post_b)
+
+    def test_deduplicator_removes_near_duplicates(self):
+        """Same content with minor changes -> second is removed."""
+        dedup = ContentDeduplicator()
+        post_a = FeedPost(
+            id="a",
+            title="Ethereum Fees Drop to Yearly Low",
+            content="Ethereum transaction fees fell to their lowest level this year amid reduced network congestion.",
+            source="ingest",
+            provider_group="rss",
+        )
+        post_b = FeedPost(
+            id="b",
+            title="Ethereum Fees Drop to Yearly Lows",
+            content="Ethereum transaction fees fell to their lowest levels this year amid reduced network congestion.",
+            source="ingest",
+            provider_group="rss",
+        )
+        assert not dedup.is_duplicate(post_a)
+        assert dedup.is_duplicate(post_b)
+
+    def test_deduplicator_keeps_distinct_content(self):
+        """Genuinely different articles are both kept."""
+        dedup = ContentDeduplicator()
+        post_a = FeedPost(
+            id="a",
+            title="Solana Network Upgrade Ships",
+            content="Solana completed a major network upgrade improving throughput for validators.",
+            source="ingest",
+            provider_group="rss",
+        )
+        post_b = FeedPost(
+            id="b",
+            title="Regulator Issues New Guidance",
+            content="The securities regulator published new guidance for digital asset custodians.",
+            source="ingest",
+            provider_group="rss",
+        )
+        assert not dedup.is_duplicate(post_a)
+        assert not dedup.is_duplicate(post_b)
+
+
+class TestRunQualityPipeline:
+    @pytest.mark.asyncio
+    async def test_pipeline_full_flow(self):
+        """Mix of good/bad/duplicate articles -> only good unique articles survive, scored."""
+        from app.feed_quality_pipeline import run_quality_pipeline
+
+        good_article = {
+            "title": "Bitcoin ETF Inflows Hit Record Weekly High",
+            "content": (
+                "Spot Bitcoin ETFs recorded their largest weekly inflows since launch as "
+                "institutional demand accelerates. Analysts point to sustained accumulation "
+                "by asset managers and rising open interest across major derivatives venues."
+            ),
+            "url": "https://example.com/etf-inflows",
+            "author": "Jane Doe",
+        }
+        duplicate = dict(good_article, url="https://other.example.com/etf-mirror")
+        near_dup = dict(
+            good_article,
+            title="Bitcoin ETF Inflows Hit Record Weekly Highs",
+            content=(
+                "Spot Bitcoin ETFs recorded their largest weekly inflows since launch as "
+                "institutional demand accelerated. Analysts point to sustained accumulation "
+                "by asset managers and rising open interest across major derivatives venues."
+            ),
+            url="https://example.com/etf-near",
+        )
+        garbage = {
+            "title": "Buy Now",
+            "content": "Click here for free money, subscribe today for exclusive deals and offers.",
+            "url": "https://spam.example.com/1",
+        }
+        too_short = {"title": "Hi", "content": "ok", "url": "https://example.com/short"}
+
+        result = await run_quality_pipeline([good_article, duplicate, near_dup, garbage, too_short])
+
+        titles = [item["title"] for item in result]
+        assert titles == [good_article["title"]], f"Unexpected survivors: {titles}"
+        assert 0.0 < result[0]["quality_score"] <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_pipeline_failopen_empty_list(self):
+        """Empty input list returns empty output, no crash."""
+        from app.feed_quality_pipeline import run_quality_pipeline
+
+        result = await run_quality_pipeline([])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_pipeline_failopen_malformed_input(self):
+        """Malformed items are skipped without raising."""
+        from app.feed_quality_pipeline import run_quality_pipeline
+
+        result = await run_quality_pipeline([None, "just a string", 42, {}, {"title": ""}])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_pipeline_sorted_by_score(self):
+        """Survivors are sorted by quality_score descending."""
+        from app.feed_quality_pipeline import run_quality_pipeline
+
+        strong = {
+            "title": "Comprehensive Analysis of Layer-2 Rollup Economics",
+            "content": (
+                "Layer-2 rollups have fundamentally changed the economics of blockspace. "
+                "This analysis covers fee markets, data availability costs, and sequencer "
+                "decentralization trade-offs with data from the past twelve months of "
+                "on-chain activity across all major deployments."
+            ),
+            "author": "Expert",
+            "url": "https://example.com/l2",
+        }
+        weak = {
+            "title": "Quick Note",
+            "content": "Markets were mixed today with modest moves across major assets.",
+            "url": "https://example.com/note",
+        }
+        result = await run_quality_pipeline([weak, strong])
+        assert len(result) == 2
+        scores = [item["quality_score"] for item in result]
+        assert scores == sorted(scores, reverse=True)

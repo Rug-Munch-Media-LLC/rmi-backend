@@ -7,6 +7,7 @@ Exports:
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -33,6 +34,15 @@ class FeedScorer:
     MIN_CONTENT_SCORE = 0.05
     MIN_ENGAGEMENT_SCORE = 0.1
     MIN_SOURCE_CREDIBILITY = 0.2
+
+    # AI-slop phrases that indicate low-effort/generated content
+    AI_SLOP_PHRASES: tuple[str, ...] = (
+        "stay safe out there",
+        "nfa",
+        "dyor",
+        "not financial advice",
+    )
+    AI_SLOP_PENALTY = 0.15
 
     # Source tier -> credibility mapping
     SOURCE_CREDIBILITY: dict[int, float] = {
@@ -139,7 +149,14 @@ class FeedScorer:
         if post.author:
             score += 0.1
 
-        return min(1.0, score)
+        # AI-slop penalty (word-boundary match so "nfa"/"dyor" don't hit
+        # inside unrelated words)
+        text = f"{post.title} {post.content}".lower()
+        for phrase in cls.AI_SLOP_PHRASES:
+            if re.search(rf"\b{re.escape(phrase)}\b", text):
+                score -= cls.AI_SLOP_PENALTY
+
+        return max(0.0, min(1.0, score))
 
     @classmethod
     def _get_source_credibility(cls, post: FeedPost) -> float:
