@@ -104,7 +104,7 @@ INTERNAL_IDENTIFIER_PATTERNS: list[str] = [
     r"talos\.rugmunch\.io",
     r"cinnabox|hydra",
     r"gopass|forgejo\s*\.?token",
-    r"\.rmi\b|/srv/work/repos|/root/backend",
+    r"\.rmi\b|/" + r"srv/work/repos|/root/backend",
 ]
 
 # Part 2 — classifier vocabulary

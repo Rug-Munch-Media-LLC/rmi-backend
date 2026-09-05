@@ -38,16 +38,14 @@ logger = get_logger("kol_bot_store")
 #: Candidate locations for the bot's SQLite DB (first existing wins).
 _BOT_DB_CANDIDATES: tuple[str, ...] = (
     os.getenv("BOT_DB_PATH", "").strip(),
-    "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/bot_users.db",
-    "/srv/work/repos/rugmunchbot/src/rugmunchbot/data/bot_users.db",
+    os.getenv("BOT_USERS_DB_PATH", ""),
     "/tmp/rmi/telegram/bot_users.db",  # nosec B108 — known bot DB mirror path, stable inter-process lookup
 )
 
 #: Candidate locations for the curated Wall of Shame file.
 _WALL_OF_SHAME_CANDIDATES: tuple[str, ...] = (
     os.getenv("KOL_WALL_OF_SHAME_PATH", "").strip(),
-    "/srv/work/repos/rugmunchbot/src/rugmunchbot/data/kol/wall_of_shame.json",
-    "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/kol/wall_of_shame.json",
+    os.getenv("KOL_WALL_OF_SHAME_PATH", ""),
     # Container path (bot repo mounted at /app/rugmunchbot in the backend image)
     "/app/rugmunchbot/rugmunchbot/data/kol/wall_of_shame.json",
 )

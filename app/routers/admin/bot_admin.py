@@ -136,7 +136,7 @@ def _resolve_bot_db_path() -> str:
 
     candidates = [
         os.getenv("BOT_DB_PATH", "").strip(),
-        "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/bot_users.db",
+        os.getenv("BOT_USERS_DB_PATH", ""),
         os.path.join(
             os.path.dirname(__file__), "..", "..", "domains", "telegram", "rugmunchbot", "data", "bot_users.db"
         ),

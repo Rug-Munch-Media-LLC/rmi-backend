@@ -33,7 +33,7 @@ suppress_httpx_urls()
 # (app.domains.telegram.adminbot.bot) and MUST point at the same secret —
 # adminbot/config.py reads rmi/rmiadminbot/bot_token (adminbot/config.py:15).
 # Phase 3: rugmunchbot runs standalone from its own repo (its secure_launcher
-# lives at /srv/work/repos/rugmunchbot/secure_launcher.py). This launcher
+# lives at the path configured via BOT_LAUNCHER_PATH). This launcher
 # only serves the admin bots.
 GOPASS_PATHS = {
     "adminbot": "rmi/rmiadminbot/bot_token",

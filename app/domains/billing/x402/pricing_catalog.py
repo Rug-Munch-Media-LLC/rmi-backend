@@ -418,7 +418,7 @@ def _load_tool_prices() -> None:
     gateway_base = None
     for candidate in [
         os.environ.get("X402_GATEWAY_DIR"),
-        "/srv/work/repos/rmi-mcp-x402",
+        os.environ.get("X402_GATEWAY_DIR", ""),
         "/srv/rmi/rmi-mcp-x402",
     ]:
         if os.path.isdir(candidate):  # type: ignore[arg-type]
