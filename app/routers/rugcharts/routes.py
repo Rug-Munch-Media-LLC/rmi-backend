@@ -546,6 +546,267 @@ async def rugcharts_volume_analysis(
     )
 
 
+# ── Volume breakdown: bot / wash / MEV / organic (DexScreener-killer) ────
+# Maps classifier wallet labels onto the volume-authenticity taxonomy the
+# frontend BotVolumeLabeler + VolumeAuthenticityGauge render:
+#   bot    -> bot      (machine-gun / round-number sizing)
+#   bundle -> wash     (coordinated same-second launch volume)
+#   sniper -> mev      (buy-then-flip inside the sniper window)
+#   whale / swap -> organic
+_VOLUME_LABEL_MAP = {"bot": "bot", "bundle": "wash", "sniper": "mev", "whale": "organic", "swap": "organic"}
+
+
+@router.get("/volume-breakdown/{chain}/{address}")
+async def rugcharts_volume_breakdown(
+    chain: str,
+    address: str,
+    limit: int = Query(200, ge=10, le=500, description="Recent trades to classify"),
+) -> Any:
+    """Per-trade volume authenticity breakdown with labeled trades.
+
+    Extends /volume-analysis with the exact shape the RugCharts
+    BotVolumeLabeler and VolumeAuthenticityGauge consume: every recent
+    trade carries a bot/wash/mev/organic label + confidence, and the
+    aggregate reports organic/bot/wash/mev volume shares plus the
+    statistical volume-authenticity score.
+    """
+    trades = await _fetch_recent_trades_clickhouse(address, chain, limit)
+    labeled = classify_trades(trades)
+    breakdown = volume_breakdown(labeled)
+    pair_info = await _fetch_pair_info(address, chain)
+    vol_auth = _compute_volume_authenticity(pair_info, [])
+
+    labeled_trades: list[dict[str, Any]] = []
+    pct_totals: dict[str, float] = {"organic": 0.0, "bot": 0.0, "wash": 0.0, "mev": 0.0}
+    for t in labeled:
+        label = _VOLUME_LABEL_MAP.get(t.get("wallet_label", "swap"), "organic")
+        pct_totals[label] += float(t.get("volume_usd", 0) or 0)
+        labeled_trades.append(
+            {
+                "timestamp": t.get("time", 0),
+                "side": t.get("side", "unknown"),
+                "amount": round(float(t.get("volume_usd", 0) or 0), 2),
+                "price_usd": float(t.get("price_usd", 0) or 0),
+                "label": label,
+                "confidence": t.get("label_confidence", 40),
+                "tx_hash": t.get("tx_hash", ""),
+            }
+        )
+
+    total_vol = sum(pct_totals.values())
+    shares = {k: round(v / total_vol * 100, 1) if total_vol > 0 else None for k, v in pct_totals.items()}
+
+    return envelope(
+        success=True,
+        data={
+            "chain": chain,
+            "token_address": address,
+            "organic_pct": shares["organic"],
+            "bot_pct": shares["bot"],
+            "wash_pct": shares["wash"],
+            "mev_pct": shares["mev"],
+            "authenticity_score": vol_auth["authentic_score"],
+            "risk_flags": vol_auth["risk_flags"],
+            "sample": breakdown.get("sample", {}),
+            "confidence": breakdown.get("confidence", "none"),
+            "labeled_trades": labeled_trades,
+        },
+        source="lite_chain_indexer (ClickHouse dex_events)",
+        confidence=0.8 if breakdown.get("confidence") == "high" else 0.5,
+    )
+
+
+# ── AI-assisted technical analysis (AITA overlay) ────────────────────────
+
+
+def _pivot_levels(
+    candles: list[dict[str, Any]], window: int = 3, max_levels: int = 3
+) -> tuple[list[float], list[float]]:
+    """Swing-pivot support/resistance levels from local extrema."""
+    highs = [float(c["high"]) for c in candles]
+    lows = [float(c["low"]) for c in candles]
+    resistance: list[float] = []
+    support: list[float] = []
+    n = len(candles)
+    for i in range(window, n - window):
+        if highs[i] == max(highs[i - window : i + window + 1]):
+            resistance.append(highs[i])
+        if lows[i] == min(lows[i - window : i + window + 1]):
+            support.append(lows[i])
+
+    # Cluster nearby levels (within 1.5% of each other) and keep strongest.
+    def _cluster(vals: list[float]) -> list[float]:
+        vals = sorted(vals, reverse=True)
+        out: list[float] = []
+        for v in vals:
+            if not out or abs(v - out[-1]) / out[-1] > 0.015:
+                out.append(round(v, 10))
+        return out[:max_levels]
+
+    return _cluster(support), _cluster(resistance)
+
+
+def _detect_pattern(candles: list[dict[str, Any]]) -> tuple[str, float, str]:
+    """Heuristic chart-pattern detection over the recent candle window.
+
+    Returns (pattern, confidence, reasoning). Pure and honest: when no
+    recognizable structure exists we say so instead of forcing a label.
+    """
+    n = len(candles)
+    if n < 30:
+        return ("none", 0.0, "insufficient candle history for pattern detection")
+
+    highs = [float(c["high"]) for c in candles]
+    lows = [float(c["low"]) for c in candles]
+
+    start = n - 30
+    peak_idx = [i - start for i in range(start + 2, n - 2) if highs[i] == max(highs[i - 2 : i + 3])]
+    trough_idx = [i - start for i in range(start + 2, n - 2) if lows[i] == min(lows[i - 2 : i + 3])]
+
+    tol = 0.02
+    # Double top: two peaks within tol with a >=2% trough between them.
+    if len(peak_idx) >= 2:
+        p1, p2 = peak_idx[-2], peak_idx[-1]
+        if p2 - p1 >= 4 and abs(highs[-30 + p1] - highs[-30 + p2]) / highs[-30 + p2] <= tol:
+            trough = min(lows[-30 + p1 : -30 + p2])
+            if (highs[-30 + p1] - trough) / highs[-30 + p1] >= 0.02:
+                return (
+                    "double_top",
+                    72,
+                    "Two peaks at similar price with a trough between — classic distribution shape",
+                )
+    # Double bottom: mirror of double top.
+    if len(trough_idx) >= 2:
+        t1, t2 = trough_idx[-2], trough_idx[-1]
+        if t2 - t1 >= 4 and abs(lows[-30 + t1] - lows[-30 + t2]) / lows[-30 + t2] <= tol:
+            peak = max(highs[-30 + t1 : -30 + t2])
+            if (peak - lows[-30 + t1]) / lows[-30 + t1] >= 0.02:
+                return ("double_bottom", 72, "Two lows at similar price with a rebound between — accumulation shape")
+    # Ascending triangle: flat-ish highs, rising lows.
+    highs_flat = abs(max(highs[-15:]) - max(highs[-30:-15])) / max(highs[-30:-15]) <= tol
+    lows_rising = min(lows[-15:]) > min(lows[-30:-15]) * 1.01
+    if highs_flat and lows_rising:
+        return ("ascending_triangle", 65, "Horizontal resistance with rising lows — bullish compression")
+    # Descending triangle: flat-ish lows, falling highs.
+    if (
+        abs(min(lows[-15:]) - min(lows[-30:-15])) / min(lows[-30:-15]) <= tol
+        and max(highs[-15:]) < max(highs[-30:-15]) * 0.99
+    ):
+        return ("descending_triangle", 65, "Horizontal support with falling highs — bearish compression")
+    return ("none", 0.0, "No high-confidence pattern in the recent window")
+
+
+@router.get("/ai-ta/{chain}/{address}")
+async def rugcharts_ai_ta(
+    chain: str,
+    address: str,
+    timeframe: str = Query("1h", description="Candle timeframe"),
+) -> Any:
+    """AI-assisted technical analysis for the RugCharts AITA overlay.
+
+    Deterministic TA (shared ta.py snapshot) + swing-pivot S/R levels +
+    heuristic pattern detection, fused into a single trend call with a
+    confidence score and human-readable reasoning. Honest labeling: this
+    is rule-based analysis, not an LLM — the response says so.
+    """
+    candles = await _fetch_ohlcv_gecko(address, chain, timeframe, 100)
+    if not candles:
+        candles = await _fetch_ohlcv_clickhouse(address, chain, timeframe, 100)
+    snapshot = compute_ta_snapshot(candles)
+    if not snapshot.get("available"):
+        return envelope(
+            success=True,
+            data={
+                "chain": chain,
+                "address": address,
+                "available": False,
+                "reason": snapshot.get("reason", "insufficient_ohlcv"),
+                "trend": None,
+                "pattern": None,
+                "support_levels": [],
+                "resistance_levels": [],
+                "confidence": 0,
+                "reasoning": "Not enough candle data for AI-TA on this timeframe.",
+            },
+            source="none",
+            confidence=0.0,
+        )
+
+    support_levels, resistance_levels = _pivot_levels(candles)
+    pattern, pattern_conf, pattern_reason = _detect_pattern(candles)
+
+    trend = snapshot.get("trend", "NEUTRAL")
+    rsi = snapshot.get("rsi_14") or 50
+    price_vs_sma = snapshot.get("price_vs_sma20", "BELOW")
+    macd_hist = snapshot.get("macd_hist")
+
+    # Confidence: evidence count — each agreeing indicator adds weight.
+    bull_votes = 0
+    bear_votes = 0
+    if trend == "BULLISH":
+        bull_votes += 1
+    else:
+        bear_votes += 1
+    if price_vs_sma == "ABOVE":
+        bull_votes += 1
+    else:
+        bear_votes += 1
+    if rsi > 55:
+        bull_votes += 1
+    elif rsi < 45:
+        bear_votes += 1
+    if (macd_hist or 0) > 0:
+        bull_votes += 1
+    elif (macd_hist or 0) < 0:
+        bear_votes += 1
+    if pattern == "ascending_triangle" or pattern == "double_bottom":
+        bull_votes += 1
+    elif pattern == "descending_triangle" or pattern == "double_top":
+        bear_votes += 1
+
+    total_votes = bull_votes + bear_votes
+    confidence = round(max(bull_votes, bear_votes) / total_votes * 100) if total_votes else 50
+
+    reasons: list[str] = []
+    reasons.append(f"SMA7 {'above' if trend == 'BULLISH' else 'below'} SMA20 ({trend.lower()} structure)")
+    reasons.append(f"Price trading {price_vs_sma.lower()} SMA20")
+    reasons.append(
+        f"RSI(14) at {rsi:.0f} — {'bullish momentum' if rsi > 55 else 'bearish momentum' if rsi < 45 else 'neutral momentum'}"
+    )
+    if macd_hist is not None:
+        reasons.append(f"MACD histogram {'positive' if macd_hist > 0 else 'negative'}")
+    if pattern != "none":
+        reasons.append(f"Pattern: {pattern.replace('_', ' ')} ({pattern_reason})")
+
+    return envelope(
+        success=True,
+        data={
+            "chain": chain,
+            "address": address,
+            "timeframe": timeframe,
+            "available": True,
+            "trend": trend,
+            "pattern": pattern,
+            "pattern_confidence": pattern_conf,
+            "support_levels": support_levels,
+            "resistance_levels": resistance_levels,
+            "confidence": confidence,
+            "reasoning": reasons,
+            "indicators": {
+                "rsi_14": snapshot.get("rsi_14"),
+                "sma_7": snapshot.get("sma_7"),
+                "sma_20": snapshot.get("sma_20"),
+                "macd_hist": snapshot.get("macd_hist"),
+                "bb_upper": snapshot.get("bb_upper"),
+                "bb_lower": snapshot.get("bb_lower"),
+            },
+            "method": "deterministic_rule_fusion (not an LLM)",
+        },
+        source="geckoterminal+clickhouse",
+        confidence=0.7 if candles else 0.0,
+    )
+
+
 @router.get("/plugins/all")
 async def rugcharts_plugins_all(
     token_address: str,
