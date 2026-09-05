@@ -10,9 +10,10 @@ import re
 from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, model_validator
 
+from app.core.errors import AppError
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 from app.features import get_token_scanner, get_wallet_scanner
@@ -163,7 +164,7 @@ async def deepscan_token(
         result = await scanner.scan(address=body.address, chain=body.chain, tier="elite", admin_key=admin_key)
         return await _attach_ai_verdict(_format_scan_response(result))
     except Exception as e:
-        raise HTTPException(500, f"Deep scan failed: {str(e)[:200]}") from e
+        raise AppError(f"Deep scan failed: {str(e)[:200]}", status_code=500) from e
 
 
 async def _run_scan(
@@ -178,7 +179,7 @@ async def _run_scan(
         result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
         return await _attach_ai_verdict(_format_scan_response(result))
     except Exception as e:
-        raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
+        raise AppError(f"Scan failed: {str(e)[:200]}", status_code=500) from e
 
 
 def _top_level_deployer(result: Any) -> dict[str, Any] | None:
@@ -399,7 +400,7 @@ async def get_token_scan_status(chain: str, address: str) -> dict[str, Any]:
 
     status = await scan_status(chain, address)
     if status is None:
-        raise HTTPException(404, f"No scan status found for {chain}:{address}")
+        raise AppError(f"No scan status found for {chain}:{address}", status_code=404)
     return status
 
 
@@ -466,4 +467,4 @@ async def scan_wallet(
             "fallback_used": result.risk_score is None,
         }
     except Exception as e:
-        raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
+        raise AppError(f"Scan failed: {str(e)[:200]}", status_code=500) from e
