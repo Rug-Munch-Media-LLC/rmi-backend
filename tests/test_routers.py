@@ -97,7 +97,7 @@ def mock_scanner():
 
     scanner = AsyncMock()
 
-    async def fake_scan(address, chain="solana", tier="free", admin_key=None):
+    async def fake_scan(address, chain="solana", tier="free", admin_key=None, scan_mode="advanced"):
         return _make_scan_result(address, chain)
 
     scanner.scan = fake_scan

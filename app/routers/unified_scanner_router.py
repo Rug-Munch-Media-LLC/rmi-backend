@@ -11,7 +11,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, model_validator
 
 from app.core.errors import AppError
@@ -172,24 +172,59 @@ async def _attach_ai_verdict(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+# Premium/SENTINEL module names that only run in advanced (deepscan) mode.
+# Used to compute ``modules_skipped`` for basic-mode scans.
+ADVANCED_ONLY_MODULES: list[str] = [
+    "bundle_analysis",
+    "first_buyers",
+    "wallet_metrics",
+    "funding_analysis",
+    "wallet_freshness",
+    "holder_overlap",
+    "holder_concentration",
+    "dev_reputation",
+    "metadata_fingerprint",
+    "contract_authority",
+    "proxy_detection",
+    "lp_verification",
+    "risk_report",
+    "news_sentiment",
+    "news_card",
+    "event_correlation",
+]
+
+
 @router.post(
     "/token/scan",
     summary="Scan Token",
-    description="Comprehensive token scan across 50+ security modules. Returns safety score, risk flags, green flags, and detailed module results.",
+    description=(
+        "Token scan with explicit mode selection. "
+        "``scan_mode=basic`` (default): fast modules only (metadata, price, "
+        "liquidity, basic security) — returns in ~3s. "
+        "``scan_mode=advanced``: ALL modules including premium/SENTINEL "
+        "(same as /token/deepscan)."
+    ),
 )
 async def scan_token(
     request: Request,
     body: TokenScanRequest,
     scanner: UnifiedTokenScanner = Depends(get_token_scanner),
+    scan_mode: str = Query("basic", pattern="^(basic|advanced)$"),
 ) -> dict[str, Any]:
     tier = _get_tier(request)
-    return await _run_scan(scanner, body, tier, request)
+    return await _run_scan(scanner, body, tier, request, scan_mode)
 
 
 @router.post(
     "/token/deepscan",
     summary="Deep Scan Token",
-    description="Full deep scan — runs ALL modules including premium/SENTINEL (bundle detect, cluster map, dev finder, wash trade, MEV, sniper, insider, bot farm, holder analysis, LP verification, contract authority, proxy detection). Not gated — free to use.",
+    description=(
+        "Full deep scan — alias for ``scan_mode=advanced`` on /token/scan. "
+        "Runs ALL modules including premium/SENTINEL (bundle detect, cluster "
+        "map, dev finder, wash trade, MEV, sniper, insider, bot farm, holder "
+        "analysis, LP verification, contract authority, proxy detection). "
+        "Not gated — free to use. Kept for backward compatibility."
+    ),
 )
 async def deepscan_token(
     request: Request,
@@ -206,8 +241,10 @@ async def deepscan_token(
     """
     admin_key = _get_admin_key(request)
     try:
-        result = await scanner.scan(address=body.address, chain=body.chain, tier="elite", admin_key=admin_key)
-        return await _attach_ai_verdict(_format_scan_response(result))
+        result = await scanner.scan(
+            address=body.address, chain=body.chain, tier="elite", admin_key=admin_key, scan_mode="advanced"
+        )
+        return await _attach_ai_verdict(_format_scan_response(result, scan_mode="advanced"))
     except Exception as e:
         raise AppError(f"Deep scan failed: {str(e)[:200]}", status_code=500) from e
 
@@ -217,12 +254,26 @@ async def _run_scan(
     body: TokenScanRequest,
     tier: str,
     request: Request,
+    scan_mode: str = "basic",
 ) -> dict[str, Any]:
-    """Run a token scan and format the response."""
+    """Run a token scan and format the response.
+
+    ``scan_mode="basic"`` runs only the fast core modules (metadata, price,
+    liquidity, basic security) — background deep/premium/SENTINEL phases are
+    skipped. ``scan_mode="advanced"`` forces elite tier so every module runs
+    (identical to /token/deepscan).
+    """
     admin_key = _get_admin_key(request)
+    effective_tier = "elite" if scan_mode == "advanced" else tier
     try:
-        result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
-        return await _attach_ai_verdict(_format_scan_response(result))
+        result = await scanner.scan(
+            address=body.address,
+            chain=body.chain,
+            tier=effective_tier,
+            admin_key=admin_key,
+            scan_mode=scan_mode,
+        )
+        return await _attach_ai_verdict(_format_scan_response(result, scan_mode=scan_mode))
     except Exception as e:
         raise AppError(f"Scan failed: {str(e)[:200]}", status_code=500) from e
 
@@ -286,8 +337,13 @@ def _deep_links(token: str, chain: str) -> dict[str, str]:
     return links
 
 
-def _format_scan_response(result: Any) -> dict[str, Any]:
-    """Format a ScanResult into the API response dict."""
+def _format_scan_response(result: Any, scan_mode: str = "basic") -> dict[str, Any]:
+    """Format a ScanResult into the API response dict.
+
+    ``scan_mode`` is echoed back so the frontend knows which mode ran.
+    ``modules_run`` lists executed modules; ``modules_skipped`` lists the
+    premium/SENTINEL modules that did not run (non-empty in basic mode).
+    """
     # Track which sources were own data vs external API fallback
     own_data_modules = sum(1 for s in result.enrichment_sources if "own" in s.split(":")[-1].lower())
     fallback_modules = sum(
@@ -298,6 +354,8 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
     total_with_source = len(result.enrichment_sources)
     fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
     deployer_top = _top_level_deployer(result)
+    ran = set(result.modules_run or [])
+    modules_skipped = [m for m in ADVANCED_ONLY_MODULES if m not in ran] if scan_mode == "basic" else []
 
     # ── Rich-output surfacing (2026-08-25 quality push — beat Phanes):
     # convenience top-level fields extracted from the engine payloads the
@@ -349,6 +407,8 @@ def _format_scan_response(result: Any) -> dict[str, Any]:
         "breakdown": result.breakdown,
         "evidence": result.evidence,
         "modules_run": result.modules_run,
+        "modules_skipped": modules_skipped,
+        "scan_mode": scan_mode,
         # Structured error visibility (2026-09-02 hardening): WHY own-data
         # modules are missing — each entry {module, chain, error}.
         "errors": result.errors,
