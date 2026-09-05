@@ -32,7 +32,7 @@ _SETUP_AUTH_TOKENS = {
 def _setup_authorized(request: Request) -> bool:
     """Accept X-API-Key or Authorization: Bearer against the RMI tokens."""
     token = request.headers.get("X-API-Key", "") or request.headers.get("Authorization", "").replace("Bearer ", "")
-    return bool(token) and token in _SETUP_AUTH_TOKENS
+    return bool(token) and token in _SETUP_AUTH_TOKENS  # nosemgrep: nan-injection bool() cannot produce NaN (FP)
 
 
 def _require_setup_auth(request: Request) -> None:
