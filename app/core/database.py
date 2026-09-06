@@ -27,7 +27,7 @@ if _db_url and "+" not in _db_url.split("://")[0] if "://" in _db_url else False
 
 engine = create_async_engine(
     _db_url,
-    pool_size=20,
+    pool_size=15,
     max_overflow=30,
     pool_pre_ping=True,
     pool_recycle=3600,

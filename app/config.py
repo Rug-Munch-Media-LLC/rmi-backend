@@ -132,7 +132,7 @@ class Settings(BaseSettings):
             "Set REDIS_URL env var (e.g. redis://:password@rmi-redis:6379/0)."
         ),
     )
-    redis_host: str = "rmi-redis"
+    redis_host: str = "localhost"
     redis_port: int = 6379
     redis_password: str = ""
     redis_cache_url: str = Field(
