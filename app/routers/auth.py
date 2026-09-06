@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.logging import get_logger
+from app.core.rate_limiter import get_rate_limit_dependency
 
 logger = get_logger(__name__)
 
@@ -63,7 +64,11 @@ async def verify_session(request: Request) -> dict[str, Any]:
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
-@router.post("/signup", summary="Create a new account")
+@router.post(
+    "/signup",
+    summary="Create a new account",
+    dependencies=[Depends(get_rate_limit_dependency("signup", rate=0.05, burst=3))],
+)
 async def signup(body: SignupRequest) -> dict[str, Any]:
     """Public signup endpoint. Creates a Supabase auth user and assigns tier."""
     from app.db_client import get_db
@@ -79,7 +84,11 @@ async def signup(body: SignupRequest) -> dict[str, Any]:
     return {"user": result, "tier": body.tier}
 
 
-@router.post("/login", summary="Login and get session")
+@router.post(
+    "/login",
+    summary="Login and get session",
+    dependencies=[Depends(get_rate_limit_dependency("login", rate=0.1, burst=5))],
+)
 async def login(body: LoginRequest) -> dict[str, Any]:
     """Public login endpoint. Returns Supabase session."""
     from app.db_client import get_db

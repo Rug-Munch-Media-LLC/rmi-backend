@@ -175,7 +175,6 @@ async def mcp_options() -> Any:
     return JSONResponse(
         content={},
         headers={
-            "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Pay, X-Device-Id, X-Wallet-Address",
             "Access-Control-Max-Age": "86400",

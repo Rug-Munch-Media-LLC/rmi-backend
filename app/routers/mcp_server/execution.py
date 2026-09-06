@@ -77,7 +77,6 @@ async def mcp_call_tool(tool_id: str, request: Request) -> Any:
             ):
                 if resp.headers.get(h):
                     rh[h] = resp.headers[h]
-            rh["Access-Control-Allow-Origin"] = "*"
             return (
                 JSONResponse(content=result, status_code=resp.status_code, headers=rh)
                 if rh

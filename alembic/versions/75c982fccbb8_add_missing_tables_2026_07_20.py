@@ -29,7 +29,6 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-
 _TABLES: tuple[str, ...] = (
     "alert_subscriptions",
     "labels",
@@ -80,7 +79,7 @@ def upgrade() -> None:
             sa.Column("alert_types", sa.JSON(), nullable=False),
             sa.Column("webhook_url", sa.String(length=2048), nullable=True),
             sa.Column("active", sa.Boolean(), nullable=False),
-            sa.Column("owner_id", sa.UUID(), nullable=True),
+            sa.Column("owner_id", sa.UUID(), sa.ForeignKey("users.id"), nullable=True),
             sa.Column(
                 "created_at",
                 sa.DateTime(timezone=True),
@@ -264,25 +263,25 @@ def upgrade() -> None:
         )
 
 
-    def downgrade() -> None:
-        """Drop the 5 tables that this migration created."""
-        op.drop_index(op.f("ix_users_wallet_address"), table_name="users")
-        op.drop_index(op.f("ix_users_email"), table_name="users")
-        op.drop_table("users")
-        op.drop_index(op.f("ix_scan_results_token_address"), table_name="scan_results")
-        op.drop_index("ix_scan_result_token_chain", table_name="scan_results")
-        op.drop_index("ix_scan_result_scanned_at", table_name="scan_results")
-        op.drop_table("scan_results")
-        op.drop_index(op.f("ix_payments_user_address"), table_name="payments")
-        op.drop_index(op.f("ix_payments_tx_hash"), table_name="payments")
-        op.drop_table("payments")
-        op.drop_index(op.f("ix_labels_address"), table_name="labels")
-        op.drop_index("ix_label_label_type", table_name="labels")
-        op.drop_index("ix_label_entity", table_name="labels")
-        op.drop_table("labels")
-        op.drop_index(
-            op.f("ix_alert_subscriptions_owner_id"),
-            table_name="alert_subscriptions",
-        )
-        op.drop_index("ix_alert_sub_token_chain", table_name="alert_subscriptions")
-        op.drop_table("alert_subscriptions")
+def downgrade() -> None:
+    """Drop the 5 tables that this migration created."""
+    op.drop_index(op.f("ix_users_wallet_address"), table_name="users")
+    op.drop_index(op.f("ix_users_email"), table_name="users")
+    op.drop_table("users")
+    op.drop_index(op.f("ix_scan_results_token_address"), table_name="scan_results")
+    op.drop_index("ix_scan_result_token_chain", table_name="scan_results")
+    op.drop_index("ix_scan_result_scanned_at", table_name="scan_results")
+    op.drop_table("scan_results")
+    op.drop_index(op.f("ix_payments_user_address"), table_name="payments")
+    op.drop_index(op.f("ix_payments_tx_hash"), table_name="payments")
+    op.drop_table("payments")
+    op.drop_index(op.f("ix_labels_address"), table_name="labels")
+    op.drop_index("ix_label_label_type", table_name="labels")
+    op.drop_index("ix_label_entity", table_name="labels")
+    op.drop_table("labels")
+    op.drop_index(
+        op.f("ix_alert_subscriptions_owner_id"),
+        table_name="alert_subscriptions",
+    )
+    op.drop_index("ix_alert_sub_token_chain", table_name="alert_subscriptions")
+    op.drop_table("alert_subscriptions")
