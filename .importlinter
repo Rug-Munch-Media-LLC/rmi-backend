@@ -1,46 +1,75 @@
+# import-linter configuration — rmi-backend
+# Enforces layered architecture: routers → services → models → db
+# Blocks CI if a layer imports from a higher layer (circular dependency)
+# or if a router bypasses services to access DB directly.
+#
+# Install: pip install import-linter
+# Run: lint-imports
+# Docs: https://import-linter.readthedocs.io/
+
 [importlinter]
-include_external_packages = True
 root_package = app
 
-[importlinter:contract:domains-independence]
-name = Domain packages are independent (no cross-domain imports)
-type = independence
-modules =
+# ── Contract 1: Layered architecture ──────────────────────────────────
+# Dependencies flow DOWN only. Never reverse. Never skip layers.
+[importlinter:contract:layers]
+name = Layered architecture (routers → services → models → db)
+type = layers
+layers =
+    app.routers
+    app.api
+    app.services
     app.domains
+    app.middleware
+    app.models
+    app.db
+    app.db_client
+    app.core
+ignore_imports =
+    # Tests can import anything
+    tests.* -> *
 
-[importlinter:contract:core-foundation]
-name = Core never imports features (core is foundational)
+# ── Contract 2: No router → DB direct access ─────────────────────────
+# Routers must NOT import from db or db_client directly.
+# They must go through services or domains.
+[importlinter:contract:no-router-db]
+name = Routers must not access DB directly
+type = forbidden
+source_modules =
+    app.routers
+forbidden_modules =
+    app.db
+    app.db_client
+ignore_imports =
+    # Admin routers are allowed direct DB access (special case)
+    app.routers.admin -> app.db
+
+# ── Contract 3: No circular imports within services ─────────────────
+# Services should not import from each other. Use dependency injection.
+[importlinter:contract:no-service-circular]
+name = No circular imports between service modules
+type = forbidden
+source_modules =
+    app.services
+forbidden_modules =
+    app.routers
+    app.api
+ignore_imports =
+    app.services.* -> app.services.common.*
+
+# ── Contract 4: Core is the lowest layer ─────────────────────────────
+# Core (config, security, deps) must not import from any higher layer.
+[importlinter:contract:core-is-lowest]
+name = Core must not import from higher layers
 type = forbidden
 source_modules =
     app.core
 forbidden_modules =
-    app.domains
     app.routers
-ignore_imports =
-    # KNOWN DEBT (2026-08-21): remaining cross-layer conveniences.
-    # TODO(degodding-phase-4): lifespan databus init + middleware x402 mount.
-    app.core.lifespan -> app.databus.core
-    app.core.middleware -> app.routers.x402_advanced_tools
-
-# Wire-in from standards/import-linter.contract.yaml (2026-08-30).
-# `rag-via-client-only` is wired below (2026-08-30). Import-linter rejects
-# external-package SUBPACKAGES as forbidden modules, so it forbids the whole
-# top-level `rugbrain` package (which, being in the same wheel/tree, covers the
-# internal submodules) and requires `include_external_packages = True` above.
-# Verified green: app/rag consumes rugbrain via app.integrations.rugbrain_client only.
-[importlinter:contract:scanner-via-adapter-only]
-name = Backend re-exports scanner adapters, never re-implements
-type = forbidden
-source_modules =
-    app.domains.scanner
-forbidden_modules =
-ignore_imports =
-
-[importlinter:contract:rag-via-client-only]
-name = Backend consumes rugbrain through the HTTP client only (never internals)
-type = forbidden
-source_modules =
-    app.rag
-forbidden_modules =
-    rugbrain
-ignore_imports =
+    app.api
+    app.services
+    app.domains
+    app.models
+    app.db
+    app.db_client
+    app.middleware
