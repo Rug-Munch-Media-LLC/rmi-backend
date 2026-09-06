@@ -9,8 +9,8 @@ rules:
   - id: no-cross-service-import
     name: No cross-service imports — use dependency injection or events
     severity: ERROR
-    language: Python
-    message: "Service %s imports from another service %s. Use dependency injection or events instead."
+    languages: [python]
+    message: "Service imports from another service. Use dependency injection or events instead."
     patterns:
       - pattern: |
           from app.services.$A import $B
@@ -29,26 +29,26 @@ rules:
   - id: no-router-db-import
     name: Routers must not import from db directly — use service layer
     severity: ERROR
-    language: Python
-    message: "Router imports from %s. Use service layer instead — router → service → repository → db."
+    languages: [python]
+    message: "Router imports from db. Use service layer instead — router → service → repository → db."
     patterns:
       - pattern-either:
           - pattern: from app.db import $X
           - pattern: from app.db_client import $X
           - pattern: import app.db.$X
           - pattern: import app.db_client.$X
-      - pattern-not: from app.db import Session  # Session dep injection is OK
+      - pattern-not: from app.db import Session
     paths:
       include:
         - "app/routers/**/*.py"
       exclude:
-        - "app/routers/admin/**"  # admin routers are exempt
+        - "app/routers/admin/**"
 
   # ── No raw SQL in routers ──────────────────────────────────────────
   - id: no-raw-sql-in-router
     name: No raw SQL in routers — use repository layer
     severity: ERROR
-    language: Python
+    languages: [python]
     message: "Raw SQL in router. Move to repository layer. router → service → repository."
     patterns:
       - pattern-either:
@@ -64,8 +64,8 @@ rules:
   - id: no-model-imports-upward
     name: Models must not import from routers or services
     severity: ERROR
-    language: Python
-    message: "Model imports from %s — models are the lowest layer. Dependencies flow down only."
+    languages: [python]
+    message: "Model imports from higher layer — models are the lowest layer. Dependencies flow down only."
     patterns:
       - pattern-either:
           - pattern: from app.routers import $X
@@ -82,7 +82,7 @@ rules:
   - id: no-bare-except
     name: No bare except — catch specific exceptions
     severity: ERROR
-    language: Python
+    languages: [python]
     message: "Bare except catches everything including KeyboardInterrupt. Use 'except SpecificError as e:'."
     pattern: |
       except:
@@ -92,7 +92,7 @@ rules:
   - id: no-sync-sleep-in-async
     name: No time.sleep in async functions — use asyncio.sleep
     severity: ERROR
-    language: Python
+    languages: [python]
     message: "time.sleep() blocks the event loop. Use await asyncio.sleep() in async functions."
     pattern-inside: |
       async def $FUNC(...):
@@ -102,13 +102,12 @@ rules:
   # ── No f-string logging ────────────────────────────────────────────
   - id: no-fstring-logging
     name: No f-string logging — use structured logging
-    severity: WARN
-    language: Python
+    severity: WARNING
+    languages: [python]
     message: "Use structured logging: logger.info('event_name', key=value) not f-strings."
     patterns:
       - pattern-either:
           - pattern: logger.$LEVEL(f"...")
-          - pattern: logger.$LEVEL(f"...{$VAR}...")
           - pattern: logging.$LEVEL(f"...")
     paths:
       include:
