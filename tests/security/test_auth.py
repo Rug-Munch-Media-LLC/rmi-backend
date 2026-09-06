@@ -377,7 +377,7 @@ class TestAuthMiddlewareBearerToken:
             },
         )
         # This test verifies Bearer doesn't break X-API-Key auth
-        assert resp.status_code != 500  # Should not crash
+        assert resp.status_code in (200, 401)
 
     def test_bearer_format_validation(self, client):
         """Authorization header must use 'Bearer <token>' format."""

@@ -243,7 +243,8 @@ class TestInfoDisclosure:
         body = resp.text.lower()
         # Error responses should not leak internal paths or code
         assert "traceback" not in body
-        assert 'file "' not in body and "file '" not in body
+        assert 'file "' not in body
+        assert "file '" not in body
         assert "/app/" not in body or resp.status_code < 400
 
     def test_error_response_structure(self, client):
@@ -288,8 +289,10 @@ class TestSQLInjectionDefense:
             headers={"X-API-Key": TEST_RMI_AUTH_TOKEN},
         )
         # The route exists and should handle this gracefully
-        # Any 4xx or even 200 is acceptable; 500 is the failure case
-        assert resp.status_code != 500, f"SQL injection '{injection_payload}' caused 500 Internal Server Error"
+        # 200 (handled) or 4xx (rejected) are acceptable; 500 is the failure case
+        assert resp.status_code in (200, 400, 404, 422), (
+            f"SQL injection '{injection_payload}' caused 500 Internal Server Error"
+        )
 
     @pytest.mark.parametrize(
         "injection_payload",
@@ -306,7 +309,7 @@ class TestSQLInjectionDefense:
             params={"q": injection_payload},
             headers={"X-API-Key": TEST_RMI_AUTH_TOKEN},
         )
-        assert resp.status_code != 500, "SQL injection in query param caused 500"
+        assert resp.status_code in (200, 400, 404, 422), "SQL injection in query param caused 500"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -338,7 +341,7 @@ class TestXSSDefense:
         content_type = resp.headers.get("content-type", "")
         if "application/json" in content_type:
             # JSON response is safe by nature
-            assert resp.status_code != 500
+            assert resp.status_code in (200, 400, 404, 422)
         else:
             # If HTML is returned, the payload should be escaped
             body = resp.text
@@ -359,7 +362,7 @@ class TestXSSDefense:
             params={"q": xss_payload},
             headers={"X-API-Key": TEST_RMI_AUTH_TOKEN},
         )
-        assert resp.status_code != 500
+        assert resp.status_code in (200, 400, 404, 422)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -381,7 +384,7 @@ class TestContentTypeEnforcement:
             },
         )
         # Should either reject with 415 or handle gracefully, but not 500
-        assert resp.status_code != 500
+        assert resp.status_code in (400, 415, 422)
         # If the content-type enforcement is active, it returns 415
         if resp.status_code == 415:
             body = resp.json()

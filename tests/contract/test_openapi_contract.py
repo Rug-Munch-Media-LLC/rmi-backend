@@ -97,4 +97,4 @@ def test_no_endpoint_returns_500_on_valid_input():
     ]
     for method, path in endpoints:
         resp = httpx.request(method, f"http://localhost:8000{path}")
-        assert resp.status_code != 500, f"{method} {path} returned 500"
+        assert resp.status_code == 200, f"{method} {path} returned {resp.status_code}"
