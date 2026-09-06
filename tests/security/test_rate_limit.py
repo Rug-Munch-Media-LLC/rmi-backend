@@ -371,7 +371,7 @@ class TestRateLimitMiddleware:
         assert "X-RateLimit-Remaining" in resp.headers
         assert "X-RateLimit-Reset" in resp.headers
         # At minimum, response should not crash
-        assert resp.status_code != 500
+        assert resp.status_code in (200, 401, 404)
 
     def test_public_endpoints_get_headers(self, client):
         """Public endpoints should also get rate limit headers."""
