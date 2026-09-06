@@ -135,7 +135,7 @@ async def generate_embedding(text: str) -> list[float] | None:
         r = await client.post(
             f"{HF_API}/{EMBEDDING_MODEL}",
             headers={"Authorization": f"Bearer {HF_TOKEN}"},
-            json={"inputs": text[:1024]},
+            json={"inputs": text[:32000]},
         )
         if r.status_code == 503:
             logger.warning("HF embedding cold start, model loading")

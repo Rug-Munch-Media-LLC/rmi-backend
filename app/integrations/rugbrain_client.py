@@ -278,7 +278,7 @@ async def _deepinfra_news_rerank(
     key = _split_key_rotation(resolve_key("DEEPINFRA_API_KEY"))
     if not key or not candidates:
         return None
-    docs = [str((c.get("metadata") or {}).get("title") or c.get("content") or "")[:1200] for c in candidates]
+    docs = [str((c.get("metadata") or {}).get("title") or c.get("content") or "")[:8000] for c in candidates]
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(

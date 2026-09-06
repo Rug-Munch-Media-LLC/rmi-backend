@@ -83,7 +83,7 @@ async def _deepinfra_embed(text: str) -> list[float] | None:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
                 DEEPINFRA_EMBED_URL,
-                json={"model": DEEPINFRA_EMBED_MODEL, "input": [text[:8000]]},
+                json={"model": DEEPINFRA_EMBED_MODEL, "input": [text[:32000]]},
                 headers={"Authorization": f"Bearer {key}"},
             )
             if r.status_code != 200:
@@ -109,7 +109,7 @@ async def _rugbrain_embed(text: str) -> list[float]:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
                 f"{api_url}/embed",
-                json={"text": text[:512]},
+                json={"text": text[:32000]},
                 headers={"X-API-Key": api_key},
             )
             if r.status_code == 200:
