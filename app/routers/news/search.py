@@ -147,7 +147,7 @@ async def get_article(article_id: str) -> NewsArticle:
     return NewsArticle(**a)
 
 
-@router.get("/sources", response_model=dict[str, Any])
+@router.get("/sources", response_model=dict[str, Any], operation_id="get_news_sources")
 async def get_news_sources() -> dict[str, Any]:
     """List all news sources with reputation tiers (Qdrant news_v2)."""
     points = await _pkg._scroll_news_v2(limit=600)
@@ -168,7 +168,7 @@ async def get_news_sources() -> dict[str, Any]:
     }
 
 
-@router.get("/sentiment", response_model=dict[str, Any])
+@router.get("/sentiment", response_model=dict[str, Any], operation_id="get_news_sentiment")
 async def get_sentiment() -> dict[str, Any]:
     """Real-time sentiment overview from current news feed.
 
