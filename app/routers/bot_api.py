@@ -143,15 +143,49 @@ async def _ask_llm_once(config: dict[str, Any], query: str) -> str:
 
 @router.get("/health")
 async def bot_health() -> dict[str, Any]:
-    """Health check for bot connectivity."""
+    """Health check for bot connectivity + aggregate status of bot-facing services.
+
+    Returns the bot's own status plus a ``services`` map reporting the
+    availability of the bot-facing data surfaces (KOL intel, whale flow,
+    market pulse). Each service degrades to ``"degraded"`` on error — never
+    raises, so the bot can always read a status.
+    """
+    services: dict[str, Any] = {}
+    # KOL intel — bundled databus files (never raises).
+    try:
+        from app.routers.kol_intel import _load_scammer_records, _wallet_counts
+
+        services["kol"] = {
+            "status": "ok",
+            "scammers": len(_load_scammer_records()),
+            "wallets": sum(_wallet_counts().values()),
+        }
+    except Exception as e:  # graceful degradation contract
+        logger.warning("bot_health_kol_failed: %s", str(e)[:120])
+        services["kol"] = {"status": "degraded"}
+
+    # Whale flow — fail-open fetchers (never raises).
+    try:
+        import app.domains.scanner.whale_flow_enrich  # noqa: F401 — importability check
+
+        services["whales"] = {"status": "ok", "endpoints": ["/api/v1/whales/flow", "/api/v1/whales/signals"]}
+    except Exception as e:  # graceful degradation contract
+        logger.warning("bot_health_whales_failed: %s", str(e)[:120])
+        services["whales"] = {"status": "degraded"}
+
     return {
         "status": "ok",
         "version": "1.0.0",
+        "services": services,
         "endpoints": {
             "scan": "POST /api/v1/bot/scan",
             "ask": "POST /api/v1/bot/ask",
             "pulse": "GET /api/v1/bot/pulse",
             "health": "GET /api/v1/bot/health",
+            "kol_leaderboard": "GET /api/v1/kol/leaderboard",
+            "kol_profile": "GET /api/v1/kol/profiles/{handle}",
+            "whales_flow": "GET /api/v1/whales/flow",
+            "whales_signals": "GET /api/v1/whales/signals",
         },
     }
 

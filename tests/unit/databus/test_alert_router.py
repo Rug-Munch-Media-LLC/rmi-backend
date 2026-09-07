@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+import types
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -29,6 +30,44 @@ from app.databus.alert_router import (
 )
 
 # ── Fixtures ────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _stub_rugmunchbot_router(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub the external ``rugmunchbot`` package so tests never import it.
+
+    ``route_webhook_alert`` lazily imports ``route_news`` from the external
+    ``rugmunchbot`` package inside the function body. That package reads
+    ambient env at import time and is order/worker-dependent, so we stub the
+    whole ``rugmunchbot.channels.router`` module (and its parent packages) in
+    ``sys.modules`` with a deterministic ``route_news`` that always returns
+    ``"main"``. This keeps the test hermetic — no rugmunchbot import, no
+    ambient env, deterministic under xdist.
+    """
+    # Stub the parent packages too so ``patch("rugmunchbot.channels.router...")``
+    # never imports the real installed rugmunchbot package.
+    for name in ("rugmunchbot", "rugmunchbot.channels", "rugmunchbot.channels.router"):
+        monkeypatch.setitem(sys.modules, name, types.ModuleType(name))
+    stub = sys.modules["rugmunchbot.channels.router"]
+
+    def _route_news(importance: float, source: str) -> str:
+        """Deterministic stand-in for the real rugmunchbot banding.
+
+        Mirrors the real ``route_news`` thresholds (news floor 0.4, main gate
+        0.7) so low-importance events route to ``"skip"`` and high-importance
+        events to ``"main"`` — without importing the external package or
+        reading ambient env.
+        """
+        if importance < 0.4:
+            return "skip"
+        if importance >= 0.7:
+            return "main"
+        return "news"
+
+    stub.route_news = _route_news
+    yield
+    for name in ("rugmunchbot", "rugmunchbot.channels", "rugmunchbot.channels.router"):
+        monkeypatch.delitem(sys.modules, name, raising=False)
 
 
 def _helius_payload(**overrides: object) -> dict:
@@ -205,11 +244,11 @@ class TestRouteWebhookAlert:
             patch("app.databus.alert_router._throttle_wallet", return_value="ok") as thr,
             patch("app.alert_pipeline.push_alert", new_callable=AsyncMock) as push,
             # route_news is imported lazily from the external rugmunchbot
-            # package inside route_webhook_alert. Its decision is read from
-            # env at import time and cached as module constants, so it is
-            # order/worker-dependent. Stub it to "main" so this test
-            # deterministically exercises the main-route + push path without
-            # depending on ambient env or import order.
+            # package inside route_webhook_alert. The autouse
+            # _stub_rugmunchbot_router fixture stubs that module in
+            # sys.modules with a deterministic route_news returning "main",
+            # so this test deterministically exercises the main-route + push
+            # path without importing rugmunchbot or depending on ambient env.
             patch("rugmunchbot.channels.router.route_news", return_value="main") as rn,
         ):
             result = await route_webhook_alert("helius", payload, "evt:test:1")
