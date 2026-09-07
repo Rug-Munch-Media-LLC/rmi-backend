@@ -43,10 +43,10 @@ class ScrapeRequest(BaseModel):
 
     url: str
     formats: list[str] | None = None
-    onlyMainContent: bool = True
+    onlyMainContent: bool = True  # noqa: N815 — mirrors Pry /v1/scrape API field name
     timeout: int = 30
-    bypassCloudflare: bool = True
-    jsRender: bool = False
+    bypassCloudflare: bool = True  # noqa: N815 — mirrors Pry /v1/scrape API field name
+    jsRender: bool = False  # noqa: N815 — mirrors Pry /v1/scrape API field name
 
 
 class ScrapeResult(BaseModel):
@@ -455,9 +455,10 @@ _pryscraper_client_instance: PryscraperClient | None = None
 def get_pryscraper_client() -> PryscraperClient:
     """Return a lazily-created shared :class:`PryscraperClient` singleton.
 
-    Lives next to the class it builds so routers/tests can inject it via
-    ``Depends`` without ``app.core`` importing ``app.services`` (core must
-    stay the lowest architectural layer — see ``.importlinter`` contract 4).
+    Lives next to the class it builds so routers/domains can inject it via
+    ``Depends`` — the module sits in ``app.integrations`` (below every
+    architectural layer, see ``.importlinter``) so both the router bridge and
+    domain schedulers may import it without violating the layers contract.
     """
     global _pryscraper_client_instance
     if _pryscraper_client_instance is None:

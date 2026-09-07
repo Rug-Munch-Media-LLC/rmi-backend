@@ -144,9 +144,9 @@ async def verify_session(request: Request) -> dict[str, Any]:
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.removeprefix("Bearer ").strip()
-    from app.db_client import get_db
+    from app.services.auth_db import get_auth_db
 
-    user = await get_db().db.get_user(token)
+    user = await get_auth_db().db.get_user(token)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     return user
@@ -162,9 +162,9 @@ async def verify_session(request: Request) -> dict[str, Any]:
 )
 async def signup(body: SignupRequest) -> dict[str, Any]:
     """Public signup endpoint. Creates a Supabase auth user and assigns tier."""
-    from app.db_client import get_db
+    from app.services.auth_db import get_auth_db
 
-    client = get_db().db
+    client = get_auth_db().db
     try:
         result = await client.sign_up(body.email, body.password)
     except Exception as exc:
@@ -188,9 +188,9 @@ async def login(body: LoginRequest) -> dict[str, Any]:
             status_code=429,
             detail="Account temporarily locked due to failed login attempts. Try again later.",
         )
-    from app.db_client import get_db
+    from app.services.auth_db import get_auth_db
 
-    client = get_db().db
+    client = get_auth_db().db
     try:
         result = await client.sign_in(body.email, body.password)
     except Exception as exc:

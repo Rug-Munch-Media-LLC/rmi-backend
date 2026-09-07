@@ -141,7 +141,7 @@ async def test_exec_news_renders_top_stories() -> None:
         ),
     ]
     with mock.patch(
-        "app.routers.news._scroll_news_v2",
+        "app.domains.news.feed_reader._scroll_news_v2",
         new=mock.AsyncMock(return_value=points),
     ):
         text = await _exec_news("latest news")
@@ -159,7 +159,7 @@ async def test_exec_news_renders_top_stories() -> None:
 async def test_exec_news_sorts_newest_first_and_caps_at_ten() -> None:
     points = [_point(f"Story {i:02d}", f"Source {i:02d}", f"2026-08-{13 - (i % 12):02d}T10:00:00Z") for i in range(20)]
     with mock.patch(
-        "app.routers.news._scroll_news_v2",
+        "app.domains.news.feed_reader._scroll_news_v2",
         new=mock.AsyncMock(return_value=points),
     ):
         text = await _exec_news("top stories")
@@ -173,7 +173,7 @@ async def test_exec_news_sorts_newest_first_and_caps_at_ten() -> None:
 
 async def test_exec_news_returns_none_on_empty() -> None:
     with mock.patch(
-        "app.routers.news._scroll_news_v2",
+        "app.domains.news.feed_reader._scroll_news_v2",
         new=mock.AsyncMock(return_value=[]),
     ):
         assert await _exec_news("latest news") is None
@@ -182,7 +182,7 @@ async def test_exec_news_returns_none_on_empty() -> None:
 async def test_exec_news_returns_none_when_all_titles_empty() -> None:
     point = _point("", "CoinDesk", "2026-08-13T10:00:00Z")
     with mock.patch(
-        "app.routers.news._scroll_news_v2",
+        "app.domains.news.feed_reader._scroll_news_v2",
         new=mock.AsyncMock(return_value=[point]),
     ):
         assert await _exec_news("latest news") is None
@@ -190,7 +190,7 @@ async def test_exec_news_returns_none_when_all_titles_empty() -> None:
 
 async def test_exec_news_fail_open_when_helper_raises() -> None:
     with mock.patch(
-        "app.routers.news._scroll_news_v2",
+        "app.domains.news.feed_reader._scroll_news_v2",
         new=mock.AsyncMock(side_effect=RuntimeError("qdrant down")),
     ):
         assert await _exec_news("latest news") is None

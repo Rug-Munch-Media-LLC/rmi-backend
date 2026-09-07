@@ -384,7 +384,7 @@ async def trending_news(
     # aggregate is mid-refresh (TTL gap).
     if not items:
         try:
-            from app.routers.news import _point_to_article, _scroll_news_v2 as _scroll
+            from app.domains.news.feed_reader import _point_to_article, _scroll_news_v2 as _scroll
 
             points = await _scroll(limit=max(limit * 2, 20))
             now_dt = utcnow()

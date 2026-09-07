@@ -18,7 +18,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from app.services.pryscraper_client import (
+from app.integrations.pryscraper_client import (
     ExtractResult,
     PryscraperClient,
     ScrapeRequest,
@@ -74,7 +74,7 @@ class TestPryscraperClientInit:
 class TestPryscraperClientRequest:
     """Core _request method behaviour."""
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_request_success(self, mock_cb):
         """Successful 2xx returns parsed JSON and records success."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -97,7 +97,7 @@ class TestPryscraperClientRequest:
         mock_cb.set_stale_result.assert_called_once_with(result)
         mock_cb.record_success.assert_awaited_once()
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_request_server_error_trips_breaker(self, mock_cb):
         """5xx errors trip circuit breaker and retry."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -121,7 +121,7 @@ class TestPryscraperClientRequest:
         # record_failure called at least once for server error
         assert mock_cb.record_failure.await_count >= 1
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_request_client_error_no_trip(self, mock_cb):
         """4xx errors do NOT trip circuit breaker as server error."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -143,7 +143,7 @@ class TestPryscraperClientRequest:
         assert result["success"] is False
         assert result["error"]["code"] == "client_error"
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_request_timeout_returns_error(self, mock_cb):
         """HTTP timeout after retries returns upstream_error."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -157,7 +157,7 @@ class TestPryscraperClientRequest:
         assert result["success"] is False
         assert result["error"]["code"] == "upstream_error"
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_circuit_breaker_open_raises(self, mock_cb):
         """When breaker is OPEN and no stale result, raises CircuitBreakerOpenError."""
         from app.core.circuit_breaker import CircuitBreakerOpenError
@@ -170,7 +170,7 @@ class TestPryscraperClientRequest:
         with pytest.raises(CircuitBreakerOpenError):
             await client._request("GET", "/health")
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_circuit_breaker_serves_stale(self, mock_cb):
         """When breaker is OPEN and stale result exists, returns it."""
         stale_data = {"stale": True, "data": "cached"}
@@ -182,7 +182,7 @@ class TestPryscraperClientRequest:
         result = await client._request("GET", "/health")
         assert result == stale_data
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_request_retry_on_429(self, mock_cb):
         """429 rate-limit waits for retry-after then retries."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -216,7 +216,7 @@ class TestPryscraperClientRequest:
 class TestPryscraperClientPublicAPI:
     """Public endpoints — scrape, extract, health, stats, search_news."""
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_check_health(self, mock_cb):
         """check_health calls GET /health."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -235,7 +235,7 @@ class TestPryscraperClientPublicAPI:
         result = await client.check_health()
         assert result == {"status": "healthy"}
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_scrape_success(self, mock_cb):
         """scrape returns ScrapeResult with data on success."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -260,7 +260,7 @@ class TestPryscraperClientPublicAPI:
         assert result.data["content"] == "scraped page content"
         assert result.source == "pryscraper"
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_scrape_failure(self, mock_cb):
         """scrape returns ScrapeResult with error on failure."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -280,7 +280,7 @@ class TestPryscraperClientPublicAPI:
         assert result.success is False
         assert result.error is not None
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_extract_success(self, mock_cb):
         """extract returns ExtractResult with structured data."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -307,7 +307,7 @@ class TestPryscraperClientPublicAPI:
         assert result.success is True
         assert result.data["name"] == "Acme Corp"
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_extract_with_schema(self, mock_cb):
         """extract passes json_schema to the API."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -338,7 +338,7 @@ class TestPryscraperClientPublicAPI:
         )
         assert result.success is True
 
-    @patch("app.services.pryscraper_client._pry_cb")
+    @patch("app.integrations.pryscraper_client._pry_cb")
     async def test_search_news_fallback(self, mock_cb):
         """search_news falls back to scrape when intelligence endpoint fails."""
         mock_cb.can_call = AsyncMock(return_value=True)
@@ -443,22 +443,6 @@ class TestDeepIntelRouter:
         # Verify the router is configured with correct prefix
         assert router.prefix == "/api/v1/deep-intel"
 
-        # Verify all 12 + 1 = 13 features in health
-        expected_features = [
-            "deployer_reputation",
-            "preflight_simulation",
-            "liquidity_lock_authenticity",
-            "volume_authenticity",
-            "slow_rug_detector",
-            "funding_source_tracer",
-            "ownership_theater",
-            "exit_liquidity",
-            "lifespan_predictor",
-            "post_purchase_monitor",
-            "cross_chain_identity",
-            "social_onchain_correlation",
-            "full_report",
-        ]
         # We can't call the handler without app context, but we can test
         # that the router has correct routes
         routes = [r.path for r in router.routes]

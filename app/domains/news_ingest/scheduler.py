@@ -289,7 +289,7 @@ async def run_pryscraper_ingest_cycle() -> dict[str, Any]:
     Fail-open per stage; stats are best-effort.
     """
     from app.domains.news_ingest.models import NewsArticle
-    from app.services.pryscraper_client import PryscraperClient
+    from app.integrations.pryscraper_client import PryscraperClient
 
     client = PryscraperClient()
     try:

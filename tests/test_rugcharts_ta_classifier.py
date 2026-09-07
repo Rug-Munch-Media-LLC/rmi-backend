@@ -20,7 +20,7 @@ import math
 import pytest
 
 from app.routers.rugcharts.classifier import classify_trades, label_summary
-from app.routers.rugcharts.ta import (
+from app.services.ta_indicators import (
     bollinger,
     compute_ta_snapshot,
     ema_series,

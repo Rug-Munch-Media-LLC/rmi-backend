@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query
 
 from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
+from app.services.ta_indicators import compute_ta_snapshot
 
 from ..helpers import (
     _compute_volume_authenticity,
@@ -16,7 +17,6 @@ from ..helpers import (
     _fetch_ohlcv_gecko,
     _fetch_pair_info,
 )
-from ..ta import compute_ta_snapshot
 
 logger = get_logger("rugcharts_router")
 

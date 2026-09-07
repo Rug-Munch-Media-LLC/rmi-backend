@@ -692,7 +692,7 @@ async def test_api_router_returns_sentinel_field() -> None:
     from app.domains.scanner.unified.scanner import UnifiedTokenScanner
     from app.factory import create_app
 
-    async def _fake_scan(self, address, chain="solana", tier="free", admin_key=None):
+    async def _fake_scan(self, address, chain="solana", tier="free", admin_key=None, scan_mode="advanced"):
         from app.domains.scanner.unified.model import ScanResult
 
         result = ScanResult(token_address=address, chain=chain, tier=tier)

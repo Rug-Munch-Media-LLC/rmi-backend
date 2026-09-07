@@ -1,8 +1,9 @@
 """News executor for the chat tool-use layer.
 
 Top headlines from the Qdrant news_v2 feed, newest first. Reuses the Qdrant
-news_v2 helpers in app/routers/news (imported lazily) — never re-implements a
-news query. Fail-open: returns ``None`` on any error/timeout and NEVER raises.
+news_v2 helpers in ``app.domains.news.feed_reader`` (the canonical reader —
+see import-boundary note there) — never re-implements a news query.
+Fail-open: returns ``None`` on any error/timeout and NEVER raises.
 """
 
 from __future__ import annotations
@@ -45,19 +46,19 @@ async def _exec_news(message: str = "") -> str | None:
     """Top headlines from the Qdrant news_v2 feed, newest first. Fail-open.
 
     Calls the in-process ``_scroll_news_v2`` / ``_point_to_article`` helpers
-    from ``app.routers.news`` (never the HTTP endpoints, never a second
-    network round-trip beyond the single scroll). Renders a compact
+    from ``app.domains.news.feed_reader`` (never the HTTP endpoints, never a
+    second network round-trip beyond the single scroll). Renders a compact
     "Top stories" block capped at 10 items; returns None on failure/empty.
     """
     try:
-        from app.routers import news as _news
+        from app.domains.news.feed_reader import _point_to_article, _scroll_news_v2
 
-        points = await _news._scroll_news_v2(limit=_NEWS_SCROLL_WINDOW)
+        points = await _scroll_news_v2(limit=_NEWS_SCROLL_WINDOW)
         if not points:
             return None
         articles: list[dict[str, Any]] = []
         for p in points:
-            a = _news._point_to_article(p)
+            a = _point_to_article(p)
             if not isinstance(a, dict):
                 continue
             if not str(a.get("title") or "").strip():

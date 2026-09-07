@@ -257,7 +257,7 @@ async def test_exec_market_formats_snapshot() -> None:
         "sol_change_24h": 3.1,
     }
     with (
-        mock.patch("app.routers.chat._fetch_market_context", new=mock.AsyncMock(return_value=ctx)),
+        mock.patch("app.domains.chat_tools.market_fetch._fetch_market_context", new=mock.AsyncMock(return_value=ctx)),
         mock.patch("app.domains.chat_tools._fetch_fear_greed", new=mock.AsyncMock(return_value="72/100 (Greed)")),
     ):
         text = await _exec_market()
@@ -271,7 +271,7 @@ async def test_exec_market_formats_snapshot() -> None:
 
 async def test_exec_market_returns_none_on_empty_context() -> None:
     with (
-        mock.patch("app.routers.chat._fetch_market_context", new=mock.AsyncMock(return_value={})),
+        mock.patch("app.domains.chat_tools.market_fetch._fetch_market_context", new=mock.AsyncMock(return_value={})),
         mock.patch("app.domains.chat_tools._fetch_fear_greed", new=mock.AsyncMock(return_value=None)),
     ):
         assert await _exec_market() is None
