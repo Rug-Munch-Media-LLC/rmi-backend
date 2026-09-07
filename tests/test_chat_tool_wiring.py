@@ -59,6 +59,11 @@ if TYPE_CHECKING:
 _EVM = "0x" + "a" * 40
 _SOL = "D8pom1W4v6j8kQkfQq2mNnXxYyZzAaBbCcDdEeFfGgHh"
 
+# HTTP chat-route tests must be hermetic (fresh allow-all rate limiter,
+# per-test SQLite file — see tests/conftest.py) so they never 429 or contend
+# on the real data/rmi.db under full-suite ordering.
+pytestmark = pytest.mark.usefixtures("chat_route_hermetic")
+
 # (message, expected_intent, executor) — one row per intent the classifier
 # can produce. Kept in sync with _EXECUTORS below.
 _INTENT_EXECUTOR_TABLE = [

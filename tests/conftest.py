@@ -138,3 +138,54 @@ def _no_chat_market_context(monkeypatch):
 
     monkeypatch.setattr("app.routers.chat._market_context._cg", AsyncMock(return_value=None))
     monkeypatch.setattr("app.routers.chat._market_context._fng", AsyncMock(return_value=None))
+
+
+@pytest.fixture
+def chat_route_hermetic(tmp_path, monkeypatch):
+    """Isolate HTTP chat-route tests from shared singletons and live services.
+
+    Route-level chat tests build a bare FastAPI app + ``chat_router`` and POST
+    through a fresh TestClient per test. Without isolation they share, per
+    worker process and in run order:
+
+    * the ``ChatRateLimiter`` singleton (``app.security.chat_guardrails``) —
+      its in-memory fallback counters accumulate across every chat test in the
+      worker under the single "testclient" IP, so a >30-requests-per-minute
+      burst anywhere in the suite makes later chat tests 429 (assertion
+      failures on ``status_code == 200``). Its lazy Redis bootstrap also pings
+      live localhost Redis on first use per process.
+    * the in-process response cache dict ``app.routers.chat._chat_cache`` — an
+      earlier test posting the same message text short-circuits a later test's
+      first turn into a stale "cache" provider hit.
+    * ``app.routers.chat_db.DB_PATH`` — defaults to the repo's real
+      ``data/rmi.db``; concurrent xdist workers INSERT into that one file
+      (SQLite WAL contention + real-data pollution).
+
+    This fixture makes every chat-route test hermetic and deterministic under
+    any run order / worker count: a FRESH allow-all rate limiter per test (the
+    shared singleton is never consulted and Redis is never touched), an empty
+    response cache, and a per-test SQLite file. It changes no assertion.
+    """
+    from unittest.mock import AsyncMock
+
+    import app.routers.chat as chat_mod
+    import app.routers.chat_db as chat_db_mod
+
+    # Fresh allow-all chat rate limiter per test — never the module singleton.
+    limiter = AsyncMock()
+    limiter.allow = AsyncMock(
+        return_value=(True, {"X-RateLimit-Limit": 30, "X-RateLimit-Remaining": 29, "X-RateLimit-Reset": 60})
+    )
+    monkeypatch.setattr(chat_mod, "get_chat_rate_limiter", lambda: limiter)
+
+    # Empty response cache around each test.
+    chat_mod._chat_cache.clear()
+
+    # Per-test SQLite file — never the repo's data/rmi.db.
+    db_path = str(tmp_path / "chat_route_test.db")
+    monkeypatch.setattr(chat_db_mod, "DB_PATH", db_path)
+    chat_db_mod._ensure_tables()
+
+    yield
+
+    chat_mod._chat_cache.clear()

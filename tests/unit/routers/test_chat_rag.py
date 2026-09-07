@@ -35,6 +35,14 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+# Every HTTP chat-route test here must be hermetic: fresh allow-all rate
+# limiter, empty response cache, per-test SQLite file (see fixture docs in
+# tests/conftest.py). The bare-app POSTs would otherwise share the
+# ChatRateLimiter singleton + real data/rmi.db across the suite and 429 /
+# contend under full-suite ordering (see tests/conftest.py).
+pytestmark = pytest.mark.usefixtures("chat_route_hermetic")
+
+
 @pytest.fixture(autouse=True)
 def _no_web_search(monkeypatch: pytest.MonkeyPatch) -> None:
     """Chat now falls through to SearXNG on RAG miss — keep existing RAG tests
