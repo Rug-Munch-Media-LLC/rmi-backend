@@ -36,14 +36,14 @@ from app.domains.chat_tools import (  # noqa: F401  (re-export: tests patch via 
     _detect_tool_intent,
     _run_tool_for_intent,
 )
-from app.security.chat_guardrails import get_chat_rate_limiter  # noqa: F401  (re-export: tests patch via package)
-
-from ..chat_history import router as chat_history_router
-from ._market_fetch import (
+from app.domains.chat_tools.market_fetch import (
     COINGECKO_API,  # noqa: F401  (re-export for existing importers)
     _fetch_market_context,  # noqa: F401  (patch target: app.routers.chat._fetch_market_context)
     _get_client,  # noqa: F401  (re-export for existing importers)
 )
+from app.security.chat_guardrails import get_chat_rate_limiter  # noqa: F401  (re-export: tests patch via package)
+
+from ..chat_history import router as chat_history_router
 
 # ── Extracted pure helpers ──
 # Message-building + shared ai_guard live in ._messages; prompt text and the
@@ -170,10 +170,12 @@ _redis: redis.Redis | None = None
 
 CACHE_TTL = 300  # 5 minutes
 
-# NOTE: COINGECKO_API / _http_client / _get_client moved to ._market_fetch
-# (re-exported above). The orphaned ``logger.warning("chat_db_init_failed")``
-# line that sat unreachable after ``return _http_client`` was dropped with
-# the move — it could never execute.
+# NOTE: COINGECKO_API / _http_client / _get_client moved to
+# app/domains/chat_tools/market_fetch.py (re-exported above) — the market
+# fetch is shared with the chat tool-use layer, which sits below
+# ``app.routers`` (see .importlinter). The orphaned
+# ``logger.warning("chat_db_init_failed")`` line that sat unreachable after
+# ``return _http_client`` was dropped with the move — it could never execute.
 
 __all__ = [
     "ChatRequest",

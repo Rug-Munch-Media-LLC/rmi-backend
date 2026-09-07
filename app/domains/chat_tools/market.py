@@ -40,7 +40,11 @@ async def _exec_market(message: str = "") -> str | None:
     from app.domains.chat_tools import _fetch_fear_greed
 
     try:
-        from app.routers.chat import _fetch_market_context
+        # Canonical live-price fetch lives DOWN in this package's
+        # ``market_fetch`` module (shared with the routers.chat shim — see
+        # .importlinter). Imported at call time so tests can patch
+        # app.domains.chat_tools.market_fetch._fetch_market_context.
+        from app.domains.chat_tools.market_fetch import _fetch_market_context
 
         ctx = await _fetch_market_context()
     except Exception:

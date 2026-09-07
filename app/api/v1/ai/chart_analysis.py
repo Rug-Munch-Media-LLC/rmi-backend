@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from app.core.logging import get_logger
 from app.core.model_router import smart_route
 from app.core.rate_limiter import UnifiedRateLimiter
-from app.routers.rugcharts.ta import (
+from app.services.ta_indicators import (
     bollinger as _ta_bollinger,
     ema_series as _ta_ema_series,
     rsi as _ta_rsi,
@@ -97,7 +97,7 @@ class ChartAnalysisResponse(BaseModel):
 # ── Technical Indicators — delegated to the shared RugCharts TA module ──
 # Audit WIN-6: RSI/MACD/Bollinger/EMA were implemented independently HERE and
 # in /rugcharts{,/intel,/ta} with guaranteed drift. One implementation now
-# serves every surface (see app/routers/rugcharts/ta.py) — imported at top.
+# serves every surface (see app/services/ta_indicators.py) — imported at top.
 
 
 def compute_rsi(closes: list[float], period: int = 14) -> float:

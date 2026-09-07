@@ -2,8 +2,9 @@
 
 Pins the observable behavior of the pieces extracted from
 ``app/routers/chat/__init__.py`` into focused submodules
-(``_chat_models`` / ``_response_cache`` / ``_persistence`` /
-``_market_fetch``):
+(``_chat_models`` / ``_response_cache`` / ``_persistence`` — plus
+``market_fetch``, which moved DOWN to ``app.domains.chat_tools.market_fetch``
+for the import-boundary contract and is re-exported from the chat package):
 
 - every name stays importable from ``app.routers.chat`` (shim contract —
   same pattern as phase 1, enforced for phase-1 names by
@@ -36,7 +37,6 @@ from app.routers.chat import (
     _fetch_market_context,
     _save_message,
 )
-
 
 # ── Shim contract: names remain on the package root ──────────────────
 
@@ -84,13 +84,13 @@ def test_chat_request_defaults() -> None:
 
 
 def test_chat_request_bounds() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="at least 1 character"):
         ChatRequest(message="")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="at most 2000 characters"):
         ChatRequest(message="x" * 2001)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="greater than or equal to 64"):
         ChatRequest(message="hi", max_tokens=32)  # below ge=64
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="String should match pattern"):
         ChatRequest(message="hi", tier="T9")
     assert StreamRequest(message="hi").max_tokens == 512
 

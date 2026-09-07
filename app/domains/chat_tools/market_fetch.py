@@ -1,10 +1,13 @@
 """Live market context fetcher (CoinGecko free API) for the chat endpoint.
 
-Split out of ``app/routers/chat/__init__.py`` (de-godding phase 2,
-behavior-preserving). Re-exported from the package root —
-``app.domains.chat_tools._exec_market`` patches
-``app.routers.chat._fetch_market_context`` and ``_get_client`` is patched by
-tests on the defining module, so both names stay on the package root too.
+Moved down from ``app/routers/chat/_market_fetch.py`` (de-godding phase 2;
+import-boundary debt — the chat tool-use layer in ``app.domains`` shares this
+fetcher, and ``app.domains`` must not import from ``app.routers``). It is
+re-exported from the routers.chat package root so existing importers keep
+working — ``app.domains.chat_tools._exec_market`` patches
+``app.domains.chat_tools.market_fetch._fetch_market_context`` (its canonical
+home now) and tests that patch the defining module's ``_get_client`` keep
+working because the re-export is the SAME object.
 """
 
 from __future__ import annotations

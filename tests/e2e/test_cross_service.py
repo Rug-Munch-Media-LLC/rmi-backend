@@ -137,7 +137,7 @@ class TestPryscraperIntegration:
         mock_result.error = None
 
         with patch(
-            "app.services.pryscraper_client.PryscraperClient.scrape",
+            "app.integrations.pryscraper_client.PryscraperClient.scrape",
             new_callable=AsyncMock,
         ) as mock_scrape:
             mock_scrape.return_value = mock_result
@@ -168,7 +168,7 @@ class TestPryscraperIntegration:
         mock_health = {"status": "ok", "version": "1.0.0", "uptime_seconds": 3600}
 
         with patch(
-            "app.services.pryscraper_client.PryscraperClient.check_health",
+            "app.integrations.pryscraper_client.PryscraperClient.check_health",
             new_callable=AsyncMock,
         ) as mock_health_check:
             mock_health_check.return_value = mock_health
@@ -184,7 +184,7 @@ class TestPryscraperIntegration:
     @pytest.mark.e2e
     def test_backend_pryscraper_circuit_breaker_stats(self, client, auth_headers):
         """GET /api/v1/pryscraper/stats returns circuit-breaker metrics."""
-        from app.services.pryscraper_client import get_pryscraper_client
+        from app.integrations.pryscraper_client import get_pryscraper_client
 
         # The bridge route awaits client.stats() (see pryscraper_bridge.py) —
         # the mock must be an AsyncMock, and the real client nests the
@@ -223,7 +223,7 @@ class TestPryscraperIntegration:
     def test_pryscraper_timeout_returns_upstream_error(self, client, auth_headers):
         """When pryscraper times out, backend returns a 500-level error."""
         with patch(
-            "app.services.pryscraper_client.PryscraperClient.scrape",
+            "app.integrations.pryscraper_client.PryscraperClient.scrape",
             new_callable=AsyncMock,
         ) as mock_scrape:
             mock_scrape.side_effect = httpx.TimeoutException("Connection timed out after 30s")
@@ -242,7 +242,7 @@ class TestPryscraperIntegration:
     @pytest.mark.e2e
     def test_pryscraper_circuit_breaker_trips_on_failures(self, client, auth_headers):
         """Repeated failures are tracked in circuit breaker stats."""
-        from app.services.pryscraper_client import get_pryscraper_client
+        from app.integrations.pryscraper_client import get_pryscraper_client
 
         mock_client = MagicMock()
         mock_client.stats = AsyncMock(
@@ -286,7 +286,7 @@ class TestPryscraperIntegration:
         mock_result.error = None
 
         with patch(
-            "app.services.pryscraper_client.PryscraperClient.extract",
+            "app.integrations.pryscraper_client.PryscraperClient.extract",
             new_callable=AsyncMock,
         ) as mock_extract:
             mock_extract.return_value = mock_result
@@ -323,7 +323,7 @@ class TestPryscraperIntegration:
         ]
 
         with patch(
-            "app.services.pryscraper_client.PryscraperClient.search_news",
+            "app.integrations.pryscraper_client.PryscraperClient.search_news",
             new_callable=AsyncMock,
         ) as mock_search:
             # The bridge route reads results.get("articles", []) — the

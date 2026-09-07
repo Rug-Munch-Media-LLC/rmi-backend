@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query
 
 from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
+from app.services.ta_indicators import compute_ta_snapshot
 
 from ..classifier import classify_trades, label_summary, volume_breakdown
 from ..helpers import (
@@ -18,7 +19,6 @@ from ..helpers import (
     _fetch_recent_trades_clickhouse,
     _fetch_whale_trades_clickhouse,
 )
-from ..ta import compute_ta_snapshot
 
 logger = get_logger("rugcharts_router")
 

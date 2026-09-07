@@ -46,3 +46,37 @@ strings like "HACK ALERT", constants like `ETHERSCAN_PHISH_HACK` /
   `router.py` removed: `NewsletterService` now lives in
   `app/domains/newsletter/services/` and `router.py` exists with 15 routes.
   Remaining work (mounting the router) is tracked as item #17 above.
+
+## Import-Boundary Debt — LEGACY x402-billing slice (2026-09-07)
+
+Tracked marker: `.importlinter` → `layers` contract, comment banner
+`# LEGACY x402-billing slice — see TECH_DEBT.md #import-boundaries`.
+
+The x402 billing domain still reaches UP into `app.routers` (and two
+unlayered root registry modules that themselves import routers). These are
+scoped `ignore_imports` exceptions so `lint-imports` blocks NEW violations
+while the slice is refactored. Every remaining violation, and the plan:
+
+| # | Violating import (ignored) | Plan |
+|---|---------------------------|------|
+| 1 | `app.domains.billing.x402.tools.integration.payments -> app.routers.x402_enforcement` | Move enforcement primitives into `app/domains/billing/x402/enforcement.py`; domain calls it directly, routers re-export. |
+| 2 | `app.domains.x402.service -> app.routers.x402_catalog` | Move x402 tool catalog into `app/domains/x402/catalog.py` (see #5, #11 — same tool registry). |
+| 3 | `app.domains.x402.service -> app.routers.x402_enforcement` | As #1. |
+| 4 | `app.domains.x402.middleware -> app.routers.x402_enforcement` | As #1 (middleware reads enforcement flags via the domain module). |
+| 5 | `app.domains.billing.x402.payment_verifier -> app.routers.x402_middleware` | Move middleware config/state (key/offline flags) into `app/domains/billing/x402/`; routers import it. |
+| 6 | `app.domains.billing.x402.payment_verifier -> app.routers.x402_dashboard` | Move payment-verification presentation model into the billing domain. |
+| 7 | `app.domains.billing.x402.pricing_catalog -> app.routers._expanded_tools` | Consolidate `_expanded_tools`/`x402_tools`/`x402_databus_tools` registries into `app/domains/billing/x402/tools/` registry; routers re-export. |
+| 8 | `app.domains.billing.x402.pricing_catalog -> app.routers.x402_tools` | Same tool-registry consolidation as #7. |
+| 9 | `app.domains.billing.x402.pricing_catalog -> app.routers.x402_databus_tools` | Same tool-registry consolidation as #7. |
+| 10 | `app.domains.billing.x402.tier_resolver -> app.routers.developer_tier` | Move tier-boundary constants into `app/domains/billing/x402/tiering.py`; both sides import it. |
+| 11 | `app.domains.billing.x402.shared_data -> app.routers._expanded_aliases` | Move alias/expansion tables down into `app/domains/billing/x402/` alongside #7. |
+| 12 | `app.domains.billing.x402.tools.integration.utils -> app.routers.x402_enforcement` | As #1. |
+| 13 | `app.domains.billing.x402.tools.integration.utils -> app.routers.x402_enrichment` | Move enrichment payload builders into the billing domain tools layer. |
+| 14 | `app.domains.billing.x402.tools.integration.core -> app.routers.x402_enforcement` | As #1. |
+| 15 | `app.domains.billing.x402.tools.integration.core -> app.tool_catalog` | Move `tool_catalog` registry into `app/domains/billing/x402/tools/` (module currently also imports routers). |
+| 16 | `app.domains.billing.x402.tools.token_tools -> app.fallback_engine` | Move fallback tool engine below domains or make it domain-owned. |
+| 17 | `app.domains.billing.x402.tools.deployer_tools -> app.whale_accumulation` | Move whale-accumulation trigger logic into the billing domain tools layer. |
+
+Resolve = move the shared symbol DOWN (or re-export from a lower module),
+delete the matching `.importlinter` ignore entry, and re-run
+`lint-imports --config .importlinter`.
