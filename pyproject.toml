@@ -33,7 +33,7 @@ dependencies = [
     "langgraph>=1.0.0",  # Agentic RAG orchestration (app/rag/graph.py)
     "langchain>=1.0.0",
     "langchain-openai>=1.0.0",
-    "pydantic-ai-slim>=2.0.0",  # Pydantic AI agent framework (app/agents)
+    "pydantic-ai-slim[openai]>=2.27.0",  # Pydantic AI agent framework (app/agents); openai extra required by OpenAIChatModel
     # Exact pins (dev: pip install -e .; Docker build uses requirements.txt)
     "scalar-fastapi==1.8.2",  # Scalar OpenAPI docs UI for FastAPI
     "pyrevm==0.3.7",  # EVM runtime for contract simulation
