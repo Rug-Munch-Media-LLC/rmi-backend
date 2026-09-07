@@ -238,10 +238,14 @@ def test_profiles_detail_unknown_404(client: TestClient) -> None:
 
 def test_leaderboard_entries_enriched(client: TestClient) -> None:
     """Leaderboard entries gain additive profile fields (avatar/category/wallet_count)."""
+    # Hermetic seed: this suite runs with no DB, so register a score in the
+    # in-process registry — the endpoint overlays it regardless of bot-DB state.
+    ks.score_kol("seeded_kol", persist=False)
     resp = client.get("/api/v1/kol/leaderboard")
     assert resp.status_code == 200
     entries = resp.json()["leaderboard"]
-    assert entries, "leaderboard must not be empty (bot-DB scorecard ships real entries)"
+    assert entries, "leaderboard must not be empty (seeded registry entry)"
+    assert entries[0]["handle"] == "seeded_kol"
     for e in entries:
         assert "wallet_count" in e
 
