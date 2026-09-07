@@ -408,6 +408,16 @@ def leaderboard(
                     if entry.get(field) is None:
                         entry[field] = summary.get(field)
             entry.setdefault("wallet_count", wallet_counts.get(key, 0))
+            # Bot-facing track record: combined wins/losses + derived win rate.
+            wins = int(entry.get("wins") or 0)
+            losses = int(entry.get("losses") or 0)
+            total = wins + losses
+            entry["track_record"] = {
+                "wins": wins,
+                "losses": losses,
+                "total_calls": int(entry.get("total_calls") or 0),
+                "win_rate": round(wins / total, 4) if total else None,
+            }
 
         # Rank: score desc (default) or activity desc.
         if order == "calls":

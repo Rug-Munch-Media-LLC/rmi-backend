@@ -307,6 +307,12 @@ async def test_fetch_whale_flow_clickhouse_fail_open(monkeypatch):
         "evidence": "",
     }
 
+    # Reset the module-level ClickHouse singleton (hermetic under xdist).
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils._ch_client",
+        None,
+    )
+
     # ClickHouse unavailable.
     monkeypatch.setattr(
         "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
@@ -324,6 +330,11 @@ async def test_fetch_whale_flow_clickhouse_queries_chain_candidates(monkeypatch)
             calls.append(params["chain"])
             return [("a", "b", "123", "ts")]  # rows present → stop at first candidate
 
+    # Reset the module-level ClickHouse singleton (hermetic under xdist).
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils._ch_client",
+        None,
+    )
     monkeypatch.setattr(
         "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
         lambda: _FakeCH(),
@@ -339,6 +350,11 @@ async def test_fetch_whale_flow_clickhouse_no_rows_evidence(monkeypatch):
         def execute(self, query, params, **kwargs):
             return []
 
+    # Reset the module-level ClickHouse singleton (hermetic under xdist).
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils._ch_client",
+        None,
+    )
     monkeypatch.setattr(
         "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
         lambda: _EmptyCH(),
@@ -349,6 +365,13 @@ async def test_fetch_whale_flow_clickhouse_no_rows_evidence(monkeypatch):
 
 
 async def test_fetch_whale_flow_clickhouse_fail_open_on_error(monkeypatch):
+    # Reset the module-level ClickHouse singleton so no live client leaks in
+    # from a prior test in the same worker (hermetic under xdist).
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils._ch_client",
+        None,
+    )
+
     class _BoomCH:
         def execute(self, query, params, **kwargs):
             raise RuntimeError("ch down")
@@ -364,6 +387,10 @@ async def test_fetch_whale_flow_clickhouse_fail_open_on_error(monkeypatch):
 async def test_fetch_smart_money_gmgn_fail_open(monkeypatch):
     # Missing address/chain.
     assert await fetch_smart_money_gmgn("", CHAIN) == {"bought": None, "sold": None, "evidence": ""}
+
+    # Reset the module-level GMGN singleton so no live provider leaks in from
+    # a prior test in the same worker (hermetic under xdist).
+    monkeypatch.setattr("app.databus.gmgn_provider._gmgn_provider", None)
 
     # GMGN provider unavailable.
     class _Unavailable:
@@ -383,6 +410,8 @@ async def test_fetch_smart_money_gmgn_fail_open_on_error(monkeypatch):
         async def get_smart_money(self, address, chain):
             raise RuntimeError("gmgn down")
 
+    # Reset the module-level GMGN singleton (hermetic under xdist).
+    monkeypatch.setattr("app.databus.gmgn_provider._gmgn_provider", None)
     monkeypatch.setattr(
         "app.databus.gmgn_provider.get_gmgn_provider",
         lambda: _Boom(),
@@ -396,6 +425,8 @@ async def test_fetch_smart_money_gmgn_parses_direction(monkeypatch):
         async def get_smart_money(self, address, chain):
             return {"smart_money_activity": [{"wallet": "0xaa", "buy_7d": 5, "sell_7d": 1}]}
 
+    # Reset the module-level GMGN singleton (hermetic under xdist).
+    monkeypatch.setattr("app.databus.gmgn_provider._gmgn_provider", None)
     monkeypatch.setattr(
         "app.databus.gmgn_provider.get_gmgn_provider",
         lambda: _FakeProvider(),

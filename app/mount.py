@@ -302,6 +302,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # Live Trades API — real-time trade data with whale detection — mounted 2026-08-06
     "app.routers.live_trades",  # /api/v1/trades/* (feed, stats, per-token trades)
     #
+    # Whale / smart-money flow + signal API — bot-facing — mounted 2026-09-07
+    "app.routers.whales",  # /api/v1/whales/* (flow, signals — reuses whale_flow_enrich)
+    #
     # Token Launch Detection — new token discovery + auto-scan — mounted 2026-08-06
     "app.routers.token_launches",  # /api/v1/launches/* (feed, alerts, scans, stats)
     #
