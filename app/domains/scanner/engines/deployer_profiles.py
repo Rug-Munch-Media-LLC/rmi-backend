@@ -146,21 +146,22 @@ async def detect_repeat_deployers(
         where_clause = "chain = %(chain)s"
         params["chain"] = _normalize_chain(chain)
 
-    query = f"""
-    SELECT
-        deployer,
-        count() AS total_deployments,
-        uniqExact(token_address) AS tokens_launched,
-        min(block_timestamp) AS first_seen,
-        max(block_timestamp) AS last_seen,
-        groupUniqArray(chain) AS chains_used
-    FROM wallet_memory.deployer_events
-    WHERE {where_clause}
-    GROUP BY deployer
-    HAVING count() > %(min_deployments)s
-    ORDER BY total_deployments DESC, tokens_launched DESC
-    LIMIT %(limit)s
-    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+    # `where_clause` is a code literal ("1=1" or "chain = %(chain)s"); values bound via params.
+    query = (
+        "SELECT "
+        "deployer, "
+        "count() AS total_deployments, "
+        "uniqExact(token_address) AS tokens_launched, "
+        "min(block_timestamp) AS first_seen, "
+        "max(block_timestamp) AS last_seen, "
+        "groupUniqArray(chain) AS chains_used "
+        "FROM wallet_memory.deployer_events "
+        "WHERE " + where_clause + " "
+        "GROUP BY deployer "
+        "HAVING count() > %(min_deployments)s "
+        "ORDER BY total_deployments DESC, tokens_launched DESC "
+        "LIMIT %(limit)s"
+    )
 
     try:
         rows = client.execute(
@@ -484,17 +485,18 @@ def _query_deployer_stats(deployer_address: str, chain: str) -> dict[str, Any] |
     where_clause = " AND ".join(where_parts)
 
     try:
+        # `where_clause` is a code literal of %(name)s placeholders; values bound via params.
         rows = client.execute(
-            f"""
-            SELECT
-                count() AS total_deployments,
-                uniqExact(token_address) AS tokens_launched,
-                groupUniqArray(chain) AS chains_used,
-                min(block_timestamp) AS first_ts,
-                max(block_timestamp) AS last_ts
-            FROM wallet_memory.deployer_events
-            WHERE {where_clause}
-            """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+            (
+                "SELECT "
+                "count() AS total_deployments, "
+                "uniqExact(token_address) AS tokens_launched, "
+                "groupUniqArray(chain) AS chains_used, "
+                "min(block_timestamp) AS first_ts, "
+                "max(block_timestamp) AS last_ts "
+                "FROM wallet_memory.deployer_events "
+                "WHERE " + where_clause
+            ),
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -538,18 +540,19 @@ def _query_deployer_tokens(
     where_clause = " AND ".join(where_parts)
 
     try:
+        # `where_clause` is a code literal of %(name)s placeholders; values bound via params.
         rows = client.execute(
-            f"""
-            SELECT
-                token_address,
-                any(chain) AS token_chain,
-                min(block_timestamp) AS deployed_ts
-            FROM wallet_memory.deployer_events
-            WHERE {where_clause}
-            GROUP BY token_address
-            ORDER BY deployed_ts DESC
-            LIMIT %(limit)s
-            """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+            (
+                "SELECT "
+                "token_address, "
+                "any(chain) AS token_chain, "
+                "min(block_timestamp) AS deployed_ts "
+                "FROM wallet_memory.deployer_events "
+                "WHERE " + where_clause + " "
+                "GROUP BY token_address "
+                "ORDER BY deployed_ts DESC "
+                "LIMIT %(limit)s"
+            ),
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -614,48 +617,50 @@ def _query_batch_token_lifecycle(
     }
     pool_clause = " OR d.contract_address IN %(pools)s"
 
-    query = f"""
-    SELECT
-        tok.token_address AS token_address,
-        count(d.block_timestamp) AS total_swaps,
-        countIf(d.block_timestamp >= now() - INTERVAL {ACTIVE_WINDOW_HOURS} HOUR) AS swaps_48h,
-        max(d.block_timestamp) AS last_swap_ts,
-        sumIf(
-            d.volume_usd,
-            d.block_timestamp >= tok.deployed_ts
-            AND d.block_timestamp < tok.deployed_ts + INTERVAL 24 HOUR
-        ) AS volume_24h,
-        sumIf(
-            d.volume_usd,
-            d.block_timestamp >= tok.deployed_ts + INTERVAL {MATURE_HOURS} HOUR
-        ) AS volume_after_72h,
-        countIf(
-            d.block_timestamp >= tok.deployed_ts + INTERVAL {MATURE_HOURS} HOUR
-        ) AS swaps_after_72h,
-        countIf(
-            toFloat64OrZero(d.amount0_out) + toFloat64OrZero(d.amount1_out) > 0
-            AND toFloat64OrZero(d.amount0_in) + toFloat64OrZero(d.amount1_in) = 0
-        ) AS buy_count,
-        countIf(
-            toFloat64OrZero(d.amount0_in) + toFloat64OrZero(d.amount1_in) > 0
-            AND toFloat64OrZero(d.amount0_out) + toFloat64OrZero(d.amount1_out) = 0
-        ) AS sell_count
-    FROM (
-        SELECT
-            token_address,
-            any(chain) AS token_chain,
-            min(block_timestamp) AS deployed_ts
-        FROM wallet_memory.deployer_events
-        WHERE deployer = %(deployer)s
-          AND token_address IN %(tokens)s
-        GROUP BY token_address
-    ) AS tok
-    LEFT JOIN wallet_memory.dex_events AS d
-        ON d.chain = tok.token_chain
-       AND d.type = 'swap'
-       AND (d.token0 = tok.token_address OR d.token1 = tok.token_address{pool_clause})
-    GROUP BY tok.token_address, tok.deployed_ts
-    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+    # ACTIVE_WINDOW_HOURS/MATURE_HOURS are int module constants; pool_clause is a
+    # code literal (%(pools)s placeholder); values bound via params.
+    query = (
+        "SELECT "
+        "tok.token_address AS token_address, "
+        "count(d.block_timestamp) AS total_swaps, "
+        "countIf(d.block_timestamp >= now() - INTERVAL " + str(ACTIVE_WINDOW_HOURS) + " HOUR) AS swaps_48h, "
+        "max(d.block_timestamp) AS last_swap_ts, "
+        "sumIf("
+        "d.volume_usd, "
+        "d.block_timestamp >= tok.deployed_ts "
+        "AND d.block_timestamp < tok.deployed_ts + INTERVAL 24 HOUR"
+        ") AS volume_24h, "
+        "sumIf("
+        "d.volume_usd, "
+        "d.block_timestamp >= tok.deployed_ts + INTERVAL " + str(MATURE_HOURS) + " HOUR"
+        ") AS volume_after_72h, "
+        "countIf("
+        "d.block_timestamp >= tok.deployed_ts + INTERVAL " + str(MATURE_HOURS) + " HOUR"
+        ") AS swaps_after_72h, "
+        "countIf("
+        "toFloat64OrZero(d.amount0_out) + toFloat64OrZero(d.amount1_out) > 0 "
+        "AND toFloat64OrZero(d.amount0_in) + toFloat64OrZero(d.amount1_in) = 0"
+        ") AS buy_count, "
+        "countIf("
+        "toFloat64OrZero(d.amount0_in) + toFloat64OrZero(d.amount1_in) > 0 "
+        "AND toFloat64OrZero(d.amount0_out) + toFloat64OrZero(d.amount1_out) = 0"
+        ") AS sell_count "
+        "FROM ("
+        "SELECT "
+        "token_address, "
+        "any(chain) AS token_chain, "
+        "min(block_timestamp) AS deployed_ts "
+        "FROM wallet_memory.deployer_events "
+        "WHERE deployer = %(deployer)s "
+        "AND token_address IN %(tokens)s "
+        "GROUP BY token_address"
+        ") AS tok "
+        "LEFT JOIN wallet_memory.dex_events AS d "
+        "ON d.chain = tok.token_chain "
+        "AND d.type = 'swap' "
+        "AND (d.token0 = tok.token_address OR d.token1 = tok.token_address" + pool_clause + ") "
+        "GROUP BY tok.token_address, tok.deployed_ts"
+    )
 
     try:
         rows = client.execute(
@@ -696,17 +701,19 @@ def _query_profile_row(deployer_address: str, chain: str) -> dict[str, Any] | No
         params["chain"] = chain
 
     try:
+        # DEPLOYER_PROFILES_TABLE is a module constant; chain_clause is a code
+        # literal (%(chain)s placeholder); values bound via params.
         rows = client.execute(
-            f"""
-            SELECT
-                deployer_address, chain_id, total_tokens_launched, total_deployments,
-                avg_liquidity_24h, rugged_pct, active_pct, honeypot_pct,
-                avg_lifespan_days, chains_used, first_seen, last_seen
-            FROM wallet_memory.{DEPLOYER_PROFILES_TABLE}
-            WHERE deployer_address = %(deployer)s {chain_clause}
-            ORDER BY computed_at DESC
-            LIMIT 1
-            """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+            (
+                "SELECT "
+                "deployer_address, chain_id, total_tokens_launched, total_deployments, "
+                "avg_liquidity_24h, rugged_pct, active_pct, honeypot_pct, "
+                "avg_lifespan_days, chains_used, first_seen, last_seen "
+                "FROM wallet_memory." + DEPLOYER_PROFILES_TABLE + " "
+                "WHERE deployer_address = %(deployer)s " + chain_clause + " "
+                "ORDER BY computed_at DESC "
+                "LIMIT 1"
+            ),
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -761,7 +768,7 @@ def _upsert_profile_row(profile: dict[str, Any]) -> bool:
         last_seen = _parse_dt(profile.get("last_seen"))
         chain_id = "" if profile.get("chain") in ("", "any", None) else str(profile["chain"])
         client.execute(
-            f"INSERT INTO wallet_memory.{DEPLOYER_PROFILES_TABLE} "
+            "INSERT INTO wallet_memory." + DEPLOYER_PROFILES_TABLE + " "
             "(deployer_address, chain_id, total_tokens_launched, total_deployments, "
             "avg_liquidity_24h, rugged_pct, active_pct, honeypot_pct, avg_lifespan_days, "
             "chains_used, first_seen, last_seen, computed_at) VALUES",

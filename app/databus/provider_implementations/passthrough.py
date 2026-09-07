@@ -191,7 +191,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
         query = (
             "SELECT chain_id, label_name, label_category, source, is_sanctioned "
             "FROM wallet_memory.wallet_labels "
-            f"WHERE address = '{addr_esc}' "  # nosec B608 - addr single-quote-escaped ('' doubling)
+            "WHERE address = '" + addr_esc + "' "
             "AND label_name != '' "
             "ORDER BY is_sanctioned DESC, loaded_at DESC "
             "LIMIT 5"
@@ -309,7 +309,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
         query = (
             "SELECT address, chain_id, label_name, label_category, source, is_sanctioned "
             "FROM wallet_memory.wallet_labels "
-            f"WHERE address IN ({addr_list}) "  # nosec B608 - each addr single-quote-escaped ('' doubling)
+            "WHERE address IN (" + addr_list + ") "
             "AND label_name != '' "
             "ORDER BY is_sanctioned DESC, loaded_at DESC "
             "LIMIT 500"

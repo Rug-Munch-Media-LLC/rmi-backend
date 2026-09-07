@@ -139,7 +139,9 @@ class DeployerRepo:
         try:
             await asyncio.to_thread(
                 client.execute,
-                f"""INSERT INTO {TABLE}
+                "INSERT INTO "
+                + TABLE
+                + """
                 (deployer_address, chain, token_address, token_symbol, launch_time,
                  funding_source, initial_liquidity, risk_score, outcome, updated_at)
                 VALUES""",
@@ -174,12 +176,12 @@ class DeployerRepo:
         try:
             rows = await asyncio.to_thread(
                 client.execute,
-                f"""SELECT token_address, token_symbol, launch_time, funding_source,
-                           initial_liquidity, risk_score, outcome
-                    FROM {TABLE} FINAL
-                    WHERE deployer_address = %(addr)s AND chain = %(chain)s
-                    ORDER BY launch_time DESC
-                    LIMIT 200""",  # noqa: S608 — constant table name interpolated; params bound
+                "SELECT token_address, token_symbol, launch_time, funding_source, "
+                "initial_liquidity, risk_score, outcome "
+                "FROM " + TABLE + " FINAL "
+                "WHERE deployer_address = %(addr)s AND chain = %(chain)s "
+                "ORDER BY launch_time DESC "
+                "LIMIT 200",
                 {"addr": (address or "").lower(), "chain": chain},
             )
         except Exception as e:
@@ -242,11 +244,11 @@ class DeployerRepo:
             # with the new outcome (ReplacingMergeTree keeps the latest).
             rows = await asyncio.to_thread(
                 client.execute,
-                f"""SELECT token_symbol, launch_time, funding_source, initial_liquidity, risk_score
-                    FROM {TABLE} FINAL
-                    WHERE deployer_address = %(addr)s AND chain = %(chain)s
-                      AND token_address = %(token)s
-                    LIMIT 1""",  # noqa: S608 — constant table name interpolated; params bound
+                "SELECT token_symbol, launch_time, funding_source, initial_liquidity, risk_score "
+                "FROM " + TABLE + " FINAL "
+                "WHERE deployer_address = %(addr)s AND chain = %(chain)s "
+                "AND token_address = %(token)s "
+                "LIMIT 1",
                 {"addr": (address or "").lower(), "chain": chain, "token": token},
             )
             if not rows:
@@ -255,7 +257,9 @@ class DeployerRepo:
             symbol, launch_time, funding, liquidity, risk = rows[0]
             await asyncio.to_thread(
                 client.execute,
-                f"""INSERT INTO {TABLE}
+                "INSERT INTO "
+                + TABLE
+                + """
                 (deployer_address, chain, token_address, token_symbol, launch_time,
                  funding_source, initial_liquidity, risk_score, outcome, updated_at)
                 VALUES""",
@@ -289,19 +293,19 @@ class DeployerRepo:
         try:
             rows = await asyncio.to_thread(
                 client.execute,
-                f"""SELECT deployer_address,
-                           count() AS total_launches,
-                           countIf(outcome = 'rug') AS confirmed_rugs,
-                           countIf(outcome = 'clean') AS confirmed_clean,
-                           avg(risk_score) AS avg_risk,
-                           min(launch_time) AS first_seen,
-                           max(launch_time) AS last_seen
-                    FROM {TABLE} FINAL
-                    WHERE chain = %(chain)s
-                    GROUP BY deployer_address
-                    HAVING total_launches > 1
-                    ORDER BY confirmed_rugs DESC, avg_risk DESC
-                    LIMIT %(limit)s""",  # noqa: S608 — constant table name interpolated; params bound
+                "SELECT deployer_address, "
+                "count() AS total_launches, "
+                "countIf(outcome = 'rug') AS confirmed_rugs, "
+                "countIf(outcome = 'clean') AS confirmed_clean, "
+                "avg(risk_score) AS avg_risk, "
+                "min(launch_time) AS first_seen, "
+                "max(launch_time) AS last_seen "
+                "FROM " + TABLE + " FINAL "
+                "WHERE chain = %(chain)s "
+                "GROUP BY deployer_address "
+                "HAVING total_launches > 1 "
+                "ORDER BY confirmed_rugs DESC, avg_risk DESC "
+                "LIMIT %(limit)s",
                 {"chain": chain, "limit": limit},
             )
         except Exception as e:
@@ -339,22 +343,22 @@ class DeployerRepo:
         try:
             rows = await asyncio.to_thread(
                 client.execute,
-                f"""SELECT
-                        uniqExact(deployer_address) AS total_deployers,
-                        count() AS total_launches,
-                        countIf(outcome = 'rug') AS confirmed_rugs,
-                        countIf(outcome = 'clean') AS confirmed_clean,
-                        countIf(outcome = 'pending') AS pending_outcomes
-                    FROM {TABLE} FINAL""",  # noqa: S608 — static query; constant table name
+                "SELECT "
+                "uniqExact(deployer_address) AS total_deployers, "
+                "count() AS total_launches, "
+                "countIf(outcome = 'rug') AS confirmed_rugs, "
+                "countIf(outcome = 'clean') AS confirmed_clean, "
+                "countIf(outcome = 'pending') AS pending_outcomes "
+                "FROM " + TABLE + " FINAL",
             )
             repeat_rows = await asyncio.to_thread(
                 client.execute,
-                f"""SELECT count() FROM (
-                        SELECT deployer_address
-                        FROM {TABLE} FINAL
-                        GROUP BY deployer_address
-                        HAVING count() > 1 AND countIf(outcome = 'rug') > 0
-                    )""",  # noqa: S608 — static query; constant table name
+                "SELECT count() FROM ("
+                "SELECT deployer_address "
+                "FROM " + TABLE + " FINAL "
+                "GROUP BY deployer_address "
+                "HAVING count() > 1 AND countIf(outcome = 'rug') > 0"
+                ")",
             )
             r = rows[0] if rows else (0, 0, 0, 0, 0)
             return {

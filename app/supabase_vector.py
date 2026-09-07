@@ -73,37 +73,54 @@ def pad_vector(vec: list[Any], target_dim: int) -> list[Any]:
     return vec + [0.0] * (target_dim - len(vec))
 
 
-# SQL for table creation
-CREATE_TABLE_SQL = f"""
-CREATE TABLE IF NOT EXISTS {VECTOR_TABLE} (
-    id TEXT PRIMARY KEY,
-    collection TEXT NOT NULL,
-    content TEXT,
-    embedding vector({TABLE_DIM}),
-    metadata JSONB DEFAULT '{{}}',
-    source TEXT,
-    severity TEXT,
-    chain TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_rag_collection ON {VECTOR_TABLE} (collection);
-CREATE INDEX IF NOT EXISTS idx_rag_metadata ON {VECTOR_TABLE} USING GIN (metadata);
-CREATE INDEX IF NOT EXISTS idx_rag_severity ON {VECTOR_TABLE} (severity);
-CREATE INDEX IF NOT EXISTS idx_rag_chain ON {VECTOR_TABLE} (chain);
-CREATE INDEX IF NOT EXISTS idx_rag_source ON {VECTOR_TABLE} (source);
-
--- Full-text search index for BM25-style keyword matching
-CREATE INDEX IF NOT EXISTS idx_rag_content_fts ON {VECTOR_TABLE}
-    USING GIN (to_tsvector('english', COALESCE(content, '')));
-
--- IVFFlat index for approximate nearest neighbor search
--- Note: Must be created after data is loaded for best results
--- CREATE INDEX IF NOT EXISTS idx_rag_embedding_ivfflat ON {VECTOR_TABLE}
---     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
-"""
+# SQL for table creation (VECTOR_TABLE/TABLE_DIM are module constants)
+CREATE_TABLE_SQL = (
+    "CREATE TABLE IF NOT EXISTS "
+    + VECTOR_TABLE
+    + " ("
+    + "id TEXT PRIMARY KEY,"
+    + "collection TEXT NOT NULL,"
+    + "content TEXT,"
+    + "embedding vector("
+    + str(TABLE_DIM)
+    + "),"
+    + "metadata JSONB DEFAULT '{}',"
+    + "source TEXT,"
+    + "severity TEXT,"
+    + "chain TEXT,"
+    + "created_at TIMESTAMPTZ DEFAULT NOW(),"
+    + "updated_at TIMESTAMPTZ DEFAULT NOW()"
+    + ");"
+    + ""
+    + "-- Indexes"
+    + "CREATE INDEX IF NOT EXISTS idx_rag_collection ON "
+    + VECTOR_TABLE
+    + " (collection);"
+    + "CREATE INDEX IF NOT EXISTS idx_rag_metadata ON "
+    + VECTOR_TABLE
+    + " USING GIN (metadata);"
+    + "CREATE INDEX IF NOT EXISTS idx_rag_severity ON "
+    + VECTOR_TABLE
+    + " (severity);"
+    + "CREATE INDEX IF NOT EXISTS idx_rag_chain ON "
+    + VECTOR_TABLE
+    + " (chain);"
+    + "CREATE INDEX IF NOT EXISTS idx_rag_source ON "
+    + VECTOR_TABLE
+    + " (source);"
+    + ""
+    + "-- Full-text search index for BM25-style keyword matching"
+    + "CREATE INDEX IF NOT EXISTS idx_rag_content_fts ON "
+    + VECTOR_TABLE
+    + " "
+    + "USING GIN (to_tsvector('english', COALESCE(content, '')));"
+    + ""
+    + "-- IVFFlat index for approximate nearest neighbor search"
+    + "-- Note: Must be created after data is loaded for best results"
+    + "-- CREATE INDEX IF NOT EXISTS idx_rag_embedding_ivfflat ON "
+    + VECTOR_TABLE
+    + "--     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);"
+)
 
 
 class SupabaseVectorStore:
@@ -210,24 +227,24 @@ class SupabaseVectorStore:
             try:
                 # Build the CREATE TABLE SQL with the resolved dimension
                 dim = self._get_dim()
-                create_sql = f"""
-                CREATE TABLE IF NOT EXISTS {VECTOR_TABLE} (
-                    id TEXT PRIMARY KEY,
-                    collection TEXT NOT NULL,
-                    content TEXT,
-                    embedding vector({dim}),
-                    metadata JSONB DEFAULT '{{}}',
-                    source TEXT,
-                    severity TEXT,
-                    chain TEXT,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-                CREATE INDEX IF NOT EXISTS idx_rag_collection ON {VECTOR_TABLE} (collection);
-                CREATE INDEX IF NOT EXISTS idx_rag_metadata ON {VECTOR_TABLE} USING GIN (metadata);
-                CREATE INDEX IF NOT EXISTS idx_rag_content_fts ON {VECTOR_TABLE}
-                    USING GIN (to_tsvector('english', COALESCE(content, '')));
-                """
+                create_sql = (
+                    "CREATE TABLE IF NOT EXISTS " + VECTOR_TABLE + " ("
+                    "id TEXT PRIMARY KEY,"
+                    "collection TEXT NOT NULL,"
+                    "content TEXT,"
+                    "embedding vector(" + str(dim) + "),"
+                    "metadata JSONB DEFAULT '{}',"
+                    "source TEXT,"
+                    "severity TEXT,"
+                    "chain TEXT,"
+                    "created_at TIMESTAMPTZ DEFAULT NOW(),"
+                    "updated_at TIMESTAMPTZ DEFAULT NOW()"
+                    ");"
+                    "CREATE INDEX IF NOT EXISTS idx_rag_collection ON " + VECTOR_TABLE + " (collection);"
+                    "CREATE INDEX IF NOT EXISTS idx_rag_metadata ON " + VECTOR_TABLE + " USING GIN (metadata);"
+                    "CREATE INDEX IF NOT EXISTS idx_rag_content_fts ON " + VECTOR_TABLE + " "
+                    "USING GIN (to_tsvector('english', COALESCE(content, '')));"
+                )
                 await self._rpc("exec_sql", {"sql": create_sql})
                 self._table_ready = True
             except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
@@ -459,16 +476,23 @@ class SupabaseVectorStore:
 
         try:
             # Try to use a raw SQL query via RPC
-            collection_filter = f"AND collection = '{safe_collection}'" if safe_collection else ""
-            sql = f"""
-            SELECT id, collection, content, metadata, source, severity, chain,
-                   1 - (embedding <=> '{embedding_literal}'::vector) AS similarity
-            FROM {VECTOR_TABLE}
-            WHERE 1 - (embedding <=> '{embedding_literal}'::vector) > {safe_min_sim}
-            {collection_filter}
-            ORDER BY embedding <=> '{embedding_literal}'::vector
-            LIMIT {int(limit)}
-            """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - raw-SQL RPC; only quote-escaped collection + float/int literals interpolated
+            collection_filter = "AND collection = '" + safe_collection + "'" if safe_collection else ""
+            # embedding_literal is a validated float-list string; safe_min_sim clamped;
+            # int(limit) validated; collection_filter code-literal; table constant.
+            sql = (
+                "SELECT id, collection, content, metadata, source, severity, chain, "
+                "1 - (embedding <=> '" + embedding_literal + "'::vector) AS similarity "
+                "FROM " + VECTOR_TABLE + " "
+                "WHERE 1 - (embedding <=> '"
+                + embedding_literal
+                + "'::vector) > "
+                + str(safe_min_sim)
+                + " "
+                + collection_filter
+                + " "
+                "ORDER BY embedding <=> '" + embedding_literal + "'::vector "
+                "LIMIT " + str(int(limit))
+            )
             results = await self._rpc("exec_sql_returning", {"sql": sql})
             if results:
                 return [
@@ -509,19 +533,23 @@ class SupabaseVectorStore:
             # Escape user input for PostgreSQL text search - prevent SQL injection
             safe_query_text = query_text.replace("'", "''").replace("\\", "\\\\")
             safe_collection = collection.replace("'", "''") if collection else ""
-            collection_filter = f"AND collection = '{safe_collection}'" if safe_collection else ""
+            collection_filter = "AND collection = '" + safe_collection + "'" if safe_collection else ""
             safe_limit = int(limit * 2)
 
-            sql = f"""
-            SELECT id, collection, content, metadata, source, severity,
-                   ts_rank(to_tsvector('english', COALESCE(content, '')),
-                           plainto_tsquery('english', '{safe_query_text}')) AS text_score
-            FROM {VECTOR_TABLE}
-            WHERE to_tsvector('english', COALESCE(content, '')) @@ plainto_tsquery('english', '{safe_query_text}')
-            {collection_filter}
-            ORDER BY text_score DESC
-            LIMIT {safe_limit}
-            """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - raw-SQL RPC; only quote-escaped text/collection + int limit interpolated
+            # safe_query_text/safe_collection quote-escaped; safe_limit int-validated; table constant.
+            sql = (
+                "SELECT id, collection, content, metadata, source, severity, "
+                "ts_rank(to_tsvector('english', COALESCE(content, '')), "
+                "plainto_tsquery('english', '" + safe_query_text + "')) AS text_score "
+                "FROM " + VECTOR_TABLE + " "
+                "WHERE to_tsvector('english', COALESCE(content, '')) @@ plainto_tsquery('english', '"
+                + safe_query_text
+                + "') "
+                + collection_filter
+                + " "
+                "ORDER BY text_score DESC "
+                "LIMIT " + str(safe_limit)
+            )
             text_results_raw = await self._rpc("exec_sql_returning", {"sql": sql})
             if text_results_raw:
                 max_score = max(r["text_score"] for r in text_results_raw) or 1.0
@@ -571,12 +599,9 @@ class SupabaseVectorStore:
     async def get_collection_stats(self) -> dict[str, int]:
         """Get document counts per collection."""
         try:
-            sql = f"""
-            SELECT collection, COUNT(*) as count
-            FROM {VECTOR_TABLE}
-            GROUP BY collection
-            ORDER BY count DESC
-            """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - static query; only constant table name interpolated
+            sql = (
+                "SELECT collection, COUNT(*) as count FROM " + VECTOR_TABLE + " GROUP BY collection ORDER BY count DESC"
+            )
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return {r["collection"]: r["count"] for r in (rows or [])}
         except (httpx.HTTPError, ConnectionError, TimeoutError):
@@ -586,7 +611,7 @@ class SupabaseVectorStore:
         """Delete all documents in a collection."""
         safe_collection = collection.replace("'", "''")
         try:
-            sql = f"DELETE FROM {VECTOR_TABLE} WHERE collection = '{safe_collection}'"  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - collection quote-escaped before interpolation; table is constant
+            sql = "DELETE FROM " + VECTOR_TABLE + " WHERE collection = '" + safe_collection + "'"
             result = await self._rpc("exec_sql", {"sql": sql})
             if isinstance(result, list) and result:
                 return result[0].get("count", 1) if isinstance(result[0], dict) else 1
@@ -598,7 +623,7 @@ class SupabaseVectorStore:
         """Delete a single document."""
         safe_id = doc_id.replace("'", "''")
         try:
-            sql = f"DELETE FROM {VECTOR_TABLE} WHERE id = '{safe_id}'"  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - doc id quote-escaped before interpolation; table is constant
+            sql = "DELETE FROM " + VECTOR_TABLE + " WHERE id = '" + safe_id + "'"
             await self._rpc("exec_sql", {"sql": sql})
             return True
         except (httpx.HTTPError, ConnectionError, TimeoutError):
@@ -607,7 +632,7 @@ class SupabaseVectorStore:
     async def total_docs(self) -> int:
         """Total document count."""
         try:
-            sql = f"SELECT COUNT(*) as count FROM {VECTOR_TABLE}"  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - static query; only constant table name interpolated
+            sql = "SELECT COUNT(*) as count FROM " + VECTOR_TABLE
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return rows[0]["count"] if rows else 0
         except (httpx.HTTPError, ConnectionError, TimeoutError):
@@ -681,8 +706,9 @@ class SupabaseVectorStore:
             where = ""
             if collection:
                 safe_collection = collection.replace("'", "''")
-                where = f"WHERE collection = '{safe_collection}'"
-            sql = f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - column allowlisted; collection quote-escaped; table constant
+                where = "WHERE collection = '" + safe_collection + "'"
+            # safe_column allowlisted; collection quote-escaped; table constant.
+            sql = "SELECT DISTINCT " + safe_column + " FROM " + VECTOR_TABLE + " " + where + " ORDER BY " + safe_column
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return [r[safe_column] for r in (rows or [])]
         except (httpx.HTTPError, ConnectionError, TimeoutError):

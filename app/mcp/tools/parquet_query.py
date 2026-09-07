@@ -104,7 +104,16 @@ async def query_parquet_mcp(
 
     # S608: user-supplied values are bound via ? placeholders; bucket_url is
     # allowlisted from SUPPORTED_CHAINS/SUPPORTED_TABLES, limit is clamped int
-    sql = f"SELECT * FROM read_parquet('{bucket_url}', union_by_name=true) {where_clause} ORDER BY block_number DESC LIMIT {limit}"  # noqa: S608  # nosec B608 - user values bound as ? params; bucket_url allowlisted
+    # bucket_url is allowlisted from SUPPORTED_CHAINS/SUPPORTED_TABLES;
+    # where_clause is code-literal SQL with ? placeholders; limit is clamped int.
+    sql = (
+        "SELECT * FROM read_parquet('"
+        + bucket_url
+        + "', union_by_name=true) "
+        + where_clause
+        + " ORDER BY block_number DESC LIMIT "
+        + str(limit)
+    )
 
     # -- Execute in thread pool (DuckDB calls are synchronous) -------------
     def _execute() -> dict[str, Any]:

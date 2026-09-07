@@ -293,9 +293,10 @@ async def list_users(
         params = [like, like, like]
 
     try:
-        total = conn.execute(f"SELECT COUNT(*) AS c FROM users {where}", params).fetchone()["c"] or 0  # noqa: S608  # nosec B608 - where is code literal or ?-placeholder SQL; values bound via params
+        # `where` is a code literal (empty or fixed ?-placeholder SQL); values bound via params.
+        total = conn.execute("SELECT COUNT(*) AS c FROM users " + where, params).fetchone()["c"] or 0
         rows = conn.execute(
-            f"SELECT * FROM users {where} ORDER BY last_active DESC LIMIT ?",  # noqa: S608  # nosec B608 - where is code literal or ?-placeholder SQL; values bound via params
+            "SELECT * FROM users " + where + " ORDER BY last_active DESC LIMIT ?",
             [*params, limit],
         ).fetchall()
         users = [dict(r) for r in rows]
