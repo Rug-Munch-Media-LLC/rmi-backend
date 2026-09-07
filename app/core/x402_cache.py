@@ -1,5 +1,11 @@
 """
-Layer 1: Response Caching — Redis-backed cache for tool results.
+Layer 1: Response Caching — Redis-backed cache for x402 tool results.
+
+Owned by ``app.core`` (the lowest layer) because BOTH the core cache
+middleware (``app.core.middleware``) and the x402 tool routers consume it.
+A shared symbol consumed by ``app.core`` cannot live in a router module
+or in ``app.services`` — core must never import upward. Routers import
+this module downward (legal per the layered-architecture contract).
 
 Provides:
   - get_cached / set_cached for transparent read/write

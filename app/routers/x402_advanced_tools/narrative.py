@@ -14,7 +14,7 @@ import aiohttp
 
 from app.core.errors import AppError
 from app.core.logging import get_logger
-from app.routers.x402_advanced_tools.cache import get_cached, set_cached
+from app.core.x402_cache import get_cached, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
 
 # Runtime import: FastAPI resolves this body model at OpenAPI schema generation time.

@@ -88,9 +88,15 @@ async def _start_background_tasks(app: FastAPI) -> None:
         except Exception as e:
             logger.warning("background_task_failed", task=name, error=str(e))
 
-    # Cache warmer (passes app instance)
+    # Cache warmer (passes app instance). Loaded by module path (string)
+    # like the background tasks above: core/lifespan is the composition
+    # root and must not statically import the services-tier databus
+    # package — that would let app.core reach app.domains through the
+    # databus client, violating the core-is-lowest contract.
     try:
-        from app.databus import core as _databus_core
+        import importlib
+
+        _databus_core = importlib.import_module("app.databus.core")
 
         cache_warm_loop = getattr(_databus_core, "cache_warm_loop", None)
         if cache_warm_loop:

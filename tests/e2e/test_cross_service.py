@@ -184,7 +184,7 @@ class TestPryscraperIntegration:
     @pytest.mark.e2e
     def test_backend_pryscraper_circuit_breaker_stats(self, client, auth_headers):
         """GET /api/v1/pryscraper/stats returns circuit-breaker metrics."""
-        from app.core.dependencies import get_pryscraper_client
+        from app.services.pryscraper_client import get_pryscraper_client
 
         # The bridge route awaits client.stats() (see pryscraper_bridge.py) —
         # the mock must be an AsyncMock, and the real client nests the
@@ -242,7 +242,7 @@ class TestPryscraperIntegration:
     @pytest.mark.e2e
     def test_pryscraper_circuit_breaker_trips_on_failures(self, client, auth_headers):
         """Repeated failures are tracked in circuit breaker stats."""
-        from app.core.dependencies import get_pryscraper_client
+        from app.services.pryscraper_client import get_pryscraper_client
 
         mock_client = MagicMock()
         mock_client.stats = AsyncMock(

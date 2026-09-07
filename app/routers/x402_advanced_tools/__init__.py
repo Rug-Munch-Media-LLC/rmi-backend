@@ -16,7 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from app.routers.x402_advanced_tools.cache import get_cached, invalidate_cache, set_cached
+from app.core.x402_cache import get_cached, invalidate_cache, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
 from app.routers.x402_advanced_tools.gate import require_x402_advanced_payment
 from app.routers.x402_advanced_tools.history import token_history
@@ -51,7 +51,7 @@ async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
 async def cache_stats() -> dict[str, Any]:
     """Get cache hit/miss statistics."""
     try:
-        from app.routers.x402_advanced_tools.cache import _redis_conn
+        from app.core.x402_cache import _redis_conn
 
         r = _redis_conn()
         keys = list(r.scan_iter("x402:cache:*"))
