@@ -37,6 +37,24 @@ from app.mcp._catalog import (  # noqa: E402 — imported after logger init; kep
 
 
 # ── Tool implementations ──────────────────────────────────────────
+async def _require_api_key(arguments: dict[str, Any]) -> str | None:
+    """Validate the API key for restricted tools.
+
+    Returns an error string when the call must be rejected, None when the
+    caller presented a valid admin API key (checked against the Redis
+    ``rmi:api_keys`` store via app.core.auth — revocation-aware).
+    """
+    api_key = str(arguments.get("api_key", ""))
+    if not api_key:
+        return "unauthorized: api_key required for this tool"
+    from app.core.auth import _is_valid_admin_api_key
+
+    if not await _is_valid_admin_api_key(api_key):
+        log.warning("mcp_tool_auth_rejected tool=restricted invalid_api_key=true")
+        return "unauthorized: invalid or revoked API key"
+    return None
+
+
 async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Dispatch a tool call to the appropriate backend."""
     from app.catalog.service import get_catalog
@@ -187,7 +205,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     # ── TIERS 1-2 moat tools (June 23-24 2026) ───────────────────
     if name == "analytics_query":
         # T13: Run read-only SQL via embedded DuckDB
-        # FIXME(issue): M3 moat TIER 2 - add API key check before opening to public
+        # SECURITY (audit 2026-09-06 C-6): API-key gated — reject before any
+        # query execution. Valid keys are active admin API keys from the
+        # Redis ``rmi:api_keys`` store (revocation-aware).
+        auth_error = await _require_api_key(arguments)
+        if auth_error:
+            return {"error": auth_error}
         from app.core.duckdb_analytics import DuckDBAnalytics
 
         sql = arguments.get("sql", "").strip()
