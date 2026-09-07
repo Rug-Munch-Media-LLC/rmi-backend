@@ -13,6 +13,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.errors import PaymentRequiredError
 from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
 
@@ -111,6 +112,26 @@ class PremiumSignupRequest(BaseModel):
     tier: Tier = "pro"
 
 
+# ── Premium-tier x402 payment requirement (audit #8) ─────────────────
+# Premium tier activation is gated on a coffer-facilitator-verified x402
+# payment. Free/basic tier flow is unchanged (no payment required). See
+# app/auth/x402_client.py — the client is FAIL-CLOSED: premium is denied
+# whenever the facilitator is unreachable or rejects the payment.
+
+#: Header carrying the verified payment id (fleet-canonical x402 replay header).
+PAYMENT_ID_HEADER = "X-Payment-ID"
+
+
+def _caller_key(user: dict[str, Any]) -> str:
+    """Caller identity the coffer bound the payment to (authenticated user)."""
+    return f"user:{user.get('id') or user.get('sub') or 'unknown'}"
+
+
+def _premium_op(tier: str) -> str:
+    """Server-authoritative operation label quoted/verified by the facilitator."""
+    return f"premium:{tier}"
+
+
 # ── Session dependency ────────────────────────────────────────────────
 
 
@@ -182,15 +203,49 @@ async def login(body: LoginRequest) -> dict[str, Any]:
 
 @router.post("/premium/signup", summary="Upgrade to premium tier")
 async def premium_signup(
+    request: Request,
     body: PremiumSignupRequest,
     user: dict[str, Any] = Depends(verify_session),
 ) -> dict[str, Any]:
-    """Upgrade user to premium tier. Requires active session.
+    """Upgrade user to premium tier. Requires active session and a coffer-verified x402 payment.
 
-    Creates an x402 payment requirement for the premium tier; the tier is
-    activated once payment is confirmed.
+    Free/basic tier requests pass through unchanged. For paid tiers (scout,
+    hunter, pro) the caller must present a verified x402 payment id in the
+    ``X-Payment-ID`` header; the coffer facilitator is asked to confirm the
+    payment for this caller before the tier is activated. Fail-closed: an
+    unreachable facilitator or rejected payment denies premium (HTTP 402).
     """
-    logger.info("premium_signup_requested user_id=%s tier=%s", user.get("id"), body.tier)
-    # TODO(x402): wire real payment requirement via app.domains.billing.x402
-    # once the pricing table for scout/hunter/pro tiers is finalized.
-    return {"status": "pending_payment", "tier": body.tier, "user_id": user.get("id")}
+    user_id = user.get("id") or user.get("sub")
+    logger.info("premium_signup_requested user_id=%s tier=%s", user_id, body.tier)
+
+    # Free/basic tier — no payment requirement; flow unchanged.
+    if body.tier == "free":
+        return {"status": "active", "tier": body.tier, "user_id": user_id}
+
+    payment_id = request.headers.get(PAYMENT_ID_HEADER, "").strip()
+    if not payment_id:
+        logger.info("premium_signup_no_payment user_id=%s tier=%s", user_id, body.tier)
+        raise PaymentRequiredError(
+            "premium tier activation requires a verified x402 payment",
+            code="payment.required",
+            context={"tier": body.tier, "required_header": PAYMENT_ID_HEADER},
+        )
+
+    from app.auth.x402_client import verify_payment
+
+    result = await verify_payment(payment_id, caller_key=_caller_key(user), op=_premium_op(body.tier))
+    if not result.get("verified"):
+        logger.warning(
+            "premium_signup_payment_denied user_id=%s tier=%s reason=%s",
+            user_id,
+            body.tier,
+            result.get("reason"),
+        )
+        raise PaymentRequiredError(
+            "x402 payment verification failed — premium not granted",
+            code="payment.required",
+            context={"tier": body.tier, "reason": result.get("reason")},
+        )
+
+    logger.info("premium_signup_activated user_id=%s tier=%s payment_id=%s", user_id, body.tier, payment_id)
+    return {"status": "active", "tier": body.tier, "user_id": user_id, "payment_id": payment_id}
