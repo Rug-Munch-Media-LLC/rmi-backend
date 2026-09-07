@@ -23,11 +23,34 @@ from app.auth.x402_client import VERIFY_PATH, verify_payment
 from app.core.errors import PaymentRequiredError
 from app.routers.auth import PAYMENT_ID_HEADER, PremiumSignupRequest, premium_signup
 
-# Pinned in conftest.py (force-assigned before any app.config import) so the
-# settings singleton always resolves the mocked URL regardless of import order.
+# Canonical mocked facilitator URL (also force-assigned as X402_FACILITATOR_URL
+# in tests/conftest.py + tests/security/conftest.py before any app.config import).
 from tests.security.conftest import TEST_X402_FACILITATOR_URL
 
 VERIFY_URL = f"{TEST_X402_FACILITATOR_URL}{VERIFY_PATH}"
+
+
+@pytest.fixture(autouse=True)
+def _pin_facilitator_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hermetically pin the URL the x402 client resolves to the respx mock.
+
+    The ``app.config`` settings singleton is created once per process at the
+    first ``app.config`` import. Under the full suite an unrelated module
+    (collected before this one) can trigger that import while
+    ``X402_FACILITATOR_URL`` is still unset, caching the default
+    ``http://localhost:8670`` — the env pin in conftest.py then arrives too
+    late and every respx mock (registered against ``coffer.test``) misses,
+    raising ``AllMockedAssertionError``.
+
+    ``app.auth.x402_client._build_url`` reads ``settings.x402_facilitator_url``
+    at call time, so patching the live singleton attribute makes client and
+    router-level tests resolve the mocked URL regardless of import order.
+    ``monkeypatch`` restores the original value on teardown, so no other module
+    observes the pin.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "x402_facilitator_url", TEST_X402_FACILITATOR_URL)
 
 
 def _auth_request(headers: dict[str, str] | None = None) -> Request:

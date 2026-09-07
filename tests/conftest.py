@@ -67,6 +67,15 @@ os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 os.environ["RMI_INTERNAL_KEY"] = "test-internal-key-32-chars-long!!!"
 os.environ["JWT_SECRET"] = "test-jwt-secret-key-thats-32-chars-long!"
 
+# Force-assign (not setdefault) the x402 facilitator URL to the mocked
+# coffer.test base (canonical value: tests/security/conftest.py). app.config
+# caches whichever facilitator URL is active at first import; under the full
+# suite an unrelated module may import app.config before tests/security's
+# conftest runs, caching the real/default URL and making every respx mock in
+# test_x402_premium.py miss. Pinning here (root conftest loads before any test
+# module) keeps the settings singleton deterministic in any collection order.
+os.environ["X402_FACILITATOR_URL"] = "http://coffer.test"
+
 # ── Hypothesis profiles ───────────────────────────────────────────────
 from hypothesis import HealthCheck, settings  # noqa: E402 — module docstring precedes import block
 
