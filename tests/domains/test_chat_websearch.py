@@ -40,6 +40,13 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+# HTTP chat-route tests must be hermetic (fresh allow-all rate limiter,
+# empty response cache, per-test SQLite file — see tests/conftest.py) so they
+# never 429 / cache-pollute / contend on the real data/rmi.db under
+# full-suite ordering.
+pytestmark = pytest.mark.usefixtures("chat_route_hermetic")
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     app = FastAPI()
