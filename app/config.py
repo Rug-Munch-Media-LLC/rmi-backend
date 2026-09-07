@@ -423,6 +423,15 @@ class Settings(BaseSettings):
         default="http://localhost:8000/api/v1/x402/verify",
         description="URL for x402 payment verification. Set X402_VERIFY_URL env var.",
     )
+    x402_facilitator_url: str = Field(
+        default="http://localhost:8670",
+        description=(
+            "Base URL of the coffer x402 facilitator used to gate premium-tier "
+            "activation (POST {base}/v1/x402/verify). Premium access is denied "
+            "(fail-closed) when the facilitator is unreachable. "
+            "Set X402_FACILITATOR_URL env var."
+        ),
+    )
 
     # ── RMI-specific ────────────────────────────────────────────────────
     # RugBrain (crypto-native RAG engine) default collections. Full taxonomy:

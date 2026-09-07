@@ -12,6 +12,7 @@ import os
 TEST_RMI_AUTH_TOKEN: str = "test-auth-token-32-chars-long!!"
 TEST_INTERNAL_KEY: str = "test-internal-key-32-chars-long!!!"
 TEST_JWT_SECRET: str = "test-jwt-secret-key-thats-32-chars-long!"
+TEST_X402_FACILITATOR_URL: str = "http://coffer.test"
 
 # ── Required env vars for app factory boot ──────────────────────────────
 # Force-assign (not setdefault): a real RMI_AUTH_TOKEN in the developer's
@@ -20,6 +21,9 @@ TEST_JWT_SECRET: str = "test-jwt-secret-key-thats-32-chars-long!"
 os.environ["RMI_AUTH_TOKEN"] = TEST_RMI_AUTH_TOKEN
 os.environ["RMI_INTERNAL_KEY"] = TEST_INTERNAL_KEY
 os.environ["JWT_SECRET"] = TEST_JWT_SECRET
+# x402 facilitator URL is mocked via respx in test_x402_premium.py; pin it so
+# the app.config settings singleton can never resolve to a real facilitator.
+os.environ["X402_FACILITATOR_URL"] = TEST_X402_FACILITATOR_URL
 import pytest  # noqa: E402 — module docstring precedes import block
 
 
