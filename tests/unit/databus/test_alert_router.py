@@ -204,6 +204,13 @@ class TestRouteWebhookAlert:
         with (
             patch("app.databus.alert_router._throttle_wallet", return_value="ok") as thr,
             patch("app.alert_pipeline.push_alert", new_callable=AsyncMock) as push,
+            # route_news is imported lazily from the external rugmunchbot
+            # package inside route_webhook_alert. Its decision is read from
+            # env at import time and cached as module constants, so it is
+            # order/worker-dependent. Stub it to "main" so this test
+            # deterministically exercises the main-route + push path without
+            # depending on ambient env or import order.
+            patch("rugmunchbot.channels.router.route_news", return_value="main") as rn,
         ):
             result = await route_webhook_alert("helius", payload, "evt:test:1")
         assert result["decision"] == "main"
@@ -215,6 +222,7 @@ class TestRouteWebhookAlert:
         assert kwargs["metadata"]["route"] == "main"
         assert kwargs["metadata"]["escalate"] is True
         thr.assert_called_once_with("helius", payload["feePayer"], "evt:test:1")
+        rn.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_small_event_skipped_no_alert(self) -> None:

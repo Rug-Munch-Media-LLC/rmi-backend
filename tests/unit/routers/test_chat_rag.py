@@ -361,6 +361,9 @@ def test_chat_degrades_gracefully_when_rag_raises(client: TestClient) -> None:
     with (
         patch.object(chat_mod, "do_chat_completion", new=AsyncMock(side_effect=_fake_completion)),
         patch.object(chat_mod, "_search_rag_context", new=AsyncMock(side_effect=_rag_down)),
+        # "$PEPE safe?" classifies as a scan tool intent; stub the live tool
+        # fetch so this test never reaches a real scan service (hermetic).
+        patch.object(chat_mod, "_fetch_tool_context", new=AsyncMock(return_value=None)),
     ):
         resp = client.post("/api/v1/chat", json={"message": "is $PEPE safe?"})
 
@@ -529,6 +532,13 @@ def test_chat_with_token_address_queries_scanner_v2_collection(client: TestClien
     with (
         patch.object(chat_mod, "do_chat_completion", new=AsyncMock(side_effect=_fake_completion)),
         patch.object(chat_mod, "_search_rag_context", new=AsyncMock(side_effect=_fake_rag)),
+        # A token-address message classifies as a "scan" tool intent, so
+        # _gather_grounding would otherwise run a LIVE scan tool via
+        # _fetch_tool_context. When that tool returns data it suppresses the
+        # RAG context (double-grounding) and X-RAG-Context becomes "0" — an
+        # order/network-dependent failure. Stub the tool fetch to miss so the
+        # RAG path (the thing this test asserts) is deterministic.
+        patch.object(chat_mod, "_fetch_tool_context", new=AsyncMock(return_value=None)),
     ):
         resp = client.post("/api/v1/chat", json={"message": f"is {addr} a honeypot?"})
 

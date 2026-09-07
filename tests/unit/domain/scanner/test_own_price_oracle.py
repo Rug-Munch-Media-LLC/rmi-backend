@@ -6,6 +6,7 @@ caching, and chain normalization logic.
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -22,6 +23,50 @@ _MOCK_DEX_SWAPS_EMPTY = patch(
     "app.domains.scanner.engines.own_dex_data.query._query_dex_swaps",
     AsyncMock(return_value=[]),
 )
+
+
+# ── Mock helper — also stubs the DeFiLlama/CoinGecko HTTP fallbacks so no
+#    test ever reaches a LIVE external price API (deterministic under any
+#    network state / run order). Mirrors the per-test fallback mocks used in
+#    TestGetTokenPrice, but as a reusable context manager for the batch tests.
+class _MockAllTiersEmpty:
+    """Context manager stubbing DEX + DeFiLlama + CoinGecko to empty."""
+
+    def __enter__(self) -> None:
+        self._stack = ExitStack()
+        self._stack.enter_context(_MOCK_DEX_SWAPS_EMPTY)
+        self._stack.enter_context(
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_defillama_price",
+                AsyncMock(return_value=None),
+            )
+        )
+        self._stack.enter_context(
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_coingecko_price",
+                AsyncMock(return_value=None),
+            )
+        )
+
+    def __exit__(self, *exc: object) -> None:
+        self._stack.close()
+
+
+_MOCK_ALL_TIERS_EMPTY = _MockAllTiersEmpty()
+
+
+@pytest.fixture(autouse=True)
+def _clear_price_cache():
+    """Clear the module-level price cache around every test.
+
+    ``_PRICE_CACHE`` is a module singleton shared across the whole worker
+    process. Without a per-test reset, a value cached by an earlier test (or
+    by a live fallback hit) leaks into later tests and makes their assertions
+    order-dependent. Clearing here keeps every test hermetic.
+    """
+    clear_cache()
+    yield
+    clear_cache()
 
 
 class TestGetTokenPrice:
@@ -164,7 +209,7 @@ class TestGetBatchPrices:
     @pytest.mark.asyncio
     async def test_returns_dict_keyed_by_token_chain(self):
         """Should return results keyed by 'token:chain'."""
-        with _MOCK_DEX_SWAPS_EMPTY:
+        with _MOCK_ALL_TIERS_EMPTY:
             tokens = [
                 ("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", "ethereum"),
             ]
@@ -176,7 +221,7 @@ class TestGetBatchPrices:
     @pytest.mark.asyncio
     async def test_handles_multiple_tokens(self):
         """Should handle multiple token-chain pairs."""
-        with _MOCK_DEX_SWAPS_EMPTY:
+        with _MOCK_ALL_TIERS_EMPTY:
             tokens = [
                 ("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", "ethereum"),
                 ("0x0000000000000000000000000000000000000001", "ethereum"),
