@@ -477,8 +477,8 @@ async def refresh_news_cache() -> dict[str, Any]:
     ordered by market relevance, not just recency. Fail-open everywhere:
     rerank/dedup degradation never empties the feed.
     """
-    from app.databus.news_provider.cache import NEWS_CACHE_KEY, NEWS_CACHE_TTL, _redis_set
-    from app.databus.news_provider.helpers import TOP_50_FEEDS
+    from app.databus.news_provider.cache import NEWS_CACHE_KEY, _redis_set
+    from app.databus.news_provider.helpers import NEWS_CACHE_TTL, TOP_50_FEEDS
     from app.databus.news_provider.normalizers import (
         dedupe_articles,
         relevance_rerank,
