@@ -21,6 +21,26 @@ os.environ["DEV_BYPASS_AUTH"] = "false"
 from httpx import ASGITransport, AsyncClient
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Reset the shared rate-limiter singleton's in-memory state per test.
+
+    ``app.core.rate_limiter`` keeps a module-level ``_limiter_singleton`` whose
+    ``_mem_buckets`` accumulate across every test in the worker process (Redis
+    is unavailable in tests, so the limiter falls back to in-memory token
+    buckets). Under the full suite many tests hit the same "testclient" IP, so
+    the global per-IP burst (25) drains and later middleware tests get 429s —
+    an order/worker-dependent failure. Clearing the buckets before each test
+    makes every middleware test deterministic regardless of what ran before.
+    """
+    from app.core import rate_limiter as rl
+
+    limiter = rl.get_rate_limiter()
+    limiter._mem_buckets.clear()
+    yield
+    limiter._mem_buckets.clear()
+
+
 @pytest.fixture
 def app():
     """Create a fresh FastAPI app for each test."""
