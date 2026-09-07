@@ -10,9 +10,11 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 
+from app.config import settings
 from app.core.errors import PaymentRequiredError
 from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
@@ -132,6 +134,46 @@ def _premium_op(tier: str) -> str:
     return f"premium:{tier}"
 
 
+# ── httpOnly rmi_token cookie (frontend #240 coordinated) ─────────────
+# The frontend (rmi-frontend 273147b3) relies on an httpOnly ``rmi_token``
+# cookie for browser sessions. The backend sets it on every auth success
+# path while still returning the token in the body so non-browser clients
+# (Authorization header) keep working unchanged.
+COOKIE_NAME = "rmi_token"
+
+
+def _set_rmi_token_cookie(response: Response, token: str) -> None:
+    """Set the httpOnly ``rmi_token`` cookie on an auth success response.
+
+    ``secure`` is settings-driven: true in production, false in dev so local
+    development over plain HTTP is never broken. TTL mirrors the configured
+    JWT expiry (``settings.jwt_expire_minutes``).
+    """
+    secure = settings.environment == "prod"
+    max_age = settings.jwt_expire_minutes * 60
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        max_age=max_age,
+        path="/",
+    )
+
+
+def _clear_rmi_token_cookie(response: Response) -> None:
+    """Clear the httpOnly ``rmi_token`` cookie (logout)."""
+    secure = settings.environment == "prod"
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        path="/",
+        secure=secure,
+        httponly=True,
+        samesite="lax",
+    )
+
+
 # ── Session dependency ────────────────────────────────────────────────
 
 
@@ -160,7 +202,7 @@ async def verify_session(request: Request) -> dict[str, Any]:
     summary="Create a new account",
     dependencies=[Depends(get_rate_limit_dependency("signup", rate=0.05, burst=3))],
 )
-async def signup(body: SignupRequest) -> dict[str, Any]:
+async def signup(body: SignupRequest) -> Response:
     """Public signup endpoint. Creates a Supabase auth user and assigns tier."""
     from app.services.auth_db import get_auth_db
 
@@ -172,7 +214,14 @@ async def signup(body: SignupRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Signup failed") from exc
     # Store tier in user metadata (best-effort; Supabase may require
     # service-role or a trigger for metadata updates post-signup).
-    return {"user": result, "tier": body.tier}
+    payload = {"user": result, "tier": body.tier}
+    response = JSONResponse(content=payload)
+    # Set the httpOnly cookie when signup returns a session token (email
+    # confirmation may be required, in which case no token is present yet).
+    token = result.get("access_token") or result.get("accessToken")
+    if token:
+        _set_rmi_token_cookie(response, token)
+    return response
 
 
 @router.post(
@@ -180,8 +229,8 @@ async def signup(body: SignupRequest) -> dict[str, Any]:
     summary="Login and get session",
     dependencies=[Depends(get_rate_limit_dependency("login", rate=0.1, burst=5))],
 )
-async def login(body: LoginRequest) -> dict[str, Any]:
-    """Public login endpoint. Returns Supabase session."""
+async def login(body: LoginRequest) -> Response:
+    """Public login endpoint. Returns Supabase session and sets httpOnly cookie."""
     if await _check_lockout(body.email):
         logger.warning("login_blocked_lockout email_hash=%s", _lockout_key(body.email)[-12:])
         raise HTTPException(
@@ -198,7 +247,21 @@ async def login(body: LoginRequest) -> dict[str, Any]:
         logger.warning("login_failed email=%s err=%s", body.email, exc)
         raise HTTPException(status_code=401, detail="Invalid credentials") from exc
     await _clear_failed_logins(body.email)
-    return result
+    # Return the token in the body (Authorization-header path for non-browser
+    # clients) AND set the httpOnly cookie for browser sessions (frontend #240).
+    response = JSONResponse(content=result)
+    token = result.get("access_token") or result.get("accessToken")
+    if token:
+        _set_rmi_token_cookie(response, token)
+    return response
+
+
+@router.post("/logout", summary="Logout and clear auth cookie")
+async def logout() -> Response:
+    """Clear the httpOnly ``rmi_token`` cookie (logout)."""
+    response = JSONResponse(content={"status": "ok", "message": "Logged out"})
+    _clear_rmi_token_cookie(response)
+    return response
 
 
 @router.post("/premium/signup", summary="Upgrade to premium tier")
