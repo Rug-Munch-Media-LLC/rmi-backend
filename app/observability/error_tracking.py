@@ -77,14 +77,24 @@ def init_error_tracking(
         log.info("error_tracking_disabled no_glitchtip_dsn")
         return False
 
+    resolved_release = release or os.environ.get("APP_VERSION")
+    if resolved_release:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.set_tag("release", resolved_release)
+        except Exception:
+            log.debug("error_tracking_release_tag_skipped")
+
     try:
         from app.core.observability import setup_sentry
 
         ok = setup_sentry()
         if ok:
             log.info(
-                "error_tracking_initialized env=%s",
+                "error_tracking_initialized env=%s release=%s",
                 environment or settings.environment,
+                resolved_release,
             )
         return ok
     except Exception as exc:
