@@ -42,7 +42,6 @@ if TYPE_CHECKING:
     from app.chain_client import ChainClient
     from app.core.rate_limiter import UnifiedRateLimiter
     from app.integrations.evm_connector import EVMClient
-    from app.services.pryscraper_client import PryscraperClient
 
 logger = get_logger(__name__)
 
@@ -178,24 +177,6 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 
 
 # ── Scanners ─────────────────────────────────────────────────────────────────
-
-
-# ── Pryscraper client ────────────────────────────────────────────────────────
-
-
-def get_pryscraper_client() -> PryscraperClient:
-    """Pryscraper HTTP client with circuit breaker.
-
-    Lazily creates a ``PryscraperClient`` singleton so it can be
-    injected via ``Depends``.
-    """
-    from app.services.pryscraper_client import PryscraperClient
-
-    _client: PryscraperClient | None = getattr(get_pryscraper_client, "_instance", None)
-    if _client is None:
-        _client = PryscraperClient()
-        get_pryscraper_client._instance = _client  # type: ignore[attr-defined]
-    return _client
 
 
 # ── Convenience: get client IP from request ─────────────────────────────────

@@ -445,3 +445,21 @@ class PryscraperClient:
     async def aclose(self) -> None:
         """Close the underlying HTTP client."""
         await self._client.aclose()
+
+
+# ── Shared client getter (DI) ────────────────────────────────────────────────
+
+_pryscraper_client_instance: PryscraperClient | None = None
+
+
+def get_pryscraper_client() -> PryscraperClient:
+    """Return a lazily-created shared :class:`PryscraperClient` singleton.
+
+    Lives next to the class it builds so routers/tests can inject it via
+    ``Depends`` without ``app.core`` importing ``app.services`` (core must
+    stay the lowest architectural layer — see ``.importlinter`` contract 4).
+    """
+    global _pryscraper_client_instance
+    if _pryscraper_client_instance is None:
+        _pryscraper_client_instance = PryscraperClient()
+    return _pryscraper_client_instance

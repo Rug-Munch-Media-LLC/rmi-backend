@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi.responses import JSONResponse
 
 from app.core.logging import get_logger
+from app.core.x402_cache import get_cached, set_cached
 
 logger = get_logger("middleware")
 
@@ -45,8 +46,6 @@ async def cache_middleware(request: Request, call_next) -> Any:
         return await call_next(request)
 
     try:
-        from app.routers.x402_advanced_tools import get_cached, set_cached
-
         cached = get_cached(tool, params)
         if cached:
             return JSONResponse(content=cached, headers={"X-Cache": "HIT", "X-Cache-TTL": "60"})

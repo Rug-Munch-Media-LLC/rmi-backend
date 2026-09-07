@@ -23,11 +23,11 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, field_validator
 
 from app.auth import require_auth
-from app.core.dependencies import get_pryscraper_client
 from app.core.errors import UpstreamError
 from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
 from app.core.shared_utils import validate_public_url
+from app.services.pryscraper_client import get_pryscraper_client
 
 if TYPE_CHECKING:
     from app.services.pryscraper_client import PryscraperClient
