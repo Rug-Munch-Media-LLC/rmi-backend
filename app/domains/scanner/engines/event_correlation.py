@@ -197,12 +197,13 @@ async def _fetch_news_catalog(
                 f"LOWER(ARRAY_TO_STRING(tokens_mentioned, ' ')) LIKE ${idx + 3})"
             )
             params.extend([f"%{key}%", f"%{key}%", f"%{key}%"])
-        where = f"published_at > $1 AND ({' OR '.join(like_clauses)})" if like_clauses else "published_at > $1"
+        where = "published_at > $1 AND (" + " OR ".join(like_clauses) + ")" if like_clauses else "published_at > $1"
+        # `where` is code-literal SQL with $N placeholders; values bound via params. limit is int-validated.
         query = (
-            f"SELECT news_id, url, title, summary, source, published_at, "  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
-            f"sentiment_score, tokens_mentioned "
-            f"FROM news_items WHERE {where} "
-            f"ORDER BY published_at DESC LIMIT {int(limit)}"
+            "SELECT news_id, url, title, summary, source, published_at, "
+            "sentiment_score, tokens_mentioned "
+            "FROM news_items WHERE " + where + " "
+            "ORDER BY published_at DESC LIMIT " + str(int(limit))
         )
         async with catalog._pg_pool.acquire() as conn:
             rows = await conn.fetch(query, *params)

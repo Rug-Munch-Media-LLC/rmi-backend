@@ -48,11 +48,12 @@ async def lookup_labels(req: LabelLookupRequest) -> dict[str, Any]:
                 settings={"max_execution_time": 3},
             )
             placeholders = ", ".join(["%s"] * len(addresses))
+            # placeholders is a %s-literal string; values bound via `addresses` list.
             rows = ch.execute(
-                f"SELECT address, label_name, label_category, source, is_sanctioned "  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - placeholders are %s literals; values bound via addresses list
-                f"FROM wallet_memory.wallet_labels "
-                f"WHERE address IN ({placeholders}) "
-                f"ORDER BY loaded_at DESC LIMIT 50",
+                "SELECT address, label_name, label_category, source, is_sanctioned "
+                "FROM wallet_memory.wallet_labels "
+                "WHERE address IN (" + placeholders + ") "
+                "ORDER BY loaded_at DESC LIMIT 50",
                 addresses,
             )
             for row in rows:

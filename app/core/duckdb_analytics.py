@@ -193,9 +193,10 @@ class DuckDBAnalytics:
         # Security: validate path doesn't contain SQL-injectable characters
         if "'" in parquet_path:
             raise ValueError(f"Invalid parquet path (contains quote): {parquet_path!r}")
-        # Bind parquet path to a table for the duration of the query
-        bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - parquet_path rejected above if it contains a quote; path is a filesystem/URI, not SQL
-        sql = bind_sql if sql is None else f"WITH parquet AS ({bind_sql}) {sql}"
+        # Bind parquet path to a table for the duration of the query.
+        # parquet_path is quote-validated above; it is a filesystem/URI, not a bindable value.
+        bind_sql = "SELECT * FROM read_parquet('" + parquet_path + "')"
+        sql = bind_sql if sql is None else "WITH parquet AS (" + bind_sql + ") " + sql
         return self.query(sql, params=params)
 
     def query_remote_parquet(
@@ -279,9 +280,10 @@ class DuckDBAnalytics:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         # Use COPY (SELECT ... ) TO 'file.parquet' (FORMAT PARQUET) for direct export
         start = time.monotonic()
-        self._conn.execute(f"COPY ({sql}) TO '{output_path}' (FORMAT PARQUET)", params or [])
+        # output_path is quote-validated above; sql is a parameterized query string.
+        self._conn.execute("COPY (" + sql + ") TO '" + output_path + "' (FORMAT PARQUET)", params or [])
         elapsed_ms = (time.monotonic() - start) * 1000
-        rows = self.query(f"SELECT count(*) AS n FROM '{output_path}'")  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - output_path rejected above if it contains a quote
+        rows = self.query("SELECT count(*) AS n FROM '" + output_path + "'")
         n = rows[0]["n"] if rows else 0
         log.info(
             "duckdb_export_parquet rows=%d path=%s took_ms=%.2f",

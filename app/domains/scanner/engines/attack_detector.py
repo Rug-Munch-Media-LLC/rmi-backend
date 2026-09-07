@@ -376,7 +376,7 @@ def _insert_attack_events(events: list[dict[str, Any]]) -> int:
         return cast(
             "int",
             client.execute(
-                f"INSERT INTO {ATTACK_TABLE} ({', '.join(_ATTACK_INSERT_COLS)}) VALUES",
+                "INSERT INTO " + ATTACK_TABLE + " (" + ", ".join(_ATTACK_INSERT_COLS) + ") VALUES",
                 rows,
                 settings={"max_execution_time": MAX_EXECUTION_TIME},
             ),

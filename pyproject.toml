@@ -226,6 +226,20 @@ ignore = ["ASYNC109"]
 "app/routers/x402_enrichment/labels.py" = ['S608']
 # Pre-existing: internal-constant f-string SQL in volume authenticity (sanitized, trusted internal traffic)
 "app/domains/scanner/engines/own_volume_authenticity.py" = ['S608']
+# Deployer repo: ClickHouse aggregate SQL — table name is a module constant, values bound via params
+"app/ai/deployer_repo.py" = ['S608']
+# DuckDB analytics: read_parquet path is quote-validated filesystem/URI (not bindable);
+# COPY export path is a local output path; values bound via params
+"app/core/duckdb_analytics.py" = ['S608']
+# Parquet query MCP tool: bucket_url allowlisted from SUPPORTED_CHAINS/SUPPORTED_TABLES,
+# where_clause is code-literal SQL with ? placeholders, limit is clamped int
+"app/mcp/tools/parquet_query.py" = ['S608']
+# Admin backend: where-clause is a fixed code literal (empty or ?-placeholder SQL),
+# user input always bound via params
+"app/routers/admin/backend.py" = ['S608']
+# Supabase vector store: raw-SQL RPC (exec_sql) — table name is a module constant,
+# user input quote-escaped or allowlisted before interpolation
+"app/supabase_vector.py" = ['S608']
 # Pre-existing: try/except/pass (existing scanner code), fire-and-forget task,
 # and timeout parameter name conflict with asyncio.timeout (will be cleaned separately)
 "app/domains/scanner/unified/scanner.py" = ['S110', 'RUF006', 'ASYNC109']
@@ -243,7 +257,9 @@ ignore = ["ASYNC109"]
 "app/domains/scanner/engines/risk_cluster.py" = ['N806', 'RUF001', 'RUF003', 'RUF005', 'RUF046']
 
 # Pre-existing violations surfaced by tech-debt sweep (will be cleaned separately)
-"app/domains/scanner/data_access.py" = ['S603', 'ASYNC240']
+# data_access.py: S608 — read_parquet path list is quote-escaped filesystem paths
+# (not bindable in read_parquet); trusted internal B2 parquet export
+"app/domains/scanner/data_access.py" = ['S603', 'S608', 'ASYNC240']
 "app/domains/scanner/engines/_deployer_fingerprint_queries.py" = ['S608']
 "app/domains/scanner/engines/gmgn_client.py" = ['S603']
 "app/domains/scanner/rugmaps/graph.py" = ['SIM110']
