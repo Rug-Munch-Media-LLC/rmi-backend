@@ -5,7 +5,7 @@ pryscraper, degenfeed-web) imports this to verify tokens issued by rmi-backend.
 
 Key design decisions:
 - RS256 asymmetric signing (private key on rmi-backend, public key shared)
-- Falls back to HS256 for backward compatibility
+- HS256 fallback ONLY in the test environment (never in prod)
 - Supports both ``Authorization: Bearer <token>`` and HttpOnly cookie extraction
 - JWKS endpoint for standard key distribution
 
@@ -44,12 +44,18 @@ try:
     _JWT_SECRET: str = _app_settings.jwt_secret
     _JWT_PUBLIC_KEY: str = _app_settings.jwt_public_key
     _JWT_PRIVATE_KEY: str = _app_settings.jwt_private_key
-    # Mirror app/domains/auth/jwt.py: RS256 configured without keys falls back
-    # to HS256 outside production (keeps issuer and validator in sync).
+    # Mirror app/domains/auth/jwt.py: RS256 configured without keys is a hard
+    # configuration error in production. The HS256 fallback is allowed ONLY in
+    # local dev / test environments (audit 2026-09-06: never in prod/staging).
     if _JWT_ALGORITHM == "RS256" and not (_JWT_PRIVATE_KEY and _JWT_PUBLIC_KEY):
         if _app_settings.environment == "prod":
             raise RuntimeError("JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set.")
-        logger.warning("JWT_ALGORITHM=RS256 configured but keys not set. Falling back to HS256.")
+        if _app_settings.environment not in ("dev", "development", "test"):
+            raise RuntimeError(
+                "JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set. "
+                "Set both keys — the HS256 fallback is disabled outside dev/test environments."
+            )
+        logger.warning("JWT_ALGORITHM=RS256 configured but keys not set. Falling back to HS256 (dev/test only).")
         _JWT_ALGORITHM = "HS256"
 except ImportError:  # pragma: no cover — standalone library use without app.config
     _JWT_ALGORITHM = os.getenv("RMI_JWT_ALGORITHM", "RS256")

@@ -268,10 +268,14 @@ TOOL_CATALOG: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "sql": {"type": "string", "description": "SQL query (SELECT only, no writes)"},
+                "api_key": {
+                    "type": "string",
+                    "description": "Admin API key (required — this tool is access-restricted)",
+                },
                 "params": {"type": "array", "items": {}, "default": []},
                 "max_rows": {"type": "integer", "default": 1000, "maximum": 10000},
             },
-            "required": ["sql"],
+            "required": ["sql", "api_key"],
         },
         "outputSchema": {
             "type": "object",

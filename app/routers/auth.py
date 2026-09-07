@@ -22,6 +22,76 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 Tier = Literal["free", "scout", "hunter", "pro"]
 
+# ── Account lockout (audit 2026-09-06 C-1) ────────────────────────────
+# 5 failed logins within a 15-minute window locks the account for 15 min.
+# Counters are Redis-backed (survives restarts, shared across workers) and
+# keyed on a PII-safe hash of the email, never the raw address.
+LOCKOUT_MAX_ATTEMPTS = 5
+LOCKOUT_WINDOW_SECONDS = 900  # 15 min
+LOCKOUT_TTL_SECONDS = 900
+
+
+def _lockout_key(email: str) -> str:
+    """PII-safe Redis key for the failed-login counter."""
+    import hashlib
+    import hmac as _hmac
+    import os as _os
+
+    salt = _os.getenv("RATE_LIMIT_SALT", "rmi-lockout-salt")
+    digest = _hmac.new(salt.encode(), email.lower().encode(), hashlib.sha256).hexdigest()[:32]
+    return f"rmi:auth:lockout:{digest}"
+
+
+async def _check_lockout(email: str) -> bool:
+    """True when the account is currently locked out."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return False
+        count = await r.get(_lockout_key(email))
+        return count is not None and int(count) >= LOCKOUT_MAX_ATTEMPTS
+    except Exception as exc:
+        logger.warning("lockout_check_failed err=%s", exc)
+        return False
+
+
+async def _record_failed_login(email: str) -> None:
+    """Increment the failed-login counter with a sliding 15-min window."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return
+        key = _lockout_key(email)
+        count = await r.incr(key)
+        if count == 1:
+            await r.expire(key, LOCKOUT_WINDOW_SECONDS)
+        if count >= LOCKOUT_MAX_ATTEMPTS:
+            await r.expire(key, LOCKOUT_TTL_SECONDS)
+            logger.warning(
+                "account_locked email_hash=%s attempts=%d window_s=%d",
+                _lockout_key(email)[-12:],
+                count,
+                LOCKOUT_WINDOW_SECONDS,
+            )
+    except Exception as exc:
+        logger.warning("lockout_record_failed err=%s", exc)
+
+
+async def _clear_failed_logins(email: str) -> None:
+    """Reset the counter after a successful login."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is not None:
+            await r.delete(_lockout_key(email))
+    except Exception as exc:
+        logger.warning("lockout_clear_failed err=%s", exc)
+
 
 # ── Request models ────────────────────────────────────────────────────
 
@@ -91,14 +161,22 @@ async def signup(body: SignupRequest) -> dict[str, Any]:
 )
 async def login(body: LoginRequest) -> dict[str, Any]:
     """Public login endpoint. Returns Supabase session."""
+    if await _check_lockout(body.email):
+        logger.warning("login_blocked_lockout email_hash=%s", _lockout_key(body.email)[-12:])
+        raise HTTPException(
+            status_code=429,
+            detail="Account temporarily locked due to failed login attempts. Try again later.",
+        )
     from app.db_client import get_db
 
     client = get_db().db
     try:
         result = await client.sign_in(body.email, body.password)
     except Exception as exc:
+        await _record_failed_login(body.email)
         logger.warning("login_failed email=%s err=%s", body.email, exc)
         raise HTTPException(status_code=401, detail="Invalid credentials") from exc
+    await _clear_failed_logins(body.email)
     return result
 
 
