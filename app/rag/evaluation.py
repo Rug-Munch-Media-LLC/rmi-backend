@@ -1,6 +1,6 @@
 """
 Ragas evaluation for RugBrain RAG.
-Bridges to rmi-rag evaluation or runs standalone for the rmi-backend RAG path.
+Bridges to rugbrain evaluation or runs standalone for the rmi-backend RAG path.
 
 Runs the production rmi-backend RAG pipeline (``RAGService.search`` →
 ``engine.three_pillar_search``) against a crypto-security test set and
@@ -15,7 +15,7 @@ measures:
 ``evaluate_rag_pipeline`` so the RAG engine keeps working when ragas is not
 installed. When ragas is unavailable (or its LLM judge cannot be configured)
 the evaluator falls back to deterministic keyword-overlap heuristics that
-mirror rmi-rag's ``eval_ragas.py``.
+mirror rugbrain's ``eval_ragas.py``.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ from app.rag.config import (  # noqa: E402 — config import after stdlib block
 EVAL_HIT_RATE_MIN: float = float(os.getenv("RAG_EVAL_HIT_RATE_MIN", str(_DEFAULT_HIT_RATE_MIN)))
 EVAL_FAITHFULNESS_MIN: float = float(os.getenv("RAG_EVAL_FAITHFULNESS_MIN", str(_DEFAULT_FAITHFULNESS_MIN)))
 
-# Crypto-specific golden test set (mirrors rmi-rag's but local to rmi-backend)
+# Crypto-specific golden test set (mirrors rugbrain's but local to rmi-backend)
 RUGBRAIN_GOLDEN_SET: list[dict[str, str]] = [
     {
         "question": "What are the most common reentrancy attack patterns in Solidity?",

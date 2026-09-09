@@ -10,7 +10,7 @@ Confidence is scored by how many sources agree. This is what makes
 the $19.99/month Pro tier worth paying for.
 
 Sources aggregated:
-  OUR DATA:     chain-indexer (8 chains), ClickHouse (39M), Neo4j (169K), Redis
+  OUR DATA:     chain-indexer (8 chains), ClickHouse (~140k curated labels), Neo4j (169K), Redis
   FREE RPC:     7 EVM pools (5+ endpoints each), TronGrid, Solana public
   FREE API:     DexScreener, GoPlus, CoinGecko, DefiLlama, CoinPaprika,
                 Blockscout, Etherscan, BscScan, TradingView, RugCheck,
@@ -374,7 +374,7 @@ class IntelligenceAggregationLayer:
         return None  # Implemented in actual MCP call
 
     def _check_clickhouse(self, address: str, chain: str) -> str | None:
-        """Check ClickHouse 39M+ label database."""
+        """Check ClickHouse curated wallet-label store (~140k labels)."""
         return None
 
     def _check_neo4j(self, address: str, chain: str) -> str | None:

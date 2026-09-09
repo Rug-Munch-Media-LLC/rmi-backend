@@ -140,4 +140,4 @@ additive; search swaps behind a flag.
 4. `scan_memory`/`whale_indexer` writers currently target per-domain collections — they
    must be retargeted in Phase 1, not Phase 4, to avoid dual-write drift.
 5. Existing v2 collections already carry named dense+bm25 — confirm none are actively
-   consumed by `rmi-rag`/`rmi-core` external writers before dropping (cross-repo contract).
+   consumed by `rugbrain`/`rmi-core` external writers before dropping (cross-repo contract).

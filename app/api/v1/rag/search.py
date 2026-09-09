@@ -1,7 +1,7 @@
 """V1 RAG route — delegates to rugbrain HTTP API.
 
 The RAG system has been decoupled from rmi-backend. All search and
-ingest operations now route through rugbrain's HTTP API (rmi-rag).
+ingest operations now route through rugbrain's HTTP API.
 """
 
 from __future__ import annotations

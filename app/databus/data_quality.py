@@ -180,7 +180,7 @@ def _r() -> Any:
 
 
 async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
-    """Look up wallet labels from our 4.29M-label Redis store."""
+    """Look up wallet labels from our Redis hot-cache label store."""
     labels = {}
     try:
         r = _r()

@@ -429,9 +429,9 @@ class DataBus:
         chain = kwargs.get("chain", "") or kwargs.get("network", "")
 
         try:
-            # ── WALLET LABELS: ClickHouse (39.4M) → Redis (4.29M hot) ──
+            # ── WALLET LABELS: ClickHouse (~140k curated) → Redis (hot cache) ──
             if data_type in ("wallet_labels", "entity_intel") and address:
-                # Layer 1: ClickHouse — 39.4M labels, first-class source
+                # Layer 1: ClickHouse — ~140k curated labels, first-class source
                 try:
                     from app.domains.labels.sources.clickhouse_labels import (
                         query_clickhouse_labels,
@@ -473,7 +473,7 @@ class DataBus:
                                 "labels": label_dicts,
                                 "address": address,
                                 "source": "clickhouse_wallet_memory",
-                                "total": "39.4M+",
+                                "total": "~140k curated",
                             },
                             "source": "clickhouse_wallet_memory",
                             "tier": "local",
@@ -489,7 +489,7 @@ class DataBus:
                 ):
                     pass
 
-                # Layer 2: Redis hot cache — 4.29M frequently-accessed labels
+                # Layer 2: Redis hot cache — frequently-accessed labels
                 try:
                     r = get_redis()
                     if r is not None:
@@ -509,7 +509,7 @@ class DataBus:
                                         "labels": [json.loads(data)],
                                         "address": address,
                                         "source": "wallet_memory_bank",
-                                        "total": "4.29M+",
+                                        "total": "~140k curated",
                                     },
                                     "source": "wallet_memory_bank",
                                     "tier": "local",
@@ -565,7 +565,7 @@ class DataBus:
                     search_query = query or address
                     async with httpx.AsyncClient(timeout=10) as client:
                         rag_resp = await client.get(
-                            "http://rmi-rag-api:8012/api/v1/search",
+                            "http://rugbrain-api:8012/api/v1/search",
                             params={
                                 "q": search_query,
                                 "collection": "known_scams",

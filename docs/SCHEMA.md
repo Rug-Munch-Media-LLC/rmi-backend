@@ -469,7 +469,14 @@ CREATE TABLE wallet_memory.bridge_mappings (
 ORDER BY (source_address, source_chain);
 ```
 
-#### `wallet_memory.wallet_labels` — address labels (39M rows)
+#### `wallet_memory.wallet_labels` — address labels (~140k curated)
+
+> Row-count note: the raw ClickHouse table holds ~39.8M physical rows because
+> `ReplacingMergeTree` retains duplicates until merge and one bulk import
+> (`wilder_btc_classification`, ~37.5M rows) was loaded into it. The curated
+> wallet-label corpus is ~140k rows — of which ~25k carry a meaningful
+> `entity_type` (the rest are `unknown`). Verify counts against the source CSVs
+> in `data/` before quoting them.
 
 ```sql
 CREATE TABLE wallet_memory.wallet_labels (

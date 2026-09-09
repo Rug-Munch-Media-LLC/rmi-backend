@@ -10,7 +10,7 @@ These helpers are pure (no module-global state): they turn raw Qdrant
 ``news_v2`` points into article dicts.
 
 The rated-article API is backed by the RAG ``news_v2`` collection
-(seeded by rmi-rag/scripts/news_to_rag.py). Each point payload:
+(seeded by rugbrain/scripts/news_to_rag.py). Each point payload:
   payload.content                    → article text
   payload.metadata.{title,source,url,published_at,category,
                     tokens_mentioned,chains_mentioned,news_id}

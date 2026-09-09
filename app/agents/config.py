@@ -32,8 +32,8 @@ RAG_API_URL: str = os.getenv("RAG_API_URL", "http://localhost:8012/api/v1/search
 
 # Optional service-to-service auth. Never hardcoded — set in the environment.
 SCANNER_API_KEY: str = os.getenv("SCANNER_API_KEY", "")
-# RAG auth: fall back to the canonical RMI_RAG_API_KEY (the rmi-rag-api
-# X-API-Key required by the fleet — see app/config.py + rmi-rag/.env.rag).
+# RAG auth: fall back to the canonical RMI_RAG_API_KEY (the rugbrain-api
+# X-API-Key required by the fleet — see app/config.py + rugbrain/.env.rag).
 RAG_API_KEY: str = os.getenv("RAG_API_KEY", "") or os.getenv("RMI_RAG_API_KEY", "")
 
 # ── Runtime tuning ───────────────────────────────────────────────────

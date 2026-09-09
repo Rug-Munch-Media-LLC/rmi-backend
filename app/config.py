@@ -248,7 +248,7 @@ class Settings(BaseSettings):
     )
     rmi_rag_api_key: str = Field(
         default="",
-        description="API key for rmi-rag-api (X-API-Key header). Set RMI_RAG_API_KEY env var.",
+        description="API key for rugbrain-api (X-API-Key header). Set RMI_RAG_API_KEY env var (legacy name retained; RAG_API_KEY also accepted).",
     )
     dev_bypass_auth: bool = Field(
         default=False,

@@ -64,7 +64,7 @@ Stay monolithic. Extract into well-organized modules (`app/routers/`,
 # Status: Accepted
 
 ## Context
-DataBus needs fast lookups for wallet labels (190K entries), token prices,
+DataBus needs fast lookups for wallet labels (~140k curated entries), token prices,
 and scam patterns. Write-heavy for webhooks (Arkham, Helius, Moralis).
 
 ## Decision

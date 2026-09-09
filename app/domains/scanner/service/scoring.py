@@ -8,7 +8,7 @@ from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
 
-# Redis channel/list used by rmi-rag's scanner subscriber + poller.
+# Redis channel/list used by rugbrain's scanner subscriber + poller.
 # Must match ``app.domains.scanner.unified.persistence.publish_rag_finding``.
 RAG_INGEST_CHANNEL = "rmi:rag:ingest"
 RAG_FINDINGS_QUEUE = "rmi:rag:findings_queue"
@@ -45,14 +45,14 @@ def _risk_level_from_safety(safety_score: float) -> str | None:
 
 
 async def _publish_scan_to_rag_queue(scan_result: Any) -> None:
-    """Publish a high/critical scan finding to the rmi-rag Redis queue.
+    """Publish a high/critical scan finding to the rugbrain Redis queue.
 
     rmi-backend's ``UnifiedTokenScanner`` publishes via
     ``publish_rag_finding``; the legacy ``scan_token`` path (used by the
     public scanner API) previously only fed the backend-internal RAG and
-    never reached rmi-rag. This publishes the same payload shape to the
+    never reached rugbrain. This publishes the same payload shape to the
     ``rmi:rag:ingest`` pub/sub channel and the ``rmi:rag:findings_queue``
-    LPUSH list so rmi-rag's subscriber/poller can embed and index it into
+    LPUSH list so rugbrain's subscriber/poller can embed and index it into
     the Qdrant ``threat_intel`` collection.
 
     Fail-open: any Redis error is logged and swallowed — the scan result
@@ -149,7 +149,7 @@ async def _ingest_scan_to_rag(scan_result: Any) -> None:
     except Exception as exc:
         logger.warning("ingest_to_rag_failed", token=scan_result.token_address[:16], error=str(exc))
 
-    # Publish high/critical findings to rmi-rag's Redis queue (external RAG).
+    # Publish high/critical findings to rugbrain's Redis queue (external RAG).
     try:
         await _publish_scan_to_rag_queue(scan_result)
     except Exception as exc:

@@ -1,7 +1,7 @@
 """Market context fetch + cache for the unified scanner.
 
 Fetches the market conditions that influence token risk from RugBrain
-(rmi-rag) before each scan:
+(rugbrain) before each scan:
 
   * ``GET /api/v1/fear-index``      — crypto panic/fear index (0-100)
   * ``GET /api/v1/market/mood``     — market mood + recent exploit count +
