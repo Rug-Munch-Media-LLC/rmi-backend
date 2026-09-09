@@ -59,7 +59,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
 
 
 async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
-    """Get wallet labels from ClickHouse directly — 39.4M labels, LOCAL tier.
+    """Get wallet labels from ClickHouse directly — ~140k curated labels, LOCAL tier.
 
     This is the FIRST provider in the wallet_labels chain.
     If ClickHouse has labels, we return them immediately.
@@ -89,7 +89,7 @@ async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] |
                 "address": address,
                 "chain": chain or "any",
                 "source": "clickhouse_wallet_memory",
-                "total_labels": "39.4M+",
+                "total_labels": "~140k curated",
                 "tier": "local",
                 "is_local": True,
             }
@@ -234,13 +234,13 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
 
 
 async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict[str, Any] | None:
-    """RAG search against the rmi-rag-api vector store."""
+    """RAG search against the rugbrain-api vector store."""
     try:
         from app.config import settings
 
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
-                "http://rmi-rag-api:8012/api/v1/search",
+                "http://rugbrain-api:8012/api/v1/search",
                 params={"q": query, "collection": collection, "limit": kw.get("limit", 5)},
                 headers={"X-API-Key": settings.rmi_rag_api_key},
             )

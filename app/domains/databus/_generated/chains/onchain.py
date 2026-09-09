@@ -39,7 +39,7 @@ def build_onchain_chains(chains: dict[str, ProviderChain]) -> None:
     # Wallet Labels - OUR data first
     chains["wallet_labels"] = ProviderChain(
         data_type="wallet_labels",
-        description="Address labels and entity identification (190K local + external)",
+        description="Address labels and entity identification (~140k curated local + external)",
         providers=[
             Provider("wallet_memory_bank", ProviderTier.LOCAL, _local_wallet_labels, weight=10.0),
             Provider(

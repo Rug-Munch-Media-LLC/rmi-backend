@@ -389,7 +389,7 @@ class CacheLayer:
             "status": "ok",
             "l1_memory": l1,
             "l2_redis": l2,
-            "l3_b2": {"enabled": False, "note": "Deferred — use Qdrant snapshots via rmi-rag"},
+            "l3_b2": {"enabled": False, "note": "Deferred — use Qdrant snapshots via rugbrain"},
             "combined_hit_rate": round(total_hits / total * 100, 1) if total > 0 else 0,
             "total_hits": total_hits,
             "total_misses": total_misses,

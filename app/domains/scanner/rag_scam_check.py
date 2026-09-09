@@ -122,7 +122,7 @@ async def check_scam(
         "source": "pattern_fallback",
     }
 
-    # ── Phase 1: Try RAG vector search via rmi-rag-api ──
+    # ── Phase 1: Try RAG vector search via rugbrain-api ──
     try:
         from app.config import settings
 
@@ -136,12 +136,12 @@ async def check_scam(
         query = " ".join(query_parts)
         if query:
             # Fail-fast RAG probe: the vector search is best-effort enrichment.
-            # A slow/hanging rmi-rag-api (e.g. its embedding backend is down)
+            # A slow/hanging rugbrain-api (e.g. its embedding backend is down)
             # must not burn seconds of the scan budget — degrade to the
             # deterministic pattern fallback below within 2.5s.
             async with httpx.AsyncClient(timeout=2.5) as client:
                 resp = await client.get(
-                    "http://rmi-rag-api:8012/api/v1/search",
+                    "http://rugbrain-api:8012/api/v1/search",
                     params={"q": query, "collection": "scam_intel", "limit": 5},
                     headers={"X-API-Key": settings.rmi_rag_api_key},
                 )

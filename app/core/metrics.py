@@ -61,7 +61,7 @@ HEALTH_CHECK_STATUS = Gauge(
 )
 RAG_BACKEND_PROXY = Counter(
     "rag_backend_proxy_total",
-    "Backend calls to the RAG layer (in-process engine or rmi-rag-api proxy)",
+    "Backend calls to the RAG layer (in-process engine or rugbrain-api proxy)",
     ["operation", "status"],
 )
 

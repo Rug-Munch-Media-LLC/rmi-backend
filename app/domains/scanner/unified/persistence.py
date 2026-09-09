@@ -296,7 +296,7 @@ async def _get_async_session() -> Any | None:
 
 
 async def publish_rag_finding(result: ScanResult) -> None:
-    """Publish high-risk scan finding to rmi-rag via Redis channel ``rmi:rag:ingest``."""
+    """Publish high-risk scan finding to rugbrain via Redis channel ``rmi:rag:ingest``."""
     from app.domains.scanner.engines._exceptions import get_redis_async
 
     r = get_redis_async()

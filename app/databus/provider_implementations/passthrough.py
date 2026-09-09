@@ -94,9 +94,9 @@ async def _passthrough_alerts(**kwargs) -> dict[str, Any] | None:
 
 
 async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
-    """Wallet labels from Redis (4.29M hot labels) — rmi:label:{chain}:{address} format.
+    """Wallet labels from Redis (hot cache labels) — rmi:label:{chain}:{address} format.
 
-    Falls back to ClickHouse wallet_memory.wallet_labels (39.4M rows) if Redis
+    Falls back to ClickHouse wallet_memory.wallet_labels (~140k curated) if Redis
     has no data for the requested address. Write-through caching: any label
     found via ClickHouse fallback is written to Redis (48h TTL) so subsequent
     lookups are fast — the cache self-warms with popular addresses.
@@ -107,7 +107,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
     addr_lower = address.lower().strip()
     first_label = None
 
-    # ── REDIS LOOKUP — 4.29M hot labels ────────────────────────────
+    # ── REDIS LOOKUP — hot cache labels ────────────────────────────
     try:
         import json
         import os
@@ -161,7 +161,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
             "labels": [first_label],
             "address": addr_lower,
             "source": "wallet_memory_bank",
-            "total_labels": "4.29M+",
+            "total_labels": "~140k curated",
         }
 
     # ── FALLBACK: ClickHouse direct query + write-through cache ───
@@ -261,7 +261,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
                         "labels": labels,
                         "address": addr_lower,
                         "source": "wallet_memory_bank",
-                        "total_labels": "39.4M+",
+                        "total_labels": "~140k curated",
                         "fallback": "clickhouse",
                         "write_through": True,
                     }
@@ -391,7 +391,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
                 "addresses_labeled": len(addr_labels),
                 "total_labels": labeled_count,
                 "source": "wallet_memory_bank",
-                "total_labels_in_db": "39.4M+",
+                "total_labels_in_db": "~140k curated",
                 "fallback": "clickhouse_batch",
                 "write_through": True,
             }
@@ -422,13 +422,13 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
 
 
 async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict[str, Any] | None:
-    """RAG search - our 17K+ document knowledge base via rmi-rag-api."""
+    """RAG search - our 17K+ document knowledge base via rugbrain-api."""
     try:
         from app.config import settings
 
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(
-                "http://rmi-rag-api:8012/api/v1/search",
+                "http://rugbrain-api:8012/api/v1/search",
                 params={
                     "q": query,
                     "collection": collection,

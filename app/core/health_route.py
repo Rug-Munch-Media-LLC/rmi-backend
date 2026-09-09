@@ -153,7 +153,7 @@ async def _check_rag_pipeline() -> dict[str, Any]:
     Delegates to :func:`app.core.health_rag.check_rag_pipeline`, injecting
     THIS module's ``_get_http_client`` so monkeypatching
     ``app.core.health_route._get_http_client`` keeps controlling the
-    rmi-rag-api HTTP client (pre-split behavior).
+    rugbrain-api HTTP client (pre-split behavior).
     """
     return await health_rag.check_rag_pipeline(client_factory=_get_http_client)
 

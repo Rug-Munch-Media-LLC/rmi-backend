@@ -20,7 +20,7 @@ RMI_REPOS: list[str] = [
     "walletpress",
     "rugmunchbot",
     "standards",
-    "rmi-rag",
+    "rugbrain",
     "rmi-mcp-x402",
     "rmi-docs",
 ]

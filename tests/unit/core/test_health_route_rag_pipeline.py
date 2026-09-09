@@ -2,7 +2,7 @@
 
 Covers ``app.core.health_route._check_rag_pipeline`` — the observability
 block added to ``GET /health`` that reports scanner→RAG queue depth and
-ingested count from rmi-rag-api.
+ingested count from rugbrain-api.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_check_rag_pipeline_fail_open_when_redis_down(monkeypatch) -> None:
-    """Redis/rmi-rag-api errors must not raise — health stays 200."""
+    """Redis/rugbrain-api errors must not raise — health stays 200."""
     from app.core import health_route
 
     async def _fake_redis_none():
@@ -38,7 +38,7 @@ async def test_check_rag_pipeline_fail_open_when_redis_down(monkeypatch) -> None
 
 @pytest.mark.asyncio
 async def test_check_rag_pipeline_reports_health_from_rag_api(monkeypatch) -> None:
-    """When rmi-rag-api responds, ingested_count and consumer flags are surfaced."""
+    """When rugbrain-api responds, ingested_count and consumer flags are surfaced."""
     from app.core import health_route
 
     class _FakeResponse:

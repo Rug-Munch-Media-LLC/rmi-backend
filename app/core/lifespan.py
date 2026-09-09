@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI) -> Any:
     if not rag_api_key:
         raise RuntimeError(
             "CRITICAL: RMI_RAG_API_KEY is missing or empty. The RAG scam-check "
-            "integration cannot authenticate to rmi-rag-api; the backend will "
+            "integration cannot authenticate to rugbrain-api; the backend will "
             "not start to prevent silent degradation of scam checks."
         )
 

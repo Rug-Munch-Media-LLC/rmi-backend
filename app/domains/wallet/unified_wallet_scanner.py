@@ -215,7 +215,7 @@ class UnifiedWalletScanner:
 
             async with httpx.AsyncClient(timeout=8) as client:
                 resp = await client.get(
-                    "http://rmi-rag-api:8012/api/v1/search",
+                    "http://rugbrain-api:8012/api/v1/search",
                     params={
                         "q": f"{r.address} scam rug hack",
                         "collection": "scam_intel",

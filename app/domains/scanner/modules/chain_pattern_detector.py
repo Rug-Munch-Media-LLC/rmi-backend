@@ -609,7 +609,7 @@ async def ingest_patterns_into_rag(findings: list[dict[str, Any]]) -> int:
     ``rmi:rag:ingest`` pub/sub channel and the ``rmi:rag:findings_queue``
     LPUSH list — the same channel used by
     ``app.domains.scanner.unified.persistence.publish_rag_finding`` and
-    ``app.domains.scanner.service.scoring``. rmi-rag's subscriber embeds
+    ``app.domains.scanner.service.scoring``. rugbrain's subscriber embeds
     these into the Qdrant ``threat_intel`` collection.
 
     Args:

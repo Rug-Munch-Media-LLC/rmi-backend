@@ -55,15 +55,15 @@ async def check_rag_pipeline(
     """RAG ingestion pipeline stats — scanner→RAG queue depth + ingested count.
 
     The scanner publishes high/critical findings to the ``rmi:rag:ingest``
-    pub/sub channel and the ``rmi:rag:findings_queue`` LPUSH list. rmi-rag's
+    pub/sub channel and the ``rmi:rag:findings_queue`` LPUSH list. rugbrain's
     poller/subscriber consume those, embed with Qwen3-4B, and upsert into the
     Qdrant ``threat_intel`` collection. This returns:
 
     - ``queue_depth``: LLEN of ``rmi:rag:findings_queue`` (backlog waiting to
       be embedded). 0 = poller is keeping up.
-    - ``ingested_count``: cumulative count reported by rmi-rag-api's
-      subscriber + poller (in-memory, resets on rmi-rag-api restart).
-    - ``poller_running`` / ``subscriber_running``: whether rmi-rag's
+    - ``ingested_count``: cumulative count reported by rugbrain-api's
+      subscriber + poller (in-memory, resets on rugbrain-api restart).
+    - ``poller_running`` / ``subscriber_running``: whether rugbrain's
       background consumers are alive.
     - ``embedding_available``: whether Qwen3 embedder has a usable model
       (qwen3-embedding-4b) loaded.
@@ -74,7 +74,7 @@ async def check_rag_pipeline(
     - ``issues``: list of degradation reasons (``embedder_unavailable``,
       ``consumers_running_no_ingestion``).
 
-    Fail-open: any Redis/rmi-rag-api error is captured in ``error`` and the
+    Fail-open: any Redis/rugbrain-api error is captured in ``error`` and the
     endpoint still returns 200 (pipeline stats are observability, not a
     liveness gate).
 
@@ -136,7 +136,7 @@ async def check_rag_pipeline(
     stats["embedding_available"] = embedding_available
     stats["reranker_available"] = reranker_available
 
-    # ── Ingested count + consumer health from rmi-rag-api ──
+    # ── Ingested count + consumer health from rugbrain-api ──
     ingested_count = 0
     poller_running = False
     subscriber_running = False

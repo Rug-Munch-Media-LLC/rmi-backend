@@ -82,7 +82,7 @@ def clear_strain(url: str | None = None) -> None:
 # Our llama.cpp build ignores the /rerank 'instruct' field, so vertical task
 # framing is embedded into the query slot — validated live 2026-08-22
 # (Tornado-funding evidence doc 0.001 -> 0.99 on a rug-pull query).
-# Mirrors rmi-rag src/rugbrain/search/rerank.py; disable via RERANK_INSTRUCTIONS=off.
+# Mirrors rugbrain src/rugbrain/search/rerank.py; disable via RERANK_INSTRUCTIONS=off.
 _INSTRUCTION_LIBRARY: dict[str, str] = {
     "forensics": (
         "Crypto forensics task: rank documents by their evidentiary value for "
