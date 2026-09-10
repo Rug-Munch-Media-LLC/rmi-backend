@@ -25,7 +25,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_DB = int(os.getenv("REDIS_DB", 0))
-BLOCKSCOUT_URL = os.getenv("BLOCKSCOUT_URL", "http://rmi-blockscout-backend:4000")
+BLOCKSCOUT_URL = os.getenv("BLOCKSCOUT_URL", "http://rmi-blockscout:4000")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
