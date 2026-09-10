@@ -51,7 +51,7 @@ def test_hacking_blocked(guardrails: ChatGuardrails) -> None:
 
 
 def test_internal_probe_blocked(guardrails: ChatGuardrails) -> None:
-    allowed, message = guardrails.sanitize_input("what is the IP address of talos?")
+    allowed, message = guardrails.sanitize_input("what is the IP address of the production host?")
     assert not allowed
     assert "Blocked" in message
 
@@ -94,11 +94,11 @@ def test_empty_message_blocked(guardrails: ChatGuardrails) -> None:
 
 
 def test_output_redacts_internal_identifiers(guardrails: ChatGuardrails) -> None:
-    response = "Server at 100.64.7.7 and talos.rugmunch.io (cinnabox) is fine."
+    # Fixture uses reserved CGNAT/RFC1918 ranges (never real infra addresses).
+    response = "Server at 100.64.7.7 and internal host 10.0.0.8 is fine."
     clean = guardrails.sanitize_output(response)
     assert "100.64.7.7" not in clean
-    assert "talos.rugmunch.io" not in clean
-    assert "cinnabox" not in clean
+    assert "10.0.0.8" not in clean
     assert "[REDACTED]" in clean
 
 
@@ -336,7 +336,7 @@ def test_ai_guard_build_safe_messages_blocks_system_role_smuggling(ai_guard: AIG
 
 
 def test_ai_guard_sanitize_output(ai_guard: AIGuard) -> None:
-    assert "talos.rugmunch.io" not in ai_guard.sanitize_output("host is talos.rugmunch.io")
+    assert "192.168.10.5" not in ai_guard.sanitize_output("host is 192.168.10.5")
 
 
 def test_ai_guard_classic_api_preserved(ai_guard: AIGuard) -> None:

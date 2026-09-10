@@ -151,7 +151,7 @@ docker compose -f infra/mempool-dumpster/docker-compose.yml down
 | `SRC_ALIASES` | empty | Comma-separated `alias=url` source labels |
 | `BLX_AUTH` / `CHAINBOUND_AUTH` / `EDEN_AUTH` | empty | Premium feed auths (`token` or `token@url`) |
 | `OUT` | `/mnt/data` | Local CSV archive dir (mounted volume) |
-| `LOCATION` | `talos-eu` | Free-form location tag in sourcelogs |
+| `LOCATION` | `[INTERNAL_HOST]-eu` | Free-form location tag in sourcelogs |
 | `CLICKHOUSE_DSN` | empty | ClickHouse DSN; empty disables the sink |
 | `CLICKHOUSE_BATCH_SIZE` | `300` | Rows per ClickHouse batch insert |
 | `API_ADDR` | `0.0.0.0:9092` | Transaction API listen addr (loopback port) |

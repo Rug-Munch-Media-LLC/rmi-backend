@@ -204,7 +204,7 @@ fleet resource budget before enabling. Decision to be confirmed by Lead.
 ## 8. Access
 
 Loopback-only by default (`127.0.0.1:4007`). For remote access: SSH tunnel
-(`ssh -L 4007:127.0.0.1:4007 talos`) or a Cloudflare Tunnel for the team —
+(`ssh -L 4007:127.0.0.1:4007 [INTERNAL_HOST]`) or a Cloudflare Tunnel for the team —
 set `MAIN_URL`/`FRONTEND_URL`/`NEXT_PUBLIC_BACKEND_URL` to the public URL
 **before** connecting channels (OAuth callbacks depend on it).
 

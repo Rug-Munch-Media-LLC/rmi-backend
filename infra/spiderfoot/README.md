@@ -111,7 +111,7 @@ To include more active checks, pass `usecase=footprint` / `investigate` /
 
 The port binds to `127.0.0.1` only — OSINT data is never exposed publicly.
 
-- **SSH tunnel:** `ssh -L 5001:127.0.0.1:5001 ops@talos` then open `http://127.0.0.1:5001`
+- **SSH tunnel:** `ssh -L 5001:127.0.0.1:5001 ops@[INTERNAL_HOST]` then open `http://127.0.0.1:5001`
 - **Tailscale:** `tailscale serve --bg 5001` (or `tailscale serve https / http://127.0.0.1:5001`)
   then open `https://spiderfoot.<tailnet>.ts.net`
 - Do **not** publish port 5001 to `0.0.0.0` — the OSS web UI has no

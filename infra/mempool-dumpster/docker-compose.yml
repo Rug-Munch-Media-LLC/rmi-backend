@@ -40,7 +40,7 @@ services:
       # enabled, as a durable fallback).
       OUT: ${OUT:-/mnt/data}
       # Free-form location tag recorded in sourcelogs.
-      LOCATION: ${LOCATION:-talos-eu}
+      LOCATION: ${LOCATION:-[INTERNAL_HOST]-eu}
       # --- ClickHouse sink (v1.1.0+) ------------------------------------------
       # Format: clickhouse://user:password@host:9000/database
       # Empty => sink disabled, CSV output only.
