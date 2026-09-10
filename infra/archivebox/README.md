@@ -109,7 +109,7 @@ See <https://github.com/ArchiveBox/ArchiveBox/wiki/API> for the full schema
 
 The port binds to `127.0.0.1` only — evidence is never exposed publicly.
 
-- **SSH tunnel:** `ssh -L 8000:127.0.0.1:8000 ops@talos` then open `http://127.0.0.1:8000`
+- **SSH tunnel:** `ssh -L 8000:127.0.0.1:8000 ops@[INTERNAL_HOST]` then open `http://127.0.0.1:8000`
 - **Tailscale:** `tailscale serve --bg 8000` (or `tailscale serve https / http://127.0.0.1:8000`)
   then open `https://archivebox.<tailnet>.ts.net` and set `BASE_URL`/`ALLOWED_HOSTS` to it.
 - Do **not** publish port 8000 to `0.0.0.0` — ArchiveBox's own docs warn the

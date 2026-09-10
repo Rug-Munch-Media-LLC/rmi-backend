@@ -36,7 +36,7 @@
 - **Tests**: 157 passing, 3 skipped
 
 ## Infrastructure
-- **Host**: Talos (netcup), 64GB RAM, 16 cores, 2TB disk
+- **Host**: [INTERNAL_HOST], 64GB RAM, 16 cores, 2TB disk
 - **Services**: infinity-rag, rmi-backend, rmi-rag-api, rmi-qdrant, rmi-redis, rmi-postgres, rmi-clickhouse, rmi-neo4j, phoenix, langfuse
 - **CPU**: Infinity 0-11, indexer/scanner 12-15
 - **Disk**: 28% used (546G/2.0T)

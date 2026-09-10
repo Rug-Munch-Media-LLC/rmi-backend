@@ -15,6 +15,15 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+def _require_env(name: str) -> str:
+    """Require an env var; fail loudly rather than fall back to a hardcoded secret."""
+    value = os.getenv(name, "")
+    if not value:
+        raise RuntimeError(f"{name} is required — set it via environment (no hardcoded default)")
+    return value
+
+
 SCHEMA = """
 -- Tokens (T27)
 CREATE TABLE IF NOT EXISTS tokens (
@@ -205,9 +214,7 @@ async def main() -> None:
         "host": os.getenv("POSTGRES_HOST", "rmi-postgres"),
         "port": int(os.getenv("POSTGRES_PORT", "5432")),
         "user": os.getenv("POSTGRES_USER", "rmi"),
-        "password": os.getenv(
-            "POSTGRES_PASSWORD", "d01258dbfa59738b5e442f4f2df48721d934522276cdf5b7ae78d7e38041c0f4"
-        ),  # Rotated 2026-07-17
+        "password": _require_env("POSTGRES_PASSWORD"),  # no hardcoded default; set via env
         "database": os.getenv("POSTGRES_DB", "rmi"),
     }
     logger.info(f"Connecting to postgres at {cfg['host']}:{cfg['port']} db={cfg['database']}")

@@ -24,7 +24,7 @@ async function rmiSend(){
   input.value="";
   rmiAddMsg("assistant","<i>Analyzing...</i>");
   try{
-    const r=await fetch("http://152.53.80.39:8899/v1/chat-messages",{
+    const r=await fetch("http://[INTERNAL_IP]:8899/v1/chat-messages",{
       method:"POST",
       headers:{"Authorization":"Bearer app-YOUR_DIFY_KEY","Content-Type":"application/json"},
       body:JSON.stringify({inputs:{},query:msg,response_mode:"blocking",user:"web-widget",conversation_id:rmiConvId})

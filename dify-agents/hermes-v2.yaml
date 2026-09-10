@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════
 # RMI Hermes v2 — Internal Dev/Admin Agent
-# Deployed at: 152.53.80.39:8898 (IP-restricted, admin only)
+# Deployed at: [INTERNAL_IP]:8898 (IP-restricted, admin only)
 # Model: deepseek-v4-pro (complex reasoning)
 # Access: Tailscale IPs only
 # ═══════════════════════════════════════════════════════════════
