@@ -3,7 +3,7 @@
     - ollama: local LLM client
     - langfuse: tracing (legacy wrapper, see core.tracing)
     - vector_store: Qdrant wrapper
-    - chains/: 96 blockchain clients (evm, solana, bitcoin, ...)
+    - chains/: 16 chain clients (14 EVM + Solana + Tron)
     - apis/: third-party APIs (coingecko, etherscan, birdeye, ...)
     - providers/: AI providers (ollama, openrouter, huggingface, ...)
 
