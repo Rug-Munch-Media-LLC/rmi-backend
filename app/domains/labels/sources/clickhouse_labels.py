@@ -1,4 +1,4 @@
-"""ClickHouse wallet_memory.wallet_labels source — ~154k curated labels.
+"""ClickHouse wallet_memory.wallet_labels source — ~295k curated labels.
 
 Schema (verified):
   address          String

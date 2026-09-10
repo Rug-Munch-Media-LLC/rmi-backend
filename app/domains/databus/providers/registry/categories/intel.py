@@ -21,7 +21,7 @@ def build_intel_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
 
     chains["entity_intel"] = ProviderChain(
         data_type="entity_intel",
-        description="Entity resolution: ClickHouse (~154k curated) → Redis (hot cache) → Arkham → Moralis",
+        description="Entity resolution: ClickHouse (~295k curated) → Redis (hot cache) → Arkham → Moralis",
         providers=[
             Provider(
                 "clickhouse_wallet_memory",
@@ -29,7 +29,7 @@ def build_intel_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
                 _g["_clickhouse_wallet_labels"],
                 weight=20.0,
                 is_local=True,
-                description="ClickHouse wallet_labels table — ~154k curated labels",
+                description="ClickHouse wallet_labels table — ~295k curated labels",
             ),
             Provider(
                 "wallet_labels_local",
@@ -68,7 +68,7 @@ def build_intel_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
                 _g["_clickhouse_wallet_labels"],
                 weight=20.0,
                 is_local=True,
-                description="ClickHouse wallet_labels table — ~154k curated labels",
+                description="ClickHouse wallet_labels table — ~295k curated labels",
             ),
             Provider("wallet_labels_local", ProviderTier.LOCAL, _g["_local_wallet_labels"], weight=10.0),
             Provider(

@@ -1,7 +1,7 @@
 """
 labels_sync.py — CSV/JSONL → ClickHouse (SSOT) batched upsert.
 
-SSOT: ClickHouse wallet_memory.wallet_labels (MergeTree, ~39.8M raw rows; ~154k curated addresses).
+SSOT: ClickHouse wallet_memory.wallet_labels (MergeTree, ~39.8M raw rows; ~295k curated addresses).
 PG public.labels is authoritative for application-level reads but is a downstream
 consumer that is populated separately.
 

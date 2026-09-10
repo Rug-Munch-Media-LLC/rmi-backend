@@ -429,9 +429,9 @@ class DataBus:
         chain = kwargs.get("chain", "") or kwargs.get("network", "")
 
         try:
-            # ── WALLET LABELS: ClickHouse (~154k curated) → Redis (hot cache) ──
+            # ── WALLET LABELS: ClickHouse (~295k curated) → Redis (hot cache) ──
             if data_type in ("wallet_labels", "entity_intel") and address:
-                # Layer 1: ClickHouse — ~154k curated labels, first-class source
+                # Layer 1: ClickHouse — ~295k curated labels, first-class source
                 try:
                     from app.domains.labels.sources.clickhouse_labels import (
                         query_clickhouse_labels,
@@ -473,7 +473,7 @@ class DataBus:
                                 "labels": label_dicts,
                                 "address": address,
                                 "source": "clickhouse_wallet_memory",
-                                "total": "~154k curated",
+                                "total": "~295k curated",
                             },
                             "source": "clickhouse_wallet_memory",
                             "tier": "local",
@@ -509,7 +509,7 @@ class DataBus:
                                         "labels": [json.loads(data)],
                                         "address": address,
                                         "source": "wallet_memory_bank",
-                                        "total": "~154k curated",
+                                        "total": "~295k curated",
                                     },
                                     "source": "wallet_memory_bank",
                                     "tier": "local",
