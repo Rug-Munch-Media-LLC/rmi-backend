@@ -54,6 +54,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+import random
 import threading
 import time
 from collections.abc import Callable
@@ -102,7 +103,8 @@ class AsyncCircuitBreaker:
         self.name = name
         self.failure_threshold = failure_threshold
         self.failure_window = failure_window
-        self.recovery_timeout = recovery_timeout
+        self.recovery_timeout = recovery_timeout  # max recovery wait (backoff cap)
+        self.base_backoff = 5.0  # starting recovery backoff before exponentiation
         self.half_open_max = half_open_max
 
         self._state = State.CLOSED
@@ -174,6 +176,18 @@ class AsyncCircuitBreaker:
             new_state.value,
         )
 
+    def _current_backoff(self) -> float:
+        """Exponential backoff with jitter for OPEN-state recovery.
+
+        Grows as ``base_backoff * 2**(failures - threshold + 1)``, capped at
+        ``recovery_timeout``, plus uniform jitter of 0-20% to avoid a
+        thundering-herd of simultaneous re-probes.
+        """
+        exponent = max(0, len(self._failures) - self.failure_threshold + 1)
+        clamped = min(self.recovery_timeout, self.base_backoff * (2**exponent))
+        jitter = random.uniform(0, clamped * 0.2)  # noqa: S311 — jitter, not crypto
+        return clamped + jitter
+
     # ── Public check / record API ──────────────────────────────────────────
 
     async def can_call(self) -> bool:
@@ -191,8 +205,8 @@ class AsyncCircuitBreaker:
             if self._state == State.HALF_OPEN:
                 return self._half_open_count < self.half_open_max
 
-            # OPEN — check if recovery timeout has elapsed
-            if time.monotonic() - self._opened_at >= self.recovery_timeout:
+            # OPEN — check if recovery backoff has elapsed
+            if time.monotonic() - self._opened_at >= self._current_backoff():
                 await self._transition(State.HALF_OPEN)
                 self._half_open_count = 0
                 return True
@@ -357,7 +371,8 @@ class SimpleCircuitBreaker:
         self.name = name
         self.failure_threshold = failure_threshold
         self.failure_window = failure_window
-        self.recovery_timeout = recovery_timeout
+        self.recovery_timeout = recovery_timeout  # max recovery wait (backoff cap)
+        self.base_backoff = 5.0  # starting recovery backoff before exponentiation
         self.half_open_max = half_open_max
 
         self._state = State.CLOSED
@@ -402,6 +417,18 @@ class SimpleCircuitBreaker:
             new_state.value,
         )
 
+    def _current_backoff(self) -> float:
+        """Exponential backoff with jitter for OPEN-state recovery.
+
+        Grows as ``base_backoff * 2**(failures - threshold + 1)``, capped at
+        ``recovery_timeout``, plus uniform jitter of 0-20% to avoid a
+        thundering-herd of simultaneous re-probes.
+        """
+        exponent = max(0, len(self._failures) - self.failure_threshold + 1)
+        clamped = min(self.recovery_timeout, self.base_backoff * (2**exponent))
+        jitter = random.uniform(0, clamped * 0.2)  # noqa: S311 — jitter, not crypto
+        return clamped + jitter
+
     def can_call(self) -> bool:
         with self._lock:
             if self._state == State.CLOSED:
@@ -409,7 +436,7 @@ class SimpleCircuitBreaker:
                 return True
             if self._state == State.HALF_OPEN:
                 return self._half_open_count < self.half_open_max
-            if time.monotonic() - self._opened_at >= self.recovery_timeout:
+            if time.monotonic() - self._opened_at >= self._current_backoff():
                 self._transition(State.HALF_OPEN)
                 self._half_open_count = 0
                 return True

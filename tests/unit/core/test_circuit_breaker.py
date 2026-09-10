@@ -498,3 +498,31 @@ class TestSimpleCircuitBreaker:
         cb._state = State.HALF_OPEN
         cb._half_open_count = 0
         assert cb.can_call() is True
+
+
+class TestBackoff:
+    """Exponential backoff with jitter for OPEN-state recovery."""
+
+    def test_grows_with_failure_count(self) -> None:
+        cb = SimpleCircuitBreaker("bk", failure_threshold=2, recovery_timeout=3600)
+        cb._failures = [time.monotonic()] * 2
+        at_threshold = cb._current_backoff()
+        cb._failures = [time.monotonic()] * 4
+        assert cb._current_backoff() > at_threshold
+
+    def test_capped_by_recovery_timeout(self) -> None:
+        cb = SimpleCircuitBreaker("bk", failure_threshold=1, recovery_timeout=10.0)
+        cb._failures = [time.monotonic()] * 50
+        # Cap plus at most 20% jitter.
+        assert cb._current_backoff() <= 10.0 * 1.2
+
+    async def test_recovers_earlier_than_fixed_timeout(self) -> None:
+        """At threshold, backoff (base*2) is well below a large recovery_timeout."""
+        cb = AsyncCircuitBreaker("bk", failure_threshold=5, recovery_timeout=30.0)
+        for _ in range(5):
+            await cb.record_failure(is_server_error=True)
+        assert cb.state is State.OPEN
+        # Past the ~10-12s backoff but well before the 30s fixed timeout.
+        cb._opened_at = time.monotonic() - 15.0
+        assert await cb.can_call() is True
+        assert cb.state is State.HALF_OPEN
