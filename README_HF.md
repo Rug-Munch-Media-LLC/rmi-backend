@@ -25,7 +25,7 @@ library_name: fastapi
 
 ## Overview
 
-RMI is the first open-source crypto intelligence platform, delivering real-time token scanning, wallet forensics, multi-chain market data, and scam detection across **96 blockchains**.
+RMI is the first open-source crypto intelligence platform, delivering real-time token scanning, wallet forensics, multi-chain market data, and scam detection across **16 chains**.
 
 ## Key Features
 
@@ -46,8 +46,8 @@ RMI is the first open-source crypto intelligence platform, delivering real-time 
 - **WebSocket Support**: Live price and alert streaming
 
 ### 🔐 Infrastructure
-- **96 Chains Supported**: Multi-chain architecture with extensible provider system
-- **Federated Label System**: 2.7M+ wallet addresses tagged from multiple sources
+- **16 Chains Supported**: Multi-chain architecture with extensible provider system
+- **Federated Label System**: 362k+ curated wallet addresses tagged from multiple sources
 - **Graph Database**: Neo4j-powered relationship tracking
 - **Vector Search**: Qdrant-based semantic intelligence retrieval
 

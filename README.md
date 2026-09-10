@@ -1,14 +1,14 @@
 # RMI Backend — Rug Munch Intelligence
 
 > The intelligence engine behind [rugmunch.io](https://rugmunch.io): scan any
-> token or wallet across 96 chains, detect rugs before they happen, and pay
-> per call via x402.
+> token or wallet across 16 chains (14 EVM + Solana + Tron), detect rugs before
+> they happen, and pay per call via x402.
 
 **Docs:** `/docs` (Swagger) | `/redoc` (ReDoc) | `/openapi.json`
 
 ## What It Is
 
-FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **multiple blockchains**.
+FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **16 chains (14 EVM + Solana + Tron)**.
 
 | Interface | Protocol | Description |
 |-----------|----------|-------------|
@@ -109,9 +109,10 @@ app/
 
 | Repo | Purpose | Status |
 |------|---------|--------|
-| `rmi-frontend` | Vue 3 / Nuxt customer dashboard | Active development |
+| `rmi-frontend` | React 19 + Vite customer dashboard | Active development |
 | `rmi-mcp-x402` | x402 payment-gated MCP server | Active development |
-| `rmi-rag` | RAG pipeline + vector store | Active development |
+| `rugbrain` | Canonical RAG engine (scam/entity/security intel) | Live |
+| `rmi-rag` | Legacy RAG pipeline — **archived**, superseded by `rugbrain` | Archived |
 | `rmi-contracts` | Smart contracts for x402 | Audited |
 | `fleet-infra` | Infrastructure as code | Production |
 | `rmi-local-services` | Local dev environment | Active |
