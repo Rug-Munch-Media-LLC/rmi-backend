@@ -25,7 +25,7 @@ Three metrics, all computed from our own ClickHouse data:
 Data Sources:
   Primary: wallet_memory.evm_transfers (funding trace, holder sets)
   Primary: wallet_memory.solana_spl_balance_changes (Solana holder sets)
-  Primary: wallet_memory.wallet_labels (~154k curated entity labels)
+  Primary: wallet_memory.wallet_labels (~295k curated entity labels)
   Primary: wallet_memory.deployer_history (known scam tokens, is_scam_related)
   Static:  known_entities.EXCHANGE_WALLETS / EVM_KNOWN_CONTRACTS (CEX/mixer)
 
