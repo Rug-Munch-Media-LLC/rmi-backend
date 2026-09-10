@@ -51,7 +51,7 @@ natural-language questions about what the platform has indexed, scanned, and lea
                        │ findings + alerts
                        ▼
         ┌──────────────────────────────────────────────────────────────────────────┐
-        │  ③ RUGBRAIN RAG (intelligence layer · rmi-backend app/rag + rmi-rag)     │
+        │  ③ RUGBRAIN RAG (intelligence layer · rmi-backend app/rag + rugbrain)     │
         │  · scanner findings + Crawl4AI news → embed (Infinity bge-m3)            │
         │  · store in Qdrant (18 collections) · rerank (bge-reranker-v2-m3)        │
         │  · LangGraph agentic retrieval → answer with sources                      │
@@ -207,12 +207,12 @@ the full suite.
 
 ## RugBrain RAG → Intelligence Layer
 
-**Location:** `rmi-backend/app/rag/` + `/srv/work/repos/rmi-rag/` ·
+**Location:** `rmi-backend/app/rag/` + `/srv/work/repos/rugbrain/` ·
 **Architecture:** `docs/RAG_ARCHITECTURE.md` · **Strategy:** `docs/RAG_STRATEGY.md` ·
 **Product brief:** `docs/RUGBRAIN.md`
 
 RugBrain is the natural-language interface over everything the platform knows: scanner findings,
-crawled news, threat-intel feeds, and indexed on-chain context. API at `rmi-rag-api:8012`
+crawled news, threat-intel feeds, and indexed on-chain context. API at `rugbrain-api:8012`
 (rag.rugmunch.io), RAG v2 wired behind `app/routers/rag_v2.py`.
 
 ### How it ingests scanner findings + crawled news

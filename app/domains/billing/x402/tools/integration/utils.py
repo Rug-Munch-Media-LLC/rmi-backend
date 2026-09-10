@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 async def build_tools_from_catalog() -> list[dict[str, Any]]:
-    """Build tool list from TOOL_PRICES (source of truth for all 201+ tools)."""
+    """Build tool list from TOOL_PRICES (source of truth for all 70+ security engines)."""
     from app.routers.x402_enforcement import TOOL_PRICES
 
     tools = []

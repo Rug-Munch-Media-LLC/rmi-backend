@@ -176,7 +176,7 @@ All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 
 ### 5-Tier Free API Fallback Chains (no keys required)
 - **token_security_free**: ClickHouse → GoPlus → Honeypot.is → RugCheck → DexScreener
-- **wallet_labels_free**: ~140k curated labels → Blockscout → Etherscan → DexScreener → heuristics
+- **wallet_labels_free**: ~154k curated labels → Blockscout → Etherscan → DexScreener → heuristics
 - **market_price_free**: own TWAP → DexScreener → CoinGecko → GeckoTerminal → ParaSwap
 
 Each tier is a verified-live free provider with circuit breaker + rate limiter;

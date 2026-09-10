@@ -338,14 +338,14 @@ def discover_route_tools() -> list[dict[str, Any]]:
 def get_catalog() -> Any:
     """Build full tool catalog from TOOL_PRICES + X402_TOOL_PRICING (databus) = single source of truth.
 
-    Combined enforcement + databus-only tools = 170 total.
+    Combined enforcement + databus-only tools = 70+ total.
     Gateway configs and route discovery are used for enrichment (chains, icons, etc).
     """
 
     # Always rebuild (no stale caching)
     os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    # ── Primary source: TOOL_PRICES + DATABUS_TOOLS (170 total, single source of truth) ──
+    # ── Primary source: TOOL_PRICES + DATABUS_TOOLS (70+ total, single source of truth) ──
     try:
         from app.routers.x402_enforcement import TOOL_PRICES
 

@@ -1,6 +1,6 @@
 name: rug-munch-intelligence-mcp
 display_name: Rug Munch Intelligence
-description: "201 crypto intelligence tools across 13 blockchains — Solana, Base, Ethereum, BSC, Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis, TRON, Bitcoin, SEPA. Scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, market analysis, sentiment monitoring, arbitrage scanning, MEV protection. AI-native MCP server with x402 micropayments ($0.01–$0.40/call) and free trials (1–5 calls/tool). 8 facilitators: Coinbase CDP, PayAI, Cloudflare x402, EIP-7702, TRON Self-Verify, Bitcoin Self-Verify, AsterPay, x402-rs."
+description: "70+ crypto security engines across 16 chains (14 EVM + Solana + Tron), with x402 payments on 13 payment rails including Bitcoin and SEPA. Scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, market analysis, sentiment monitoring, arbitrage scanning, MEV protection. AI-native MCP server with x402 micropayments ($0.01–$0.40/call) and free trials (1–5 calls/tool). 8 facilitators: Coinbase CDP, PayAI, Cloudflare x402, EIP-7702, TRON Self-Verify, Bitcoin Self-Verify, AsterPay, x402-rs."
 version: 3.0.0
 author: CryptoRugMunch
 homepage: https://rugmunch.io
@@ -40,7 +40,7 @@ environment:
     description: API key for premium access (optional)
     required: false
 
-tools_count: 201
+tools_count: 70
 chains:
   - solana
   - base

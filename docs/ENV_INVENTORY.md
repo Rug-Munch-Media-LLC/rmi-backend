@@ -47,7 +47,7 @@ Env name = field name uppercased. All fields read via `settings.<field>`; defaul
 | `rmi_auth_token` | `RMI_AUTH_TOKEN` | Shared X-API-Key header secret | `""` | ⚠ prod |
 | `rmi_internal_key` | `RMI_INTERNAL_KEY` | Internal service-to-service API key | `""` | ⚠ prod |
 | `rmi_consumer_keys` | `RMI_CONSUMER_KEYS` | Consumer ID -> API key mapping (JSON) | `{}` | no |
-| `rmi_rag_api_key` | `RMI_RAG_API_KEY` | API key for rmi-rag-api | `""` | no |
+| `rmi_rag_api_key` | `RMI_RAG_API_KEY` | API key for rugbrain-api | `""` | no |
 | `dev_bypass_auth` | `DEV_BYPASS_AUTH` | Bypass auth in dev ONLY | `False` | no |
 | `totp_issuer` | `TOTP_ISSUER` | TOTP issuer name | `"RugMunch Intelligence"` | no |
 | `google_client_id` | `GOOGLE_CLIENT_ID` | Google OAuth client id | `""` | no |
@@ -462,7 +462,7 @@ Full unique set from the source scan — includes aliases and domain-specific kn
 | `RMI_JWT_PRIVATE_KEY` | JWT RSA private key |
 | `RMI_JWT_PUBLIC_KEY` | JWT RSA public key |
 | `RMI_JWT_SECRET` | JWT secret (alias) |
-| `RMI_RAG_API_KEY` | rmi-rag-api X-API-Key |
+| `RMI_RAG_API_KEY` | rugbrain-api X-API-Key |
 | `RMI_SMTP_FROM` | SMTP From address |
 | `RMI_SMTP_HOST` | SMTP host (rmi-mail) |
 | `RMI_SMTP_PASS` | SMTP password |

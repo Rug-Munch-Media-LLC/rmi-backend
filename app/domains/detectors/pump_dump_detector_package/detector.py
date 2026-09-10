@@ -42,7 +42,7 @@ logger = get_logger("pump_dump_detector")
 class PumpDumpDetector:
     """
     Comprehensive pump-and-dump / coordinated market manipulation detector.
-    Analyzes on-chain data to identify manipulation patterns across all 13 chains.
+    Analyzes on-chain data to identify manipulation patterns across all 16 indexed chains.
     """
 
     def __init__(self, timeout: float = 30.0) -> None:

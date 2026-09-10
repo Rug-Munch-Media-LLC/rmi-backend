@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Populate Neo4j from ClickHouse wallet_memory.wallet_labels (~140k curated labels).
+Populate Neo4j from ClickHouse wallet_memory.wallet_labels (~154k curated labels).
 
 Usage:
     python scripts/populate_neo4j.py                    # Phase 1: top 100K addresses by label count

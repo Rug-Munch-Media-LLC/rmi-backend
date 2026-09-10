@@ -16,7 +16,7 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
 
     chains["wallet_labels"] = ProviderChain(
         data_type="wallet_labels",
-        description="Address labels: ClickHouse (~140k curated) → Redis (hot cache) → external APIs",
+        description="Address labels: ClickHouse (~154k curated) → Redis (hot cache) → external APIs",
         providers=[
             Provider(
                 "clickhouse_wallet_memory",
@@ -24,7 +24,7 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 _g["_clickhouse_wallet_labels"],
                 weight=20.0,
                 is_local=True,
-                description="ClickHouse wallet_labels table — ~140k curated labels",
+                description="ClickHouse wallet_labels table — ~154k curated labels",
             ),
             Provider(
                 "wallet_memory_bank",
@@ -47,7 +47,7 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
 
     # ── wallet_labels_free — free multi-tier fallback (Arkham entity-label replacement) ──
     # Replaces Arkham's entity labeling with a stacked free API chain:
-    #   Tier 1: own ClickHouse wallet labels (~140k curated)
+    #   Tier 1: own ClickHouse wallet labels (~154k curated)
     #   Tier 2: Blockscout address tags (free, no auth)
     #   Tier 3: Etherscan labels via V2 API (free tier with key)
     #   Tier 4: DexScreener top traders (free)
@@ -62,7 +62,7 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 _g["_clickhouse_wallet_labels"],
                 weight=20.0,
                 is_local=True,
-                description="ClickHouse wallet_labels table — ~140k curated labels",
+                description="ClickHouse wallet_labels table — ~154k curated labels",
             ),
             Provider(
                 "free_blockscout_labels",
@@ -341,7 +341,7 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 _g["_clickhouse_wallet_labels"],
                 weight=20.0,
                 is_local=True,
-                description="ClickHouse wallet_labels table — ~140k curated labels",
+                description="ClickHouse wallet_labels table — ~154k curated labels",
             ),
             Provider(
                 "arkham_entity",

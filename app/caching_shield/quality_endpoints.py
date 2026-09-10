@@ -97,7 +97,7 @@ async def mcp_changelog() -> dict[str, Any]:
                     "Added /.well-known/mcp discovery",
                     "Added llms.txt for AI agent discovery",
                     "Added x402 payment protocol support",
-                    "8 payment facilitators across 13 chains",
+                    "8 payment facilitators across 13 payment rails",
                 ],
             },
         ],

@@ -96,7 +96,7 @@ async def _passthrough_alerts(**kwargs) -> dict[str, Any] | None:
 async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
     """Wallet labels from Redis (hot cache labels) — rmi:label:{chain}:{address} format.
 
-    Falls back to ClickHouse wallet_memory.wallet_labels (~140k curated) if Redis
+    Falls back to ClickHouse wallet_memory.wallet_labels (~154k curated) if Redis
     has no data for the requested address. Write-through caching: any label
     found via ClickHouse fallback is written to Redis (48h TTL) so subsequent
     lookups are fast — the cache self-warms with popular addresses.
@@ -161,7 +161,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
             "labels": [first_label],
             "address": addr_lower,
             "source": "wallet_memory_bank",
-            "total_labels": "~140k curated",
+            "total_labels": "~154k curated",
         }
 
     # ── FALLBACK: ClickHouse direct query + write-through cache ───
@@ -261,7 +261,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
                         "labels": labels,
                         "address": addr_lower,
                         "source": "wallet_memory_bank",
-                        "total_labels": "~140k curated",
+                        "total_labels": "~154k curated",
                         "fallback": "clickhouse",
                         "write_through": True,
                     }
@@ -391,7 +391,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
                 "addresses_labeled": len(addr_labels),
                 "total_labels": labeled_count,
                 "source": "wallet_memory_bank",
-                "total_labels_in_db": "~140k curated",
+                "total_labels_in_db": "~154k curated",
                 "fallback": "clickhouse_batch",
                 "write_through": True,
             }

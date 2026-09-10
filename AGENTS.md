@@ -171,7 +171,7 @@ mypy app/ --strict
 
 ## MCP Tools
 
-210+ MCP tools organized by category: token analysis, wallet intel,
+70+ MCP security engines organized by category: token analysis, wallet intel,
 scam detection, market data, news intelligence, RAG queries,
 portfolio tracking, and x402 paid marketplace tools.
 

@@ -1,6 +1,6 @@
 # Rug Munch Intelligence — MCP Server Documentation
 
-> **210 crypto intelligence tools · 13 blockchains · x402 micropayments · Free trials**
+> **70+ crypto security engines · 16 chains · x402 micropayments · Free trials**
 
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-6E40C9?logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
 [![Smithery](https://img.shields.io/badge/Listed-Smithery-FF6900)](https://smithery.ai/server/@cryptorugmuncher/rug-munch-intelligence)
@@ -10,9 +10,9 @@
 
 ## Overview
 
-Rug Munch Intelligence (RMI) is a crypto security and market intelligence MCP server. It provides **210 tools** across **13 blockchains** for scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, and market analysis — accessible via the Model Context Protocol.
+Rug Munch Intelligence (RMI) is a crypto security and market intelligence MCP server. It provides **70+ security engines** across **16 chains** for scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, and market analysis — accessible via the Model Context Protocol.
 
-Every tool offers **1–5 free trial calls** (gated by device fingerprint) and **x402 micropayments** ($0.01–$0.40/call) via 8 payment facilitators across 13 chains.
+Every tool offers **1–5 free trial calls** (gated by device fingerprint) and **x402 micropayments** ($0.01–$0.40/call) via 8 payment facilitators across 13 payment rails.
 
 ---
 
@@ -27,11 +27,11 @@ Every tool offers **1–5 free trial calls** (gated by device fingerprint) and *
                         ▼
 ┌─────────────────────────────────────────────────────────┐
 │  rugmunch.io/mcp                                       │
-│  MCP Server — 210 tools, schema discovery              │
+│  MCP Server — 70+ engines, schema discovery            │
 ├─────────────────────────────────────────────────────────┤
 │  x402 Payment Gatekeeper                               │
 │  Trial enforcement → Payment required → 402 response  │
-│  8 facilitators × 13 chains × USDC/USDT/BTC/EUR       │
+│  8 facilitators × 13 payment rails × USDC/USDT/BTC/EUR│
 ├─────────────────────────────────────────────────────────┤
 │  FastAPI Backend — 80+ modules                         │
 │  Security · Intelligence · Market · Social · Forensics │
@@ -128,7 +128,7 @@ result = requests.post(
 | 🔌 API | 3 | `catalog`, `mcp-proxy`, `human-execute` |
 | 🔄 Variant | 80 | Per-chain variants for Solana, Base, Ethereum, BSC |
 
-**Total: 210 tools**
+**Total: 70+ security engines**
 
 ---
 

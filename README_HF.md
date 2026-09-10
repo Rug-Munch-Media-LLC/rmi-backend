@@ -47,7 +47,7 @@ RMI is the first open-source crypto intelligence platform, delivering real-time 
 
 ### 🔐 Infrastructure
 - **16 Chains Supported**: Multi-chain architecture with extensible provider system
-- **Federated Label System**: 362k+ curated wallet addresses tagged from multiple sources
+- **Federated Label System**: ~154k curated wallet addresses tagged from multiple sources
 - **Graph Database**: Neo4j-powered relationship tracking
 - **Vector Search**: Qdrant-based semantic intelligence retrieval
 
