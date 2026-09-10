@@ -2,7 +2,7 @@
 
 ## Overview
 
-RMI (Rug Munch Intelligence) provides 270+ crypto intelligence tools via x402 micropayment.
+RMI (Rug Munch Intelligence) provides 70+ crypto security engines via x402 micropayment.
 Every tool routes through our DataBus pipeline — 38 data chains, 67 providers, multi-layer caching.
 If a primary data source fails, DataBus automatically falls back to the next provider in the chain.
 
@@ -132,7 +132,7 @@ the DataBus fallback middleware automatically routes to the next available provi
 
 ## MCP Server
 
-`GET /mcp/tools` — Full tool catalog with MCP-compliant schemas (270+ tools)
+`GET /mcp/tools` — Full tool catalog with MCP-compliant schemas (70+ security engines)
 
 `POST /mcp/call/{tool_id}` — Execute any tool via MCP protocol
 

@@ -105,7 +105,7 @@ Add to `claude_desktop_config.json`:
 ### Discovery
 | Endpoint | Description |
 |----------|-------------|
-| `/.well-known/x402` | x402 multi-facilitator payment discovery (13 chains, 10 facilitators) |
+| `/.well-known/x402` | x402 multi-facilitator payment discovery (13 payment rails, 10 facilitators) |
 | `/llms.txt` | AI agent discovery (llms.txt standard) |
 | `/openai-tools` | OpenAI function calling format |
 | `/anthropic-tools` | Anthropic tool format |
@@ -116,7 +116,7 @@ Add to `claude_desktop_config.json`:
 ### MCP Protocol
 | Method | Description |
 |--------|-------------|
-| `tools/list` | List all 218 tools |
+| `tools/list` | List all 70+ security engines |
 | `tools/call` | Execute any tool |
 | `initialize` | Protocol handshake |
 | `ping` | Health check |
@@ -138,7 +138,7 @@ Add to `claude_desktop_config.json`:
 
 ### x402 Bot Payment (Multi-Chain)
 1. Bot requests tool → receives 402 Payment Required
-2. 402 response lists ALL 13 chains + facilitators + tokens
+2. 402 response lists ALL 13 payment rails + facilitators + tokens
 3. Bot pays on ANY supported chain (USDC, USDT, BTC, EUR, etc.)
 4. Bot includes `X-Pay` header with payment proof
 5. Smart router auto-picks best facilitator for that chain/token

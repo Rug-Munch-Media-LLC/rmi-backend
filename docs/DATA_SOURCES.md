@@ -20,7 +20,7 @@
 
 | # | Source | What It Provides | Storage | Access Pattern | Freshness |
 |---|--------|-----------------|---------|----------------|-----------|
-| 1 | **Wallet Memory Bank** | ~140k curated wallet labels (exchange, scam, KOL, protocol) | Redis (`rmi:label:{chain}:{address}`) | Direct Redis get | Real-time |
+| 1 | **Wallet Memory Bank** | ~154k curated wallet labels (exchange, scam, KOL, protocol) | Redis (`rmi:label:{chain}:{address}`) | Direct Redis get | Real-time |
 | 2 | **SENTINEL Scanner** | Token security analysis: honeypot, mint, tax, liquidity, holder concentration, deployer risk | Redis cache (`sentinelscan:{chain}:{address}`) + ClickHouse | HTTP passthrough → `/api/v1/token/scan` | Cached 5 min |
 | 3 | **RAG Knowledge Base** | 17K+ scam documents, multi-collection semantic search | Qdrant (9 collections) | HTTP passthrough → `/api/v1/rag/search` | Real-time |
 | 4 | **ClickHouse Analytics** | Historical pricing, holder snapshots, whale alerts | ClickHouse cluster | Direct query | Real-time |
@@ -34,7 +34,7 @@
 | 12 | **Wallet Memory (ClickHouse)** | Stored wallet profiles, token holdings, transaction history | ClickHouse | Analytics queries | Historical |
 | 13 | **Deployer History DB** | Deployer wallet profiles, token deployment records, scam linkage | Postgres + Neo4j | `deployer_history.py` | Real-time |
 | 14 | **Entity Registry** | Cross-chain entity resolution — known individuals, protocols, exchanges | Redis + Neo4j | `entity_registry.py` | Real-time |
-| 15 | **Labels (~140k curated)** | Compiled labels from Arkham, Nansen (Solscan), manual curation | Redis | `wallet_memory_bank` | Updated daily |
+| 15 | **Labels (~154k curated)** | Compiled labels from Arkham, Nansen (Solscan), manual curation | Redis | `wallet_memory_bank` | Updated daily |
 | 16 | **News Intel Pipeline** | Multi-source news with AI quality scoring, category tagging, sentiment | ClickHouse + Qdrant | `news_intelligence.py` | Real-time |
 | 17 | **Social Intel** | X/Twitter KOL tracking, shill detection, sentiment analysis | Redis + Postgres | `social_intel.py` | Per-poll |
 
@@ -197,7 +197,7 @@ cryptocurrency.cv (REST + RSS)
 ```
 token_price:     Local > DexScreener > CoinGecko > Birdeye > Moralis
 token_metadata:  Local > DexScreener > Birdeye > Alchemy
-wallet_labels:   Local (~140k curated) > Arkham > Nansen/Solscan
+wallet_labels:   Local (~154k curated) > Arkham > Nansen/Solscan
 entity_intel:    Local > Arkham (paid)
 holder_data:     Local > DexScreener > Bitquery
 market_overview: Local > DeFiLlama > CoinGecko

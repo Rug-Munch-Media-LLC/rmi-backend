@@ -3,7 +3,7 @@
 Extracted from enforcement.py (P6 - complexity refactor).
 
 Provides:
-- CHAIN_USDC: chain config for all 13 supported payment chains
+- CHAIN_USDC: chain config for all 13 supported payment rails (distinct from the 16 indexed chains)
 - TOOL_PRICES: tool pricing dict (seeded at import, enriched lazily)
 - Pay-to address resolution and helpers
 """

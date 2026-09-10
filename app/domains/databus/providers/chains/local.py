@@ -59,7 +59,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
 
 
 async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
-    """Get wallet labels from ClickHouse directly — ~140k curated labels, LOCAL tier.
+    """Get wallet labels from ClickHouse directly — ~154k curated labels, LOCAL tier.
 
     This is the FIRST provider in the wallet_labels chain.
     If ClickHouse has labels, we return them immediately.
@@ -89,7 +89,7 @@ async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] |
                 "address": address,
                 "chain": chain or "any",
                 "source": "clickhouse_wallet_memory",
-                "total_labels": "~140k curated",
+                "total_labels": "~154k curated",
                 "tier": "local",
                 "is_local": True,
             }

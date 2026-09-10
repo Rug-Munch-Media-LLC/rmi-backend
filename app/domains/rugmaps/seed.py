@@ -50,7 +50,7 @@ UPSERT_BATCH = 128  # points per Qdrant upsert
 # "scanner:…") are internal pipeline artifacts, not real entity names, so
 # they are excluded too. We fetch a multiple of the target limit and dedupe
 # by (chain, address) in Python — a window function over the ~39.8M-raw-row
-# wallet_labels table (only ~140k curated labels after merge/filter) exceeds
+# wallet_labels table (only ~154k curated labels after merge/filter) exceeds
 # ClickHouse's memory budget, while ORDER BY … LIMIT is a light top-N sort.
 SEED_QUERY = """
 SELECT address, chain_id, label_name, label_category

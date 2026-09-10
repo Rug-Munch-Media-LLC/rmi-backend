@@ -255,7 +255,7 @@ BACKEND_SOURCES: dict[str, Any] = {
         "rate_rps": 100.0,
         "burst": 200,
         "ttl_default": 30,
-        "data": "x402 MCP gateway - 231 tools, 14 categories, 13 chains",
+        "data": "x402 MCP gateway - 70+ security engines, 14 categories, 16 chains",
         "status": "in_use",
         "module": "Cloudflare Workers, facilitators/",
     },

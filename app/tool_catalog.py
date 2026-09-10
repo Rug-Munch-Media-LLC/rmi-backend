@@ -1,7 +1,7 @@
 """
 RMI Tool Catalog - Organized for Humans & Bots
 ===============================================
-Structured catalog of all 170 crypto security and intelligence tools.
+Structured catalog of all 70+ crypto security and intelligence engines.
 Organized by category with SEO-optimized descriptions, keywords, and use cases.
 Serves both human-readable discovery and bot-parseable structured data.
 
@@ -171,7 +171,7 @@ def get_human_catalog() -> dict[str, Any]:
     catalog: dict[str, Any] = {
         "meta": {
             "name": "Rug Munch Intelligence - Crypto Security & Analysis Tools",
-            "description": "170 crypto security, intelligence, and market analysis tools accessible via API, MCP, and web interface. AI-powered scam detection, whale tracking, contract auditing, and forensics across 13 blockchains. Basic, Premium, and Elite tiers for every need.",
+            "description": "70+ crypto security engines accessible via API, MCP, and web interface. AI-powered scam detection, whale tracking, contract auditing, and forensics across 16 chains. Basic, Premium, and Elite tiers for every need.",
             "seo_keywords": [
                 "crypto scam detection",
                 "rug pull checker",

@@ -58,7 +58,7 @@ async def tools_catalog_bot() -> Any:
 
 @sub_router.get("/openai-tools")
 async def openai_tools() -> dict[str, Any]:
-    """Returns ALL 201+ tool definitions in OpenAI function calling format."""
+    """Returns ALL 70+ security-engine definitions in OpenAI function calling format."""
     raw_tools = await build_tools_from_catalog()
     tools = [format_openai_tool(t) for t in raw_tools]
     return build_framework_base(tools, "tools", payment_required=True)
@@ -66,7 +66,7 @@ async def openai_tools() -> dict[str, Any]:
 
 @sub_router.get("/langchain-tools")
 async def langchain_tools() -> dict[str, Any]:
-    """Returns ALL 201+ tool definitions in LangChain format."""
+    """Returns ALL 70+ security-engine definitions in LangChain format."""
     raw_tools = await build_tools_from_catalog()
     tools = [format_langchain_tool(t) for t in raw_tools]
     return build_framework_base(
@@ -79,7 +79,7 @@ async def langchain_tools() -> dict[str, Any]:
 
 @sub_router.get("/anthropic-tools")
 async def anthropic_tools() -> dict[str, Any]:
-    """Returns ALL 201+ tool definitions in Anthropic Claude API format."""
+    """Returns ALL 70+ security-engine definitions in Anthropic Claude API format."""
     raw_tools = await build_tools_from_catalog()
     tools = [format_anthropic_tool(t) for t in raw_tools]
     return build_framework_base(
@@ -92,7 +92,7 @@ async def anthropic_tools() -> dict[str, Any]:
 
 @sub_router.get("/gemini-tools")
 async def gemini_tools() -> dict[str, Any]:
-    """Returns ALL 201+ tool definitions in Google Gemini function calling format."""
+    """Returns ALL 70+ security-engine definitions in Google Gemini function calling format."""
     raw_tools = await build_tools_from_catalog()
     tools = [format_gemini_tool(t) for t in raw_tools]
     return build_framework_base(

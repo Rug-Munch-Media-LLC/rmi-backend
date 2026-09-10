@@ -119,7 +119,7 @@ Add to `claude_desktop_config.json`:
 
 ### For Developers (curl)
 ```bash
-# List all 218 tools
+# List all 70+ security engines
 curl -X POST https://sol.rugmunch.io/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
@@ -212,7 +212,7 @@ Services: dexscreener, jupiter, pumpfun, raydium, defillama, dexpaprika, coincap
 
 ### Bot Payment (x402 Protocol — Multi-Chain)
 1. Client calls tool → receives 402 Payment Required
-2. 402 response lists ALL 13 chains + 10 facilitators + accepted tokens
+2. 402 response lists ALL 13 payment rails + 10 facilitators + accepted tokens
 3. Client pays on ANY supported chain (USDC, USDT, BTC, EUR, etc.)
 4. Client includes `X-Pay` header with payment proof (tx hash + signature)
 5. **Smart router** detects chain/token from payload

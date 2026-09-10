@@ -50,7 +50,7 @@ DISCOVERY_CACHE_TTL = 300
 
 
 def _build_discovery_response() -> dict[str, Any]:
-    """Build the full discovery response with all 13 chains and active facilitators."""
+    """Build the full discovery response with all 13 payment rails and active facilitators."""
     _ensure_tool_prices()
     _ensure_pay_addresses()
     tools: dict[str, Any] = {}

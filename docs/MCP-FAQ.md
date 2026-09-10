@@ -8,11 +8,11 @@
 
 ### What is Rug Munch Intelligence?
 
-Rug Munch Intelligence (RMI) is an AI-powered crypto security platform that provides **210 tools** across **13 blockchains** for scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, and market analysis. It's built for AI agents via the Model Context Protocol (MCP) and accessible to humans through our web platform.
+Rug Munch Intelligence (RMI) is an AI-powered crypto security platform that provides **70+ security engines** across **16 chains** for scam detection, rug pull prevention, wallet forensics, whale tracking, contract auditing, and market analysis. It's built for AI agents via the Model Context Protocol (MCP) and accessible to humans through our web platform.
 
 ### What is MCP?
 
-The **Model Context Protocol** is an open standard that allows AI assistants (like Claude, Cursor, Windsurf, ChatGPT) to discover and call external tools. RMI implements MCP so any MCP-compatible agent can use our 210 crypto intelligence tools directly.
+The **Model Context Protocol** is an open standard that allows AI assistants (like Claude, Cursor, Windsurf, ChatGPT) to discover and call external tools. RMI implements MCP so any MCP-compatible agent can use our 70+ crypto security engines directly.
 
 ### How do I connect RMI to my AI assistant?
 
@@ -44,11 +44,11 @@ Add this to your MCP configuration:
 
 ### What blockchains are supported?
 
-We support **13 chains**: Solana, Base, Ethereum, BSC (BNB Chain), Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis, TRON, Bitcoin, and SEPA (European bank transfers).
+We index **16 chains** (14 EVM + Solana + Tron) for scanning. x402 payments are accepted on **13 payment rails**: Solana, Base, Ethereum, BSC (BNB Chain), Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis, TRON, Bitcoin, and SEPA (European bank transfers).
 
 ### How many tools are available?
 
-**210 tools** across multiple categories: Security (29 + 9 SENTINEL), Intelligence (27), Market (15), Analysis (14), Social (11), Launchpad (7), Premium (7), DeFi (4), NFT (2), Bundles (4), API (3), and Variants (80 per-chain).
+**70+ security engines** across multiple categories: Security, Intelligence, Market, Analysis, Social, Launchpad, Premium, DeFi, NFT, Bundles, API, and per-chain variants.
 
 ### What endpoint formats are available?
 
@@ -58,12 +58,12 @@ Six discovery and tool-format endpoints are available:
 |:---|:---|:---|
 | `GET /api/v1/x402-tools/discovery` | x402 v2 | Full x402 protocol discovery with payment metadata |
 | `GET /api/v1/x402-tools/catalog` | JSON | Human-readable organized tool catalog |
-| `GET /api/v1/x402-tools/openai-tools` | OpenAI | OpenAI function calling format (210 tools) |
-| `GET /api/v1/x402-tools/anthropic-tools` | Anthropic | Anthropic tool use format (210 tools) |
-| `GET /api/v1/x402-tools/gemini-tools` | Gemini | Google Gemini function declarations (210 tools) |
-| `GET /api/v1/x402-tools/langchain-tools` | LangChain | LangChain tool schema format (210 tools) |
+| `GET /api/v1/x402-tools/openai-tools` | OpenAI | OpenAI function calling format (70+ security engines) |
+| `GET /api/v1/x402-tools/anthropic-tools` | Anthropic | Anthropic tool use format (70+ security engines) |
+| `GET /api/v1/x402-tools/gemini-tools` | Gemini | Google Gemini function declarations (70+ security engines) |
+| `GET /api/v1/x402-tools/langchain-tools` | LangChain | LangChain tool schema format (70+ security engines) |
 
-All return the same 210 tools in their respective formats.
+All return the same 70+ security engines in their respective formats.
 
 ### What are the SENTINEL modules?
 
@@ -159,7 +159,7 @@ Our predictor uses 12+ on-chain signals including liquidity lock status, ownersh
 
 ### What chains do security tools support?
 
-All 13 supported chains. High-value tools (audit, rug pull predictor) support EVM chains. Solana-specific tools handle SPL token analysis. TRON and Bitcoin tools are chain-specific.
+All 16 indexed chains. High-value tools (audit, rug pull predictor) support EVM chains. Solana-specific tools handle SPL token analysis. TRON and Bitcoin tools are chain-specific.
 
 ### Can I use multiple tools in one call?
 

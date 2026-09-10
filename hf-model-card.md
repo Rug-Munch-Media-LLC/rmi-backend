@@ -38,23 +38,23 @@ pipeline_tag: other
 
 # 🛡️ Rug Munch Intelligence — x402 MCP Server
 
-**210 AI-powered crypto security & intelligence tools · 13 blockchains · x402 micropayments**
+**70+ AI-powered crypto security & intelligence engines · 16 chains · x402 micropayments**
 
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-6E40C9?logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io)
 [![x402 Protocol](https://img.shields.io/badge/Payment-x402-FF6900)](https://x402.org)
-[![Tools](https://img.shields.io/badge/Tools-210-00D4AA)](https://rugmunch.io)
+[![Tools](https://img.shields.io/badge/Tools-70%2B-00D4AA)](https://rugmunch.io)
 [![Smithery](https://smithery.ai/badge/@cryptorugmuncher/rug-munch-intelligence)](https://smithery.ai/server/@cryptorugmuncher/rug-munch-intelligence)
 
 ## What Is This?
 
-Rug Munch Intelligence (RMI) is the most comprehensive crypto security & intelligence API server ever built. It exposes **210 tools** across **13 blockchains** via the **x402 micropayment protocol** and **Model Context Protocol (MCP)** — giving any AI agent, script, or application instant access to scam detection, whale tracking, wallet forensics, market analysis, and more.
+Rug Munch Intelligence (RMI) is the most comprehensive crypto security & intelligence API server ever built. It exposes **70+ security engines** across **16 chains** via the **x402 micropayment protocol** and **Model Context Protocol (MCP)** — giving any AI agent, script, or application instant access to scam detection, whale tracking, wallet forensics, market analysis, and more.
 
-> 🧠 **One endpoint. 210 tools. Zero API keys. Free trials on every tool.**
+> 🧠 **One endpoint. 70+ security engines. Zero API keys. Free trials on every tool.**
 
 ## Key Features
 
-- **210 tools** across 12 categories: Security (38), Intelligence (27), Market (15), Analysis (14), Social (11), Launchpad (7), Premium (7), DeFi (4), NFT (2), Bundles (4), API (3), + 80 per-chain variants
-- **13 blockchains**: Solana, Base, Ethereum, BSC, Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis, TRON, Bitcoin, SEPA/EUR
+- **70+ security engines** across 12 categories: Security, Intelligence, Market, Analysis, Social, Launchpad, Premium, DeFi, NFT, Bundles, API, plus per-chain variants
+- **16 chains** (14 EVM + Solana + Tron), with x402 payments on 13 payment rails including Bitcoin and SEPA/EUR
 - **x402 v2 protocol**: Per-call micropayments ($0.01–$0.40) via 8 facilitators across USDC, USDT, BTC, and EUR
 - **Free trials**: 1–5 calls per tool with no signup, gated by device fingerprint
 - **MCP compatible**: Use with Claude Desktop, Cursor, Windsurf, ChatGPT, or any MCP client
@@ -78,7 +78,7 @@ Rug Munch Intelligence (RMI) is the most comprehensive crypto security & intelli
 ### Raw HTTP
 
 ```bash
-# List all 210 tools in OpenAI format
+# List all 70+ security engines in OpenAI format
 curl https://rugmunch.io/api/v1/x402-tools/openai-tools
 
 # Free trial call — no payment needed
@@ -103,7 +103,7 @@ curl -X POST https://rugmunch.io/api/v1/x402-tools/rugshield \
 
 ## Discovery Endpoints
 
-All endpoints return the full 210-tool catalog in their respective format:
+All endpoints return the full 70+ security-engine catalog in their respective format:
 
 | Endpoint | Format |
 |:---|:---|
@@ -133,7 +133,7 @@ The SENTINEL suite provides 9 specialized security scanner modules that can run 
 
 ## Payment Facilitators
 
-8 facilitators across 13 chains:
+8 facilitators across 13 payment rails:
 
 1. 🪙 **Coinbase CDP** — Base, Solana, Ethereum, Polygon (USDC)
 2. 🤖 **PayAI** — Base, Solana (USDC, deferred settlement)

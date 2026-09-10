@@ -39,7 +39,7 @@ Use these details for all directory submissions:
 
 ```
 Name: Rug Munch Intelligence
-Short Description: 210 crypto intelligence tools across 13 blockchains. Scam detection, wallet forensics, whale tracking, contract auditing, market analysis. Free trials + x402 micropayments. 8 payment facilitators. AI-native MCP server.
+Short Description: 70+ crypto security engines across 16 chains. Scam detection, wallet forensics, whale tracking, contract auditing, market analysis. Free trials + x402 micropayments. 8 payment facilitators. AI-native MCP server.
 MCP Endpoint: https://rugmunch.io/mcp
 MCP Transport: HTTP (Streamable)
 Discovery: https://rugmunch.io/.well-known/mcp.json
@@ -55,7 +55,7 @@ License: Proprietary
 
 Categories: Security, Intelligence, Market, Analysis, Social, Launchpad, Forensics, DeFi, NFT
 Chains: Solana, Base, Ethereum, BSC, Arbitrum, Optimism, Polygon, Avalanche, Fantom, Gnosis, TRON, Bitcoin, SEPA
-Pricing: Free trials (1-5 calls/tool). $0.01-$0.40/call via x402. Pay with USDC, USDT, BTC, EUR on 13 chains.
+Pricing: Free trials (1-5 calls/tool). $0.01-$0.40/call via x402. Pay with USDC, USDT, BTC, EUR on 13 payment rails.
 Facilitators: Coinbase CDP, PayAI, Cloudflare x402, EIP-7702, TRON Self-Verify, Bitcoin Self-Verify, AsterPay, x402-rs
 ```
 
@@ -96,7 +96,7 @@ Before submitting to each directory, verify:
 - [x] Logo accessible at `https://rugmunch.io/logo.png`
 - [x] Documentation page live at `https://rugmunch.io/docs/mcp`
 - [x] Free trials work without authentication
-- [x] All 210 tools appear in discovery endpoint
+- [x] All 70+ security engines appear in discovery endpoint
 - [x] Server responds to MCP `tools/list` method
 - [x] Smithery listing is live and verified
 - [ ] Glama listing is live and verified

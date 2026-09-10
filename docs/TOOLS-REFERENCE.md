@@ -1,6 +1,6 @@
 # Rug Munch Intelligence — Complete Tool Reference
 
-> **210 tools · 13 blockchains · $0.01–$0.40/call · Free trials on every tool**
+> **70+ security engines · 16 chains · $0.01–$0.40/call · Free trials on every tool**
 
 ---
 
@@ -12,7 +12,7 @@
 **Price: $0.05 | Free trials: 2**
 Simulates buy and sell transactions to verify you can actually sell a token. Tests transfer taxes, sell locks, blacklists, and trap mechanisms. Essential before aping into any new token.
 - **Detects:** Buy-only mechanics, 99% sell tax, transfer pausability, blacklist traps
-- **Chains:** All 13 supported chains
+- **Chains:** 16 indexed chains (14 EVM + Solana + Tron)
 
 ### `rug_pull_predictor` — Rug Pull Predictor
 **Price: $0.10 | Free trials: 1**
@@ -662,12 +662,12 @@ Six discovery and tool-format endpoints are available:
 | Gemini | Function declarations | `GET /api/v1/x402-tools/gemini-tools` |
 | LangChain | Tool schema | `GET /api/v1/x402-tools/langchain-tools` |
 
-All endpoints return the complete list of **210 tools** in their respective formats.
+All endpoints return the complete list of **70+ security engines** in their respective formats.
 
 ---
 
 ## Payment
 
 All tools support free trials (1-5 calls) then x402 micropayments.
-Pay with USDC on 13 chains, USDT on TRON/BSC, BTC, or EUR via SEPA.
+Pay with USDC on 13 payment rails, USDT on TRON/BSC, BTC, or EUR via SEPA.
 Full refund if tool returns no data within 48 hours.
