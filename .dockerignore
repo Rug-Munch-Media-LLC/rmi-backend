@@ -53,6 +53,8 @@ PRICING_*.md
 PRODUCT.md
 *.md
 README*
+# pyproject.toml declares readme = DESIGN.md (needed by pip install -e .)
+!DESIGN.md
 
 # IDE / Editor configs
 .vscode/
