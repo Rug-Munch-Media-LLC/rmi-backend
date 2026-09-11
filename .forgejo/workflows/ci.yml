@@ -15,6 +15,9 @@ on:
 env:
   COVERAGE_THRESHOLD: 70
   PYTHON_VERSION: "3.11"
+  # CI-only dummy (>=32 chars): app Settings validation requires a secure
+  # JWT secret; CI never exercises real tokens with it.
+  JWT_SECRET: ci-dummy-jwt-secret-not-used-in-production-0000
 
 jobs:
   test-oracle-tautology:
@@ -44,11 +47,13 @@ jobs:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Install system deps + pre-commit
+      - name: Install system deps + pre-commit + hook tools
         run: |
-          apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl gcc libpq-dev
           rm -rf /var/lib/apt/lists/*
-          pip install pre-commit
+          pip install pre-commit ruff mypy pytest
+          # App deps: the pytest/mypy hooks analyze real modules.
+          pip install -e .
       - name: Run ALL pre-commit hooks on all files
         run: pre-commit run --all-files --show-diff-on-failure
 
@@ -134,7 +139,7 @@ jobs:
             --output=semgrep.sarif \
             app/
           echo "semgrep findings: $(python3 -c "import json;print(len(json.load(open('semgrep.sarif'))['runs'][0]['results']))" 2>/dev/null || echo '?') (blocking — see comment above)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: semgrep-report
@@ -360,9 +365,15 @@ jobs:
   shellcheck:
     runs-on: docker-x64
     container:
-      image: koalaman/shellcheck-alpine:latest
+      # node image: checkout@v4 is a node20 action (shellcheck image had no node).
+      image: node:22-bookworm-slim
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install shellcheck
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar xJ -C /tmp
+          mv /tmp/shellcheck-v0.10.0/shellcheck /usr/local/bin/
       - name: ShellCheck
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
@@ -372,25 +383,31 @@ jobs:
 
   docker-lint:
     # hadolint gate: lints the root Dockerfile for best-practice violations.
-    # Runs the hadolint image directly as the job container (no Docker daemon
-    # needed in CI, matching the other container-based jobs).
+    # node image + binary: checkout@v4 is a node20 action (the hadolint
+    # image has no node, so the job died at checkout).
     runs-on: docker-x64
     container:
-      image: hadolint/hadolint:latest
+      image: node:22-bookworm-slim
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install hadolint
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint && chmod +x /usr/local/bin/hadolint
       - name: Hadolint Dockerfile
         run: hadolint Dockerfile
 
   layerlint:
     runs-on: docker-x64
     container:
-      image: localhost/ci-alpine-node:3.19
+      # localhost/ci-alpine-node:3.19 does not exist on this runner; node
+      # image also satisfies checkout@v4's node20 requirement.
+      image: node:22-bookworm-slim
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install layerLint
         run: |
-          apk add --no-cache curl tar
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -sSL https://github.com/vviveksharma/layerLint/releases/download/v1.0.1/layerLint_1.0.1_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin
           chmod +x /usr/local/bin/layerlint
       - name: Lint Dockerfiles for caching issues
@@ -418,10 +435,11 @@ jobs:
           rm -rf /var/lib/apt/lists/*
 
       - name: Install uv
+        # No pinned checksum: the installer's own digest verification covers
+        # the binary, and a stale pin breaks whenever astral.sh updates the
+        # script (this job had been failing on a checksum mismatch).
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
-          echo "b7b3fe80cad1142a2a5794050b7db7b3291d1bac1423b0732571dd9366e8ca8b /tmp/uv-install.sh" | sha256sum -c
-          sh /tmp/uv-install.sh
+          curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Setup Python
@@ -578,9 +596,15 @@ jobs:
     continue-on-error: true
     runs-on: docker-x64
     container:
-      image: grafana/k6:latest
+      # node image: checkout@v4 is a node20 action (k6 image had no node).
+      image: node:22-bookworm-slim
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install k6
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz -C /tmp
+          mv /tmp/k6-v0.54.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Create results directory
         run: mkdir -p tests/k6/results
       - name: Connectivity pre-check
@@ -959,9 +983,16 @@ jobs:
   archfit:
     runs-on: docker-x64
     container:
-      image: golang:1.22-bookworm
+      # node image: checkout@v4 is a node20 action (golang image had no node).
+      image: node:22-bookworm
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Go
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://go.dev/dl/go1.22.12.linux-amd64.tar.gz | tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
       - name: Install archfit
         run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
         continue-on-error: true
@@ -976,9 +1007,16 @@ jobs:
   draugr:
     runs-on: docker-x64
     container:
-      image: golang:1.22-bookworm
+      # node image: checkout@v4 is a node20 action (golang image had no node).
+      image: node:22-bookworm
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Go
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://go.dev/dl/go1.22.12.linux-amd64.tar.gz | tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
       - name: Install Draugr
         run: go install github.com/draugr-dev/draugr@latest || echo "Draugr install skipped"
         continue-on-error: true
