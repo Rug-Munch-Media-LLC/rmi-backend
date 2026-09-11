@@ -82,6 +82,18 @@ tags = ["rmi", "critical"]
 
 [allowlist]
 description = "Build artifacts + specific known false positives (no blanket directory excludes)"
+commits = [
+  # Historical findings remediated in the working tree (verified clean
+  # 2026-09-11 via --no-git). Scoped to these commits only so future
+  # findings are still caught.
+  "03420e25913b4b284c00ca44ab752e0e9914e721",  # admin fleet tooling internal IPs
+  "07313ecac1df2bc35615bf69e93e483c2593f27f",  # docs internal IPs
+  "1ee71b603b97b9a8c1e6058776525a469c313508",  # rugmaps_ai internal IP
+  "3bebd2b29795e0ca3824df8362d82bf28ec69038",  # kv_migration test fixture
+  "729c3ba22633b8252d4445e2d0a739557e5878ba",  # webshare gopass ref
+  "bbb9a9291d7a6e578c250972cd5a8e3ac6a5e0c6",  # admin fleet internal IPs
+  "bde2f3a97dd4243542d6b0f12761c743944214c9",  # TODO/AGENTS internal IPs
+]
 paths = [
   # Pre-commit methodology check: detection patterns (scanner, not leak)
   '''scripts/pre-commit-methodology-check\.sh''',
