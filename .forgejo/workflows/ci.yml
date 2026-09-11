@@ -45,6 +45,7 @@ jobs:
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
+      options: --volume /srv/work/repos/standards:/workspace/RugMunchMedia/standards:ro
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + pre-commit + hook tools
@@ -425,6 +426,7 @@ jobs:
       # python:3.11-slim has no node -> "exec: node: not found" in checkout
       # post-step. Keep in sync with env.PYTHON_VERSION below.
       image: nikolaik/python-nodejs:python3.11-nodejs22
+      options: --volume /srv/work/repos/standards:/workspace/RugMunchMedia/standards:ro
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -1062,6 +1064,7 @@ jobs:
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
+      options: --volume /srv/work/repos/standards:/workspace/RugMunchMedia/standards:ro
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
