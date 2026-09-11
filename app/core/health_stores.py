@@ -192,12 +192,20 @@ async def _check_clickhouse() -> dict[str, Any]:
 
 
 async def _check_minio() -> dict[str, Any]:
+    # MinIO is an optional store (B2 is the primary object store). When not
+    # deployed, mark as "unavailable" so it doesn't trigger degraded status.
+    if not os.getenv("MINIO_URL"):
+        return {
+            "healthy": False,
+            "status": "unavailable",
+            "details": {"reason": "MINIO_URL not set — B2 is the object store"},
+        }
     try:
         client = await _get_http_client()
         resp = await client.get(f"{MINIO_URL.rstrip(chr(47))}/minio/health/live")
         return {"healthy": resp.status_code == 200, "details": {"status_code": resp.status_code}}
     except Exception as e:
-        return {"healthy": False, "error": str(e)[:200]}
+        return {"healthy": False, "status": "unavailable", "error": str(e)[:200]}
 
 
 async def _check_reth() -> dict[str, Any]:
