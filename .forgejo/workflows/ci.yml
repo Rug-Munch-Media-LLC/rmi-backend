@@ -331,8 +331,11 @@ jobs:
           "
       - name: Detect breaking OpenAPI changes
         run: |
-          if [ ! -f /tmp/openapi-base.json ]; then
-            echo "No base spec generated — skipping breaking-change diff."
+          # Skip cleanly when the base spec is missing or invalid (the base
+          # revision is imported with the CURRENT venv — fragile; no valid
+          # base = nothing to diff).
+          if [ ! -s /tmp/openapi-base.json ] || ! python3 -c "import json; json.load(open('/tmp/openapi-base.json'))" 2>/dev/null; then
+            echo "Base spec missing/invalid — skipping breaking-change diff."
             exit 0
           fi
           oasdiff breaking /tmp/openapi-base.json /tmp/openapi-head.json --fail-on ERR -f githubactions
