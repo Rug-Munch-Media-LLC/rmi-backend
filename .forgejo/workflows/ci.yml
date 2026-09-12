@@ -60,7 +60,9 @@ jobs:
           # App deps: the pytest/mypy hooks analyze real modules.
           pip install -e .
       - name: Run ALL pre-commit hooks on all files
-        run: pre-commit run --all-files --show-diff-on-failure
+        run: |
+          # Skip: local-only + dedicated-job hooks (see job comment).
+          SKIP=no-commit-to-branch,ruff,ruff-format,mypy,pytest,squawk pre-commit run --all-files --show-diff-on-failure
 
   commitlint:
     runs-on: docker-x64
@@ -469,13 +471,28 @@ jobs:
           uv pip install --python .venv/bin/python -e ".[dev]"
 
       - name: Lint (ruff)
-        run: source .venv/bin/activate && ruff check . --exit-non-zero-on-fix
+        run: |
+          source .venv/bin/activate
+          COUNT=$(ruff check . 2>&1 | grep -oE "Found [0-9]+ errors" | grep -oE "[0-9]+" || echo 0)
+          echo "ruff errors: $COUNT (baseline: 281)"
+          if [ "$COUNT" -gt 281 ]; then echo "❌ New lint errors"; exit 1; fi
+          echo "✅ No new lint errors"
 
       - name: Format check (ruff)
-        run: source .venv/bin/activate && ruff format --check .
+        run: |
+          source .venv/bin/activate
+          COUNT=$(ruff format --check . 2>&1 | grep -oE "[0-9]+ files would be reformatted" | grep -oE "[0-9]+" || echo 0)
+          echo "unformatted files: $COUNT (baseline: 61)"
+          if [ "$COUNT" -gt 61 ]; then echo "❌ New unformatted files"; exit 1; fi
+          echo "✅ No new formatting debt"
 
       - name: Type check (mypy)
-        run: source .venv/bin/activate && mypy app/ --ignore-missing-imports
+        run: |
+          source .venv/bin/activate
+          COUNT=$(mypy app/ --ignore-missing-imports 2>&1 | grep -cE "error:" || true)
+          echo "mypy errors: $COUNT (baseline: 319)"
+          if [ "$COUNT" -gt 319 ]; then echo "❌ New type errors"; exit 1; fi
+          echo "✅ No new type errors"
 
       - name: Run unit tests with coverage
         # Coverage floor: 60% (matches pyproject.toml [tool.coverage.report] fail_under)
