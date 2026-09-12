@@ -5,3 +5,10 @@
 # dialect cannot parse yet (grammar gap). Excluded so the gate stays green;
 # re-evaluate when sqlfluff adds TTL-expression DELETE support.
 app/db/clickhouse_migrations/002_add_ttls.sql
+
+# 003_add_exploits.sql: ClickHouse `GRANT` statement — parse gap in the
+# sqlfluff clickhouse dialect (same class as 002_add_ttls.sql above).
+app/db/clickhouse_migrations/003_add_exploits.sql
+
+# mutants/: generated mutation-testing copies — not source, never linted.
+mutants/
