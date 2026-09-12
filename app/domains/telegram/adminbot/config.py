@@ -93,15 +93,19 @@ def _get_allowed_users() -> set[int]:
 # trusting a baked-in id.
 OWNER_IDS: set[int] = _get_allowed_users()
 
+
 # ── Startup guard ──────────────────────────────────────────────────────────
-if not ADMIN_BOT_TOKEN:
-    logger.error("FATAL: ADMIN_BOT_TOKEN environment variable is not set.")
-    sys.exit(1)
-
-if ADMIN_CHAT_ID <= 0:
-    logger.error("FATAL: ADMIN_CHAT_ID environment variable must be set to a positive integer.")
-    sys.exit(1)
-
-if not OWNER_IDS:
-    logger.error("FATAL: TELEGRAM_ALLOWED_USERS environment variable must list at least one owner id.")
-    sys.exit(1)
+# Callable, NOT module-level: importing this module must never exit (tests,
+# tooling, CI collection). The bot entrypoint calls validate_startup() before
+# polling; fail-closed semantics are unchanged at runtime.
+def validate_startup() -> None:
+    """Exit with a logged error when required admin config is missing."""
+    if not ADMIN_BOT_TOKEN:
+        logger.error("FATAL: ADMIN_BOT_TOKEN environment variable is not set.")
+        sys.exit(1)
+    if ADMIN_CHAT_ID <= 0:
+        logger.error("FATAL: ADMIN_CHAT_ID environment variable must be set to a positive integer.")
+        sys.exit(1)
+    if not OWNER_IDS:
+        logger.error("FATAL: TELEGRAM_ALLOWED_USERS environment variable must list at least one owner id.")
+        sys.exit(1)

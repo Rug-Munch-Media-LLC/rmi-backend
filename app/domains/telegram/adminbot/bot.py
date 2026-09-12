@@ -143,6 +143,9 @@ async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
 
 def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
+    from app.domains.telegram.adminbot.config import validate_startup
+
+    validate_startup()  # fail-closed: missing admin config exits here, not at import
     # Force IPv4 for api.telegram.org: this host's IPv6 route is broken and
     # resolves AAAA first, which caused repeated Bad Gateway / timeout errors
     # on every get_updates poll (same fix the main rugmunchbot applies in its
