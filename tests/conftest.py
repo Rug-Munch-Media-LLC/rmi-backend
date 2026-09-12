@@ -20,6 +20,19 @@ Registers Hypothesis profiles:
 
 import os
 
+# ── Auth env defaults (BEFORE any app import) ────────────────────────
+# get_settings() is @lru_cache(maxsize=1): the FIRST import in a worker
+# process wins, and module import order varies under xdist. Without these
+# set process-wide, tests/test_middleware.py's auth assertions saw stale
+# settings (401 expectations vs a differently-configured app) depending on
+# what ran first. setdefault keeps CI-provided values intact.
+os.environ.setdefault("JWT_SECRET", "a" * 32)
+os.environ.setdefault("RMI_JWT_SECRET", "a" * 32)
+os.environ.setdefault("RMI_JWT_ALGORITHM", "HS256")
+os.environ.setdefault("ENVIRONMENT", "dev")
+os.environ.setdefault("RMI_AUTH_TOKEN", "test-auth-token-32-chars-long!!")
+os.environ.setdefault("DEV_BYPASS_AUTH", "false")
+
 collect_ignore: list[str] = []
 collect_ignore_glob = ["manual/*"]
 
