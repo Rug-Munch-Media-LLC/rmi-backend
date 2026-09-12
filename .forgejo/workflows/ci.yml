@@ -499,7 +499,7 @@ jobs:
         # Tests MUST pass — blocks the pipeline on failure or insufficient coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ -x -q --tb=short -m "not integration" \
+          pytest tests/ -x -q --tb=short -m "not integration and not benchmark" \
             --cov=app \
             --cov-report=term \
             --cov-report=xml:coverage.xml \
