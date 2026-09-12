@@ -126,7 +126,11 @@ class TestClientWiring:
 
 
 class TestProxyFailureRetry:
-    async def test_403_triggers_mark_failed_and_direct_retry(self):
+    async def test_403_triggers_mark_failed_and_direct_retry(self, reload_gmgn):
+        # Hermetic module state: without the reload this test inherited
+        # whatever GMGN_API_KEY state a previous test in the worker left
+        # (order-dependent under xdist; failed in CI, passed in isolation).
+        reload_gmgn("test-key-123")
         proxy_client = AsyncMock()
         resp_403 = MagicMock()
         resp_403.status_code = 403
