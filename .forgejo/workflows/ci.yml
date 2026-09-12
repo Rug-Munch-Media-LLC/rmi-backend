@@ -342,7 +342,7 @@ jobs:
           # Skip cleanly when the base spec is missing or invalid (the base
           # revision is imported with the CURRENT venv — fragile; no valid
           # base = nothing to diff).
-          if [ ! -s /tmp/openapi-base.json ] || ! python3 -c "import json; json.load(open('/tmp/openapi-base.json'))" 2>/dev/null; then
+          if [ ! -s /tmp/openapi-base.json ] || ! python3 -c "import json; d=json.load(open('/tmp/openapi-base.json')); assert isinstance(d, dict) and 'openapi' in d" 2>/dev/null; then
             echo "Base spec missing/invalid — skipping breaking-change diff."
             exit 0
           fi
@@ -510,7 +510,7 @@ jobs:
         # Tests MUST pass — blocks the pipeline on failure or insufficient coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ -x -q --tb=short -m "not integration and not benchmark" \
+          pytest tests/ -x -q --tb=short -m "not integration and not benchmark" -n 4 --max-worker-restart=3 \
             --cov=app \
             --cov-report=term \
             --cov-report=xml:coverage.xml \
