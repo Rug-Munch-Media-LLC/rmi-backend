@@ -12,7 +12,7 @@ hex_address = st.text(
 
 
 @given(address=hex_address)
-@settings(max_examples=500, deadline=1000)
+@settings(max_examples=500)
 def test_eth_address_validation_never_crashes(address: str) -> None:
     """ETH address validation should never crash on any hex string."""
     try:
@@ -31,7 +31,7 @@ def test_eth_address_validation_never_crashes(address: str) -> None:
     chain=st.sampled_from(["eth", "bsc", "polygon", "arbitrum", "solana", "lightning"]),
     address=st.text(min_size=1, max_size=200),
 )
-@settings(max_examples=300, deadline=2000)
+@settings(max_examples=300)
 def test_multi_chain_validation_resilient(chain: str, address: str) -> None:
     """Multi-chain address validation must handle any chain+address combo."""
     try:
@@ -49,7 +49,7 @@ def test_multi_chain_validation_resilient(chain: str, address: str) -> None:
 @given(
     address=st.text(alphabet="0123456789abcdefABCDEFx:", min_size=1, max_size=100),
 )
-@settings(max_examples=500, deadline=1000)
+@settings(max_examples=500)
 def test_liquidation_address_validator_never_crashes(address: str) -> None:
     """Liquidation analyzer's _validate_address must handle any input."""
     try:
@@ -65,7 +65,7 @@ def test_liquidation_address_validator_never_crashes(address: str) -> None:
 
 
 @given(address=st.text(min_size=1, max_size=200))
-@settings(max_examples=200, deadline=1000)
+@settings(max_examples=200)
 def test_bundler_detector_validate_never_crashes(address: str) -> None:
     """Bundler detector's _validate_address must handle any input."""
     try:
