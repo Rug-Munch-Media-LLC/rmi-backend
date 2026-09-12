@@ -490,11 +490,6 @@ jobs:
         run: |
           uv pip install --python .venv/bin/python -r requirements.txt
           uv pip install --python .venv/bin/python -e ".[dev]"
-          # Public bot package: app/routers/admin/bot_admin.py imports
-          # rugmunchbot.admin_state at module level; without it the admin
-          # sub-router is skipped (fault isolation) and /api/v1/admin/*
-          # returns 404, breaking the auth middleware tests.
-          uv pip install --python .venv/bin/python --no-deps "git+https://git.rugmunch.io/RugMunchMedia/rugmunchbot.git"
 
       - name: Lint (ruff)
         run: |

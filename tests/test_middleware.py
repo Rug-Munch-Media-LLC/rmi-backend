@@ -71,26 +71,42 @@ class TestAuthMiddleware:
             resp = await client.get(path)
             assert resp.status_code in (200, 500, 503), f"{path} should be public"
 
+    # The bot route mounts only when the rugmunchbot package is present
+    # (fault-isolated sub-router); CI envs without it 404. Fall back to an
+    # always-mounted admin sibling so the 401 contract is still verified.
+    ADMIN_PROTECTED_ROUTES = ("/api/v1/admin/bot/status", "/api/v1/admin/processes")
+
+    async def _first_mounted(self, client):
+        for path in self.ADMIN_PROTECTED_ROUTES:
+            resp = await client.get(path)
+            if resp.status_code != 404:
+                return resp
+        raise AssertionError("no protected admin route mounted in this env")
+
     async def test_protected_path_requires_auth(self, client):
-        """Protected endpoint (bot admin) returns 401 without API key."""
-        resp = await client.get("/api/v1/admin/bot/status")
+        """Protected endpoint (admin) returns 401 without API key."""
+        resp = await self._first_mounted(client)
         assert resp.status_code == 401
 
     async def test_protected_path_valid_auth(self, client):
         """Protected endpoint succeeds with valid X-API-Key."""
-        resp = await client.get(
-            "/api/v1/admin/bot/status",
-            headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
-        )
-        # May be 404 or 200 depending on router registration — but not 401
+        resp = None
+        for path in self.ADMIN_PROTECTED_ROUTES:
+            resp = await client.get(
+                path,
+                headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+            )
+            if resp.status_code != 404:
+                break
+        assert resp is not None
         assert resp.status_code != 401
 
     async def test_protected_path_invalid_auth(self, client):
         """Protected endpoint returns 401 with invalid key."""
-        resp = await client.get(
-            "/api/v1/admin/bot/status",
-            headers={"X-API-Key": "wrong-key"},
-        )
+        for path in self.ADMIN_PROTECTED_ROUTES:
+            resp = await client.get(path, headers={"X-API-Key": "wrong-key"})
+            if resp.status_code != 404:
+                break
         assert resp.status_code == 401
 
     async def test_protected_path_empty_auth(self, client):
