@@ -650,15 +650,21 @@ jobs:
     continue-on-error: true
     runs-on: docker-x64
     container:
-      # node image: checkout@v4 is a node20 action (k6 image had no node).
-      image: node:22-bookworm-slim
+      # Standard python+node image: actions/checkout is a node action and
+      # cannot run inside grafana/k6 (no node -> exitcode 127). k6 itself
+      # is installed below from the official static binary (v2.2.0).
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install k6
         run: |
-          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-          curl -sSfL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz -C /tmp
-          mv /tmp/k6-v0.54.0-linux-amd64/k6 /usr/local/bin/k6
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -sSL -o /tmp/k6.tar.gz \
+            https://github.com/grafana/k6/releases/download/v2.2.0/k6-v2.2.0-linux-amd64.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          mv /tmp/k6-v2.2.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
       - name: Create results directory
         run: mkdir -p tests/k6/results
       - name: Connectivity pre-check
@@ -1161,3 +1167,15 @@ jobs:
         run: |
           pip install schemathesis
           st run --url "${SCHEMA_URL:-http://rmi-backend:8000/openapi.json}" --checks all --max-examples 50 || echo "::warning::API contract violations found"
+
+  structure-gate:
+    # Anti-god-module + anti-monkeypatch ratchet (baseline:
+    # scripts/structure-baseline.json). Shrink freely; growth or NEW
+    # offenders fail the build. Regenerate deliberately: --update-baseline.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Structure gate
+        run: python3 scripts/check-code-structure.py
