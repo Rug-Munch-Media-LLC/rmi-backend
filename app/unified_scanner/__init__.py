@@ -1,63 +1,20 @@
+"""DEPRECATED shim (2026-09-16) — wallet scanner moved into the canonical package.
+
+Real implementation: ``app.domains.scanner.engines.wallet_scan``.
+Path-preserving (re-exports + submodule aliases) so existing imports keep
+working (protection.py, streaming_rag.py, tests) — including deep imports
+like ``from app.unified_scanner.helius import ...`` and patch semantics
+(the aliases are the SAME module objects). Remove once consumers migrate.
 """
-Unified Wallet Scanner + Trending Engine
-=========================================
-Split from unified_scanner.py into focused modules.
 
-Backward-compatible re-exports.
-"""
+from __future__ import annotations
 
-from app.unified_scanner.cache import _cache_get, _cache_set
-from app.unified_scanner.helius import (
-    _fetch_etherscan_wallet,
-    _fetch_helius_wallet,
-    _fetch_moralis_wallet,
-    _get_helius_key,
-    _helius_call,
-)
-from app.unified_scanner.models import CHAINS, WalletRiskFactors
-from app.unified_scanner.providers import (
-    _calculate_basic_pnl,
-    _check_hapi_risk,
-    _check_honeydb_ip,
-    _check_misttrack_light,
-    _check_trm_sanctions_wallet,
-    _close_data_flywheel,
-    _fetch_sentinel_labels,
-    _fetch_wallet_memory,
-    _resolve_entity_free,
-    _scan_held_tokens,
-    _trace_funding_source,
-)
-from app.unified_scanner.scanner import scan_wallet
-from app.unified_scanner.trending import (
-    LAST_KNOWN_LAUNCHES,
-    get_new_launches,
-    get_trending_tokens,
-)
+import importlib
+import sys
 
-__all__ = [
-    "CHAINS",
-    "LAST_KNOWN_LAUNCHES",
-    "WalletRiskFactors",
-    "_cache_get",
-    "_cache_set",
-    "_calculate_basic_pnl",
-    "_check_hapi_risk",
-    "_check_honeydb_ip",
-    "_check_misttrack_light",
-    "_check_trm_sanctions_wallet",
-    "_close_data_flywheel",
-    "_fetch_etherscan_wallet",
-    "_fetch_helius_wallet",
-    "_fetch_moralis_wallet",
-    "_fetch_sentinel_labels",
-    "_fetch_wallet_memory",
-    "_get_helius_key",
-    "_helius_call",
-    "_resolve_entity_free",
-    "_scan_held_tokens",
-    "_trace_funding_source",
-    "get_new_launches",
-    "get_trending_tokens",
-    "scan_wallet",
-]
+from app.domains.scanner.engines.wallet_scan import *  # noqa: F403
+from app.domains.scanner.engines.wallet_scan import __all__ as __all__
+
+_SUBMODULES = ("cache", "helius", "models", "providers", "scanner", "trending")
+for _name in _SUBMODULES:
+    sys.modules[f"{__name__}.{_name}"] = importlib.import_module(f"app.domains.scanner.engines.wallet_scan.{_name}")

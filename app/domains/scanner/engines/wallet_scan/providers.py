@@ -366,7 +366,7 @@ async def _trace_funding_source(address: str, chain: str) -> dict[str, Any]:
     """Trace initial funding source using on-chain transaction history."""
     try:
         if chain == "solana":
-            from app.unified_scanner.helius import _get_helius_key
+            from app.domains.scanner.engines.wallet_scan.helius import _get_helius_key
 
             key = _get_helius_key()
             if not key:
