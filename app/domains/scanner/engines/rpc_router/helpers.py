@@ -17,7 +17,21 @@ logger = get_logger(__name__)
 
 
 class HelpersMixin:
-    """Shared plumbing for RpcRouter (mixed in)."""
+    """Shared plumbing for RpcRouter (mixed in).
+
+    Attribute contract: these are initialised by ``_init_router_state`` (called
+    from ``RpcRouter.__init__``); declared here so the mixin type-checks
+    independently of the composing class.
+    """
+
+    _evm_health: dict[str, dict[str, EndpointHealth]]
+    _solana_health: dict[str, EndpointHealth]
+    _client: httpx.AsyncClient | None
+    _rr_offset: dict[str, int]
+    _quota: dict[str, list[float]]
+    _call_timeout: float
+    freemium_escalations: int
+    _last_escalation_log: dict[str, float]
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the shared httpx client."""
