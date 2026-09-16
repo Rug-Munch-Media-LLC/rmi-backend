@@ -550,7 +550,6 @@ async def test_deny_attempt_alerts_owner() -> None:
     _, kwargs = deny.call_args
     assert kwargs["surface"] == "cb:main"
 
-
 async def test_unknown_data_is_silent(admin_mocks) -> None:
     query = await _run("zzz_unknown")
     assert query.answered
