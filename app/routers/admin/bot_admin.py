@@ -26,18 +26,38 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from rugmunchbot.admin_state import (  # Phase 3: own repo
-    ban_user,
-    banned_user_ids,
-    enqueue_broadcast,
-    get_bot_state,
-    get_command_stats,
-    get_daily_analytics,
-    is_user_banned,
-    list_broadcasts,
-    set_bot_state,
-    unban_user,
-)
+
+try:  # Phase 3: bot code lives in its own repo (mounted at /srv/bot-src)
+    from rugmunchbot.admin_state import (
+        ban_user,
+        banned_user_ids,
+        enqueue_broadcast,
+        get_bot_state,
+        get_command_stats,
+        get_daily_analytics,
+        is_user_banned,
+        list_broadcasts,
+        set_bot_state,
+        unban_user,
+    )
+except ImportError:  # pragma: no cover — bot repo not mounted (tests/CI): degrade gracefully
+
+    def _bot_unavailable(*_args: Any, **_kwargs: Any) -> Any:
+        """Stub used only when the standalone bot repo is not importable."""
+        return None
+
+    from typing import cast as _cast
+
+    ban_user = _cast("Any", _bot_unavailable)
+    banned_user_ids = _cast("Any", _bot_unavailable)
+    enqueue_broadcast = _cast("Any", _bot_unavailable)
+    get_bot_state = _cast("Any", _bot_unavailable)
+    get_command_stats = _cast("Any", _bot_unavailable)
+    get_daily_analytics = _cast("Any", _bot_unavailable)
+    is_user_banned = _cast("Any", _bot_unavailable)
+    list_broadcasts = _cast("Any", _bot_unavailable)
+    set_bot_state = _cast("Any", _bot_unavailable)
+    unban_user = _cast("Any", _bot_unavailable)
 
 logger = logging.getLogger(__name__)
 

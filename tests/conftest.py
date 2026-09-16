@@ -78,7 +78,7 @@ os.environ.setdefault("ENVIRONMENT", "dev")
 # tests (contract, security, middleware) order/environment-dependent.
 os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 os.environ["RMI_INTERNAL_KEY"] = "test-internal-key-32-chars-long!!!"
-os.environ["JWT_SECRET"] = "test-jwt-secret-key-thats-32-chars-long!"
+os.environ["JWT_SECRET"] = "a" * 32
 
 # Force-assign (not setdefault) the x402 facilitator URL to the mocked
 # coffer.test base (canonical value: tests/security/conftest.py). app.config
