@@ -554,8 +554,6 @@ async def test_deny_attempt_alerts_owner() -> None:
 async def test_unknown_data_is_silent(admin_mocks) -> None:
     query = await _run("zzz_unknown")
     assert query.answered
-    # 2026-09-16: unknown callback_data now produces a visible fallback
-    # ("🚧 Unhandled action") so dead buttons are impossible to miss.
     assert len(query.edits) == 1
     assert "Unhandled action" in query.edits[0]
     for key, mk in admin_mocks.items():
