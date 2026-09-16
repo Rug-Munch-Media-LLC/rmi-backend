@@ -337,7 +337,7 @@ def _compute_wallet_risk(factors: WalletRiskFactors, data_sources: list[str]) ->
     return flags
 
 
-_bg_tasks: set = set()
+_bg_tasks: set[asyncio.Task[Any]] = set()
 
 
 def _fire_and_track(coro) -> None:
