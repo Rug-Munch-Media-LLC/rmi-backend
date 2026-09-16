@@ -203,7 +203,7 @@ async def rugcharts_plugins_all(
 
     async def _risk_heatmap() -> dict[str, Any]:
         pair_info = await _fetch_pair_info(token_address, chain)
-        candles = await _fetch_ohlcv_clickhouse(token_address, chain, 168)
+        candles = await _fetch_ohlcv_clickhouse(token_address, chain, "1h", 168)
         vol_auth = _compute_volume_authenticity(pair_info, candles)
         return _compute_rug_score(pair_info, vol_auth)
 
@@ -215,7 +215,7 @@ async def rugcharts_plugins_all(
 
     async def _wash_trading() -> dict[str, Any]:
         pair_info = await _fetch_pair_info(token_address, chain)
-        candles = await _fetch_ohlcv_clickhouse(token_address, chain, 168)
+        candles = await _fetch_ohlcv_clickhouse(token_address, chain, "1h", 168)
         return _compute_volume_authenticity(pair_info, candles)
 
     async def _token_health() -> dict[str, Any]:
