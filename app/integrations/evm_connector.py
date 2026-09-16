@@ -13,7 +13,7 @@ Includes:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.databus.vault import resolve_key
@@ -24,10 +24,10 @@ try:
     from web3 import HTTPProvider, Web3
 
     try:
-        from web3.middleware import geth_poa_middleware  # web3 < v7
+        from web3.middleware import geth_poa_middleware  # type: ignore[attr-defined]  # web3 < v7
     except ImportError:
         from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware  # web3 v7+
-    from web3.types import (  # BlockNumber removed in web3 v7
+    from web3.types import (  # type: ignore[attr-defined]  # BlockNumber removed in web3 v7
         BlockNumber,
         FilterParams,
         TxParams,
@@ -38,13 +38,13 @@ try:
 except ImportError:
     logger.warning("web3.py not installed, using stub mode")
     WEB3_AVAILABLE = False
-    Web3 = None  # stub mode: shadow imported type
-    HTTPProvider = None
+    Web3 = None  # type: ignore[misc, assignment]  # stub mode: shadow imported type
+    HTTPProvider = None  # type: ignore[misc, assignment]
     geth_poa_middleware = None
-    TxParams = dict
-    Wei = int
-    BlockNumber = int
-    FilterParams = dict
+    TxParams = dict  # type: ignore[misc, assignment]
+    Wei = int  # type: ignore[misc, assignment]
+    BlockNumber = int  # type: ignore[misc, assignment]
+    FilterParams = dict  # type: ignore[misc, assignment]
 
 # ─── CHAIN CONFIGURATIONS ─────────────────────────────────────────
 
@@ -218,7 +218,7 @@ class EVMClient:
     def get_block(self, block_number: int) -> dict[str, Any] | None:
         """Get block details."""
         try:
-            return self.w3.eth.get_block(block_number)  # web3 v7 BlockData is dict-like
+            return dict(self.w3.eth.get_block(block_number))  # web3 v7 BlockData is dict-like
         except Exception as e:
             logger.error(f"Error fetching block {block_number}: {e}")
             return None
@@ -226,7 +226,7 @@ class EVMClient:
     def get_transaction(self, tx_hash: str) -> dict[str, Any] | None:
         """Get transaction details."""
         try:
-            return self.w3.eth.get_transaction(tx_hash)  # web3 v7 TxData is dict-like
+            return dict(self.w3.eth.get_transaction(cast("Any", tx_hash)))  # web3 v7 TxData is dict-like
         except Exception as e:
             logger.error(f"Error fetching tx {tx_hash}: {e}")
             return None
