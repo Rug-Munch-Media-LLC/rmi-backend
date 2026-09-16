@@ -22,6 +22,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = Path(__file__).resolve().parent / "structure-baseline.json"
@@ -89,17 +90,19 @@ def scan():
         n = len(MONKEY_RE.findall(code_only))
         if n:
             monkey[str(rel)] = n
-        # function length scan (indent-stack)
+        # function length scan (indent-stack; only def lines affect the stack)
         stack: list[tuple[int, str, int]] = []
         for i, line in enumerate(lines):
             m = DEF_RE.match(line)
-            indent = len(m.group(1)) if m else None
-            while stack and (m is None or stack[-1][0] >= indent):
+            if m is None:
+                continue
+            indent = len(m.group(1))
+            while stack and stack[-1][0] >= indent:
                 _d_indent, d_name, d_start = stack.pop()
                 length = i - d_start
                 if length > MAX_FUNC_LINES:
                     long_funcs.append(f"{rel}:{d_start + 1} {d_name} ({length} lines)")
-            if m and not line.lstrip().startswith("#"):
+            if not line.lstrip().startswith("#"):
                 stack.append((indent, m.group(2), i))
         for _d_indent, d_name, d_start in stack:
             length = len(lines) - d_start
@@ -133,9 +136,9 @@ def main() -> int:
         print(f"baseline updated: {BASELINE}")
         return 0
 
-    base = json.loads(BASELINE.read_text()) if BASELINE.exists() else {"files": {}, "monkeypatch": {}}
-    base_files = base.get("files", {})
-    base_monkey = base.get("monkeypatch", {})
+    base: dict[str, Any] = json.loads(BASELINE.read_text()) if BASELINE.exists() else {"files": {}, "monkeypatch": {}}
+    base_files: dict[str, int] = base.get("files", {})
+    base_monkey: dict[str, int] = base.get("monkeypatch", {})
 
     failures: list[str] = []
 
@@ -158,7 +161,7 @@ def main() -> int:
         gods = {f: n for f, n in files.items() if n > MAX_FILE_LINES}
         print(f"structure gate: {len(files)} files scanned | god files (grandfathered): {len(gods)}")
         for f, n in sorted(gods.items(), key=lambda kv: -kv[1]):
-            budget = base_files.get(f)
+            budget: int | None = base_files.get(f)
             print(f"  {f}: {n} lines" + (f" (budget {budget})" if budget else ""))
         if long_funcs:
             print(f"  WARN: {len(long_funcs)} function(s) > {MAX_FUNC_LINES} lines (non-blocking):")
