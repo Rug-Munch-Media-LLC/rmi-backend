@@ -17,12 +17,14 @@ import logging
 from typing import Any
 
 import httpx
+from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    TypeHandler,
     filters,
 )
 from telegram.request import HTTPXRequest
@@ -123,6 +125,34 @@ async def _ignore_non_private(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> No
     return None
 
 
+async def _log_update(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Update-level observability (group -2: runs BEFORE every gate).
+
+    Every incoming update leaves a journal trace (`journalctl -t rmiadminbot`)
+    so a "bot did nothing" report can always be answered with evidence:
+    did the update arrive? who sent it? what did it contain? which gate
+    consumed it? Never raises; never logs message BODIES (only the command
+    entity when present) so chat content stays out of the journal.
+    """
+    try:
+        user = getattr(update, "effective_user", None)
+        chat = getattr(update, "effective_chat", None)
+        cb = getattr(update, "callback_query", None)
+        msg = getattr(update, "message", None)
+        who = user.id if user is not None else "?"
+        where = chat.type if chat is not None else "?"
+        if cb is not None:
+            logger.info("update cb data=%s user=%s chat=%s", cb.data, who, where)
+        elif msg is not None:
+            text = getattr(msg, "text", None) or ""
+            command = text.split()[0][:32] if text.startswith("/") else f"<text:{len(text)}>"
+            logger.info("update msg %s user=%s chat=%s", command, who, where)
+        else:
+            logger.info("update other type=%s user=%s chat=%s", getattr(update, "update_id", "?"), who, where)
+    except Exception:  # observability must never break update processing
+        logger.debug("update logging failed", exc_info=True)
+
+
 # ═══════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════
@@ -190,6 +220,16 @@ def main() -> None:
         .post_init(_post_init)
         .post_shutdown(_post_shutdown)
         .build()
+    )
+
+    # ── Observability (group=-2: runs before every gate) ───────────────────
+    # Every incoming update leaves a journal trace so "bot did nothing" reports
+    # can always be answered with evidence: did the update arrive? who sent it?
+    # what did it contain? which gate consumed it? Never raises; never logs
+    # message bodies (only the command entity when present).
+    app.add_handler(
+        TypeHandler(Update, _log_update),
+        group=-2,
     )
 
     # ── DM-only gate (group=-1: evaluated before every group-0 handler) ──
