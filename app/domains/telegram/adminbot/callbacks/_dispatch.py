@@ -31,6 +31,7 @@ from app.domains.telegram.adminbot.callbacks import (
     _git,
     _nav,
     _ops,
+    _power,
     _server,
     _term,
 )
@@ -81,6 +82,7 @@ HANDLERS = (
     _nav.handle,
     _docker.handle,
     _ai.handle,
+    _power.handle,
     _git.handle,
     _ops.handle,
     _server.handle,

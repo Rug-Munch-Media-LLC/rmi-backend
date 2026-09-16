@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
 
+from app.domains.telegram.adminbot import owner_persona
 from app.domains.telegram.adminbot.helpers import owner_only
 
 if TYPE_CHECKING:
@@ -73,7 +74,7 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         result = await admin_ai.chat(
             user_id,
             prompt,
-            system_prompt="You are an RMI server admin assistant. Be concise and technical. Read-only mode: you cannot run commands or modify anything.",
+            system_prompt=owner_persona.ADMIN_SYSTEM_PROMPT,
         )
         if result["ok"]:
             content = result["content"][:3500]

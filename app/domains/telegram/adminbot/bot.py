@@ -89,6 +89,9 @@ from app.domains.telegram.adminbot.commands import (
     cmd_uptime,
 )
 from app.domains.telegram.adminbot.config import ADMIN_BOT_TOKEN
+from app.domains.telegram.adminbot.engine_gateway import cmd_ask, cmd_engine
+from app.domains.telegram.adminbot.power_ops import cmd_community, cmd_heavy
+from app.domains.telegram.adminbot.selftest import cmd_selftest
 from app.domains.telegram.adminbot.terminal import cmd_terminal, handle_terminal_message
 
 # ── Setup ──────────────────────────────────────────────────────────
@@ -140,6 +143,28 @@ async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     except Exception as exc:
         logger.warning("Redis listener setup failed (non-critical): %s", exc)
 
+    try:
+        from app.domains.telegram.adminbot.alerts_feed import start_alerts_feed
+
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            feed_task = loop.create_task(start_alerts_feed(app.bot))
+        else:
+            feed_task = app.create_task(start_alerts_feed(app.bot))
+        # Keep a reference so the alerts feed task is not garbage collected.
+        _listener_tasks.append(feed_task)
+    except Exception as exc:
+        logger.warning("Alerts feed setup failed (non-critical): %s", exc)
+
+
+async def _post_shutdown(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
+    """Cancel background listener tasks cleanly on shutdown."""
+    for task in _listener_tasks:
+        task.cancel()
+    for task in _listener_tasks:
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await task
+
 
 def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
@@ -158,7 +183,14 @@ def main() -> None:
         write_timeout=20,
         httpx_kwargs={"transport": transport},
     )
-    app = Application.builder().token(ADMIN_BOT_TOKEN).request(request).post_init(_post_init).build()
+    app = (
+        Application.builder()
+        .token(ADMIN_BOT_TOKEN)
+        .request(request)
+        .post_init(_post_init)
+        .post_shutdown(_post_shutdown)
+        .build()
+    )
 
     # ── DM-only gate (group=-1: evaluated before every group-0 handler) ──
     # Any message from a group/supergroup/channel is silently consumed here so
@@ -256,6 +288,13 @@ def main() -> None:
     app.add_handler(CommandHandler("admin_bot_toggle", cmd_admin_bot_toggle))
     app.add_handler(CommandHandler("admin_bot_broadcast", cmd_admin_bot_broadcast))
     app.add_handler(CommandHandler("admin_bot_broadcasts", cmd_admin_bot_broadcasts))
+
+    # ── v8: engines + power ops (P4/P5) ──
+    app.add_handler(CommandHandler("engine", cmd_engine))
+    app.add_handler(CommandHandler("ask", cmd_ask))
+    app.add_handler(CommandHandler("heavy", cmd_heavy))
+    app.add_handler(CommandHandler("community", cmd_community))
+    app.add_handler(CommandHandler("selftest", cmd_selftest))
     app.add_handler(CommandHandler("admin_bot_users", cmd_admin_bot_users))
 
     # Terminal mode — catch ALL text messages when in terminal
