@@ -11,7 +11,7 @@ import os
 # ── Test auth credentials (must be 32+ chars for JWT secret validation) ──
 TEST_RMI_AUTH_TOKEN: str = "test-auth-token-32-chars-long!!"
 TEST_INTERNAL_KEY: str = "test-internal-key-32-chars-long!!!"
-TEST_JWT_SECRET: str = "test-jwt-secret-key-thats-32-chars-long!"
+TEST_JWT_SECRET: str = "a" * 32  # aligned with tests/conftest.py canon
 TEST_X402_FACILITATOR_URL: str = "http://coffer.test"
 
 # ── Required env vars for app factory boot ──────────────────────────────
