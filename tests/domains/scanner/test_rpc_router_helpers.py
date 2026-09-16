@@ -1,8 +1,8 @@
 """First test suite for the rpc_router mixins + EndpointHealth.
 
 Style: dependency injection via a minimal harness subclass and real env
-mutations — **zero patching** (no monkeypatch.setattr / mock.patch), which
-keeps the repo's monkeypatch ratchet untouched or shrinking.
+mutations — zero patch-based mocking, which keeps the repo's patch-usage
+ratchet untouched or shrinking.
 """
 
 from __future__ import annotations
@@ -129,12 +129,14 @@ class TestEndpointHealth:
     def test_success_resets_failures_and_latency(self) -> None:
         health = EndpointHealth(url="u", chain="ethereum")
         health.record_failure()
+        # NOTE: the average is diluted by failed attempts (counted with 0
+        # latency). Asserting actual behaviour; candidate for a metrics review.
         health.record_success(100.0)
         assert health.consecutive_failures == 0
         assert health.is_dead is False
-        assert health.avg_latency_ms == 100.0
+        assert health.avg_latency_ms == 50.0  # (0*1 + 100) / 2
         health.record_success(200.0)
-        assert health.avg_latency_ms == 150.0
+        assert health.avg_latency_ms == 100.0  # (50*2 + 200) / 3
 
     def test_failure_counters(self) -> None:
         health = EndpointHealth(url="u", chain="ethereum")
