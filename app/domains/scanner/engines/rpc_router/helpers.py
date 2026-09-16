@@ -6,7 +6,7 @@ import os
 import re
 import time
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -32,6 +32,16 @@ class HelpersMixin:
     _call_timeout: float
     freemium_escalations: int
     _last_escalation_log: dict[str, float]
+
+    if TYPE_CHECKING:
+        # ── Contract with the composing RpcRouter ──
+        async def call(
+            self,
+            chain: str,
+            method: str,
+            params: list[Any] | None = None,
+            timeout: float | None = None,
+        ) -> dict[str, Any] | None: ...
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the shared httpx client."""
@@ -235,26 +245,26 @@ class HelpersMixin:
 def _init_router_state(self: Any) -> None:
     """Initialize shared RpcRouter state (called from RpcRouter.__init__)."""
     # Initialize endpoint health trackers
-    self._evm_health: dict[str, dict[str, EndpointHealth]] = defaultdict(dict)
-    self._solana_health: dict[str, EndpointHealth] = {}
+    self._evm_health = defaultdict(dict)
+    self._solana_health = {}
 
     # Shared httpx client (connection pooling)
-    self._client: httpx.AsyncClient | None = None
+    self._client = None
 
     # ── Tier / rotation / quota state ──────────────────────────
     # Round-robin offset per chain: spreads consecutive calls across
     # the top healthy endpoints instead of hammering the same winner.
-    self._rr_offset: dict[str, int] = defaultdict(int)
+    self._rr_offset = defaultdict(int)
     # Freemium quota ledger: provider host -> recent call timestamps
     # (1h sliding window). Escalation picks the LEAST-used provider.
-    self._quota: dict[str, list[float]] = defaultdict(list)
+    self._quota = defaultdict(list)
     # Escalation telemetry: how often the free tier failed us.
-    self.freemium_escalations: int = 0
-    self._last_escalation_log: dict[str, float] = {}
+    self.freemium_escalations = 0
+    self._last_escalation_log = {}
 
     # Performance tuning
-    self._call_timeout: float = 10.0  # Per-endpoint timeout
-    self._health_check_payloads: dict[str, tuple[str, list[Any]]] = {
+    self._call_timeout = 10.0  # Per-endpoint timeout
+    self._health_check_payloads = {
         # EVM: eth_blockNumber
         "ethereum": ("eth_blockNumber", []),
         "bsc": ("eth_blockNumber", []),

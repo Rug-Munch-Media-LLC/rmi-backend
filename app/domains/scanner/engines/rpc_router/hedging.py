@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -72,6 +73,17 @@ class EndpointHealth:
 
 class HedgingMixin:
     """Multi-endpoint hedging, health checks, and failover (mixed into RpcRouter)."""
+
+    if TYPE_CHECKING:
+        # ── Contract with sibling mixins on the composed RpcRouter ──
+        def _split_tiers(self, chain: str) -> tuple[list[str], list[str]]: ...
+        def _get_health(self, chain: str, url: str, tier: str = "free") -> EndpointHealth: ...
+        def _record_escalation(self, chain: str) -> None: ...
+        def _quota_usage(self, url: str) -> int: ...
+        async def _get_client(self) -> httpx.AsyncClient: ...
+
+    _rr_offset: dict[str, int]
+    _health_check_payloads: dict[str, tuple[str, list[Any]]]
 
     def _rank(self, pairs: list[tuple[str, EndpointHealth]]) -> list[tuple[str, EndpointHealth]]:
         """Sort by health: clean first, then lowest latency."""
