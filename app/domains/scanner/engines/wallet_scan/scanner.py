@@ -18,17 +18,19 @@ logger = get_logger(__name__)
 from app.core.http import (  # noqa: E402 — imported after logger init; kept below module header for readability
     get_http_client,
 )
-from app.unified_scanner.cache import (  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.scanner.engines.wallet_scan.cache import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _cache_get,
     _cache_set,
 )
-from app.unified_scanner.helius import (  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.scanner.engines.wallet_scan.helius import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _fetch_etherscan_wallet,
     _fetch_helius_wallet,
     _fetch_moralis_wallet,
 )
-from app.unified_scanner.models import WalletRiskFactors  # noqa: E402 — module docstring precedes import block
-from app.unified_scanner.providers import (  # noqa: E402 — module docstring precedes import block
+from app.domains.scanner.engines.wallet_scan.models import (  # noqa: E402 — module docstring precedes import block
+    WalletRiskFactors,
+)
+from app.domains.scanner.engines.wallet_scan.providers import (  # noqa: E402 — module docstring precedes import block
     _calculate_basic_pnl,
     _check_hapi_risk,
     _check_misttrack_light,
@@ -335,6 +337,16 @@ def _compute_wallet_risk(factors: WalletRiskFactors, data_sources: list[str]) ->
     return flags
 
 
+_bg_tasks: set = set()
+
+
+def _fire_and_track(coro) -> None:
+    """Fire-and-forget task WITH a strong reference (tasks must not be GC'd)."""
+    task = asyncio.create_task(coro)
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+
+
 async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "free") -> dict[str, Any]:
     """Unified wallet scanner - SENTINEL + Helius/Moralis/Etherscan pool + Wallet Memory + Token Scanner."""
     import time
@@ -465,7 +477,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
 
         deployers = token_scan.get("deployers_to_flag", [])
         if deployers:
-            asyncio.create_task(_close_data_flywheel(deployers))
+            _fire_and_track(_close_data_flywheel(deployers))
 
     # ── FREE: Funding source tracing ──
     funding = await _trace_funding_source(wallet_address, chain)
@@ -625,5 +637,5 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         "tool_fingerprints": None,
     }
 
-    asyncio.create_task(_cache_set(cache_key, result, ttl=3600))
+    _fire_and_track(_cache_set(cache_key, result, ttl=3600))
     return result
