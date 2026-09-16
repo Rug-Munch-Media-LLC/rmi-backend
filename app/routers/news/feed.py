@@ -25,7 +25,7 @@ from app.routers.news._helpers import (
     NewsFeedResponse,
     _refresh_cache,
     logger,
-    router,
+    router as router,
 )
 
 # ─── Main Feed ────────────────────────────────────────────────────

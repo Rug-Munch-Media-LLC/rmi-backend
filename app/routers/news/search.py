@@ -22,7 +22,7 @@ from app.routers.news._helpers import (
     _qdrant_match_filter,
     _rate_article_dict,
     _sort_articles_by,
-    router,
+    router as router,
 )
 
 # ─── Ground News-style Rated Articles ─────────────────────────────
