@@ -27,7 +27,7 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = Path(__file__).resolve().parent / "structure-baseline.json"
 
-MAX_FILE_LINES = 1500
+MAX_FILE_LINES = 500
 MAX_FUNC_LINES = 150
 
 EXCLUDE_DIRS = {
