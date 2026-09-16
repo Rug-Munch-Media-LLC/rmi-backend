@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -27,8 +28,10 @@ import clickhouse_connect
 logger = logging.getLogger(__name__)
 
 # ── config ──────────────────────────────────────────────────────────────
-CLICKHOUSE_HOST = "127.0.0.1"
-CLICKHOUSE_PORT = 8123
+CLICKHOUSE_HOST = os.environ.get("CLICKHOUSE_HOST", "127.0.0.1")
+CLICKHOUSE_PORT = int(os.environ.get("CLICKHOUSE_PORT", "8123"))
+CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "rmi")
+CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "")
 BATCH_SIZE = 10_000
 TABLE = "wallet_memory.wallet_labels"
 
@@ -47,6 +50,8 @@ def get_client() -> Any:
     return clickhouse_connect.get_client(
         host=CLICKHOUSE_HOST,
         port=CLICKHOUSE_PORT,
+        username=CLICKHOUSE_USER,
+        password=CLICKHOUSE_PASSWORD,
     )
 
 
