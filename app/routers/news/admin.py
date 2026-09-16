@@ -29,7 +29,7 @@ from app.routers.news._helpers import (
     _store_bot_article,
     _url_hash,
     logger,
-    router,
+    router as router,
 )
 
 # ─── Comments / Social ────────────────────────────────────────────

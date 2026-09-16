@@ -115,13 +115,13 @@ _COMMENTS: dict[str, list[dict[str, Any]]] = {}
 # Helpers live in app/routers/news_helpers.py (extracted to keep the
 # router focused on request handling).
 from app.routers.news_helpers import (  # noqa: E402 — module docstring precedes import block
-    _count_corroborating,  # noqa: F401 — re-exported for search sub-router
-    _normalize_sentiment_label,  # noqa: F401 — re-exported for search sub-router
+    _count_corroborating as _count_corroborating,
+    _normalize_sentiment_label as _normalize_sentiment_label,
     _point_to_article as _point_to_article,
-    _qdrant_match_filter,
-    _rate_article_dict,
+    _qdrant_match_filter as _qdrant_match_filter,
+    _rate_article_dict as _rate_article_dict,
     _scroll_news_v2 as _scroll_news_v2,
-    _sort_articles_by,  # noqa: F401 — re-exported for search sub-router
+    _sort_articles_by as _sort_articles_by,
 )
 
 
