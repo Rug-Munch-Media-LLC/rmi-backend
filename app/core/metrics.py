@@ -10,11 +10,19 @@ The factory expects `router` attribute (mounted at app root).
 
 from __future__ import annotations
 
+import os
 import time
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Response
-from prometheus_client import REGISTRY, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -119,4 +127,17 @@ router = APIRouter(tags=["metrics"], include_in_schema=False)
 @router.get("/metrics")
 async def metrics_endpoint() -> Response:
     """Prometheus scrape target. Returns text/plain exposition format."""
-    return Response(content=generate_latest(REGISTRY), media_type="text/plain")
+    # 2026-09-17: gunicorn runs 4 workers — each has its own counters, so a
+    # single-worker scrape made rate() values jump (~100x inflation, corrupting
+    # API alerting). PROMETHEUS_MULTIPROC_DIR switches prometheus_client to
+    # mmap-shared counters; MultiProcessCollector aggregates all workers.
+    registry: CollectorRegistry | None = None
+    if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        from prometheus_client import multiprocess
+
+        registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(registry)
+    return Response(
+        content=generate_latest(registry if registry is not None else REGISTRY),
+        media_type="text/plain",
+    )
