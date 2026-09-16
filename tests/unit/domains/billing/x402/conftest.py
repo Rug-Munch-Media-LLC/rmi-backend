@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fakeredis import FakeStrictRedis
 from fastapi import Request
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _set_x402_env() -> None:
     os.environ.setdefault("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9")
     os.environ.setdefault("X402_SOL_PAY_TO", "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv")
-    os.environ["ENVIRONMENT"] = "test"
+    # NOTE: no ENVIRONMENT override here — billing never branches on it, and a
+    # session-scoped write leaked "test" into every later test in the worker.
 
 
 @pytest.fixture
