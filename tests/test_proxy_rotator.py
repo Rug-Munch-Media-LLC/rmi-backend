@@ -151,10 +151,21 @@ class _RecordingAsyncClient:
 @pytest.fixture
 def recording_client(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     captured: list[dict[str, Any]] = []
+    real_client = pr.httpx.AsyncClient
 
-    def factory(**kwargs: Any) -> _RecordingAsyncClient:
-        captured.append(kwargs)
-        return _RecordingAsyncClient(**kwargs)
+    def factory(**kwargs: Any) -> Any:
+        # The rotator's get_client() is the only caller in these tests that
+        # passes exactly {proxy, timeout, follow_redirects}. monkeypatch
+        # replaces AsyncClient on the GLOBAL httpx module, so under xdist a
+        # leaked background task from an unrelated test module can construct
+        # a client through this patch mid-test — recording those foreign
+        # kwargs poisoned captured[0] and caused the flaky KeyError('proxy')
+        # in full-suite runs (2026-09-16 CI failure). Foreign calls are
+        # passed through to the real client and NOT recorded.
+        if set(kwargs) == {"proxy", "timeout", "follow_redirects"}:
+            captured.append(kwargs)
+            return _RecordingAsyncClient(**kwargs)
+        return real_client(**kwargs)
 
     monkeypatch.setattr(pr.httpx, "AsyncClient", factory)
     return captured

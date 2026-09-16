@@ -105,11 +105,13 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
     # DM-only: callbacks from groups/channels are silently ignored.
     if not is_private_chat(update):
+        logger.info("cb dropped data=%s reason=non-private chat=%s", data, _chat_type(update))
         return
 
     if not is_owner(update):
         # Hidden bot: no visible reply (not even "Unauthorized") — the
         # callback is silently dropped; log + owner alert instead.
+        logger.warning("cb DENIED data=%s user=%s", data, _user_id(update))
         user = update.effective_user
         chat = update.effective_chat
         await access_guard.deny_admin_attempt(
@@ -128,8 +130,32 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         for handler in HANDLERS:
             if await handler(data, query):
+                logger.info("cb handled data=%s user=%s", data, _user_id(update))
                 return
+        # NOTHING matched. Before 2026-09-16 this returned silently — the
+        # button press appeared dead to the owner ("menu non-functional").
+        # Surface it: visible reply + WARNING so dead callback_data is
+        # impossible to miss in the journal.
+        logger.warning("cb UNHANDLED data=%s user=%s", data, _user_id(update))
+        with contextlib.suppress(httpx.HTTPError, OSError, TimeoutError):
+            await query.edit_message_text(
+                f"🚧 Unhandled action: `{data[:60]}`\n\nNo handler is wired for this button — report to the bot maintainer.",
+                reply_markup=back_button("main"),
+                parse_mode="Markdown",
+            )
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.error(f"Callback error: {e}")
+        logger.error(f"Callback error: {e} (data={data})")
         with contextlib.suppress(httpx.HTTPError):
             await query.edit_message_text(f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main"))
+
+
+def _user_id(update: Update) -> int | None:
+    """Effective user id for structured logs (None-safe)."""
+    user = update.effective_user
+    return user.id if user else None
+
+
+def _chat_type(update: Update) -> str | None:
+    """Effective chat type for structured logs (None-safe)."""
+    chat = update.effective_chat
+    return chat.type if chat else None
