@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 
 from app.core.logging import get_logger
-from app.domains.telegram.adminbot import admin_audit, secrets_scrub
+from app.domains.telegram.adminbot import admin_audit, redact
 from app.domains.telegram.adminbot.helpers import owner_only
 
 if TYPE_CHECKING:
@@ -65,7 +65,7 @@ async def _journal(unit: str, lines: int = 25) -> str:
             stderr=asyncio.subprocess.STDOUT,
         )
         out, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
-        return secrets_scrub.scrub(out.decode("utf-8", errors="replace").strip())
+        return redact.scrub(out.decode("utf-8", errors="replace").strip())
     except Exception as exc:
         return f"journalctl failed: {str(exc)[:180]}"
 

@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.telegram.adminbot import secrets_scrub
+from app.domains.telegram.adminbot import redact
 
 logger = get_logger("admin_bot.engines")
 
@@ -251,7 +251,7 @@ async def _run_http(spec: EngineSpec, prompt: str, timeout: int) -> tuple[bool, 
         data = resp.json()
         choices = data.get("choices") or [{}]
         content = (choices[0].get("message") or {}).get("content", "")
-        return True, secrets_scrub.scrub(truncate(content or "(empty)"))
+        return True, redact.scrub(truncate(content or "(empty)"))
     except Exception as exc:
         return False, f"engine unreachable: {str(exc)[:200]} (lane parked? try /heavy start)"
 
@@ -279,4 +279,4 @@ async def _run_cli(spec: EngineSpec, prompt: str, timeout: int) -> tuple[bool, s
         return False, f"engine timed out after {timeout}s (still running? killed)"
 
     text = _ANSI_RE.sub("", stdout.decode("utf-8", errors="replace"))
-    return proc.returncode == 0, secrets_scrub.scrub(truncate(text or "(no output)"))
+    return proc.returncode == 0, redact.scrub(truncate(text or "(no output)"))
