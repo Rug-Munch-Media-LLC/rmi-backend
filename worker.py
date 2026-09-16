@@ -235,10 +235,10 @@ async def periodic_token_scan(r):
     try:
         from app.token_discovery import MONITORED_CHAINS, discover_new_tokens
 
-        DISCOVERY_AVAILABLE = True
+        DISCOVERY_AVAILABLE = True  # noqa: N806
     except ImportError:
         logger.warning("token_discovery_unavailable")
-        DISCOVERY_AVAILABLE = False
+        DISCOVERY_AVAILABLE = False  # noqa: N806
 
     while True:
         try:

@@ -153,7 +153,8 @@ class TestProxyFailureRetry:
         proxy_client.request.assert_called_once()
         direct_client.request.assert_called_once()
 
-    async def test_proxy_timeout_triggers_mark_failed_and_direct_retry(self):
+    async def test_proxy_timeout_triggers_mark_failed_and_direct_retry(self, reload_gmgn):
+        reload_gmgn("test-key-123")
         proxy_client = AsyncMock()
         proxy_client.request.side_effect = httpx.ConnectError("proxy timeout")
 
@@ -170,7 +171,8 @@ class TestProxyFailureRetry:
         rotator.mark_failed.assert_called_once_with("http://u:p@proxy1.example.com:8080")
         direct_client.request.assert_called_once()
 
-    async def test_proxy_200_short_circuits_without_direct_call(self):
+    async def test_proxy_200_short_circuits_without_direct_call(self, reload_gmgn):
+        reload_gmgn("test-key-123")
         proxy_client = AsyncMock()
         resp_200 = MagicMock()
         resp_200.status_code = 200
@@ -185,7 +187,8 @@ class TestProxyFailureRetry:
         rotator.mark_failed.assert_not_called()
         direct_client.request.assert_not_called()
 
-    async def test_direct_403_returns_none_without_mark_failed(self):
+    async def test_direct_403_returns_none_without_mark_failed(self, reload_gmgn):
+        reload_gmgn("test-key-123")
         # No proxy configured: a direct 403 is simply a non-200 response.
         provider, rotator, direct_client = _make_provider(None, rotator_enabled=False)
         resp_403 = MagicMock()

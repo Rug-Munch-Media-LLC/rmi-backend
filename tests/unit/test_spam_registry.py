@@ -179,7 +179,7 @@ class TestFilterSpamTokens:
         tokens = [
             {"contract_address": "so11111111111111111111111111111111111111111"},
         ]
-        clean, spam = registry.filter_spam_tokens(tokens, "solana")
+        _clean, spam = registry.filter_spam_tokens(tokens, "solana")
         assert len(spam) == 1
 
     def test_empty_input(self, registry: SpamRegistry) -> None:
@@ -234,7 +234,7 @@ class TestFileLoaders:
             reg = SpamRegistry()
             reg.SPAM_DATA_DIR = Path(temp_path).parent  # type: ignore[assignment]
             # Direct test of caching logic
-            chain = "ethereum"
+            _chain = "ethereum"
             cache_file = Path(temp_path).parent / "goldrush_spam_ethereum.json"
             with open(cache_file, "w") as f:
                 json.dump({"erc20": ["0xtoken1", "0xtoken2"], "nft": ["0xnft1"]}, f)
