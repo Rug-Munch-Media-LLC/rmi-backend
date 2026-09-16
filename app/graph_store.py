@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import kuzu
 
@@ -25,6 +26,25 @@ CH_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
 def _db() -> kuzu.Database:
     Path(GRAPH_PATH).parent.mkdir(parents=True, exist_ok=True)
     return kuzu.Database(GRAPH_PATH)
+
+
+def _query(conn: kuzu.Connection, cypher: str, params: dict[str, Any] | None = None) -> kuzu.QueryResult:
+    """Execute one Cypher statement and return its single result set.
+
+    kuzu's stubs type ``execute()`` as ``QueryResult | list[QueryResult]``
+    (multi-statement strings return a list). Every call here is a single
+    statement, so normalise at the boundary.
+    """
+    result = conn.execute(cypher, params) if params is not None else conn.execute(cypher)
+    if isinstance(result, list):
+        result = result[0]
+    return result
+
+
+def _row(result: kuzu.QueryResult) -> list[Any]:
+    """Fetch the next row as a list (kuzu stubs type ``get_next`` as dict)."""
+    row = result.get_next()
+    return list(row) if isinstance(row, (list, tuple)) else list(row.values())
 
 
 def build_graph() -> int:
@@ -48,7 +68,7 @@ def build_graph() -> int:
     ):
         conn.execute(stmt)
 
-    def ch(sql: str) -> list[tuple]:
+    def ch(sql: str) -> list[tuple[str, ...]]:
         r = httpx.post(
             f"{CH_URL}/?user={CH_USER}&password={CH_PASSWORD}",
             content=sql + " FORMAT TSV",
@@ -84,47 +104,50 @@ def build_graph() -> int:
             {"d": deployer, "t": token},
         )
 
-    count = conn.execute("MATCH (w:Wallet) RETURN count(w)").get_next()[0]
+    count = _row(_query(conn, "MATCH (w:Wallet) RETURN count(w)"))[0]
     return int(count)
 
 
-def wallet(address: str) -> dict | None:
+def wallet(address: str) -> dict[str, Any] | None:
     conn = kuzu.Connection(_db())
-    r = conn.execute(
+    r = _query(
+        conn,
         "MATCH (w:Wallet {address: $a}) RETURN w.address, w.label, w.tier",
         {"a": address},
     )
     if not r.has_next():
         return None
-    addr, label, tier = r.get_next()
+    addr, label, tier = _row(r)
     return {"address": addr, "label": label, "tier": tier}
 
 
-def top_deployers(min_rugs: int = 1, limit: int = 200) -> list[dict]:
+def top_deployers(min_rugs: int = 1, limit: int = 200) -> list[dict[str, Any]]:
     conn = kuzu.Connection(_db())
-    r = conn.execute(
+    r = _query(
+        conn,
         "MATCH (d:Deployer) WHERE d.rug_count >= $m "
         "RETURN d.address, d.rug_count, d.reputation_score "
         "ORDER BY d.rug_count DESC LIMIT $l",
         {"m": min_rugs, "l": limit},
     )
-    out = []
+    out: list[dict[str, Any]] = []
     while r.has_next():
-        addr, rugs, rep = r.get_next()
+        addr, rugs, rep = _row(r)
         out.append({"address": addr, "rug_count": rugs, "reputation": rep})
     return out
 
 
-def fund_flow(start: str, max_hops: int = 3, limit: int = 100) -> list[dict]:
+def fund_flow(start: str, max_hops: int = 3, limit: int = 100) -> list[dict[str, Any]]:
     """Paths of transfers out of a wallet, up to ``max_hops``."""
     conn = kuzu.Connection(_db())
-    r = conn.execute(
+    r = _query(
+        conn,
         f"MATCH p = (a:Wallet {{address: $a}})-[:TRANSFERRED*1..{int(max_hops)}]->(b) "
         "RETURN b.address, length(p) ORDER BY length(p) LIMIT $l",
         {"a": start, "l": limit},
     )
-    out = []
+    out: list[dict[str, Any]] = []
     while r.has_next():
-        addr, hops = r.get_next()
+        addr, hops = _row(r)
         out.append({"address": addr, "hops": hops})
     return out
