@@ -26,6 +26,54 @@ if TYPE_CHECKING:
     from telegram import CallbackQuery
 
 
+async def _handle_test_alert(query: CallbackQuery) -> None:
+    """Queue a synthetic Alertmanager alert — proves the full E2E alert chain."""
+    import datetime as _dt
+    import json as _json
+    import os as _os
+
+    try:
+        import redis.asyncio as aioredis
+
+        from app.domains.telegram.adminbot.redis_listener import (
+            _build_redis_url,
+            _resolve_redis_password,
+        )
+
+        url = _build_redis_url(
+            _os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+            _resolve_redis_password(),
+        )
+        client = aioredis.from_url(url, decode_responses=True, protocol=2)
+        alert = {
+            "status": "firing",
+            "labels": {
+                "alertname": "TestAlertE2E",
+                "severity": "warning",
+                "instance": "talos",
+                "job": "adminbot-e2e",
+            },
+            "annotations": {
+                "summary": "Synthetic end-to-end alert from @rmiadminbot",
+                "description": (
+                    "If this message reached your DM, the Alertmanager -> Redis -> "
+                    "admin-bot feed chain works end to end."
+                ),
+            },
+            "startsAt": _dt.datetime.now(_dt.UTC).isoformat(),
+        }
+        await client.rpush("rmi:alerts:system", _json.dumps(alert))
+        await client.aclose()
+    except Exception as exc:
+        await query.edit_message_text(f"❌ Test alert failed: {str(exc)[:180]}")
+        return
+    await query.edit_message_text(
+        "🧪 Test alert queued → you should receive it in your DM within ~10s.\n"
+        "No DM? Check: journalctl -u rmiadminbot | grep alerts_feed",
+        reply_markup=refresh_keyboard("test_alert", extra=[("⬅️ Main Menu", "main")]),
+    )
+
+
 async def handle(data: str, query: CallbackQuery) -> bool:
     """Handle nav/status callback data. Returns True when matched."""
     # ── Main navigation ──
@@ -143,6 +191,10 @@ async def handle(data: str, query: CallbackQuery) -> bool:
         return True
 
     # ── Alert help ──
+    elif data == "test_alert":
+        await _handle_test_alert(query)
+        return True
+
     elif data == "alert_help":
         await query.edit_message_text(
             "🔔 *Send Alert*\n\n"

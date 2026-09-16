@@ -12,7 +12,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
 from app.domains.telegram import access_guard
-from app.domains.telegram.adminbot import admin_terminal
+from app.domains.telegram.adminbot import admin_terminal, secrets_scrub
 from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
 from app.domains.telegram.adminbot.helpers import (
     is_owner,
@@ -105,7 +105,7 @@ async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    response_text = admin_terminal.format_result(result, session)
+    response_text = secrets_scrub.scrub(admin_terminal.format_result(result, session))
     next_prompt = admin_terminal.format_prompt(session)
 
     await update.message.reply_text(

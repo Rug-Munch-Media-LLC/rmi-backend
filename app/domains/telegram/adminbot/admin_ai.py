@@ -13,6 +13,8 @@ import subprocess
 import time
 from typing import Any
 
+from app.domains.telegram.adminbot import owner_persona
+
 logger = logging.getLogger("admin_bot.admin_ai")
 
 # Models available via OpenCode
@@ -157,6 +159,7 @@ def run_opencode(
     (no write/bash/tool side effects) — the default for ``/ai``.
     """
     t0 = time.time()
+    prompt = owner_persona.apply(prompt)
 
     opencode = _opencode_path()
     if not os.path.exists(opencode):

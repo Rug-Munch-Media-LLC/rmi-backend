@@ -147,14 +147,18 @@ def main_menu_keyboard() -> Any:
             [
                 InlineKeyboardButton("🤖 AI", callback_data="menu_ai"),
                 InlineKeyboardButton("🤖 Bots", callback_data="menu_bots"),
-                InlineKeyboardButton("🔧 Tools", callback_data="menu_tools"),
+                InlineKeyboardButton("🚨 Alerts", callback_data="menu_alerts"),
             ],
             [
                 InlineKeyboardButton("⚙️ Ops", callback_data="menu_ops"),
-                InlineKeyboardButton("🔄 Quick Status", callback_data="quick_status"),
-                InlineKeyboardButton("🚨 Alerts", callback_data="health"),
+                InlineKeyboardButton("🔧 Tools", callback_data="menu_tools"),
+                InlineKeyboardButton("⚡ Quick Ops", callback_data="quick"),
             ],
-            [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
+            [
+                InlineKeyboardButton("🔄 Quick Status", callback_data="quick_status"),
+                InlineKeyboardButton("📊 Health", callback_data="health"),
+                InlineKeyboardButton("🩺 Self-Test", callback_data="selftest_run"),
+            ],
         ]
     )
 
@@ -233,6 +237,7 @@ _SYSTEM_MENU: list[tuple[str, str]] = [
     ("⏱️ Uptime", "uptime"),
     ("🔝 Top CPU", "top"),
     ("🌐 Network", "net"),
+    ("🩺 Self-Test", "selftest_run"),
 ]
 
 _DOCKER_MENU: list[tuple[str, str]] = [
@@ -256,6 +261,8 @@ _DATA_MENU: list[tuple[str, str]] = [
 
 _AI_MENU: list[tuple[str, str]] = [
     ("🤖 OpenCode", "oc_help"),
+    ("🎛 Engines", "engines_menu"),
+    ("⚡ Heavy Lane", "heavy_status"),
     ("🧠 Models", "ai_menu"),
     ("🧠 RAG Stats", "ragstats"),
     ("📰 News", "news"),
@@ -287,6 +294,13 @@ _BOT_MENU: list[tuple[str, str]] = [
     ("📊 Bot Health", "health"),
 ]
 
+_ALERTS_MENU: list[tuple[str, str]] = [
+    ("🚨 Recent Alerts", "alerts"),
+    ("📊 Health Check", "health"),
+    ("🧪 Test Alert (E2E)", "test_alert"),
+    ("🔔 Alert Help", "alert_help"),
+]
+
 SECTION_MENUS: dict[str, list[tuple[str, str]]] = {
     "system": _SYSTEM_MENU,
     "docker": _DOCKER_MENU,
@@ -295,6 +309,7 @@ SECTION_MENUS: dict[str, list[tuple[str, str]]] = {
     "tools": _TOOLS_MENU,
     "ops": _OPS_MENU,
     "bots": _BOT_MENU,
+    "alerts": _ALERTS_MENU,
 }
 
 _SECTION_TITLES: dict[str, str] = {
@@ -305,6 +320,7 @@ _SECTION_TITLES: dict[str, str] = {
     "tools": "🔧 *Tools*",
     "ops": "⚙️ *Operations*",
     "bots": "🤖 *RugMunchBot Management*",
+    "alerts": "🚨 *Alerts & Monitoring*",
 }
 
 
