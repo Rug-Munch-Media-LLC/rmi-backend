@@ -37,7 +37,10 @@ RUN curl -sL https://foundry.paradigm.xyz | bash && \
 
 # Python deps (ordered for layer caching: requirements first, then app)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
+# 2026-09-17: two-phase install — requirements.txt line 2 is `-e .` (project),
+# which needs pyproject.toml + sources that only arrive with COPY . . below.
+RUN grep -v '^-e ' requirements.txt > /tmp/requirements-no-editable.txt && \
+    pip install --no-cache-dir -r /tmp/requirements-no-editable.txt && \
     pip install --no-cache-dir slither-analyzer==0.11.5 && \
     rm -rf /root/.cache/pip
 
@@ -93,6 +96,9 @@ RUN if [ "${INSTALL_FACE:-0}" = "1" ]; then \
 
 # Copy app (HF models excluded via .dockerignore — they download at runtime)
 COPY . .
+
+# Project itself (pyproject.toml = single source of truth for deps).
+RUN pip install --no-cache-dir -e . && rm -rf /root/.cache/pip
 
 # Health check (uses /live for liveness, not /ready)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
