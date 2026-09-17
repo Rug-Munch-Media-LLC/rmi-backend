@@ -56,6 +56,14 @@ class EngineSpec:
 
 
 ENGINES: dict[str, EngineSpec] = {
+    "snappy": EngineSpec(
+        "snappy",
+        "Qwen3.5-2B (fast lane)",
+        "http",
+        url="http://127.0.0.1:8010/v1/chat/completions",
+        model="qwen3.5-2b-heretic",
+        hint="fastest · low latency · public chat fallback",
+    ),
     "defiant": EngineSpec(
         "defiant",
         "Defiant 9B (local)",

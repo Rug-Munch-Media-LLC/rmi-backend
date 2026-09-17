@@ -38,6 +38,7 @@ SERVICE_UNITS: tuple[str, ...] = (
 
 LANES: tuple[tuple[str, str], ...] = (
     ("rmi-backend api :8000", "http://127.0.0.1:8000/health"),
+    ("snappy-2b :8010", "http://127.0.0.1:8010/health"),
     ("defiant-9b :8009", "http://127.0.0.1:8009/health"),
     ("ff711-heavy :8014", "http://127.0.0.1:8014/health"),
     ("embed :8004", "http://127.0.0.1:8004/health"),
