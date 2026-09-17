@@ -15,12 +15,12 @@ WORKDIR /app
 # System deps + solc + Foundry + Tini (consolidated for smaller layer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc=4:14.2.0-1 \
-    libpq-dev=17.10-0+deb13u1 \
-    curl=8.14.1-2+deb13u4 \
+    libpq-dev=17.11-0+deb13u1 \
+    curl=8.14.1-2+deb13u5 \
     git=1:2.47.3-0+deb13u1 \
     ca-certificates=20250419 \
     whois=5.6.3 \
-    libglib2.0-0t64=2.84.4-3~deb13u3 \
+    libglib2.0-0t64=2.84.4-3~deb13u5 \
     libxcb1=1.17.0-2+b1 && \
     curl -sL https://github.com/krallin/tini/releases/download/v0.19.0/tini -o /tini && \
     chmod +x /tini && \
