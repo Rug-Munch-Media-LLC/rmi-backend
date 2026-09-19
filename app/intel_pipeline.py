@@ -43,8 +43,7 @@ def _get_headers() -> dict[str, Any]:
 
 
 # ── HF Models (Paywalled - using local fallback) ──────
-# HF Inference API now requires PRO subscription ($9/mo).
-# Using local pattern matching + RAG memory instead.
+# HF Inference API now requires PRO ($9/mo). Using local pattern matching + RAG memory instead.
 # Enable HF by setting HUGGINGFACE_TOKEN to a valid PRO key.
 
 SCAM_LABELS = ["scam", "rugpull", "honeypot", "legitimate", "phishing", "ponzi"]
@@ -142,7 +141,6 @@ async def generate_embedding(text: str) -> list[float] | None:
             return None
         if r.status_code == 200:
             result = r.json()
-            # Handle different response formats
             if isinstance(result, list) and len(result) > 0:
                 return result[0] if isinstance(result[0], list) else result
             return result
