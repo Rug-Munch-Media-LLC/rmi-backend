@@ -520,3 +520,6 @@ ignore-init-method = true
 ignore-init-module = true
 exclude = ["tests/*", "alembic/*", "app/_archive/*", "app/legacy/*"]
 
+
+[tool.fleet-gates]
+scan-roots = ["app", "src"]
