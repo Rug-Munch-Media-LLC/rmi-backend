@@ -416,10 +416,10 @@ class IntelPipeline:
     async def run_cycle(self) -> dict[str, Any]:
         """Run one full ingestion cycle across all sources."""
         from app.crypto_embeddings import get_embedder
-        from app.rag.compat import _get_redis
+        from app.integrations.rag_helpers.redis import get_redis
 
         embedder = await get_embedder()
-        r = await _get_redis()
+        r = await get_redis()
         now = datetime.now(UTC)
         stats: dict[str, Any] = {"feeds": {}, "onchain": {}, "total": 0, "skipped": 0, "errors": 0}
 
@@ -569,9 +569,9 @@ class IntelPipeline:
 
     async def get_latest_intel(self, limit: int = 20) -> list[dict[str, Any]]:
         """Get latest threat intelligence for frontend display."""
-        from app.rag.compat import _get_redis
+        from app.integrations.rag_helpers.redis import get_redis
 
-        r = await _get_redis()
+        r = await get_redis()
 
         results = []
         for coll in ["market_intel", "token_analysis", "known_scams"]:

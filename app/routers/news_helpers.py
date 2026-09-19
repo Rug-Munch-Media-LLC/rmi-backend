@@ -34,7 +34,7 @@ def _rate_article_dict(article: dict[str, Any]) -> dict[str, Any]:
     articles get a conservative default card.
     """
     try:
-        from app.rag.ratings import rate_article
+        from app.integrations.rag_helpers.ratings import rate_article
 
         rating = rate_article(article)
         return rating.to_dict()

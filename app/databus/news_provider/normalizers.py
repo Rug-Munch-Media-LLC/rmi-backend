@@ -64,7 +64,7 @@ async def relevance_rerank(articles: list[dict[str, Any]]) -> list[dict[str, Any
     """
     rerank_done = False
     try:
-        from app.rag.rerank import rerank_results
+        from app.integrations.rag_helpers.rerank import rerank_results
 
         rerank_cands = articles[:24]
         ranked = await asyncio.wait_for(

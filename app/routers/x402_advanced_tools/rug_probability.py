@@ -160,7 +160,7 @@ async def rug_probability(req: AddressRequest) -> Any:
 
         # ── Signal 4: Deployer History ──
         try:
-            from app.rag.compat import detect_scam_patterns
+            from app.integrations.rag_helpers.scam_patterns import detect_scam_patterns
 
             result = asyncio.run(detect_scam_patterns({"address": addr, "chain": chain}, 0.4))
             if result and result.get("risk_score", 0) > 0:

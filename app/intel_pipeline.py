@@ -226,10 +226,12 @@ async def label_wallet(wallet_data: dict[str, Any]) -> dict[str, Any]:
 
     # Query RAG for similar wallet patterns
     try:
-        from app.rag.compat import search_documents
+        from app.integrations.rugbrain_client import rugbrain_search
 
-        rag_results = await search_documents(
-            "wallet_profiles", wallet_data.get("address", "") + " " + behavior, limit=5
+        rag_results = await rugbrain_search(
+            query=wallet_data.get("address", "") + " " + behavior,
+            collections=["wallet_profiles"],
+            limit=5,
         )
         if rag_results:
             for r in rag_results:

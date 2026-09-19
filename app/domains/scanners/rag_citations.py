@@ -177,17 +177,16 @@ async def query_address_rag(
     is already known in our RAG databases.
     """
     try:
-        from app.rag.compat import search_multi_collection
+        from app.integrations.rugbrain_client import rugbrain_search
     except ImportError:
         return []
 
     try:
         results = await asyncio.wait_for(
-            search_multi_collection(
+            rugbrain_search(
                 query=address,
                 collections=["known_scams", "wallet_profiles", "forensic_reports"],
                 limit=max_results,
-                min_similarity=0.4,
             ),
             timeout=10.0,
         )

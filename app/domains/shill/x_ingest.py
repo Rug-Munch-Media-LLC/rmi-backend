@@ -227,7 +227,7 @@ async def ingest_x_shill(
                     summary["evidence_written"] += 1
                 # Vectorize the shill detection into social_intel (fire-and-forget)
                 try:
-                    from app.rag.scan_intel import embed_shill_detection_bg
+                    from app.integrations.rag_helpers.scan_intel import embed_shill_detection_bg
 
                     embed_shill_detection_bg(
                         {

@@ -205,7 +205,7 @@ async def reputation_score(req: AddressRequest) -> dict[str, Any]:
         try:
             import asyncio
 
-            from app.rag.compat import detect_scam_patterns
+            from app.integrations.rag_helpers.scam_patterns import detect_scam_patterns
 
             result = asyncio.run(detect_scam_patterns({"address": addr, "chain": chain}, 0.5))
             if result and result.get("risk_score", 0) > 0:

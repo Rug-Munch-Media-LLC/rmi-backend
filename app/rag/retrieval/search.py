@@ -7,12 +7,12 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.integrations.rag_helpers.rerank import reorder_by_relevance, rerank_results
+from app.integrations.rag_helpers.tracing import trace_span
 from app.rag.config import RAG_EXPANSION_TERMS
-from app.rag.rerank import reorder_by_relevance, rerank_results
 from app.rag.retrieval.filters import apply_news_boosts
 from app.rag.retrieval.helpers import ScoredHit
 from app.rag.retrieval.rerank import RelevanceScorer
-from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 

@@ -493,8 +493,8 @@ async def _embed_batch(docs: list[dict[str, Any]], collection: str) -> int:
             # vector to the ANN index so it is searchable — previously this
             # function only stored text+metadata and never computed vectors.
             try:
+                from app.integrations.rag_helpers.embeddings import get_embedding
                 from app.rag.ann_index import get_index
-                from app.rag.embeddings import get_embedding
 
                 vector = await get_embedding(doc["text"][:2000])
                 get_index(collection).add(

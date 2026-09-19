@@ -158,7 +158,7 @@ async def scan_search(q: str, top_k: int = 10) -> dict[str, Any]:
 
     Example: ``GET /api/v1/rag/v2/scan-search?q=bundled+launch+dev+sold``.
     """
-    from app.rag.scan_intel import SCAN_COLLECTION, search_scan_intel
+    from app.integrations.rag_helpers.scan_intel import SCAN_COLLECTION, search_scan_intel
 
     if not q.strip():
         raise HTTPException(status_code=422, detail="q must not be blank")

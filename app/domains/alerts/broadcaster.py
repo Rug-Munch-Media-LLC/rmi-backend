@@ -53,7 +53,7 @@ class AlertBroadcaster:
 
             # 3. Vectorize the alert into Qdrant threat_intel_v2 (fire-and-forget)
             try:
-                from app.rag.scan_intel import embed_scam_alert_bg
+                from app.integrations.rag_helpers.scan_intel import embed_scam_alert_bg
 
                 embed_scam_alert_bg(event.model_dump(mode="json"))
             except Exception as exc:

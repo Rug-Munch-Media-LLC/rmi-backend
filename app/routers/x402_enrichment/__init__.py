@@ -109,10 +109,10 @@ def enrich_tool_response(
         rag_ms=rag_ms,
     )
 
-    # 5b. Scam pattern detection (wired from app.rag.compat)
+    # 5b. Scam pattern detection (wired from app.integrations.rag_helpers.scam_patterns)
     scam_flags = []
     try:
-        from app.rag.compat import detect_scam_patterns
+        from app.integrations.rag_helpers.scam_patterns import detect_scam_patterns
 
         for addr in addresses[:5]:
             try:

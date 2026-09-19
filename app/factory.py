@@ -47,8 +47,8 @@ def create_app() -> FastAPI:
       - app.mount.mount_all              every router
 
     Note: load_dotenv is called here (not in lifespan) so env vars are
-    available before any app module is imported (e.g. supabase_vector,
-    db_client, intel_pipeline read env at module level).
+    available before any app module is imported (e.g. db_client,
+    intel_pipeline read env at module level).
     """
     from dotenv import load_dotenv
 

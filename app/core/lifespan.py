@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI) -> Any:
     # Phoenix (Arize) RAG observability — fail-open, never blocks startup.
     # Guarded by PHOENIX_ENABLED; setup_phoenix() itself never raises.
     try:
-        from app.rag.tracing import setup_phoenix
+        from app.integrations.rag_helpers.tracing import setup_phoenix
 
         if setup_phoenix():
             logger.info("phoenix_tracing_started")
