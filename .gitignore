@@ -64,6 +64,8 @@ secret-rotation*
 *.h5
 *.hdf5
 *.json
+# Fleet gate ratchet baselines — version-controlled (see standards/fleet/gates)
+!scripts/*-baseline.json
 *.onnx
 *.parquet
 *.pkl

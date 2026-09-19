@@ -1169,15 +1169,21 @@ jobs:
           st run --url "${SCHEMA_URL:-http://rmi-backend:8000/openapi.json}" --checks all --max-examples 50 || echo "::warning::API contract violations found"
 
   structure-gate:
-    # Anti-god-module + anti-monkeypatch ratchet (baseline:
-    # scripts/structure-baseline.json). Shrink freely; growth or NEW
-    # offenders fail the build. Regenerate deliberately: --update-baseline.
+    # Fleet coding gates (canonical: standards/fleet/gates). BLOCKING ratchets —
+    # structure <=200 firm / monkeypatch decrease-only / antipattern per-repo /
+    # gate self-test. Baselines: scripts/{structure,monkeypatch,antipattern}-baseline.json.
+    # Shrink freely; growth or NEW offenders fail the build. Regenerate deliberately
+    # (--update-baseline); sync the toolkit with fleet-sync-gates.sh.
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Structure gate
-        run: python3 scripts/check-code-structure.py
-      - name: Antipattern gate (per-repo ratchet)
+      - name: Structure gate (<=200 firm, shrink-only allowlist)
+        run: python3 scripts/check-structure.py --repo . --scan-root app --scan-root src
+      - name: Monkeypatch ratchet (decrease-only)
+        run: python3 scripts/check-monkeypatch.py --repo .
+      - name: Antipattern ratchet (per-repo baseline)
         run: python3 scripts/check-antipatterns.py --repo .
+      - name: Gate self-test (proves each gate catches its violation class)
+        run: bash scripts/ci-gate-selftest.sh
