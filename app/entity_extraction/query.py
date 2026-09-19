@@ -82,7 +82,7 @@ async def hybrid_query(
         min_similarity:   Minimum cosine similarity for vector results.
         entity_boost:     RRF boost multiplier for entity-matched docs.
         vector_search_fn: Async callable for vector search.
-                          Default: app.rag.compat.search_multi_collection.
+                          Default: app.integrations.rugbrain_client.rugbrain_search.
 
     Returns:
         Dict with keys:

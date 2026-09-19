@@ -36,7 +36,7 @@ import httpx
 import numpy as np
 
 from app.core.logging import get_logger
-from app.rag.embeddings import EMBEDDING_DIM
+from app.integrations.rag_helpers.embeddings import EMBEDDING_DIM
 
 log = get_logger(__name__)
 

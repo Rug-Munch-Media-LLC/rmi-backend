@@ -2,7 +2,7 @@
 
 This module is kept for backward import compatibility. All actual
 RAG functionality lives in rugbrain (rugbrain repo). Thin wrappers
-in ``app.rag.compat``, ``app.rag.intelligence``, ``app.rag.service``,
+in ``app.integrations.rag_helpers``, ``app.rag.intelligence``, ``app.rag.service``,
 etc. route through ``app.integrations.rugbrain_client``.
 """
 

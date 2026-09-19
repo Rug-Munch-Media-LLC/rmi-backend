@@ -38,7 +38,7 @@ from urllib.parse import urlparse
 
 from app.config import settings
 from app.core.logging import get_logger
-from app.rag.ratings import rate_article
+from app.integrations.rag_helpers.ratings import rate_article
 from app.utils._crawler_constants import (
     _SOURCES_FILE,
     DEFAULT_COLLECTION,

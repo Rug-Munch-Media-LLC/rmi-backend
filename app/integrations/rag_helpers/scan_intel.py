@@ -26,7 +26,7 @@ from typing import Any
 
 import httpx
 
-from app.rag.embeddings import EMBEDDING_DIM, get_embedding
+from app.integrations.rag_helpers.embeddings import EMBEDDING_DIM, get_embedding
 
 logger = logging.getLogger(__name__)
 _QDRANT_URL = (

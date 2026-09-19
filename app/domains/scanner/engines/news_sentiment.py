@@ -535,7 +535,7 @@ async def get_token_news_card(
     if not hits:
         return _no_data_card(token_symbol, token_name, chain, reason="no_articles")
 
-    from app.rag.ratings import rate_article
+    from app.integrations.rag_helpers.ratings import rate_article
 
     articles: list[dict[str, Any]] = []
     labels: list[tuple[str, float]] = []

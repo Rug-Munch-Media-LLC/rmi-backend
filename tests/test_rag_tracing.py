@@ -1,4 +1,4 @@
-"""Tests for app/rag/tracing.py — Phoenix (Arize) RAG observability.
+"""Tests for app/integrations/rag_helpers/tracing.py — Phoenix (Arize) RAG observability.
 
 Covers the fail-open contract: with Phoenix disabled (default) every
 helper is a no-op and must never raise, even if the phoenix package or
@@ -12,7 +12,7 @@ import types
 
 import pytest
 
-from app.rag import tracing
+from app.integrations.rag_helpers import tracing
 
 
 @pytest.fixture(autouse=True)

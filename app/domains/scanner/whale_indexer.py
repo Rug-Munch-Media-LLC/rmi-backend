@@ -41,7 +41,7 @@ import httpx
 from app.config import settings
 from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.webhooks.providers.utils import get_clickhouse
-from app.rag.embeddings import get_embedding
+from app.integrations.rag_helpers.embeddings import get_embedding
 
 log = get_logger(__name__)
 

@@ -226,7 +226,7 @@ BACKEND_SOURCES: dict[str, Any] = {
         "ttl_default": 3600,
         "data": "LLM: DeepSeek V4 Pro + Flash (primary inference)",
         "status": "in_use",
-        "module": "ai_router.py, hallucination_guard.py, rag_agentic.py",
+        "module": "ai_router.py, hallucination_guard.py",
     },
     "openrouter": {
         "type": "paid_api",

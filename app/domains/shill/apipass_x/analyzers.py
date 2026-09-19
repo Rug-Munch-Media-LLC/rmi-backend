@@ -110,7 +110,7 @@ async def rerank_tweets(tweets: list[dict[str, Any]], query: str, top_n: int = 5
         return []
     documents = [str(t.get("text") or "")[:500] for t in tweets]
     try:
-        from app.rag.rerank import rerank_results
+        from app.integrations.rag_helpers.rerank import rerank_results
 
         ranked = await rerank_results(query, documents, top_n=min(top_n, len(documents)), tier="live")
     except Exception as exc:  # fail-open by contract

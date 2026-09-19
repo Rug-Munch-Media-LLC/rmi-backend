@@ -30,7 +30,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.rag.tracing import trace_span
+from app.integrations.rag_helpers.tracing import trace_span
 
 log = get_logger(__name__)
 

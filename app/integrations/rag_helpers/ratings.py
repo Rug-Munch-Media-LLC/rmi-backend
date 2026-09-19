@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.core.logging import get_logger
-from app.rag.dedup import KNOWN_PEOPLE, KNOWN_PROTOCOLS, KNOWN_TOKENS
+from app.utils.dedup import KNOWN_PEOPLE, KNOWN_PROTOCOLS, KNOWN_TOKENS
 
 log = get_logger(__name__)
 

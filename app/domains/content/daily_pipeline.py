@@ -159,7 +159,7 @@ async def run_shill_step(articles: list[NewsArticle]) -> list[PlatformAlert]:
     # Vectorize each coordinated-shill alert into Qdrant social_intel
     # (fire-and-forget — never blocks the pipeline).
     try:
-        from app.rag.scan_intel import embed_shill_detection_bg
+        from app.integrations.rag_helpers.scan_intel import embed_shill_detection_bg
 
         for alert in alerts:
             d = alert.to_dict()

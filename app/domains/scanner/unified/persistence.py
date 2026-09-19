@@ -133,7 +133,7 @@ async def persist_result(result: ScanResult) -> None:
     #    Qdrant ``scan_intel`` collection so scan history is RAG-searchable.
     #    Never blocks or fails the persist path.
     try:
-        from app.rag.scan_intel import embed_scan_result_bg
+        from app.integrations.rag_helpers.scan_intel import embed_scan_result_bg
 
         embed_scan_result_bg(result)
     except Exception:

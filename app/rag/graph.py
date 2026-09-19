@@ -29,7 +29,7 @@ from typing import Any, TypedDict
 from langgraph.graph import END, StateGraph
 
 from app.core.logging import get_logger
-from app.rag.rerank import reorder_by_relevance, rerank_results
+from app.integrations.rag_helpers.rerank import reorder_by_relevance, rerank_results
 from app.rag.retrieval import ContextBuilder, HybridRetriever, ScoredHit, apply_news_boosts
 from app.rag.tools import get_gas_price, get_news, get_token_price, get_wallet_balance, scan_token
 

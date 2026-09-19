@@ -1,7 +1,7 @@
 """Unit tests — Qwen3 reranker 4B-only lanes (2026-08-29 consolidation).
 
 Offline: all HTTP is stubbed at ``_post_rerank``'s httpx boundary via
-monkeypatching :func:`app.rag.rerank._post_rerank` (or httpx itself for
+monkeypatching :func:`app.integrations.rag_helpers.rerank._post_rerank` (or httpx itself for
 the single-shot paths). Contracts:
 
 * live tier caps candidates at LIVE_CANDIDATE_CAP and routes to the 4B
@@ -17,7 +17,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.rag import rerank as rr
+from app.integrations.rag_helpers import rerank as rr
 
 
 @pytest.fixture(autouse=True)

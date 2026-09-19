@@ -146,7 +146,7 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
     # deterministic) so every concurrent search hits the cache. Fail-open:
     # embedder down → searches fail the same way they would have anyway.
     try:
-        from app.rag.embeddings import get_embedding
+        from app.integrations.rag_helpers.embeddings import get_embedding
 
         # Lightweight inline query expansion (synonyms + variants) so the
         # embedder warms the cache for the upcoming concurrent searches.
