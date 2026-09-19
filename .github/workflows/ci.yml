@@ -25,6 +25,19 @@ jobs:
         run: |
           python -c "from app.factory import create_app; app = create_app(); print('Routes: %d' % len(app.routes))"
 
+      # Fleet coding gates (canonical: standards/fleet/gates) — BLOCKING ratchets.
+      - name: Structure gate (<=200 firm, shrink-only allowlist)
+        run: python3 scripts/check-structure.py --repo . --scan-root app --scan-root src
+
+      - name: Monkeypatch ratchet (decrease-only)
+        run: python3 scripts/check-monkeypatch.py --repo .
+
+      - name: Antipattern ratchet (per-repo baseline)
+        run: python3 scripts/check-antipatterns.py --repo .
+
+      - name: Gate self-test (proves each gate catches its violation class)
+        run: bash scripts/ci-gate-selftest.sh
+
   archfit:
     runs-on: ubuntu-latest
     steps:

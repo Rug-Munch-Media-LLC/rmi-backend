@@ -1,0 +1,16 @@
+{
+	"rules": {
+		"long-function": 564,
+		"bare-except": 1449,
+		"god-file": 271,
+		"too-many-params": 248,
+		"fstring-logging": 1990,
+		"monkeypatch": 1363,
+		"wildcard-import": 3,
+		"eval-exec": 3,
+		"sync-io-async": 5,
+		"hardcoded-secret": 8,
+		"ts-ignore": 335
+	},
+	"total": 6239
+}
