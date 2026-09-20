@@ -16,14 +16,14 @@ stack (FAISS, multi-head crypto_embeddings, semantic cache) is retired.
 
 ```json
 {
-  "vectors":   {"dense": {"size": 1024, "distance": "Cosine"}},
+  "vectors":   {"dense": {"size": 2560, "distance": "Cosine"}},
   "sparse_vectors": {"bm25": {"modifier": "idf"}},
   "on_disk_payload": false,
   "optimizers_config": {"indexing_threshold": 500}
 }
 ```
 
-- **dense**: qwen3-embedding-4b via llama.cpp (1024d, Cosine — L2-normalized on insert, consistent
+- **dense**: qwen3-embedding-4b via llama.cpp :8004 / DeepInfra (2560d, Cosine — L2-normalized on insert, consistent
   with every existing collection).
 - **sparse `bm25`**: Qdrant server-side BM25 (k1=1.5, b=0.75 defaults) computed from the
   `content` payload field. **No fastembed/SPLADE dependency** — reuse the exact config
@@ -65,7 +65,7 @@ Replace `three_pillar_search`'s in-process RRF (k=60) with Qdrant native prefetc
 POST /collections/rag_unified_v1/points/search
 {
   "prefetch": [
-    {"query": {"name": "dense", "vector": <1024d>}, "using": "dense", "limit": 50, "filter": {...}},
+    {"query": {"name": "dense", "vector": <2560d>}, "using": "dense", "limit": 50, "filter": {...}},
     {"query": {"name": "bm25", "text": "query terms"}, "using": "bm25", "limit": 50, "filter": {...}}
   ],
   "query": {"fusion": "rrf"},
@@ -88,7 +88,7 @@ in-process `_apply_filters` post-filter step.
 | `engine._qdrant_search` + named-vector probing (`_qdrant_uses_named_vectors`) | becomes the only path |
 | `app/ann_index.py` (root, FAISS) + `app/rag_service/retrieval.py` FAISS path | Qdrant (rag_service deprecated) |
 | `app/semantic_cache.py` (Redis vec cache) | drop — Qdrant is the cache; keep only if latency regresses [REVIEW] |
-| `app/crypto_embeddings.py` multi-head bge-small (384d) | qwen3-4b 1024d; note: file already missing, rag_service imports are dangling [REVIEW] |
+| `app/crypto_embeddings.py` multi-head bge-small (384d) | qwen3-4b 2560d; note: file already missing, rag_service imports are dangling [REVIEW] |
 | 42 legacy Qdrant collections (news_v2, scams_v2, threat_intel_v2, scanned_tokens…) | frozen → alias-read → dropped |
 
 **Keep:** `dedup.py` Redis ZSET levels 1/3/4 (URL/fingerprint/entity — Redis is the right

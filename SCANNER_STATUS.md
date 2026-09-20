@@ -191,8 +191,8 @@ All documented in the provider registry — LOCAL FIRST → FREE SECOND → PAID
 
 The RAG layer that backs scanner threat-intelligence matching is the RugBrain stack:
 
-- **Embedding + reranking** — Infinity (`infinity-rag:8001`): `BAAI/bge-m3`
-  (1024-dim dense) for embedding, `BAAI/bge-reranker-v2-m3` cross-encoder for
+- **Embedding + reranking** — Qwen3 stack: `Qwen/Qwen3-Embedding-4B`
+  (2560-dim dense; DeepInfra + local llama.cpp :8004) for embedding, `Qwen/Qwen3-Reranker-4B` cross-encoder for
   two-stage reranking (fail-open)
 - **Vector storage** — Qdrant (`rmi-qdrant:6333`): **18 collections**, **4,354+ points**
   across security / code / market / news domains
