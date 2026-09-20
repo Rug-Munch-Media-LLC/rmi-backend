@@ -95,11 +95,12 @@ commits = [
   "bde2f3a97dd4243542d6b0f12761c743944214c9",  # TODO/AGENTS internal IPs
 ]
 paths = [
-    # The companion pattern file for scripts/pre-commit-methodology-check.sh.
-    # A SCANNER DEFINITION (the detector, not the detected): it holds the
-    # internal literals the guard matches on, is gitignored, and is never
-    # committed or pushed. Same rationale as the guard script itself.
-    '''\.methodology-patterns''',
+  # The companion pattern file to scripts/pre-commit-methodology-check.sh.
+  # A SCANNER DEFINITION (the detector, not the detected): it holds the internal
+  # literals the guard matches on, is gitignored, and is never committed or pushed.
+  # The push hook runs 'gitleaks detect --source . --no-git', so an uncommitted
+  # file here DOES get scanned - hence this entry.
+  '''\.methodology-patterns''',
   # Pre-commit methodology check: detection patterns (scanner, not leak)
   '''scripts/pre-commit-methodology-check\.sh''',
   '''node_modules/''',
