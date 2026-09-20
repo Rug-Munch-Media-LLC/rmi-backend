@@ -1,4 +1,11 @@
 # RMI RAG Modernization — 2026 Standards
+
+> **SUPERSEDED (2026-09-20):** this is the pre-modernization assessment.
+> The stack it describes (nomic/bge-m3/bge-small, 4 overlapping pipelines,
+> Infinity) is gone. Live: RugBrain as the canonical RAG service, ONE stack
+> (`Qwen3-Embedding-4B` 2560d + `Qwen3-Reranker-4B`, DeepInfra + local
+> llama.cpp), collections per `rugbrain/docs/COLLECTION_REGISTRY.md`.
+
 # ======================================
 # Design document for upgrading RMI's RAG system to production-grade
 # modern standards. Based on audit of all 40+ endpoints, 4 pipelines,

@@ -144,7 +144,7 @@ async def test_seed_wallets_embed_failure_is_tolerated() -> None:
 
 @pytest.mark.asyncio
 async def test_embed_batch_builds_request() -> None:
-    """_embed_batch posts to /embeddings with the bge-m3 model."""
+    """_embed_batch posts to /embeddings with the Qwen3-Embedding-4B model."""
     client = MagicMock()
     client.post = AsyncMock(
         return_value=MagicMock(
