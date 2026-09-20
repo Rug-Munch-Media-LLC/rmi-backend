@@ -1,5 +1,5 @@
-# DEPRECATED: Use db-backup.sh instead. Remove after 2026-08-01.
 #!/bin/bash
+# DEPRECATED: Use db-backup.sh instead. Remove after 2026-08-01.
 # /root/scripts/backup.sh — Daily backup + monthly restore test
 # Per v4.0 §T45. Backs up Postgres + Neo4j + Qdrant + MinIO → /backups/
 # Monthly (1st of month) restores to a test container and verifies.
@@ -73,13 +73,13 @@ log "Backing up system configs..."
 tar -czf "$BACKUP_DIR/etc_root.tar.gz" \
     --exclude='/root/.cache' \
     --exclude='/root/.ollama' \
-    --exclude='/root/.hermes/sessions' \
+    --exclude='<internal-state-dir>/sessions' \
     --exclude='/root/.cargo' \
     --exclude='/root/.rustup' \
     --exclude='/root/.local/share/cargo' \
     /etc/prometheus \
     /root/scripts /root/.hermes /root/.ssh /root/.bashrc /root/.profile \
-    /root/backend/.env \
+    BACKEND_DEPLOY_DIR/.env \
     2>/dev/null || true
 if [ -f "$BACKUP_DIR/etc_root.tar.gz" ]; then
     ER_SIZE=$(du -h "$BACKUP_DIR/etc_root.tar.gz" | cut -f1)
@@ -96,7 +96,7 @@ docker exec rmi-glitchtip-db pg_dump -U glitchtip glitchtip 2>/dev/null | gzip >
 # 6. Rotation
 log "Rotating old backups (keep ${KEEP_DAYS} days)..."
 find /backups -maxdepth 1 -type d -mtime +$KEEP_DAYS -exec rm -rf {} \; 2>/dev/null || true
-REMAINING=$(ls -1d /backups/*/ 2>/dev/null | wc -l)
+REMAINING=$(find /backups -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
 TOTAL_SIZE=$(du -sh /backups 2>/dev/null | cut -f1)
 
 log "=== Backup complete: $BACKUP_DIR ==="

@@ -549,7 +549,7 @@ EXTERNAL_MCP_SERVICES = [
         "icon": "📊",
         "tools_count": len(FEAR_GREED_TOOLS),
         "free": True,
-        "local_clone": "/root/.hermes/mcp-servers/crypto-feargreed-mcp",
+        "local_clone": "<internal-state-dir>/mcp-servers/crypto-feargreed-mcp",
     },
     {
         "id": "crypto-indicators-mcp",
@@ -560,7 +560,7 @@ EXTERNAL_MCP_SERVICES = [
         "icon": "📈",
         "tools_count": len(CRYPTO_INDICATORS_TOOLS),
         "free": True,
-        "local_clone": "/root/.hermes/mcp-servers/crypto-indicators-mcp",
+        "local_clone": "<internal-state-dir>/mcp-servers/crypto-indicators-mcp",
     },
     {
         "id": "openzeppelin-wizard",
@@ -571,7 +571,7 @@ EXTERNAL_MCP_SERVICES = [
         "icon": "🔒",
         "tools_count": len(CONTRACTS_WIZARD_TOOLS),
         "free": True,
-        "local_clone": "/root/.hermes/mcp-servers/contracts-wizard",
+        "local_clone": "<internal-state-dir>/mcp-servers/contracts-wizard",
     },
     {
         "id": "web3-research-mcp",
@@ -582,7 +582,7 @@ EXTERNAL_MCP_SERVICES = [
         "icon": "🔬",
         "tools_count": len(WEB3_RESEARCH_TOOLS),
         "free": True,
-        "local_clone": "/root/.hermes/mcp-servers/web3-research-mcp",
+        "local_clone": "<internal-state-dir>/mcp-servers/web3-research-mcp",
     },
 ]
 
