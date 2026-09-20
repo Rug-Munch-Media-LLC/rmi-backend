@@ -107,12 +107,12 @@ async def upsert_entity(
                 s.run(
                     """
                     MERGE (e:Entity {entity_id: $entity_id})
+                    ON CREATE SET
+                        e.first_seen = datetime()
                     SET e.label = COALESCE($label, e.label),
                         e.aliases = COALESCE($aliases, e.aliases),
                         e.tags = COALESCE($tags, e.tags),
                         e.last_seen = datetime()
-                    ON CREATE SET
-                        e.first_seen = datetime()
                     """,
                     entity_id=entity_id,
                     label=label or "",
@@ -154,13 +154,13 @@ async def upsert_wallet(
                 s.run(
                     """
                     MERGE (w:Wallet {wallet_id: $wallet_id})
-                    SET w.address = $address,
-                        w.chain = $chain,
-                        w.last_seen = datetime()
                     ON CREATE SET
                         w.first_seen = datetime(),
                         w.tx_count = 0,
                         w.total_volume_usd = 0.0
+                    SET w.address = $address,
+                        w.chain = $chain,
+                        w.last_seen = datetime()
                     """,
                     wallet_id=wallet_id,
                     address=address.lower(),
