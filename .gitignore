@@ -168,3 +168,4 @@ app/domains/telegram/data/
 # DBs, bm25 index, scraped OSINT/ML datasets) — never commit
 app/data/
 mutants/
+.methodology-patterns
