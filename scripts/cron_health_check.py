@@ -16,8 +16,8 @@ import json
 import logging
 import os
 import re
-import subprocess
 import sys
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urljoin
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # ── Config ─────────────────────────────────────────────────────────
 BACKEND_URL = os.getenv("RMI_BACKEND_URL", "http://127.0.0.1:8000")
 LOG_FILE = "/var/log/cron-health.log"
-CRONTAB_FILE = "/tmp/cron-inventory.txt"
+CRONTAB_FILE = os.getenv("CRON_INVENTORY_FILE", str(Path(tempfile.gettempdir()) / "cron-inventory.txt"))
 
 # Each cron: (name, schedule, expected_window_minutes, log_file_pattern)
 # expected_window = how often it should fire (e.g. */15 → 15 min window)
@@ -35,7 +35,7 @@ CRONS = [
     # (name, schedule, window_min, log_file)
     ("security-state", "* * * * *", 5, "/var/log/security-state.log"),
     ("vault-sync", "*/30 * * * *", 35, "<internal-state-dir>/logs/vault-sync.log"),
-    ("cache-warmer", "*/4 * * * *", 8, "/tmp/cache-warmer.log"),
+    ("cache-warmer", "*/4 * * * *", 8, str(Path(tempfile.gettempdir()) / "cache-warmer.log")),
     ("ingest-runner", "*/15 * * * *", 20, "/var/log/ingest_cron.log"),
     ("wallet-ingest", "*/30 * * * *", 35, "/var/log/wallet_ingest.log"),
     ("master-ingest", "0 * * * *", 65, "/var/log/master_ingest.log"),
@@ -66,18 +66,14 @@ def check_log_for_errors(log_file: str) -> tuple[bool, str]:
     if not Path(log_file).exists():
         return False, "log file missing"
 
-    # Read last 100 lines
+    # Read last 100 lines. Pure Python rather than shelling out to `tail`:
+    # no subprocess, no partial executable path, and no dependency on tail
+    # being on PATH for a monitoring script.
     try:
-        result = subprocess.run(
-            ["tail", "-n", "100", log_file],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-    except Exception as e:
+        with open(log_file, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()[-100:]
+    except OSError as e:
         return False, f"log read fail: {e}"
-
-    lines = result.stdout.splitlines()
     if not lines:
         return False, "empty log"
 
@@ -101,7 +97,7 @@ def check_log_for_errors(log_file: str) -> tuple[bool, str]:
                 return False, last_error
 
     # Check for recent activity (log has content from last N hours)
-    if "ImportError" in result.stdout or "ModuleNotFoundError" in result.stdout:
+    if any("ImportError" in ln or "ModuleNotFoundError" in ln for ln in lines):
         return False, "Python import error"
 
     return True, ""
