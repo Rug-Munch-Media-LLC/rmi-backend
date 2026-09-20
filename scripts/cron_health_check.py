@@ -34,7 +34,7 @@ CRONTAB_FILE = "/tmp/cron-inventory.txt"
 CRONS = [
     # (name, schedule, window_min, log_file)
     ("security-state", "* * * * *", 5, "/var/log/security-state.log"),
-    ("vault-sync", "*/30 * * * *", 35, "/root/.hermes/logs/vault-sync.log"),
+    ("vault-sync", "*/30 * * * *", 35, "<internal-state-dir>/logs/vault-sync.log"),
     ("cache-warmer", "*/4 * * * *", 8, "/tmp/cache-warmer.log"),
     ("ingest-runner", "*/15 * * * *", 20, "/var/log/ingest_cron.log"),
     ("wallet-ingest", "*/30 * * * *", 35, "/var/log/wallet_ingest.log"),

@@ -2,7 +2,7 @@
 """
 RMI Backend - Environment Generator
 ====================================
-Generates /root/backend/.env from .env.example + Hermes .env matching keys.
+Generates BACKEND_DEPLOY_DIR/.env from .env.example + Hermes .env matching keys.
 Also syncs from /root/.secrets/ where available.
 
 Usage:
@@ -13,8 +13,8 @@ Usage:
 import sys
 from pathlib import Path
 
-BACKEND_DIR = Path("/root/backend")
-HERMES_ENV = Path("/root/.hermes/.env")
+BACKEND_DIR = Path("BACKEND_DEPLOY_DIR")
+HERMES_ENV = Path("<internal-state-dir>/.env")
 SECRETS_DIR = Path("/root/.secrets")
 EXAMPLE = BACKEND_DIR / ".env.example"
 TARGET = BACKEND_DIR / ".env"
