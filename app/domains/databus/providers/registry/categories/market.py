@@ -47,6 +47,7 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 _g["token_price_local"],
                 weight=25.0,
                 is_local=True,
+                timeout=1.5,  # 2026-09-21: miss path used to burn ~12s before fallthrough
                 description="F2 price oracle — own dex_events + free APIs (Redis/ClickHouse cached)",
             ),
             Provider("local_price", ProviderTier.LOCAL, _g["_local_token_price"], weight=10.0),
