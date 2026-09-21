@@ -7,6 +7,7 @@ with the smart fallback fetch logic.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -161,7 +162,13 @@ class ProviderChain:
 
                     api_key = os.getenv(provider.key_env, "")
 
-                result = await provider.fetch_fn(api_key=api_key, **kwargs)
+                # 2026-09-21: bound every attempt by the provider's own
+                # timeout — a slow tier previously consumed its full latency
+                # (12s on token_price) before the chain could fall through.
+                result = await asyncio.wait_for(
+                    provider.fetch_fn(api_key=api_key, **kwargs),
+                    timeout=provider.timeout,
+                )
 
                 if result is not None:
                     _rate_limiters.setdefault(provider.name, _RateLimiter()).record_call()
