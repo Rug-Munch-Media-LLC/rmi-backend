@@ -91,9 +91,15 @@ class ToolResult:
 class ProviderChain:
     """Ordered list of data providers with fallback."""
 
-    def __init__(self, name: str, hedge_after_s: float | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        hedge_after_s: float | None = None,
+        per_try_timeout_s: float = 5.0,
+    ) -> None:
         self.name = name
         self.hedge_after_s = hedge_after_s
+        self.per_try_timeout_s = per_try_timeout_s
         self._providers: list[tuple[Any, ...]] = []  # (name, fn, rate_rps)
 
     def add(self, name: str, fn: Callable[..., Any], rate_rps: float = 10) -> ProviderChain:
@@ -123,41 +129,53 @@ class ProviderChain:
         return None
 
     async def _fetch_hedged(self, **kwargs: Any) -> ToolResult | None:
-        """Hedged provider execution: start the next provider when the current
-        hasn't answered within ``hedge_after_s``; first non-None result wins.
-
-        Priority order is preserved for fast providers; a slow leading provider
-        no longer sets the tail latency (2026-09-21 p99 fix).
+        """Hedged provider execution: the leader gets ``hedge_after_s`` grace; if
+        it has not answered, every remaining provider fans out concurrently and
+        the first usable result wins. Each attempt is bounded by
+        ``per_try_timeout_s`` so a hanging provider cannot set the tail.
         """
         start = time.monotonic()
         primary = self._providers[0][0] if self._providers else ""
         queue = list(self._providers)
         pending: dict[asyncio.Task, tuple[str, bool]] = {}
+
+        def _launch(prov_name: str, fn: Any) -> None:
+            task = asyncio.create_task(asyncio.wait_for(fn(**kwargs), timeout=self.per_try_timeout_s))
+            pending[task] = (prov_name, prov_name == primary)
+
+        def _harvest(done: set[asyncio.Task]) -> ToolResult | None:
+            for task in done:
+                prov_name, is_primary = pending.pop(task)
+                try:
+                    data = task.result()
+                except Exception as e:
+                    logger.debug(f"Provider {prov_name} failed: {e}")
+                    continue
+                if data is not None:
+                    return ToolResult(
+                        data=data,
+                        source=prov_name,
+                        latency_ms=(time.monotonic() - start) * 1000,
+                        fallback_used=not is_primary,
+                    )
+            return None
+
         try:
-            while queue or pending:
-                while queue and len(pending) < 2:
-                    prov_name, fn, _rps = queue.pop(0)
-                    task = asyncio.create_task(fn(**kwargs))
-                    pending[task] = (prov_name, prov_name == primary)
-                if not pending:
-                    break
-                done, _ = await asyncio.wait(pending, timeout=self.hedge_after_s, return_when=asyncio.FIRST_COMPLETED)
-                if not done:
-                    continue  # hedge window elapsed: next loop tops up from the queue
-                for task in done:
-                    prov_name, is_primary = pending.pop(task)
-                    try:
-                        data = task.result()
-                    except Exception as e:
-                        logger.debug(f"Provider {prov_name} failed: {e}")
-                        continue
-                    if data is not None:
-                        return ToolResult(
-                            data=data,
-                            source=prov_name,
-                            latency_ms=(time.monotonic() - start) * 1000,
-                            fallback_used=not is_primary,
-                        )
+            prov_name, fn, _rps = queue.pop(0)
+            _launch(prov_name, fn)
+            done, _ = await asyncio.wait(pending, timeout=self.hedge_after_s, return_when=asyncio.FIRST_COMPLETED)
+            result = _harvest(done) if done else None
+            if result is not None:
+                return result
+            # Leader slow or unusable: fan out every remaining provider.
+            while queue:
+                pn, f2, _r2 = queue.pop(0)
+                _launch(pn, f2)
+            while pending:
+                done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                result = _harvest(done)
+                if result is not None:
+                    return result
         finally:
             for task in pending:
                 task.cancel()
