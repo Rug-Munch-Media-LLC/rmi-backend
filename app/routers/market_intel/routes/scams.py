@@ -5,6 +5,7 @@ Scam alerts from DexScreener suspicious tokens and combined alerts feed.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
@@ -34,10 +35,19 @@ async def get_market_scams(
             for c in trending["coins"]:
                 trending_symbols.add(c.get("item", {}).get("symbol", "").upper())
 
-        for b in boosts[:20]:
+        boosts = boosts[:20]
+        _pairs_sem = asyncio.Semaphore(8)
+
+        async def _pairs(addr: str) -> Any:
+            if not addr:
+                return None
+            async with _pairs_sem:
+                return await _ds(f"/latest/dex/search?q={addr}", ttl=120)
+
+        _pairs_all = await asyncio.gather(*(_pairs(b.get("tokenAddress", "")) for b in boosts))
+        for b, pairs_data in zip(boosts, _pairs_all, strict=False):
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
-            pairs_data = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
             price = 0.0
             mcap = 0.0
             vol_24h = 0.0
@@ -112,10 +122,19 @@ async def get_market_alerts_feed(
     # 1. Scam alerts from DexScreener suspicious tokens
     boosts = await _ds("/token-boosts/latest/v1", ttl=60)
     if boosts and isinstance(boosts, list):
-        for b in boosts[:30]:
+        boosts = boosts[:30]
+        _pairs_sem = asyncio.Semaphore(8)
+
+        async def _pairs(addr: str) -> Any:
+            if not addr:
+                return None
+            async with _pairs_sem:
+                return await _ds(f"/latest/dex/search?q={addr}", ttl=120)
+
+        _pairs_all = await asyncio.gather(*(_pairs(b.get("tokenAddress", "")) for b in boosts))
+        for b, pairs_data in zip(boosts, _pairs_all, strict=False):
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
-            pairs_data = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
             price = 0.0
             mcap = 0.0
             vol_24h = 0.0
