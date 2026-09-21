@@ -91,8 +91,9 @@ class ToolResult:
 class ProviderChain:
     """Ordered list of data providers with fallback."""
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, hedge_after_s: float | None = None) -> None:
         self.name = name
+        self.hedge_after_s = hedge_after_s
         self._providers: list[tuple[Any, ...]] = []  # (name, fn, rate_rps)
 
     def add(self, name: str, fn: Callable[..., Any], rate_rps: float = 10) -> ProviderChain:
@@ -100,6 +101,11 @@ class ProviderChain:
         return self
 
     async def fetch(self, **kwargs: Any) -> ToolResult | None:
+        if self.hedge_after_s is not None and len(self._providers) > 1:
+            return await self._fetch_hedged(**kwargs)
+        return await self._fetch_sequential(**kwargs)
+
+    async def _fetch_sequential(self, **kwargs: Any) -> ToolResult | None:
         start = time.monotonic()
         for prov_name, fn, _rps in self._providers:
             try:
@@ -114,6 +120,47 @@ class ProviderChain:
             except Exception as e:
                 logger.debug(f"Provider {prov_name} failed: {e}")
                 continue
+        return None
+
+    async def _fetch_hedged(self, **kwargs: Any) -> ToolResult | None:
+        """Hedged provider execution: start the next provider when the current
+        hasn't answered within ``hedge_after_s``; first non-None result wins.
+
+        Priority order is preserved for fast providers; a slow leading provider
+        no longer sets the tail latency (2026-09-21 p99 fix).
+        """
+        start = time.monotonic()
+        primary = self._providers[0][0] if self._providers else ""
+        queue = list(self._providers)
+        pending: dict[asyncio.Task, tuple[str, bool]] = {}
+        try:
+            while queue or pending:
+                while queue and len(pending) < 2:
+                    prov_name, fn, _rps = queue.pop(0)
+                    task = asyncio.create_task(fn(**kwargs))
+                    pending[task] = (prov_name, prov_name == primary)
+                if not pending:
+                    break
+                done, _ = await asyncio.wait(pending, timeout=self.hedge_after_s, return_when=asyncio.FIRST_COMPLETED)
+                if not done:
+                    continue  # hedge window elapsed: next loop tops up from the queue
+                for task in done:
+                    prov_name, is_primary = pending.pop(task)
+                    try:
+                        data = task.result()
+                    except Exception as e:
+                        logger.debug(f"Provider {prov_name} failed: {e}")
+                        continue
+                    if data is not None:
+                        return ToolResult(
+                            data=data,
+                            source=prov_name,
+                            latency_ms=(time.monotonic() - start) * 1000,
+                            fallback_used=not is_primary,
+                        )
+        finally:
+            for task in pending:
+                task.cancel()
         return None
 
 
@@ -150,7 +197,7 @@ class UnifiedDataLayer:
 
         # ── PRICE ──
         self._providers["token_price"] = (
-            ProviderChain("token_price")
+            ProviderChain("token_price", hedge_after_s=1.0)
             .add("jupiter", self._jupiter_price, 10)
             .add("solana_tracker", self._st_price, 3)
             .add("dexscreener", self._dexscreener_price, 5)
@@ -237,7 +284,7 @@ class UnifiedDataLayer:
 
     def _ttl_for(self, dt: str) -> int:
         return {
-            "token_price": 8,
+            "token_price": 15,
             "token_meta": 120,
             "wallet_balance": 10,
             "risk_scan": 300,
