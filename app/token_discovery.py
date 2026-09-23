@@ -28,6 +28,19 @@ MONITORED_CHAINS = {
 }
 
 
+def _num(value: Any, default: float = 0.0) -> float:
+    """None/empty-safe float.
+
+    2026-09-23: the providers return an explicit ``null`` for these numeric fields;
+    ``dict.get(key, 0)`` only defaults on MISSING keys, so ``float(None)`` raised and
+    killed the whole periodic discovery tick.
+    """
+    try:
+        return float(value) if value is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
 async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict[str, Any]]:
     """Fetch newest trading pairs from DexScreener."""
     url = "https://api.dexscreener.com/latest/dex/search"
@@ -134,9 +147,9 @@ async def discover_tokens(chains: list[str] | None = None) -> dict[str, Any]:
                         "symbol": base.get("symbol", ""),
                         "chain": chain,
                         "dex": pair.get("dexId", ""),
-                        "liquidity_usd": float(pair.get("liquidity", {}).get("usd", 0)),
-                        "volume_24h": float(pair.get("volume", {}).get("h24", 0)),
-                        "price_usd": float(pair.get("priceUsd", 0)),
+                        "liquidity_usd": _num(pair.get("liquidity", {}).get("usd")),
+                        "volume_24h": _num(pair.get("volume", {}).get("h24")),
+                        "price_usd": _num(pair.get("priceUsd")),
                         "created_at": datetime.fromtimestamp(pair.get("pairCreatedAt", 0) / 1000, tz=UTC).isoformat()
                         if pair.get("pairCreatedAt")
                         else None,
@@ -159,8 +172,8 @@ async def discover_tokens(chains: list[str] | None = None) -> dict[str, Any]:
                         "name": attrs.get("name", ""),
                         "symbol": "",
                         "chain": chain,
-                        "liquidity_usd": float(attrs.get("reserve_in_usd", 0)),
-                        "price_usd": float(attrs.get("base_token_price_usd", 0)),
+                        "liquidity_usd": _num(attrs.get("reserve_in_usd")),
+                        "price_usd": _num(attrs.get("base_token_price_usd")),
                         "source": "geckoterminal",
                     }
                 )

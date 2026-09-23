@@ -27,6 +27,8 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 SCAN_QUEUE = "token_scan_queue"
+# Backlog ceiling; discovery pauses above it (alert fires at 500).
+SCAN_QUEUE_MAX = int(os.getenv("SCAN_QUEUE_MAX", "400"))
 NEWS_QUEUE = "news_queue"
 ALERT_QUEUE = "alert_queue"
 
@@ -148,8 +150,9 @@ async def process_scan_job(r, job_data):
             }
 
         # Store result in Redis cache (1 hour TTL)
-        await r.set(f"scan_result:{token_address}", json.dumps(scan_result), ex=3600)
-        await r.lpush("scan_results", json.dumps(scan_result))
+        payload = json.dumps(scan_result, default=str)  # enums (LockStatus) are not JSON-native
+        await r.set(f"scan_result:{token_address}", payload, ex=3600)
+        await r.lpush("scan_results", payload)
         await r.ltrim("scan_results", 0, 99)
 
         logger.info("scan_completed", extra={"token_address": token_address})
@@ -233,28 +236,48 @@ async def periodic_token_scan(r):
     logger.info("periodic_scanner_started")
 
     try:
-        from app.token_discovery import MONITORED_CHAINS, discover_new_tokens
+        from app.token_discovery import MONITORED_CHAINS, discover_tokens
 
         DISCOVERY_AVAILABLE = True  # noqa: N806
-    except ImportError:
-        logger.warning("token_discovery_unavailable")
+    except ImportError as exc:
+        # 2026-09-23: this used to be a bare flag — a renamed symbol made discovery
+        # silently dead for weeks ("token_discovery_unavailable" every tick). Always
+        # carry the exception text so the next drift is one log line away.
+        logger.warning("token_discovery_unavailable", extra={"error": str(exc)})
         DISCOVERY_AVAILABLE = False  # noqa: N806
 
     while True:
         try:
             if DISCOVERY_AVAILABLE:
                 # Discover new tokens across all monitored chains
-                discovered = await discover_new_tokens(
-                    r,
-                    chains=list(MONITORED_CHAINS.keys()),
-                    scan_security=True,
-                )
+                discovered = await discover_tokens(chains=list(MONITORED_CHAINS.keys()))
 
                 total = sum(len(tokens) for tokens in discovered.values())
                 if total > 0:
                     # Queue new tokens for deep scanning
+                    # Discovered ~30-70 tokens per 5-min tick vs a sequential
+                    # scanner draining ~40/h: without a ceiling the queue grows
+                    # forever. Skipped tokens are re-found next tick (dedup keys
+                    # are written only when a token is accepted).
+                    backlog = await r.llen(SCAN_QUEUE)
+                    if backlog > SCAN_QUEUE_MAX:
+                        logger.warning(
+                            "scan_queue_saturated",
+                            extra={"backlog": backlog, "cap": SCAN_QUEUE_MAX},
+                        )
+                        await asyncio.sleep(300)
+                        continue
+
                     for chain, tokens in discovered.items():
                         for token in tokens:
+                            # 2026-09-23: the 5-minute discovery cycle re-offered the
+                            # same tokens forever (no dedup anywhere), so the queue grew
+                            # unboundedly (109 items in 20 min on first deploy). One
+                            # SETNX-with-TTL per token: a token is queued at most once
+                            # per 24h, and the keys expire themselves.
+                            dedup_key = f"scan:queued:{chain}:{token['address']}"
+                            if not await r.set(dedup_key, 1, ex=86400, nx=True):
+                                continue
                             await r.lpush(
                                 SCAN_QUEUE,
                                 json.dumps(
