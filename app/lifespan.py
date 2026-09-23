@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 log = get_logger(__name__)
 
 
-@asynccontextmanager
+@asynccontextmanager  # pyright: ignore[reportDeprecated]
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Wire cross-cutting at startup. Failures are logged, never fatal."""
     log.info("rmi_backend_starting")
@@ -74,7 +74,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
         bus = get_event_bus()
         register_core_subscribers()
-        log.info("event_bus_initialized subscribers=%d", len(bus._subscriptions))
+        log.info("event_bus_initialized subscribers=%d", len(bus._subscriptions))  # pyright: ignore[reportPrivateUsage]
     except Exception as exc:
         log.warning("event_bus_init_failed err=%s", exc)
 
@@ -88,27 +88,27 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # 4. M1 - long-term memory (fact_store seed)
     try:
-        from app.agents.fact_store import seed_facts
+        from app.agents.fact_store import seed_facts  # pyright: ignore[reportMissingImports, reportUnknownVariableType]
 
-        seeded = await seed_facts()
+        seeded = await seed_facts()  # pyright: ignore[reportUnknownVariableType]
         log.info("fact_store_seeded count=%d", seeded)
     except Exception as exc:
         log.info("fact_store_seed_skipped err=%s", exc)
 
-    # 5. M4 - OpenTelemetry tracing
+    # 5. M4 - OpenTelemetry tracing (SDK + OTLP export; idempotent, opt-in)
     try:
-        from app.core.tracing import setup_otel  # type: ignore[attr-defined]  # optional; guarded by try/except
+        from app.observability.tracing import init_tracing
 
-        otel_ok = setup_otel()
-        log.info("otel_init ok=%s", otel_ok)
+        init_tracing()
+        log.info("otel_init ok=true")
     except Exception as exc:
         log.info("otel_init_failed err=%s", exc)
 
     # 6. M4 - Langfuse (LLM tracing)
     try:
-        from app.core.langfuse import init_langfuse
+        from app.core.langfuse import init_langfuse  # pyright: ignore[reportMissingImports, reportUnknownVariableType]
 
-        lf_ok = init_langfuse()
+        lf_ok = init_langfuse()  # pyright: ignore[reportUnknownVariableType]
         log.info("langfuse_init ok=%s", lf_ok)
     except Exception as exc:
         log.info("langfuse_init_failed err=%s", exc)
@@ -178,7 +178,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         import asyncio as _asyncio
 
-        from app.databus.rag_news_realtime import rag_news_realtime
+        from app.databus.rag_news_realtime import rag_news_realtime  # pyright: ignore[reportUnknownVariableType]
 
         async def _rag_ingest_loop() -> None:
             """Ingest news into Qdrant every 30 minutes on a staggered schedule."""
@@ -417,7 +417,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.debug("news_cache_cancel_failed err=%s", exc)
 
     try:
-        from app.core.langfuse import flush_langfuse
+        from app.core.langfuse import flush_langfuse  # pyright: ignore[reportMissingImports, reportUnknownVariableType]
         from app.core.observability import flush_sentry
         from app.core.tracing import shutdown_otel  # type: ignore[attr-defined]  # optional; guarded by try/except
 

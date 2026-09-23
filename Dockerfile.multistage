@@ -49,6 +49,16 @@ RUN --mount=type=secret,id=forgejo_netrc,target=/root/.netrc,mode=0600 \
            /install/lib/python3.12/site-packages/torch/include \
            /install/lib/python3.12/site-packages/torch/bin
 
+# OpenTelemetry auto-instrumentation (pyproject [otel] extra). Installed
+# explicitly: re-resolving `-e .[otel]` here would need the Forgejo netrc secret.
+RUN pip install --no-cache-dir --prefix=/install \
+    opentelemetry-instrumentation-fastapi==0.65b0 \
+    opentelemetry-instrumentation-sqlalchemy==0.65b0 \
+    opentelemetry-instrumentation-httpx==0.65b0 \
+    opentelemetry-instrumentation-redis==0.65b0 \
+    opentelemetry-instrumentation-logging==0.65b0 \
+    opentelemetry-instrumentation-aiohttp-client==0.65b0
+
 # ---------------------------------------------------------------------------
 # Stage 2: runtime — minimal Python image
 # ---------------------------------------------------------------------------

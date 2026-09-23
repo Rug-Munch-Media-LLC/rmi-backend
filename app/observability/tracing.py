@@ -26,7 +26,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.semconv.resource import ResourceAttributes
 
 from app.core.logging import get_logger
 
@@ -62,9 +61,9 @@ def init_tracing(
     # Create resource identifying this service
     resource = Resource(
         attributes={
-            ResourceAttributes.SERVICE_NAME: service_name,
-            ResourceAttributes.SERVICE_VERSION: os.environ.get("APP_VERSION", "0.1.0"),
-            ResourceAttributes.DEPLOYMENT_ENVIRONMENT: os.environ.get("ENV", "development"),
+            "service.name": service_name,
+            "service.version": os.environ.get("APP_VERSION", "0.1.0"),
+            "deployment.environment": os.environ.get("ENV", "development"),
         }
     )
 
@@ -87,14 +86,8 @@ def _instrument_libraries() -> None:
     Each instrumentor is isolated in a try/except so a missing dependency
     won't crash the entire tracing setup.
     """
-    # FastAPI
-    try:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-        FastAPIInstrumentor().instrument()
-        logger.debug("instrumented_fastapi")
-    except Exception as exc:
-        logger.warning("instrumentation_skipped", library="fastapi", error=str(exc))
+    # FastAPI — instrumented with the app instance in middleware_setup
+    # (FastAPIInstrumentor.instrument_app), not here: it needs the app object.
 
     # SQLAlchemy
     try:

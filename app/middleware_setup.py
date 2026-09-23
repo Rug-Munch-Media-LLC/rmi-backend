@@ -260,7 +260,7 @@ def _try_register_rate_limit_middleware(app: FastAPI) -> None:
         log.warning("middleware_skipped name=rate_limit_middleware err=%s", exc)
 
 
-def _try_register_slowapi(app: FastAPI) -> None:
+def _try_register_slowapi(app: FastAPI) -> None:  # pyright: ignore[reportUnusedFunction]
     """T28 - slowapi rate limiting per PATH_CATEGORIES + decorators."""
     try:
         from slowapi.errors import RateLimitExceeded
@@ -374,6 +374,14 @@ def _try_register_tracing(app: FastAPI) -> None:
         from app.core.tracing import setup_tracing
 
         setup_tracing(app)
+        # FastAPI auto-instrumentation needs the app instance; the OTLP
+        # provider is installed later by init_tracing() in the lifespan.
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+            FastAPIInstrumentor.instrument_app(app)
+        except Exception as inst_exc:  # pragma: no cover - optional dependency
+            log.warning("tracing_instrument_skipped err=%s", inst_exc)
         log.info("middleware_registered name=tracing")
     except Exception as exc:
         log.warning("middleware_skipped name=tracing err=%s", exc)
@@ -512,7 +520,7 @@ def _try_register_csrf(app: FastAPI) -> None:
                     matched = False
                     for route in request.app.routes:
                         result = route.matches(request.scope)
-                        match = result[0] if isinstance(result, tuple) else result
+                        match = result[0] if isinstance(result, tuple) else result  # pyright: ignore[reportUnknownVariableType]
                         if match == Match.FULL:
                             matched = True
                             break
