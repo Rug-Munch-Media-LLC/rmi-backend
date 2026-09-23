@@ -249,10 +249,9 @@ async def _fetch_news_live_fallback(
     Returns [] when the feed is unreachable or no items match.
     """
     try:
-        from app.domains.news.news_service.service import get_news_service
+        from app.domains.news.news_service.news_cache import fetch_all_cached
 
-        svc = get_news_service()
-        result = await svc.fetch_all(limit=150, include_rss=True, include_reddit=False)
+        result = await fetch_all_cached(limit=150, include_rss=True, include_reddit=False)
         articles = result.get("articles", []) if isinstance(result, dict) else []
     except (
         ImportError,

@@ -402,16 +402,15 @@ async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
     outage degrades to ``unavailable``.
     """
     try:
+        from app.domains.scanner.engines._own_bundle_common import bounded_pair
         from app.domains.scanner.engines.own_bundle_detect import (
             detect_bundled_launch,
             detect_same_slot_bundler,
         )
 
-        bundle_task = asyncio.create_task(detect_bundled_launch(address, chain))
-        same_slot_task = asyncio.create_task(detect_same_slot_bundler(address, chain))
-        gathered = await asyncio.gather(bundle_task, same_slot_task, return_exceptions=True)
-        bundle: Any = gathered[0]
-        same_slot: Any = gathered[1]
+        bundle, same_slot = await bounded_pair(  # budgeted: see _own_bundle_common
+            detect_bundled_launch(address, chain), detect_same_slot_bundler(address, chain)
+        )
 
         if isinstance(bundle, dict):
             r.bundle_analysis = bundle

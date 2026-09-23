@@ -10,6 +10,7 @@ keep resolving for tests and callers.
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -117,3 +118,20 @@ def _get_ch_client() -> Any | None:
         logger.warning("Own bundle detect ClickHouse unavailable: %s", e)
         _ch_client = None
         return None
+
+
+# ── Analysis budget (2026-09-23) ──────────────────────────────────────────
+# The unified scan phase helper used to gather the two detectors with NO
+# timeout. On Base each ran ~47s, eating ~100s of the 120s scan budget and
+# capping worker throughput at ~1 token/min (scan queue drained slower than
+# discovery filled it). Hard-bounded here; on timeout both results degrade
+# to a TimeoutError for the caller's existing error handling.
+BUNDLE_BUDGET_S = float(os.getenv("BUNDLE_BUDGET_S", "15"))
+
+
+async def bounded_pair(*coros: Any) -> tuple[Any, ...]:
+    """Await every coro under BUNDLE_BUDGET_S; cancel and degrade on timeout."""
+    try:
+        return tuple(await asyncio.wait_for(asyncio.gather(*coros, return_exceptions=True), timeout=BUNDLE_BUDGET_S))
+    except TimeoutError:
+        return tuple(TimeoutError(f"bundle analysis exceeded {BUNDLE_BUDGET_S:.0f}s budget") for _ in coros)
