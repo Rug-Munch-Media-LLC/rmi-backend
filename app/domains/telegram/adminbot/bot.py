@@ -186,6 +186,16 @@ async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     except Exception as exc:
         logger.warning("Alerts feed setup failed (non-critical): %s", exc)
 
+    # Health + migration notifications (additive; producers isolate their own failures).
+    try:
+        from app.domains.telegram.adminbot.notify.watch import watch as watch_notifications
+
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(watch_notifications()) if loop.is_running() else app.create_task(watch_notifications())
+        _listener_tasks.append(task)
+    except Exception as exc:
+        logger.warning("Notification watcher setup failed (non-critical): %s", exc)
+
 
 async def _post_shutdown(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Cancel background listener tasks cleanly on shutdown."""
