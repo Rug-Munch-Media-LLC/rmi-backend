@@ -349,6 +349,13 @@ def main() -> None:
     # Error handler
     app.add_error_handler(error_handler)
 
+    # Natural-language chat + model picker (additive; existing handlers unchanged).
+    try:
+        from app.domains.telegram.adminbot.chat.register import register as register_chat
+
+        register_chat(app)
+    except Exception:
+        logger.warning("chat handlers not registered", exc_info=True)
     logger.info("🛡️ RMI Admin Bot v5 starting (@rmi_admin_bot)...")
     app.run_polling(drop_pending_updates=True)
 
