@@ -95,9 +95,14 @@ def allowed_for(command: str, owner: bool) -> bool:
         if not words:
             continue
         base = words[0].rsplit("/", 1)[-1]
-        if base in _ALLOWED_COMMANDS:
+        # Owner-only wins over the read-only list. systemctl/docker/git appear in
+        # both, so checking the read-only list first would let ANY allowed user
+        # restart services or push code. This ordering is the security boundary.
+        if base in OWNER_ONLY:
+            if not owner:
+                return False
             continue
-        if owner and base in OWNER_ONLY:
+        if base in _ALLOWED_COMMANDS:
             continue
         return False
     return True
