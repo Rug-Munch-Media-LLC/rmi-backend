@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-NAMES: dict[str, str] = {"load1": "load", "disk_pct": "disk", "mem_pct": "memory"}
+NAMES: dict[str, str] = {
+    "load1": "load (1m)",
+    "load15": "load (15m)",
+    "disk_pct": "disk",
+    "mem_pct": "memory",
+}
 
 
 def label(metric: str) -> str:

@@ -20,6 +20,7 @@ asyncio task (kept referenced alongside the RAG listener task).
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import time
@@ -44,6 +45,7 @@ QUEUE_KEYS: list[str] = [SYSTEM_QUEUE, SECURITY_QUEUE]
 POLL_TIMEOUT_SECONDS = int(os.getenv("ALERTS_FEED_POLL", "10"))
 DEDUPE_WINDOW_SECONDS = int(os.getenv("ALERTS_FEED_DEDUPE", "1800"))
 DEDUPE_MAX_ENTRIES = 500
+DEDUPE_REDIS_PREFIX = "rmi:alerts:dedupe:"
 
 _SEVERITY_EMOJI = {"critical": "🚨", "warning": "⚠️", "info": "ℹ️"}  # noqa: RUF001
 _RESOLVED_EMOJI = "✅"
@@ -130,6 +132,31 @@ class AlertDedupe:
         return True
 
 
+async def redis_should_send(client: Any, alert: dict[str, Any]) -> bool:
+    """Persist the alert fingerprint window across bot restarts.
+
+    Redis is the source of truth when available; the caller falls back to the
+    in-memory deduper if the connection is temporarily unavailable.
+    """
+    fp = fingerprint(alert)
+    digest = hashlib.sha256(fp.encode("utf-8")).hexdigest()
+    key = f"{DEDUPE_REDIS_PREFIX}{digest}"
+    status = str(alert.get("status") or "firing").lower()
+    labels = alert.get("labels") or {}
+    severity = str(labels.get("severity") or "none").lower()
+
+    if status == "resolved":
+        await client.delete(key)
+        return True
+
+    state = f"{status}:{severity}"
+    previous = await client.get(key)
+    if previous == state:
+        return False
+    await client.set(key, state, ex=DEDUPE_WINDOW_SECONDS)
+    return True
+
+
 async def start_alerts_feed(bot_app: Any) -> None:
     """Async BLPOP consumer for the Alertmanager queues. Runs forever."""
     logger.info("Alerts feed starting on queues=%s", QUEUE_KEYS)
@@ -171,7 +198,12 @@ async def start_alerts_feed(bot_app: Any) -> None:
                 if not isinstance(alert, dict):
                     logger.warning("Alerts feed: non-dict payload dropped")
                     continue
-                if not dedupe.should_send(alert):
+                try:
+                    should_send = await redis_should_send(client, alert)
+                except Exception as exc:
+                    logger.warning("Alerts feed Redis dedupe failed; using memory: %s", exc)
+                    should_send = dedupe.should_send(alert)
+                if not should_send:
                     continue
                 text = format_alert(alert, str(key))
                 if chat_id > 0:
