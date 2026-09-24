@@ -12,6 +12,10 @@ class T(unittest.TestCase):
         level, _ = rate({"load1": 1.0, "disk_pct": 40.0, "mem_pct": 45.0})
         assert level == "ok"
 
+    def test_busy_but_not_saturated_on_16_cores(self) -> None:
+        level, _ = rate({"load15": 14.0, "cpu_count": 16.0, "disk_pct": 40.0, "mem_pct": 45.0})
+        assert level == "ok"
+
 
 if __name__ == "__main__":
     unittest.main()

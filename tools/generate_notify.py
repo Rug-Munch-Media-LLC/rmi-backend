@@ -90,26 +90,33 @@ FILES["health_read.py"] = '''"""Read one health sample from /proc and the filesy
 
 from __future__ import annotations
 
+import os
 import shutil
 
 from .health_mem import mem_pct
 
 
 def sample() -> dict[str, float]:
-    """Return load1, disk_pct and mem_pct for this host.
+    """Return smoothed load, CPU count, disk usage and memory usage.
 
-    Reads only /proc and statvfs, so a health check adds no meaningful load
-    even on a saturated box.
+    ``load15`` is used for alerting so a short-lived embed/API burst does not
+    page the operator; ``load1`` remains available for diagnostics and
+    backwards-compatible callers.
     """
     load1 = 0.0
+    load15 = 0.0
     try:
         with open("/proc/loadavg") as handle:
-            load1 = float(handle.read().split()[0])
+            fields = handle.read().split()
+        load1 = float(fields[0])
+        load15 = float(fields[2]) if len(fields) > 2 else load1
     except (OSError, ValueError, IndexError):
         pass
     usage = shutil.disk_usage("/")
     return {
         "load1": load1,
+        "load15": load15,
+        "cpu_count": float(max(os.cpu_count() or 1, 1)),
         "disk_pct": usage.used / usage.total * 100 if usage.total else 0.0,
         "mem_pct": mem_pct(),
     }
@@ -143,7 +150,12 @@ FILES["metric_label.py"] = '''"""Human label for a health metric."""
 
 from __future__ import annotations
 
-NAMES: dict[str, str] = {"load1": "load", "disk_pct": "disk", "mem_pct": "memory"}
+NAMES: dict[str, str] = {
+    "load1": "load (1m)",
+    "load15": "load (15m)",
+    "disk_pct": "disk",
+    "mem_pct": "memory",
+}
 
 
 def label(metric: str) -> str:
@@ -165,30 +177,53 @@ FILES["health_severity.py"] = '''"""Rate a health sample as ok, warn or critical
 
 from __future__ import annotations
 
+import os
+
 from .metric_label import label
 from .metric_number import number
 
-# (metric, warn at, critical at)
-LIMITS: tuple[tuple[str, float, float], ...] = (
-    ("disk_pct", 80.0, 92.0),
-    ("mem_pct", 85.0, 95.0),
-    ("load1", 8.0, 16.0),
-)
+# Load is normalized by CPU count. These defaults avoid paging on a busy
+# 16-core host whose 15-minute load is still below sustained saturation.
+LOAD_WARN_PER_CPU = float(os.getenv("HEALTH_LOAD_WARN_PER_CPU", "1.5"))
+LOAD_CRITICAL_PER_CPU = float(os.getenv("HEALTH_LOAD_CRITICAL_PER_CPU", "2.0"))
+
+
+def _limits(sample: dict[str, float]) -> tuple[tuple[str, float, float], ...]:
+    cpu_count = max(1.0, float(sample.get("cpu_count", 1.0)))
+    load_metric = "load15" if "load15" in sample else "load1"
+    return (
+        ("disk_pct", 80.0, 92.0),
+        ("mem_pct", 85.0, 95.0),
+        (
+            load_metric,
+            max(8.0, cpu_count * LOAD_WARN_PER_CPU),
+            max(16.0, cpu_count * LOAD_CRITICAL_PER_CPU),
+        ),
+    )
+
+
+def _reason(metric: str, value: float, threshold: float, sample: dict[str, float]) -> str:
+    text = f"{label(metric)} {number(metric, value)} (>= {number(metric, threshold)})"
+    if metric in {"load1", "load15"}:
+        cpu_count = max(1.0, float(sample.get("cpu_count", 1.0)))
+        text += f" on {cpu_count:.0f} cores"
+    return text
 
 
 def rate(sample: dict[str, float]) -> tuple[str, str]:
     """Return (severity, reason); critical outranks warn.
 
     The worst signal is reported, not whichever threshold was checked first, so
-    a box that is simultaneously low on disk and busy says so.
+    a box that is simultaneously low on disk and busy says so.  Load uses the
+    15-minute average when available to suppress short-lived CPU bursts.
     """
     reason = ""
-    for metric, warn_at, critical_at in LIMITS:
-        value = sample.get(metric, 0.0)
+    for metric, warn_at, critical_at in _limits(sample):
+        value = sample.get(metric, sample.get("load1", 0.0) if metric.startswith("load") else 0.0)
         if value >= critical_at:
-            return "critical", f"{label(metric)} {number(metric, value)} (>= {number(metric, critical_at)})"
+            return "critical", _reason(metric, value, critical_at, sample)
         if value >= warn_at:
-            reason = f"{label(metric)} {number(metric, value)} (>= {number(metric, warn_at)})"
+            reason = _reason(metric, value, warn_at, sample)
     return ("warn", reason) if reason else ("ok", "")
 '''
 
@@ -196,25 +231,63 @@ FILES["health_publish.py"] = '''"""Publish a health alert when a host threshold 
 
 from __future__ import annotations
 
+import os
+import time
+
 from .health_read import sample
 from .health_severity import rate
 from .payload import build
 from .queues import SYSTEM, push
 
+REPEAT_SECONDS = int(os.getenv("HEALTH_ALERT_REPEAT_SECONDS", "14400"))
+_last_severity: str | None = None
+_last_sent_at = 0.0
+
+
+def reset_state() -> None:
+    """Reset the in-process transition state (used by tests)."""
+    global _last_severity, _last_sent_at
+    _last_severity = None
+    _last_sent_at = 0.0
+
 
 async def publish() -> tuple[str, str]:
-    """Sample the host and alert when it is warn or critical.
+    """Publish only on severity transitions, plus a long repeat interval.
 
-    Returns (severity, reason) so callers and tests can observe the decision
-    without waiting on delivery. An ok sample pushes nothing.
+    A health sample is still returned to the caller, but repeated non-ok
+    samples do not enqueue a new alert every five minutes. A recovery is sent
+    once so the operator gets a clear end to the incident.
     """
+    global _last_severity, _last_sent_at
+
     severity, reason = rate(sample())
+    now = time.monotonic()
+
     if severity == "ok":
+        if _last_severity not in (None, "ok"):
+            await push(
+                SYSTEM,
+                build(
+                    "HostHealth",
+                    "ok",
+                    "Host recovered",
+                    "all monitored thresholds returned to normal",
+                    status="resolved",
+                ),
+            )
+            _last_severity = "ok"
+            _last_sent_at = now
         return severity, reason
+
+    if _last_severity == severity and (now - _last_sent_at) < REPEAT_SECONDS:
+        return severity, reason
+
     await push(
         SYSTEM,
         build("HostHealth", severity, f"Host {severity}: {reason}", "threshold crossed on this host"),
     )
+    _last_severity = severity
+    _last_sent_at = now
     return severity, reason
 '''
 
