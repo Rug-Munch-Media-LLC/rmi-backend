@@ -19,10 +19,20 @@ logger = logging.getLogger("admin_bot.admin_ai")
 
 # Models available via OpenCode
 MODELS: dict[str, dict[str, str]] = {
-    "deepseek-v4-flash": {"name": "DeepSeek V4 Flash", "provider": "OpenCode"},
-    "deepseek-v4-pro": {"name": "DeepSeek V4 Pro", "provider": "OpenCode"},
-    "qwen3-coder": {"name": "Qwen3 Coder 1M", "provider": "OpenRouter"},
-    "nemotron-ultra": {"name": "Nemotron Ultra 550B", "provider": "KiloCode"},
+    "deepseek-v4-flash": {"name": "DeepSeek V4 Flash", "provider": "9Router"},
+    "deepseek-v4-pro": {"name": "DeepSeek V4 Pro", "provider": "9Router"},
+    "qwen3-coder": {"name": "Qwen3 Coder 1M", "provider": "Alibaba"},
+    "nemotron-ultra": {"name": "Nemotron Ultra 550B", "provider": "OpenCode"},
+}
+
+# The Telegram UI keeps stable short keys, while the CLI requires a fully
+# qualified provider/model id.  Short ids such as ``deepseek-v4-flash`` are
+# rejected by opencode 1.18.x and were the reason every AI request failed.
+MODEL_IDS: dict[str, str] = {
+    "deepseek-v4-flash": "9router/ds/deepseek-v4-flash",
+    "deepseek-v4-pro": "9router/ds/deepseek-v4-pro",
+    "qwen3-coder": "alibaba/qwen3-coder-480b-a35b-instruct",
+    "nemotron-ultra": "opencode/nemotron-3-ultra-free",
 }
 
 DEFAULT_MODEL = "deepseek-v4-flash"
@@ -117,15 +127,15 @@ def list_models() -> str:
     lines = ["🤖 *Available AI Models*\n"]
     for mid, info in MODELS.items():
         lines.append(f"• `{mid}` — {info['name']} ({info['provider']})")
-    lines.append("\nUse `/oc ask <prompt>` to query.")
+    lines.append("\nUse `/ai ask <prompt>` for a read-only query, or `/oc <prompt>` for a confirmed tooled run.")
     return "\n".join(lines)
 
 
 def model_keyboard() -> Any:
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-    buttons = []
-    row = []
+    buttons: list[list[Any]] = []
+    row: list[Any] = []
     for mid in MODELS:
         row.append(InlineKeyboardButton(MODELS[mid]["name"], callback_data=f"ai_model_{mid}"))
         if len(row) == 2:
@@ -158,6 +168,9 @@ def run_opencode(
     ``read_only=True`` runs the prompt under the read-only ``plan`` agent
     (no write/bash/tool side effects) — the default for ``/ai``.
     """
+    # Kept in the public signature for compatibility with older callers; the
+    # current opencode CLI controls turn limits through its run configuration.
+    del max_turns
     t0 = time.time()
     prompt = owner_persona.apply(prompt)
 
@@ -171,19 +184,22 @@ def run_opencode(
             "model": model,
         }
 
+    # opencode 1.18.x uses the explicit ``run`` subcommand.  The old
+    # ``--prompt/--max-turns/--format text`` invocation was an invalid CLI
+    # combination, so every /ai request failed before reaching a provider.
+    resolved_model = MODEL_IDS.get(model, model)
     cmd = [
         opencode,
-        "--prompt",
-        prompt,
-        "--model",
-        model,
-        "--max-turns",
-        str(max_turns),
+        "run",
+        "--pure",
         "--format",
-        "text",
+        "default",
+        "--model",
+        resolved_model,
     ]
     if read_only:
         cmd += ["--agent", READ_ONLY_AGENT]
+    cmd.append(prompt)
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=OPENCODE_TIMEOUT, shell=False)

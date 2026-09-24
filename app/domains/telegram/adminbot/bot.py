@@ -17,7 +17,7 @@ import logging
 from typing import Any
 
 import httpx
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -103,12 +103,57 @@ logger = logging.getLogger("admin_bot")
 # Background asyncio tasks started in _post_init (kept referenced to avoid GC).
 _listener_tasks: list[asyncio.Task[Any]] = []
 
+# Keep Telegram's slash-command picker curated. The bot still accepts the
+# legacy aliases below, but exposing every historical alias made the picker
+# look like a broken command catalog.
+CANONICAL_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("start", "Open the control panel"),
+    ("help", "Show the control panel"),
+    ("menu", "Open the interactive menu"),
+    ("commands", "List supported commands"),
+    ("status", "Host status"),
+    ("health", "Fleet health dashboard"),
+    ("disk", "Disk usage"),
+    ("mem", "Memory usage"),
+    ("top", "Top CPU processes"),
+    ("uptime", "Uptime and load"),
+    ("docker", "Docker management"),
+    ("dps", "Docker containers"),
+    ("services", "Fleet services"),
+    ("svc", "Service control"),
+    ("logs", "Service logs"),
+    ("backup", "Backup status"),
+    ("ragstats", "RAG statistics"),
+    ("news", "News feed"),
+    ("scanstats", "Scanner statistics"),
+    ("indexer", "Indexer status"),
+    ("ai", "Read-only AI query"),
+    ("models", "Choose an AI model"),
+    ("engine", "Choose an interaction engine"),
+    ("ask", "Run the selected engine"),
+    ("oc", "Confirmed tooled OpenCode run"),
+    ("term", "Enter terminal mode"),
+    ("selftest", "Run bot self-test"),
+)
+
+
+async def _publish_command_menu(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
+    """Replace Telegram's cached slash-command list with the curated set."""
+    try:
+        await app.bot.set_my_commands(
+            [BotCommand(command=command, description=description) for command, description in CANONICAL_COMMANDS]
+        )
+        logger.info("Telegram command menu published: %d commands", len(CANONICAL_COMMANDS))
+    except Exception as exc:
+        logger.warning("Telegram command menu publish failed: %s", exc)
+
+
 # ═══════════════════════════════════════════════════════════════════
 # ERROR HANDLER
 # ═══════════════════════════════════════════════════════════════════
 
 
-async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle uncaught exceptions from handlers."""
     logger.error(f"Exception: {ctx.error}", exc_info=ctx.error)
     if hasattr(update, "effective_message") and update.effective_message:
@@ -160,14 +205,17 @@ async def _log_update(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Start the Redis listener inside the application's event loop."""
+    await _publish_command_menu(app)
     try:
-        from app.domains.telegram.adminbot.redis_listener import start_redis_listener
+        from app.domains.telegram.adminbot.redis_listener import (
+            start_redis_listener,  # type: ignore[reportUnknownVariableType]
+        )
 
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            task = loop.create_task(start_redis_listener(app.bot))
+            task = loop.create_task(start_redis_listener(app.bot))  # type: ignore[reportUnknownVariableType]
         else:
-            task = app.create_task(start_redis_listener(app.bot))
+            task = app.create_task(start_redis_listener(app.bot))  # type: ignore[reportUnknownVariableType]
         # Keep a reference so the background listener is not garbage collected.
         _listener_tasks.append(task)
     except Exception as exc:
@@ -363,10 +411,21 @@ def main() -> None:
     try:
         from app.domains.telegram.adminbot.chat.register import register as register_chat
 
-        register_chat(app)
+        register_chat(app)  # type: ignore[reportUnknownVariableType]
     except Exception:
         logger.warning("chat handlers not registered", exc_info=True)
     logger.info("🛡️ RMI Admin Bot v5 starting (@rmi_admin_bot)...")
+    # Telegram-native server menu (/menu + inline keyboard). Additive: a failure
+    # here must never stop the bot from starting.
+    try:
+        from app.domains.telegram.adminbot.tg_menu_handlers import (
+            register as register_menu,
+        )
+
+        register_menu(app)
+    except Exception as exc:  # menu is optional, never fatal
+        logger.warning("telegram menu not registered: %s", exc)
+
     app.run_polling(drop_pending_updates=True)
 
 

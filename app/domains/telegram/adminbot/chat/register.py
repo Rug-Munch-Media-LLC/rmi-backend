@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler
+from typing import Any
+
+from telegram.ext import CallbackQueryHandler, CommandHandler
 
 from .on_model import on_pick
 from .on_models_cmd import on_models
 from .on_text_handler import handler as text_handler
 
 
-def register(app: Application) -> None:
+def register(app: Any) -> None:
     """Attach model picker and natural-language handlers.
 
     Called from the bot's existing registration path. The text handler is added
