@@ -39,6 +39,10 @@
 pre-commit:
   parallel: true
   commands:
+    shell-quoting:
+      glob: "*.{sh,bash}"
+      run: test ! -f scripts/{gate} || python3 scripts/{gate} --files {{staged_files}}
+
     # -- Methodology leak detection (UNIVERSAL) -----------------
     methodology-leak:
       run: bash scripts/pre-commit-methodology-check.sh
