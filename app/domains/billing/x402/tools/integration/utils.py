@@ -172,7 +172,7 @@ async def check_rate_limit(request: Request) -> bool:
     """Simple IP-based rate limiter: 60 req/min per IP, 300 req/5min per IP.
     Uses the same Redis as x402 enforcement. Fail-open if Redis is down."""
     try:
-        from app.routers.x402_enforcement import get_redis  # type: ignore[attr-defined]
+        from app.core.redis import get_redis
 
         r = get_redis()
         if not r:
@@ -190,8 +190,10 @@ async def check_rate_limit(request: Request) -> bool:
         if count5 == 1:
             r.expire(key_5m, 300)
         return not count5 > 300
-    except (ConnectionError, TimeoutError, OSError):
-        return True  # Fail open — allow request if Redis is down
+    except (ConnectionError, TimeoutError, OSError, ImportError, AttributeError):
+        # Fail open — allow request if Redis is down OR the redis accessor
+        # cannot be resolved. A missing symbol must never 500 a paid tool.
+        return True
 
 
 # ── Payment Recording ──────────────────────────────────────────

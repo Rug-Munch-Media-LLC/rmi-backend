@@ -161,7 +161,7 @@ async def human_execute(req: Any) -> dict[str, Any]:
                 result_data = {"raw": text[:500]}
 
             try:
-                from app.routers.x402_enforcement import get_redis  # type: ignore[attr-defined]
+                from app.core.redis import get_redis
 
                 r = get_redis()
                 if r:
@@ -180,7 +180,7 @@ async def human_execute(req: Any) -> dict[str, Any]:
                             }
                         ),
                     )
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, ImportError, AttributeError) as e:
                 logger.warning(f"Redis spent_tx record failed: {e}")
 
             return {
