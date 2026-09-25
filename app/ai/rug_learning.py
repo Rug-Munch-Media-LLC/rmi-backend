@@ -564,9 +564,13 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
-    if name == "run_rug_learning_sweep":
-        from app.ai.rug_learning_sweep import run_rug_learning_sweep
+def run_rug_learning_sweep(*args, **kwargs):
+    """Lazy re-export of the sweep.
 
-        return run_rug_learning_sweep
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    A real function binding rather than a module ``__getattr__``: the import stays
+    deferred (so there is no cycle at import time) while ``__all__`` resolves for
+    linters and ``import *``.
+    """
+    from app.ai.rug_learning_sweep import run_rug_learning_sweep as _impl
+
+    return _impl(*args, **kwargs)
