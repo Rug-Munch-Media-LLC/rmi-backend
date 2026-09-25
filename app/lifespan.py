@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 from app.core.logging import get_logger
 
@@ -28,6 +28,22 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 log = get_logger(__name__)
+
+
+def _acquire_x_shill_lock() -> IO[str] | None:
+    """Acquire the process-local X-ingest lock without blocking the event loop."""
+    import fcntl
+    import os
+
+    lock_path = os.getenv("RMI_X_SHILL_LOCK_PATH", "/dev/shm/rmi-x-shill.lock")  # noqa: S108
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    handle = os.fdopen(fd, "w", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
 
 
 @asynccontextmanager  # pyright: ignore[reportDeprecated]
@@ -205,6 +221,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     #     cached GetXAPI provider and writes shill evidence (Qdrant
     #     threat_intel_v2 + shill_evidence SQLite). Idempotent on tweet ID.
     x_shill_task = None
+    x_shill_lock = None
     try:
         import asyncio as _asyncio
         import os as _os
@@ -213,20 +230,27 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.domains.shill.x_ingest import ingest_x_shill
 
         if _getxapi.key_configured():
-            _x_interval = max(300, int(_os.getenv("RMI_X_SHILL_INGEST_INTERVAL", "3600")))
+            # Gunicorn runs lifespan in every worker. Only one worker may own
+            # the recurring GetXAPI pull loop; otherwise four workers issue
+            # duplicate requests and multiply load.
+            x_shill_lock = await _asyncio.to_thread(_acquire_x_shill_lock)
+            if x_shill_lock is None:
+                log.info("x_shill_ingest_background_skipped another_worker_owns_lock")
+            else:
+                _x_interval = max(300, int(_os.getenv("RMI_X_SHILL_INGEST_INTERVAL", "3600")))
 
-            async def _x_shill_loop() -> None:
-                """Ingest KOL X tweets into shill evidence every interval."""
-                await _asyncio.sleep(60)  # Let app settle before first pull
-                while True:
-                    try:
-                        await ingest_x_shill()
-                    except Exception as exc:
-                        log.warning("x_shill_ingest_failed err=%s", exc)
-                    await _asyncio.sleep(_x_interval)
+                async def _x_shill_loop() -> None:
+                    """Ingest KOL X tweets into shill evidence every interval."""
+                    await _asyncio.sleep(60)  # Let app settle before first pull
+                    while True:
+                        try:
+                            await ingest_x_shill()
+                        except Exception as exc:
+                            log.warning("x_shill_ingest_failed err=%s", exc)
+                        await _asyncio.sleep(_x_interval)
 
-            x_shill_task = _asyncio.create_task(_x_shill_loop())
-            log.info("x_shill_ingest_background_started interval_s=%d", _x_interval)
+                x_shill_task = _asyncio.create_task(_x_shill_loop())
+                log.info("x_shill_ingest_background_started interval_s=%d", _x_interval)
         else:
             log.info("x_shill_ingest_background_skipped no_getxapi_key")
     except Exception as exc:
