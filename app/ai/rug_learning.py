@@ -12,6 +12,9 @@ Lanes (mirrors app/integrations/rugbrain_client.py):
   - Ingest fallback: rugbrain ``POST /api/v1/ingest`` (collection=rug_patterns)
 
 All functions fail-open: they log and return None/[]/False, never raise.
+One deliberate exception: ``run_rug_learning_sweep`` re-raises a
+missing-relation fault (see ``app.ai.schema_guard``) rather than warning
+about it every 30 minutes.
 """
 
 from __future__ import annotations
@@ -547,66 +550,9 @@ async def check_rug_confirmed(chain: str, address: str) -> dict[str, Any] | None
 
 
 # ── Scheduled sweep ──────────────────────────────────────────────────
-
-
-async def run_rug_learning_sweep(max_tokens: int = 100) -> dict[str, int]:
-    """Sweep tokens scanned in the last 7 days; embed newly confirmed rugs.
-
-    Called by the lifespan background loop every 30 minutes. Deduplicates
-    via a Redis marker so each token is learned at most once.
-    """
-    from sqlalchemy import func, select
-
-    from app.core.database import async_session_factory
-    from app.models.scan import ScanResult as ScanResultORM
-
-    stats = {"checked": 0, "confirmed": 0, "learned": 0, "skipped": 0}
-    try:
-        cutoff = datetime.now(UTC) - timedelta(days=7)
-        async with async_session_factory() as session:
-            stmt = (
-                select(ScanResultORM.chain, ScanResultORM.token_address)
-                .where(ScanResultORM.scanned_at >= cutoff)
-                .group_by(ScanResultORM.chain, ScanResultORM.token_address)
-                .order_by(func.max(ScanResultORM.scanned_at).desc())
-                .limit(max_tokens)
-            )
-            rows = (await session.execute(stmt)).all()
-    except Exception as e:
-        log.warning("rug_learning_sweep_query_failed err=%s", e)
-        return stats
-
-    from app.domains.scanner.engines._exceptions import get_redis_async
-
-    r = get_redis_async()
-    for chain, address in rows:
-        stats["checked"] += 1
-        dedup_key = f"rug_learned:{chain}:{address.lower()}"
-        try:
-            if r is not None and await r.exists(dedup_key):
-                stats["skipped"] += 1
-                continue
-        except Exception:
-            r = None
-
-        confirmed = await check_rug_confirmed(chain, address)
-        if not confirmed:
-            continue
-        stats["confirmed"] += 1
-        ok = await record_confirmed_rug(
-            scan_result=confirmed["scan_result"],
-            chain=chain,
-            address=address,
-            rug_type=confirmed["rug_type"],
-        )
-        if ok:
-            stats["learned"] += 1
-            if r is not None:
-                with contextlib.suppress(Exception):
-                    await r.setex(dedup_key, 30 * 86400, "1")
-    log.info("rug_learning_sweep_complete stats=%s", stats)
-    return stats
-
+# The sweep body lives in app.ai.rug_learning_sweep (this module is pinned by
+# the shrink-only size ratchet). Re-exported here so the public import path
+# `from app.ai.rug_learning import run_rug_learning_sweep` keeps working.
 
 __all__ = [
     "RUG_PATTERNS_COLLECTION",
@@ -616,3 +562,11 @@ __all__ = [
     "record_confirmed_rug",
     "run_rug_learning_sweep",
 ]
+
+
+def __getattr__(name: str):
+    if name == "run_rug_learning_sweep":
+        from app.ai.rug_learning_sweep import run_rug_learning_sweep
+
+        return run_rug_learning_sweep
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
