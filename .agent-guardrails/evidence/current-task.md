@@ -39,3 +39,12 @@ Restore the adminbot command picker, native menu routing, and read-only AI bridg
 ## Residual risk
 - The Dockerized backend image was not rebuilt in this task because BuildKit/Buildx is unavailable; the host-based adminbot service is the deployed surface for these changes.
 - The separate Qdrant schema mismatch for `newsletters` and `podcast_episodes` remains outside this task.
+
+## GetXAPI follow-up
+- Replaced the active ApiPass X reads with cached GetXAPI profile/tweet reads.
+- ApiPass is disabled with `RMI_APIPASS_MAX_CALLS_PER_HOUR=0`.
+- GetXAPI profile smoke test returned HTTP 200 with valid profile data.
+- Single-flight X-ingest lock verified: one Gunicorn worker starts the loop, other workers skip.
+- GetXAPI/X-ingest focused suite: **15 passed**.
+- `npx agent-guardrails check --base-ref 4a0cb7cc --review ...`: **100/100, safe-to-deploy**.
+- GetXAPI migration and single-flight lock are pushed to Forgejo and Codeberg.
