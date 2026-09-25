@@ -1,20 +1,26 @@
 """Shill-campaign service layer — the single entry point the router calls.
 
-Wires the shill domain pieces together: detection, the ApiPass profile probe,
+Wires the shill domain pieces together: detection, the GetXAPI profile probe,
 the evidence store, and the reused Wall-of-Shame feed. Every method is
 fail-open — it returns empty structures / ``None`` on any downstream failure
-and never raises, so a dead ApiPass key, missing bot DB, Qdrant outage or
+and never raises, so a dead GetXAPI key, missing bot DB, Qdrant outage or
 missing wall-of-shame file degrades to an empty 200 rather than a 500.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.databus import kol_bot_store as kbs
-from app.domains.shill import apipass_x
-from app.domains.shill.detect import ShillCampaign, detect_shill_campaigns
+from app.domains.shill import getxapi
+from app.domains.shill.detect import (
+    DEFAULT_MIN_ACCOUNTS,
+    DEFAULT_MIN_MENTIONS,
+    DEFAULT_WINDOW_HOURS,
+    ShillCampaign,
+    detect_shill_campaigns,
+)
 from app.domains.shill.evidence import read_shill_evidence, search_evidence, write_evidence
 
 logger = get_logger("shill_service")
@@ -39,9 +45,9 @@ async def detect_campaigns_from_articles(
     try:
         return detect_shill_campaigns(
             articles or [],
-            window_hours=window_hours,
-            min_accounts=min_accounts,
-            min_mentions=min_mentions,
+            window_hours=DEFAULT_WINDOW_HOURS if window_hours is None else window_hours,
+            min_accounts=DEFAULT_MIN_ACCOUNTS if min_accounts is None else min_accounts,
+            min_mentions=DEFAULT_MIN_MENTIONS if min_mentions is None else min_mentions,
         )
     except Exception as exc:  # fail-open by contract
         logger.debug("shill_service:detect_failed err=%s", str(exc)[:120])
@@ -76,9 +82,9 @@ def list_campaigns(
         g["accounts"].add(str(row.get("account") or ""))
         g["mentions"] += 1
         g["evidence"].append(row)
-    campaigns = []
+    campaigns: list[dict[str, Any]] = []
     for g in grouped.values():
-        accounts = sorted(a for a in g["accounts"] if a)
+        accounts = sorted(str(a) for a in cast("set[str]", g["accounts"]) if str(a))
         campaigns.append(
             {
                 "key": f"{g['chain']}:{g['token']}",
@@ -95,20 +101,16 @@ def list_campaigns(
     return {"campaigns": campaigns[: int(limit)], "total": len(campaigns), "source": "shill_evidence"}
 
 
-# ── Handle probe (ApiPass) ─────────────────────────────────────────────────
+# ── Handle probe (GetXAPI) ─────────────────────────────────────────────────
 
 
 async def probe_handle(handle: str, *, force: bool = False) -> dict[str, Any] | None:
-    """Probe one X handle via ApiPass (``fetch_x_profile``).
-
-    Returns the rich profile (or the unavailable node) or ``None`` when no key
-    is configured / rate-limited / API error — the caller degrades.
-    """
+    """Probe one X handle through the cached GetXAPI provider."""
     handle = str(handle or "").strip().lstrip("@")
     if not handle:
         return None
     try:
-        return await apipass_x.fetch_x_profile(handle, force=force)
+        return await getxapi.fetch_profile(handle, force=force)
     except Exception as exc:  # fail-open by contract
         logger.debug("shill_service:probe_failed handle=%s err=%s", handle, str(exc)[:120])
         return None
@@ -156,7 +158,7 @@ def wall_of_shame_feed(severity: str = "") -> dict[str, Any]:
     file → ``{"wall_of_shame": [], "total": 0}``.
     """
     try:
-        sev = severity.strip() if isinstance(severity, str) else ""
+        sev = severity.strip()
         return kbs.load_wall_of_shame(severity=sev)
     except Exception as exc:  # fail-open by contract
         logger.debug("shill_service:wall_of_shame_failed err=%s", str(exc)[:120])

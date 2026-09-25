@@ -145,6 +145,9 @@ KEY_REGISTRY = {
         ("X_API_KEY", "api/x_api_key"),
         ("TWITTER_BEARER_TOKEN", "api/twitter_bearer_token"),
     ],
+    "getxapi": [
+        ("GETXAPI_API_KEY", "getxapi/api_key"),
+    ],
     # ── Social attribution ──
     "lens": [
         ("LENS_API_KEY", "api/lens_api_key"),
@@ -324,7 +327,8 @@ class VaultKeyPool:
             burst=self.burst,
             monthly_quota=self.monthly_quota,
         )
-        mk._set_value(value)
+        mk._set_value(value)  # type: ignore[reportPrivateUsage]
+
         self.keys.append(mk)
 
     async def acquire(self) -> ManagedKey | None:
@@ -402,6 +406,7 @@ class DataBusVault:
             "lunarcrush": {"rps": 5.0, "burst": 5, "quota": 0},
             "thegraph": {"rps": 5.0, "burst": 5, "quota": 0},
             "apify": {"rps": 5.0, "burst": 5, "quota": 0},
+            "getxapi": {"rps": 1.0, "burst": 2, "quota": 100000},
         }
 
     async def load(self) -> None:
@@ -632,6 +637,6 @@ def resolve_key(key_name: str) -> str:
     in ``get_vault()`` is never skipped by an import-time access.
     """
     v = _vault
-    if v is not None and v._loaded:
+    if v is not None and v._loaded:  # type: ignore[reportPrivateUsage]
         return v.resolve_key(key_name)
     return os.getenv(key_name, "")

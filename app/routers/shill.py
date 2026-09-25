@@ -6,7 +6,7 @@ frontend consume it via API instead of the bot holding its own copy:
   GET   /api/v1/shill/health          — service health
   GET   /api/v1/shill/campaigns       — list shill campaigns (evidence-backed)
   POST  /api/v1/shill/campaigns/detect — detect campaigns from posted articles
-  GET   /api/v1/shill/probe/{handle}  — probe an X handle (ApiPass profile)
+  GET   /api/v1/shill/probe/{handle}  — probe an X handle (GetXAPI profile)
   GET   /api/v1/shill/evidence        — get shill evidence (token/chain/account)
   GET   /api/v1/shill/evidence/search — semantic search over shill evidence
   POST  /api/v1/shill/evidence        — persist one shill evidence record
@@ -83,15 +83,15 @@ class EvidenceIn(BaseModel):
     dependencies=[Depends(get_rate_limit_dependency("shill_h", rate=2.0, burst=5))],
 )
 def health() -> dict[str, Any]:
-    """ApiPass key state + evidence availability. Never raises."""
+    """GetXAPI key state + evidence availability. Never raises."""
     try:
-        from app.domains.shill import apipass_x
+        from app.domains.shill import getxapi
 
         evidence = service.get_evidence(limit=1)
         return {
             "status": "ok",
-            "apipass_key_configured": apipass_x.api_key_configured(),
-            "apipass_calls_remaining": apipass_x.task_creates_remaining(),
+            "x_provider": "getxapi",
+            "x_provider_key_configured": getxapi.key_configured(),
             "evidence_count": evidence.get("total", 0),
             "source": "shill_service",
         }
@@ -145,11 +145,11 @@ async def detect_campaigns(req: DetectRequest) -> dict[str, Any]:
 
 @router.get(
     "/probe/{handle}",
-    summary="Probe an X Handle (ApiPass rich profile)",
+    summary="Probe an X Handle (GetXAPI profile)",
     dependencies=[Depends(get_rate_limit_dependency("shill_p1", rate=2.0, burst=5))],
 )
 async def probe_handle(handle: str, force: bool = Query(default=False)) -> dict[str, Any] | None:
-    """RICH X profile for one handle via ApiPass (cached, rate-governed).
+    """GetXAPI X profile for one handle (cached, fail-open).
 
     Returns ``None`` (200) when the key is unconfigured / rate-limited / the
     API errors — the caller degrades. Never a 500.

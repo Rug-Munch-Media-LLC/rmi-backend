@@ -35,13 +35,14 @@ def test_health_shape(client: TestClient) -> None:
     body = resp.json()
     assert set(body.keys()) == {
         "status",
-        "apipass_key_configured",
-        "apipass_calls_remaining",
+        "x_provider",
+        "x_provider_key_configured",
         "evidence_count",
         "source",
     }
     assert body["status"] == "ok"
-    assert isinstance(body["apipass_key_configured"], bool)
+    assert body["x_provider"] == "getxapi"
+    assert isinstance(body["x_provider_key_configured"], bool)
     assert body["source"] == "shill_service"
 
 
