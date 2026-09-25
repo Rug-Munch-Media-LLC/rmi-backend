@@ -12,19 +12,29 @@ import pytest
 from sqlalchemy.dialects.postgresql.asyncpg import AsyncAdapt_asyncpg_dbapi
 from sqlalchemy.exc import ProgrammingError
 
-from app.ai.schema_guard import is_missing_relation_error, require_relation
 from app.ai.rug_learning_sweep import run_rug_learning_sweep
+from app.ai.schema_guard import is_missing_relation_error, require_relation
 
 
 @pytest.fixture
 def recorded_logs():
-    """Capture the app's structlog output (caplog does not see it)."""
+    """Capture the app's structlog output (caplog does not see it).
+
+    ``capture_logs`` returns the event dict only; the level lives on the logger
+    call, so a processor injects it. Without this the level is always ``None`` and
+    any "must log at ERROR" assertion passes or fails for the wrong reason.
+    """
+    import structlog  # noqa: F401
     from structlog.testing import capture_logs
 
-    with capture_logs() as logs:
+    def _with_level(_logger, method_name, event_dict):
+        event_dict["level"] = method_name
+        return event_dict
+
+    with capture_logs(processors=[_with_level]) as logs:
 
         def _events() -> list[str]:
-            return [f"{r.get('level')} {r.get('event')}" for r in logs]
+            return [f"{r.get('level')} {r.get('event')}" for r in logs if r.get("event")]
 
         yield _events
 
@@ -59,7 +69,7 @@ class TestRequireRelation:
     def test_transient_error_is_reraised_unchanged(self):
         """Non-schema faults keep their own handling — we must not mask them."""
         original = OSError("connection reset by peer")
-        with pytest.raises(OSError) as excinfo:
+        with pytest.raises(OSError, match="connection reset by peer") as excinfo:
             require_relation(original, source="run_rug_learning_sweep", table="scan_results")
         assert excinfo.value is original
 
@@ -90,8 +100,8 @@ class TestSweepFailsLoudly:
         assert not any("rug_learning_sweep_query_failed" in e for e in events), (
             "sweep must not silently warn about a missing table"
         )
-        assert any(e.startswith("schema_preflight_failed") for e in events), (
+        assert any("schema_preflight_failed" in e for e in events), (
             f"missing relation must be logged loudly; got {events}"
         )
-        assert any("ERROR" in e for e in events), f"must log at ERROR level; got {events}"
+        assert any("error" in e.lower() for e in events), f"must log at error level, not warning; got {events}"
         assert sweep_mod.DEDUP_TTL_SECONDS > 0
