@@ -1,9 +1,9 @@
 """X (Twitter) shill-campaign ingest pipeline — KOL tweets → evidence stores.
 
 Scheduled (see ``app/lifespan.py`` section 12) pull of recent tweets from
-tracked KOL handles via the existing ApiPass X probe
-(``app.domains.shill.apipass_x``), shill-signal extraction ($TICKER cashtags
-+ token addresses), and persistence into the canonical evidence stores:
+tracked KOL handles via the GetXAPI provider, shill-signal extraction
+($TICKER cashtags + token addresses), and persistence into the canonical
+evidence stores:
 
   * Qdrant ``threat_intel_v2`` (via ``evidence.write_evidence`` — the
     canonical write), and
@@ -15,7 +15,7 @@ SQLite dedup ledger, so re-running the task never double-writes evidence.
 Dedup degrades open when the ledger is unavailable (evidence writes are
 idempotent-ish by content digest anyway).
 
-Fail-open everywhere: no ApiPass key, rate-limited budget, dead embedder or
+Fail-open everywhere: no GetXAPI key, rate-limited provider, dead embedder or
 Qdrant outage degrades to a partial/empty summary — never raises.
 """
 
@@ -28,7 +28,7 @@ import tempfile
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.shill import apipass_x
+from app.domains.shill import getxapi
 from app.domains.shill.evidence import write_evidence
 
 logger = get_logger("shill_x_ingest")
@@ -50,7 +50,7 @@ TWEETS_PER_HANDLE = int(os.getenv("RMI_X_SHILL_TWEETS_PER_HANDLE", "10"))
 _DEDUP_DB_PATH = os.getenv(
     "RMI_X_SHILL_DEDUP_DB",
     os.path.join(
-        os.getenv("RMI_APIPASS_CACHE_DIR", os.path.join(tempfile.gettempdir(), "rmi", "apipass_cache")),
+        os.getenv("RMI_GETXAPI_CACHE_DIR", os.path.join(tempfile.gettempdir(), "rmi", "getxapi_cache")),
         "x_shill_seen.db",
     ),
 )
@@ -164,9 +164,7 @@ async def ingest_x_shill(
 ) -> dict[str, Any]:
     """One ingest pass: KOL tweets → shill evidence (Qdrant + SQLite).
 
-    Idempotent on tweet ID. Budget-bounded by the ApiPass governor inside
-    ``apipass_x`` (≤ MAX_CALLS_PER_HOUR task creations; polling is free), so
-    an over-eager schedule degrades to fewer pulls, never a bill shock.
+    Idempotent on tweet ID and backed by the cached GetXAPI provider.
     Returns a summary dict; never raises.
     """
     summary: dict[str, Any] = {
@@ -177,9 +175,9 @@ async def ingest_x_shill(
         "tokens_found": 0,
         "errors": [],
     }
-    if not apipass_x.api_key_configured():
+    if not getxapi.key_configured():
         logger.debug("x_shill_ingest:skipped_no_key")
-        summary["errors"].append("apipass_key_not_configured")
+        summary["errors"].append("getxapi_key_not_configured")
         return summary
 
     clean_handles = _resolve_handles(handles)
@@ -192,7 +190,7 @@ async def ingest_x_shill(
         for handle in clean_handles[: max(1, MAX_HANDLES_PER_RUN)]:
             summary["handles_polled"] += 1
             try:
-                tweets = await apipass_x.fetch_user_tweets(handle, limit=tweets_per_handle)
+                tweets = await getxapi.fetch_user_tweets(handle, limit=tweets_per_handle)
             except Exception as exc:  # per-handle fail-open
                 logger.debug("x_shill_ingest:fetch_failed handle=%s err=%s", handle, str(exc)[:120])
                 continue

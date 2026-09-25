@@ -1,7 +1,7 @@
 """Tests for the X shill ingest pipeline (isolated, no network).
 
 ``extract_token_signals`` is pure. ``ingest_x_shill`` is exercised with the
-ApiPass client + evidence store monkeypatched so no network / Qdrant / bot DB
+GetXAPI client + evidence store monkeypatched so no network / Qdrant / bot DB
 is touched; the dedup ledger uses a tmp_path SQLite.
 """
 
@@ -37,7 +37,7 @@ def test_extract_empty() -> None:
 
 @pytest.fixture
 def mock_stack(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> list[dict[str, Any]]:
-    """Patch apipass fetch + evidence write; return the written records."""
+    """Patch GetXAPI fetch + evidence write; return the written records."""
     written: list[dict[str, Any]] = []
     tweets = [
         {"tweet_id": "t1", "text": "$PEPE is the play", "url": "https://x.com/kol/status/t1"},
@@ -52,8 +52,8 @@ def mock_stack(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> list[dict[str,
         written.append(record)
         return True
 
-    monkeypatch.setattr(x_ingest.apipass_x, "api_key_configured", lambda: True)
-    monkeypatch.setattr(x_ingest.apipass_x, "fetch_user_tweets", fake_fetch)
+    monkeypatch.setattr(x_ingest.getxapi, "key_configured", lambda: True)
+    monkeypatch.setattr(x_ingest.getxapi, "fetch_user_tweets", fake_fetch)
     monkeypatch.setattr(x_ingest, "write_evidence", fake_write)
     monkeypatch.setattr(x_ingest, "_DEDUP_DB_PATH", str(tmp_path / "seen.db"))
     return written
@@ -75,7 +75,7 @@ async def test_ingest_writes_evidence_and_dedups(mock_stack: list[dict[str, Any]
 
 
 async def test_ingest_no_key_short_circuits(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(x_ingest.apipass_x, "api_key_configured", lambda: False)
+    monkeypatch.setattr(x_ingest.getxapi, "key_configured", lambda: False)
     summary = await x_ingest.ingest_x_shill(["kol"])
     assert summary["tweets_seen"] == 0
-    assert summary["errors"] == ["apipass_key_not_configured"]
+    assert summary["errors"] == ["getxapi_key_not_configured"]

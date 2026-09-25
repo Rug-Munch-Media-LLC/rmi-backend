@@ -201,20 +201,18 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("rag_news_background_start_failed err=%s", exc)
 
-    # 12. Background X (Twitter) shill ingest — pulls tracked-KOL tweets via
-    #     the ApiPass probe and writes shill evidence (Qdrant threat_intel_v2
-    #     + shill_evidence SQLite). Idempotent on tweet ID; budget-bounded by
-    #     the ApiPass governor inside apipass_x. Skipped entirely when no
-    #     ApiPass key is configured.
+    # 12. Background X shill ingest — pulls tracked-KOL tweets through the
+    #     cached GetXAPI provider and writes shill evidence (Qdrant
+    #     threat_intel_v2 + shill_evidence SQLite). Idempotent on tweet ID.
     x_shill_task = None
     try:
         import asyncio as _asyncio
         import os as _os
 
-        from app.domains.shill import apipass_x as _apipass
+        from app.domains.shill import getxapi as _getxapi
         from app.domains.shill.x_ingest import ingest_x_shill
 
-        if _apipass.api_key_configured():
+        if _getxapi.key_configured():
             _x_interval = max(300, int(_os.getenv("RMI_X_SHILL_INGEST_INTERVAL", "3600")))
 
             async def _x_shill_loop() -> None:
@@ -230,7 +228,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             x_shill_task = _asyncio.create_task(_x_shill_loop())
             log.info("x_shill_ingest_background_started interval_s=%d", _x_interval)
         else:
-            log.info("x_shill_ingest_background_skipped no_apipass_key")
+            log.info("x_shill_ingest_background_skipped no_getxapi_key")
     except Exception as exc:
         log.warning("x_shill_ingest_background_start_failed err=%s", exc)
 
