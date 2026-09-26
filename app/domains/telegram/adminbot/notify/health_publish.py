@@ -1,62 +1,49 @@
-"""Publish a health alert when a host threshold is crossed."""
+"""Publish a health alert when a host threshold is crossed.
+
+pages and a recovery must hold before it is announced, so load oscillating
+across the warn/crit line is one incident. Ported from alert-webhook.py.
+"""
 
 from __future__ import annotations
 
-import os
-import time
+from typing import TYPE_CHECKING, Any
 
+from app.core.logging import get_logger
+
+from .health_emit import emit
+from .health_judge import judge
 from .health_read import sample
+from .health_render import render
 from .health_severity import rate
-from .payload import build
-from .queues import SYSTEM, push
+from .health_store import open_store
+from .health_timing import DEFAULT as TIMING
+from .health_verdict import LEVEL_CODE
 
-REPEAT_SECONDS = int(os.getenv("HEALTH_ALERT_REPEAT_SECONDS", "14400"))
-_last_severity: str | None = None
-_last_sent_at = 0.0
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
+    from .health_state import HealthStore
 
-def reset_state() -> None:
-    """Reset the in-process transition state (used by tests)."""
-    global _last_severity, _last_sent_at
-    _last_severity = None
-    _last_sent_at = 0.0
+logger = get_logger("adminbot.notify.health_publish")
 
 
-async def publish() -> tuple[str, str]:
-    """Publish only on severity transitions, plus a long repeat interval.
-
-    A health sample is still returned to the caller, but repeated non-ok
-    samples do not enqueue a new alert every five minutes. A recovery is sent
-    once so the operator gets a clear end to the incident.
-    """
-    global _last_severity, _last_sent_at
-
-    severity, reason = rate(sample())
-    now = time.monotonic()
-
-    if severity == "ok":
-        if _last_severity not in (None, "ok"):
-            await push(
-                SYSTEM,
-                build(
-                    "HostHealth",
-                    "ok",
-                    "Host recovered",
-                    "all monitored thresholds returned to normal",
-                    status="resolved",
-                ),
-            )
-            _last_severity = "ok"
-            _last_sent_at = now
+async def publish(
+    store: HealthStore | None = None,
+    rating: Callable[[dict[str, float]], tuple[str, str]] = rate,
+    outbox: list[dict] | None = None,
+) -> tuple[str, str]:
+    """Publish a settled transition only; store/rating/outbox are DI seams."""
+    severity, reason = rating(sample())
+    status = "resolved" if severity == "ok" else "firing"
+    active: Any = store if store is not None else open_store()
+    if not await active.claim():
         return severity, reason
-
-    if _last_severity == severity and (now - _last_sent_at) < REPEAT_SECONDS:
-        return severity, reason
-
-    await push(
-        SYSTEM,
-        build("HostHealth", severity, f"Host {severity}: {reason}", "threshold crossed on this host"),
-    )
-    _last_severity = severity
-    _last_sent_at = now
+    now = await active.now()
+    state = await active.load(now)
+    if judge(state, severity, status, now, TIMING):
+        await emit(render(severity, status, reason), outbox)
+        state.last_sent = now
+        state.last_escalation = LEVEL_CODE.get(severity, 0.0) if status == "firing" else 0.0
+    await active.save(state, status)
+    logger.info("health_alert severity=%s status=%s", severity, status)
     return severity, reason

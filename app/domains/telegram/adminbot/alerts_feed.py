@@ -27,6 +27,7 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.telegram.adminbot.tg_markdown import esc
 
 try:  # redis-py raises its own TimeoutError (not the builtin) on idle BLPOP
     from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -37,6 +38,12 @@ except Exception:  # pragma: no cover - redis unavailable at import time
 
 
 logger = get_logger("admin_bot.alerts_feed")
+
+# sendMessage with parse_mode="Markdown" (legacy) treats these as entities and
+# returns HTTP 400 "Bad Request" on an unescaped one. Alert text is free-form
+# (metric names carry "(" ")" ">" "/" and ":"), so every interpolated value has
+# to be escaped or the whole alert is silently dropped. Observed 4x/24h on
+# production, e.g. "ValkeyHeadroom: rmi-valkey".
 
 SYSTEM_QUEUE = "rmi:alerts:system"
 SECURITY_QUEUE = "rmi:alerts:security"
@@ -72,11 +79,16 @@ def fingerprint(alert: dict[str, Any]) -> str:
 
 
 def format_alert(alert: dict[str, Any], queue: str) -> str:
-    """Format one Alertmanager alert dict into a Telegram Markdown message."""
+    """Format one Alertmanager alert dict into a Telegram Markdown message.
+
+    Every free-form value is escaped: Telegram's legacy Markdown parse mode
+    returns HTTP 400 for an unbalanced "_", "*" or "[", which silently
+    dropped whole alerts in production.
+    """
     status = str(alert.get("status") or "firing").lower()
     labels = alert.get("labels") or {}
     annotations = alert.get("annotations") or {}
-    name = str(labels.get("alertname") or "Unknown alert")
+    name = esc(labels.get("alertname") or "Unknown alert")
     severity = str(labels.get("severity") or "none").lower()
 
     lines: list[str] = []
@@ -89,18 +101,18 @@ def format_alert(alert: dict[str, Any], queue: str) -> str:
     summary = str(annotations.get("summary") or "")
     description = str(annotations.get("description") or "")
     if summary:
-        lines.append(f"\n{summary[:400]}")
+        lines.append(f"\n{esc(summary[:400])}")
     if description and description != summary:
-        lines.append(f"\n{description[:600]}")
+        lines.append(f"\n{esc(description[:600])}")
 
     for key in ("instance", "job", "service", "container", "device"):
         value = labels.get(key)
         if value:
-            lines.append(f"• `{key}`: {str(value)[:120]}")
+            lines.append(f"• `{key}`: {esc(str(value)[:120])}")
 
     started = alert.get("startsAt") or alert.get("starts_at")
     if started:
-        lines.append(f"\n🕐 `{str(started)[:32]}`")
+        lines.append(f"\n🕐 `{esc(str(started)[:32])}`")
 
     route = _QUEUE_LABEL.get(queue, "system")
     lines.append(f"\n_alerts:{route}_")
@@ -157,6 +169,21 @@ async def redis_should_send(client: Any, alert: dict[str, Any]) -> bool:
     return True
 
 
+async def _deliver(bot_app: Any, chat_id: int, text: str) -> None:
+    """Send one alert, retrying as plain text if the parse mode is rejected.
+
+    A dropped alert is worse than a noisy one: Telegram answers HTTP 400
+    "Bad Request" for any message its Markdown parser cannot read, and that
+    used to discard the alert entirely. Falling back to no parse_mode always
+    renders, so the operator gets the text even if it loses its formatting.
+    """
+    try:
+        await bot_app.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+    except Exception as exc:
+        logger.warning("alert_send_markdown_failed error=%s — retrying plain text", type(exc).__name__)
+        await bot_app.send_message(chat_id=chat_id, text=text)
+
+
 async def start_alerts_feed(bot_app: Any) -> None:
     """Async BLPOP consumer for the Alertmanager queues. Runs forever."""
     logger.info("Alerts feed starting on queues=%s", QUEUE_KEYS)
@@ -207,7 +234,7 @@ async def start_alerts_feed(bot_app: Any) -> None:
                     continue
                 text = format_alert(alert, str(key))
                 if chat_id > 0:
-                    await bot_app.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+                    await _deliver(bot_app, chat_id, text)
                     labels = alert.get("labels") or {}
                     logger.info(
                         "alert_forwarded queue=%s name=%s status=%s",

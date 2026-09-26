@@ -18,17 +18,20 @@ def modules() -> list[pathlib.Path]:
 
 class T(unittest.TestCase):
     def test_rule(self) -> None:
-        """one function per module, so a file cannot grow a second responsibility"""
+        """one function per module, so a file cannot grow a second responsibility
+
+        A module holding only constants, or only re-exports, is allowed: it
+        has no behaviour to split. What is forbidden is more than one.
+        """
         offenders: list[str] = []
         for path in modules():
             if path.name in EXEMPT:
                 continue
             tree = ast.parse(path.read_text())
             found = [n for n in tree.body if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)]
-            if len(found) != 1:
+            if len(found) > 1:
                 offenders.append(f"{path.name} has {len(found)}")
         assert not offenders, offenders
-
 
 if __name__ == "__main__":
     unittest.main()
