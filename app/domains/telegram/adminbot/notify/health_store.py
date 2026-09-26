@@ -13,7 +13,7 @@ import os
 
 from app.core.logging import get_logger
 
-from .health_redis import KEY_PREFIX, TTL_SECONDS
+from .health_keys import KEY_PREFIX, TTL_SECONDS
 from .health_state import HealthStore
 
 logger = get_logger("adminbot.notify.health_store")
