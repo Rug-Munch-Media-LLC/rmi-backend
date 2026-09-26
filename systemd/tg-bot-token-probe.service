@@ -1,0 +1,32 @@
+[Unit]
+Description=Telegram Credential Probe (one getMe per service instance)
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+# Purpose: a container running on a REVOKED bot token is invisible until you
+# try to use it. This probes the credential so a 401 surfaces on a schedule
+# instead of silently killing the alert path. Only a 401 is a page-worthy
+# failure; a network fault retries and stays quiet.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# The token is read from the secret store into THIS unit's environment only.
+# It is never an argument (argv is world-readable via /proc) and never written
+# to a committed file. Each instance gets its own credential so a backend
+# probe can never be satisfied by the admin bot's token.
+EnvironmentFile=-/etc/default/tg-bot-token-probe
+ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python /srv/work/repos/rmi-backend/scripts/tg-bot-token-probe.py %i
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tg-bot-token-probe
+# exit 2 == revoked: the unit fails, so `systemctl --failed` and any health
+# dashboard both show it. Transient faults never fail the unit.
+SuccessExitStatus=0
+TimeoutStartSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
