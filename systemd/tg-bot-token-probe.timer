@@ -3,7 +3,6 @@ Description=Telegram Credential Probe (periodic getMe every 15 minutes)
 Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
 
 [Timer]
-Unit=tg-bot-token-probe.service
 OnCalendar=*-*-* *:00/15:00
 Persistent=true
 RandomizedDelaySec=60
