@@ -12,7 +12,7 @@ from .models_keyboard import build
 from .owner import is_owner
 
 if TYPE_CHECKING:
-    from telegram import CallbackQuery, Update
+    from telegram import Update
     from telegram.ext import ContextTypes
 
 logger = logging.getLogger("adminbot.chat.models")
@@ -20,7 +20,10 @@ logger = logging.getLogger("adminbot.chat.models")
 
 async def on_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Acknowledge immediately, then render the picker or confirm a choice."""
-    query: CallbackQuery = update.callback_query
+    query = update.callback_query
+    if query is None or query.from_user is None:
+        logger.warning("model_pick_malformed reason=no_callback_query")
+        return
     await query.answer()
     if not is_owner(query.from_user.id):
         await query.edit_message_text("🔒 Owner only.")

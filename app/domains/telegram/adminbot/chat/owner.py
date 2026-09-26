@@ -12,4 +12,6 @@ def is_owner(user_id: int | None) -> bool:
     secret store). Everything privileged funnels through this check so there is
     exactly one place that decides who may act.
     """
-    return bool(user_id) and int(user_id) in OWNER_IDS
+    if not user_id:
+        return False
+    return user_id in OWNER_IDS
