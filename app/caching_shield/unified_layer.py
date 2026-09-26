@@ -137,13 +137,13 @@ class ProviderChain:
         start = time.monotonic()
         primary = self._providers[0][0] if self._providers else ""
         queue = list(self._providers)
-        pending: dict[asyncio.Task, tuple[str, bool]] = {}
+        pending: dict[asyncio.Task[ToolResult | None], tuple[str, bool]] = {}
 
         def _launch(prov_name: str, fn: Any) -> None:
             task = asyncio.create_task(asyncio.wait_for(fn(**kwargs), timeout=self.per_try_timeout_s))
             pending[task] = (prov_name, prov_name == primary)
 
-        def _harvest(done: set[asyncio.Task]) -> ToolResult | None:
+        def _harvest(done: set[asyncio.Task[ToolResult | None]]) -> ToolResult | None:
             for task in done:
                 prov_name, is_primary = pending.pop(task)
                 try:

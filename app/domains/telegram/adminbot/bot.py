@@ -207,15 +207,13 @@ async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Start the Redis listener inside the application's event loop."""
     await _publish_command_menu(app)
     try:
-        from app.domains.telegram.adminbot.redis_listener import (
-            start_redis_listener,  # type: ignore[reportUnknownVariableType]
-        )
+        from app.domains.telegram.adminbot.redis_listener import start_redis_listener
 
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            task = loop.create_task(start_redis_listener(app.bot))  # type: ignore[reportUnknownVariableType]
+            task = loop.create_task(start_redis_listener(app.bot))
         else:
-            task = app.create_task(start_redis_listener(app.bot))  # type: ignore[reportUnknownVariableType]
+            task = app.create_task(start_redis_listener(app.bot))
         # Keep a reference so the background listener is not garbage collected.
         _listener_tasks.append(task)
     except Exception as exc:
@@ -411,7 +409,7 @@ def main() -> None:
     try:
         from app.domains.telegram.adminbot.chat.register import register as register_chat
 
-        register_chat(app)  # type: ignore[reportUnknownVariableType]
+        register_chat(app)
     except Exception:
         logger.warning("chat handlers not registered", exc_info=True)
     logger.info("🛡️ RMI Admin Bot v5 starting (@rmi_admin_bot)...")
