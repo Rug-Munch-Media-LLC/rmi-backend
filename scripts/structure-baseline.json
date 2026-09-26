@@ -235,7 +235,6 @@
 		"app/domains/databus/providers/chains/local.py": 314,
 		"app/domains/databus/providers/registry/__init__.py": 211,
 		"app/domains/databus/providers/registry/categories/market.py": 677,
-		"app/domains/databus/providers/registry/categories/security.py": 631,
 		"app/domains/databus/providers/registry/categories/social.py": 357,
 		"app/domains/databus/providers/registry/categories/system.py": 260,
 		"app/domains/databus/providers/registry/categories/wallet.py": 419,
