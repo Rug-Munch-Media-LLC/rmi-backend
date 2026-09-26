@@ -146,7 +146,7 @@ jobs:
             --output=semgrep.sarif \
             app/
           echo "semgrep findings: $(python3 -c "import json;print(len(json.load(open('semgrep.sarif'))['runs'][0]['results']))" 2>/dev/null || echo '?') (blocking — see comment above)"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: semgrep-report
@@ -169,7 +169,7 @@ jobs:
             echo "aiverify not installed — skipping"
           fi
         continue-on-error: true
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         with:
           name: aiverify-report
           path: aiverify-output.json
@@ -268,7 +268,7 @@ jobs:
           echo "spectral errors: $COUNT (baseline: 745)"
           if [ "$COUNT" -gt 745 ]; then echo "❌ New spectral errors"; exit 1; fi
           echo "✅ No new spectral errors"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         with:
           name: openapi-schema
           path: openapi.json
@@ -392,7 +392,7 @@ jobs:
           if [ "$COUNT" -gt 47 ]; then echo "❌ New bandit findings"; exit 1; fi
           echo "✅ No new bandit findings"
       - name: Upload report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: bandit-report
           path: bandit-report.json
@@ -561,7 +561,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: coverage-report
           path: |
@@ -681,7 +681,7 @@ jobs:
           k6 run tests/k6/smoke.js \
             -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }} \
             --summary-export=tests/k6/results/smoke-summary.json
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: k6-smoke-report
@@ -705,13 +705,14 @@ jobs:
           uv pip install --python .venv/bin/python -e ".[dev]" mutmut
       - name: Mutation testing (scoped to app/core)
         run: source .venv/bin/activate && mutmut run --paths-to-mutate app/core/ --test-timeout 10 || echo "Mutation score noted (non-blocking)"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: mutation-report
           path: |
             .mutmut-cache/
             html/
+          include-hidden-files: true
 
   crucible-gate:
     runs-on: docker-x64
@@ -763,7 +764,7 @@ jobs:
         run: |
           source .venv/bin/activate
           python -m pytest --durations=10 tests/ -q --tb=short -m "not integration"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: slow-test-report
@@ -826,7 +827,7 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
           vuln-type: 'os,library'
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         with:
           name: trivy-results
           path: trivy-results.sarif
@@ -870,7 +871,7 @@ jobs:
           uv pip install --python .venv/bin/python -r requirements.txt
           uv pip install --python .venv/bin/python -e ".[dev]" pact-python
       - name: Download pact files (from consumer CI)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v6.0.0
         continue-on-error: true
         with:
           name: pacts
@@ -904,7 +905,7 @@ jobs:
             echo "ℹ️  No local pact files and no Pact Broker configured — publish consumer pacts first"
           fi
       - name: Upload provider verification results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: provider-verification
@@ -930,7 +931,7 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         with:
           name: sbom
           path: sbom.spdx.json
@@ -1032,7 +1033,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload OCR report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: ocr-review-report
           path: |
@@ -1095,7 +1096,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload Draugr SARIF
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: draugr-sarif
           path: draugr-out/
