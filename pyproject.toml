@@ -193,6 +193,8 @@ ignore = ["ASYNC109"]
 # Legacy code excluded entirely
 "_legacy_main.py" = ['ALL']
 "app/legacy/**" = ['ALL']
+# Wallet-label ingestion compatibility modules preserve the original best-effort boundaries.
+"scripts/wallet_labels_ingest/*.py" = ['BLE001', 'S112', 'EXE001', 'EXE002']
 # FAISS migration script: pickles are our own artifacts (models bundled in Docker),
 # same trust model as app/ann_index.py
 "scripts/migrate_faiss_to_qdrant.py" = ['S301']
