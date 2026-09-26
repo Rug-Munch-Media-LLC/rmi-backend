@@ -1,7 +1,5 @@
 """Fail-open Redis access for the host-health incident state.
-
-A Redis problem must never silence the alert plane, so every call degrades to
-a fallback and a duplicate message is preferred over a dropped alert.
+Every call degrades to a fallback: a duplicate message beats a dropped alert.
 """
 
 from __future__ import annotations
@@ -9,6 +7,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+
+from .health_keys import MARKER_SUFFIX
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -24,7 +24,7 @@ class RedisOps:
 
     async def set_nx(self, key: str, lease: int) -> bool:
         """Take the ownership marker, or report another worker holds it."""
-        return bool(await self._attempt(lambda: self.client.set(f"{key}:seen", "1", nx=True, ex=lease), True))
+        return bool(await self._attempt(lambda: self.client.set(f"{key}{MARKER_SUFFIX}", "1", nx=True, ex=lease), True))
 
     async def read(self, key: str) -> dict[str, str]:
         """Return the stored incident hash, or empty when absent or broken."""
@@ -34,11 +34,11 @@ class RedisOps:
         """Persist the incident, and hold its marker for the lease window."""
         await self._attempt(lambda: self.client.hset(key, mapping=mapping), 0)
         await self._attempt(lambda: self.client.expire(key, ttl), False)
-        await self._attempt(lambda: self.client.expire(f"{key}:seen", lease), False)
+        await self._attempt(lambda: self.client.expire(f"{key}{MARKER_SUFFIX}", lease), False)
 
     async def release(self, key: str) -> None:
         """Drop the marker so the next incident is claimable at once."""
-        await self._attempt(lambda: self.client.delete(f"{key}:seen"), 0)
+        await self._attempt(lambda: self.client.delete(f"{key}{MARKER_SUFFIX}"), 0)
 
     async def _attempt(self, call: Callable[[], Awaitable[Any]], fallback: Any) -> Any:
         """Run one Redis call, logging and degrading instead of raising."""

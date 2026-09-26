@@ -1,8 +1,8 @@
 """The ownership marker is a lease, so the plane publishes on every tick.
 
-Regression: the marker took the 7-day incident TTL and was never refreshed or
-released, so the first tick won the key for a week and every later tick
-returned early at claim(). One message ever, and it looked healthy.
+Regression: the marker took the 7-day incident TTL and was never released, so
+the first tick won the key for a week and every later tick returned early at
+claim(). One message ever, and it looked healthy.
 """
 
 from __future__ import annotations
@@ -11,13 +11,14 @@ import pytest
 
 from app.domains.telegram.adminbot.notify.health_keys import (
     LEASE_SECONDS,
+    MARKER_SUFFIX,
     TTL_SECONDS,
 )
 from app.domains.telegram.adminbot.notify.health_state import HealthStore
 from app.domains.telegram.adminbot.notify.incident import Incident
 from tests.unit.adminbot_chat._support import FakeRedis
 
-MARKER = "rmi:health:incident:host_health:seen"
+MARKER = f"rmi:health:incident:host_health{MARKER_SUFFIX}"
 
 
 @pytest.mark.asyncio
