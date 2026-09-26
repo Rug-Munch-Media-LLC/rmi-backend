@@ -258,3 +258,110 @@ Re-run the fingerprint sweep and assert the fingerprint is absent.
 Keep `TELEGRAM_BOT_TOKEN` out of git. gitleaks runs pre-commit and a real value committed
 will fail the commit — **treat that failure as a bug, never as an obstacle to allowlist
 around.** No allowlist entry was added for either token in this remediation.
+
+---
+
+## 10. The two container paths (added after the 2026-09-26 container outage)
+
+A separate incident found both `rmi-backend` and `rmi-alertmanager` running with a
+**revoked** token, fingerprint `a99f5fa42987ad66` (HTTP 401 on `getMe`). The alert-webhook
+service was never affected. Root cause and the three genuinely distinct paths:
+
+| Path | Delivers via | Bot | Why that bot |
+|---|---|---|---|
+| Alertmanager → alert-webhook → Telegram | `alert-webhook` (systemd), port 9099 | **admin** (`015e6e39930f493a`) | the owner reads that chat for admin commands; infra alerts belong there |
+| Backend alert plane — whale / LP-health / CertStream threat / telegram auth | `rmi-backend` container | **rugmunch** (`ab8286a8b8da8a8d`) | the backend's own error reporting is high-volume operational traffic. Pointing it at the admin bot would bury the owner's interactive chat under routine backend noise |
+| Admin bot (interactive commands) | `rmiadminbot.service` | **admin** | it *is* the admin bot |
+
+These are **not** interchangeable. Verified: the admin bot **cannot** post to the alerts
+channel at all — `sendMessage` returns `HTTP 400 Bad Request: chat not found`. So the two
+paths legitimately need different credentials, and a single shared token could never have
+been correct for both.
+
+### The real defect: `environment:` is resolved at container-create time
+
+`docker compose` interpolates `${TELEGRAM_BOT_TOKEN}` when the container is **created**, so
+the value is baked into the container and survives every later restart. That is why the
+revoked token stayed live in a container for days even though the correct token had since
+been written to the compose `.env` file. Rotating a secret in the env file changed nothing
+until the container was recreated — and nobody recreated it because nothing looked wrong.
+
+The fix inverts precedence: the credential is a **Docker secret** mounted at
+`/run/secrets/`, and the entrypoint **overrides** any inherited environment value
+(`_override_secret` in the backend entrypoint). The mounted secret is now authoritative, so
+rotation survives `docker compose up -d` with nobody re-pasting a token.
+
+### Rotation — one command, no re-pasting
+
+```bash
+# 1. write the new value into the store (prompted; never echoed, never in argv)
+gopass insert -f rmi/rugmunchbot/bot_token
+
+# 2. re-seed the mounted secret from the store
+umask 077
+gopass show -o rmi/rugmunchbot/bot_token | tr -d '\r\n' > /srv/secrets/telegram_bot_token
+chown root:root /srv/secrets/telegram_bot_token && chmod 600 /srv/secrets/telegram_bot_token
+
+# 3. verify without printing the value
+printf '%s' "$(tr -d '\r\n' < /srv/secrets/telegram_bot_token)" | sha256sum | cut -c1-16
+# record as NEW_FP; it MUST differ from the old fingerprint
+
+# 4. recreate the consumer (REQUIRED — see the create-time interpolation above)
+cd /srv/rmi-infra
+docker compose -f docker-compose.backend.yml up -d rmi-backend
+```
+
+Step 4 is a production restart. Do it in a window, never as part of a rotation you are
+racing. The same shape applies to the admin token: update
+`/etc/credstore/alert-webhook/telegram-token` and restart `alert-webhook`.
+
+> **The seeding command is deliberately not a committed script.** The commit-msg guard
+> blocks `gopass ... rmi/` paths in tracked files, and a committed script that resolves
+> gopass paths would also put the secret-store layout in git. It lives here, in the
+> runbook, for that reason.
+
+### Verifying after rotation
+
+```bash
+# credential accepted? (prints the bot's @username, never the token)
+cd /srv/work/repos/rmi-backend
+TELEGRAM_BOT_TOKEN="$(tr -d '\r\n' < /srv/secrets/telegram_bot_token)" \
+  .venv/bin/python scripts/tg-bot-token-probe.py backend
+# expect: [tg-probe] backend: OK (HTTP 200 @<bot>)
+
+# real delivery through the backend's own alert path
+.venv/bin/python scripts/tg-bot-token-probe.py --help >/dev/null 2>&1 || true
+# then POST one synthetic alert and confirm the chat received it — a 200 from
+# Telegram, not merely "the variable is set".
+```
+
+## 11. Drift check — the probe (`scripts/tg-bot-token-probe.py`)
+
+A revoked token is invisible until something tries to use it, so the credential itself is
+probed on a schedule. The probe is the piece that would have caught this outage on day one:
+before it, nothing asked Telegram whether the token was still valid, and a dead alert path
+looked exactly like a quiet one.
+
+It classifies outcomes, because a transient network fault must not page anyone:
+
+| State | Meaning | Behaviour |
+|---|---|---|
+| `ok` | HTTP 200 | exit 0, silent |
+| `revoked` | HTTP 401 | exit **2**, loud, terminal, no retry — a 401 will not fix itself |
+| `unknown` | timeout / DNS / TLS / 429 / 5xx | bounded backoff retry, **never pages** |
+
+That distinction is the whole point: only an explicit 401 is treated as a real fault.
+Deploy with:
+
+```bash
+install -m 644 systemd/tg-bot-token-probe.service  /etc/systemd/system/
+install -m 644 systemd/tg-bot-token-probe.timer   /etc/systemd/system/
+# per-service credentials (one env file per instance, each 0600 root:root):
+#   TELEGRAM_BOT_TOKEN for the rugmunch instance
+#   TELEGRAM_BOT_TOKEN for the admin instance
+systemctl daemon-reload
+systemctl enable --now tg-bot-token-probe.timer
+```
+
+Check it with `systemctl --failed` and
+`journalctl -u tg-bot-token-probe -n 50`.
