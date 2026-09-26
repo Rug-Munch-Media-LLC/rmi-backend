@@ -1,8 +1,7 @@
 """The ownership marker is a lease, so the plane publishes on every tick.
 
 Regression: the marker took the 7-day incident TTL and was never released, so
-the first tick won the key for a week and every later tick returned early at
-claim(). One message ever, and it looked healthy.
+the first tick won the key for a week. One message ever, and it looked healthy.
 """
 
 from __future__ import annotations
