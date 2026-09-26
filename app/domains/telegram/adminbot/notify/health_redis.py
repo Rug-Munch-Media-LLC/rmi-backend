@@ -1,12 +1,11 @@
 """Fail-open Redis access for the host-health incident state.
 
-Every call degrades to a fallback instead of raising: a Redis problem must
-never silence the alert plane, so a duplicate message is the accepted cost.
+A Redis problem must never silence the alert plane, so every call degrades to
+a fallback and a duplicate message is preferred over a dropped alert.
 """
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
@@ -16,34 +15,35 @@ if TYPE_CHECKING:
 
 logger = get_logger("adminbot.notify.health_redis")
 
-# Generous ceiling so a key can never outlive a week of quiet alerts.
-KEY_PREFIX = os.getenv("HEALTH_ALERT_STATE_PREFIX", "rmi:health:incident:")
-TTL_SECONDS = int(os.getenv("HEALTH_ALERT_STATE_TTL", "604800"))
-
 
 class RedisOps:
-    """The four Redis calls the incident state needs, each fail-open."""
+    """The five Redis calls the incident state needs, each fail-open."""
 
     def __init__(self, client: Any | None) -> None:
-        self.client = client
+        self.client: Any = client  # duck-typed; the None guard is claim()'s
 
-    async def set_nx(self, key: str, ttl: int) -> bool:
-        """Create the ownership marker, or report another worker holds it."""
-        return bool(await self._attempt(lambda: self.client.set(f"{key}:seen", "1", nx=True, ex=ttl), True))
+    async def set_nx(self, key: str, lease: int) -> bool:
+        """Take the ownership marker, or report another worker holds it."""
+        return bool(await self._attempt(lambda: self.client.set(f"{key}:seen", "1", nx=True, ex=lease), True))
 
     async def read(self, key: str) -> dict[str, str]:
         """Return the stored incident hash, or empty when absent or broken."""
         return await self._attempt(lambda: self.client.hgetall(key), {})
 
-    async def write(self, key: str, mapping: dict[str, str], ttl: int) -> None:
-        """Persist the incident and refresh its expiry."""
+    async def write(self, key: str, mapping: dict[str, str], ttl: int, lease: int) -> None:
+        """Persist the incident, and hold its marker for the lease window."""
         await self._attempt(lambda: self.client.hset(key, mapping=mapping), 0)
         await self._attempt(lambda: self.client.expire(key, ttl), False)
+        await self._attempt(lambda: self.client.expire(f"{key}:seen", lease), False)
+
+    async def release(self, key: str) -> None:
+        """Drop the marker so the next incident is claimable at once."""
+        await self._attempt(lambda: self.client.delete(f"{key}:seen"), 0)
 
     async def _attempt(self, call: Callable[[], Awaitable[Any]], fallback: Any) -> Any:
         """Run one Redis call, logging and degrading instead of raising."""
         try:
             return await call()
-        except Exception as exc:
+        except Exception as exc:  # fail-open: a dup beats a dropped alert
             logger.warning("health_state_call_failed error=%s", type(exc).__name__)
             return fallback

@@ -40,12 +40,20 @@ class FakeRedis:
     def __init__(self) -> None:
         self.hashes: dict[str, dict[str, str]] = {}
         self.keys: set[str] = set()
+        # Every (key, ttl) handed to SET, so a test can assert the ownership
+        # marker is leased for a tick and not held for the 7-day incident TTL.
+        self.leases: list[tuple[str, int]] = []
 
     async def set(self, key: str, value: str, nx: bool = False, ex: int = 0) -> bool:
+        self.leases.append((key, ex))
         if nx and key in self.keys:
             return False
         self.keys.add(key)
         return True
+
+    async def delete(self, key: str) -> int:
+        self.keys.discard(key)
+        return 1
 
     async def hgetall(self, key: str) -> dict[str, str]:
         return dict(self.hashes.get(key, {}))
@@ -55,6 +63,7 @@ class FakeRedis:
         return len(mapping)
 
     async def expire(self, key: str, ttl: int) -> bool:
+        self.leases.append((key, ttl))
         return key in self.keys or key in self.hashes
 
 
