@@ -15,7 +15,7 @@ Type=oneshot
 # to a committed file. Each instance gets its own credential so a backend
 # probe can never be satisfied by the admin bot's token.
 EnvironmentFile=-/etc/default/tg-bot-token-probe
-ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python /srv/work/repos/rmi-backend/scripts/tg-bot-token-probe.py %i
+ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python /srv/work/repos/rmi-backend/scripts/tg-bot-token-probe.py alert-webhook
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=tg-bot-token-probe
