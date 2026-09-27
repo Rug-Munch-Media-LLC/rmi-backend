@@ -123,18 +123,36 @@ pre-commit:
         fi
 
     # -- Python type check via pyright (PYTHON repos, faster alternative) --
+    #
+    # GATE HONESTY (2026-09-27): the previous body ended in
+    #   `pyright $FILES 2>/dev/null || true`
+    # which discarded pyright's exit status. pyright reported
+    #   "1 error, 0 warnings" and the commit still succeeded, with a GREEN
+    #   checkmark printed next to the error. A gate that cannot fail is worse
+    #   than no gate: it teaches operators to trust a wall of checkmarks.
+    #
+    # A bare blocking `pyright $FILES` is not usable here either - rmi-backend
+    # carries pre-existing type debt, so the gate would wedge every commit that
+    # touches a dirty file. scripts/check-pyright-staged.py is the honest
+    # middle: it BLOCKS a staged file whose error count exceeds the count
+    # already recorded for it in .pyright-baseline.json, so regressions and new
+    # errors are rejected while pre-existing debt is tolerated and shrinkable.
+    # It fails closed (exit 2) if the baseline is missing. CI remains the
+    # whole-repo gate.
     pyright:
       glob: "*.py"
       run: |
         if [ -f "pyproject.toml" ] && command -v pyright &>/dev/null; then
-          # At pre-push nothing is staged; bare `pyright` would re-analyze the
-          # whole repo (~10 min). Staged-file scope only — CI is the full gate.
+          if [ ! -f scripts/check-pyright-staged.py ]; then
+            echo "[pyright] scripts/check-pyright-staged.py missing - refusing to pass an unratcheted gate" >&2
+            exit 2
+          fi
           FILES=$(printf '%s\n' {staged_files} | grep '\.py$' || true)
           if [ -z "$FILES" ]; then
-            echo "[pyright] no staged python files — deferring to CI gate"
+            echo "[pyright] no staged python files - deferring to CI gate"
             exit 0
           fi
-          pyright $FILES 2>/dev/null || true
+          python3 scripts/check-pyright-staged.py --files $FILES
         fi
 
     # -- Frontend lint (FRONTEND repos) -----------------------
