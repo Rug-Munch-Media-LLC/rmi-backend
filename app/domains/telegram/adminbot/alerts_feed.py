@@ -27,7 +27,7 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.telegram.adminbot.tg_markdown import esc
+from app.domains.telegram.adminbot.tg_markdown import code, esc, unesc
 
 try:  # redis-py raises its own TimeoutError (not the builtin) on idle BLPOP
     from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -112,7 +112,7 @@ def format_alert(alert: dict[str, Any], queue: str) -> str:
 
     started = alert.get("startsAt") or alert.get("starts_at")
     if started:
-        lines.append(f"\n🕐 `{esc(str(started)[:32])}`")
+        lines.append(f"\n🕐 {code(str(started)[:32])}")
 
     route = _QUEUE_LABEL.get(queue, "system")
     lines.append(f"\n_alerts:{route}_")
@@ -180,8 +180,10 @@ async def _deliver(bot_app: Any, chat_id: int, text: str) -> None:
     try:
         await bot_app.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
     except Exception as exc:
+        # Retry the SAME alert without the escapes: the fallback is plain text,
+        # so keeping the backslashes would render "\(15m\)" on screen.
         logger.warning("alert_send_markdown_failed error=%s — retrying plain text", type(exc).__name__)
-        await bot_app.send_message(chat_id=chat_id, text=text)
+        await bot_app.send_message(chat_id=chat_id, text=unesc(text))
 
 
 async def start_alerts_feed(bot_app: Any) -> None:
