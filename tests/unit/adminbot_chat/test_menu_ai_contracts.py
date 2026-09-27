@@ -32,20 +32,14 @@ def test_menu_actions_have_a_stable_dispatch_target() -> None:
 
 
 def test_admin_ai_uses_supported_opencode_run_cli(monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    def fake_run(command, **kwargs):
-        captured["command"] = command
-        captured["kwargs"] = kwargs
-        return SimpleNamespace(returncode=0, stdout="OK", stderr="")
-
-    monkeypatch.setattr(admin_ai.subprocess, "run", fake_run)
+    run = Mock(return_value=SimpleNamespace(returncode=0, stdout="OK", stderr=""))
+    monkeypatch.setattr(admin_ai.subprocess, "run", run)
     monkeypatch.setattr(admin_ai, "_opencode_path", lambda: "/usr/local/bin/opencode")
 
     result = admin_ai.run_opencode("Reply with exactly OK", read_only=True)
 
     assert result["ok"] is True
-    command = captured["command"]
+    command = run.call_args.args[0]
     assert isinstance(command, list)
     assert command[0:2] == ["/usr/local/bin/opencode", "run"]
     assert "--prompt" not in command
