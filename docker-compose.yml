@@ -260,6 +260,13 @@ services:
         # pre-baked buffalo_l models (~+1GB image). Default: CLI tools + Haar
         # cascade only — /osint /track /face still work.
         INSTALL_FACE: ${INSTALL_FACE:-0}
+        # RUGMUNCH_SCANNER_REF optionally overrides the pinned
+        # rugmunch-scanner commit SHA. Leave unset to build the SHA
+        # committed in pyproject.toml. Set ONLY for an intentional
+        # upgrade or rollback. It must be a 40-hex commit SHA; the
+        # image build fails loudly on a branch name or a tag.
+        # See docs/DEPENDENCY-PINNING.md.
+        RUGMUNCH_SCANNER_REF: "${RUGMUNCH_SCANNER_REF:-}"
     container_name: rmi-backend
     restart: unless-stopped
     env_file: .env

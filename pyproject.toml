@@ -13,7 +13,28 @@ dependencies = [
     # Canonical scanner engine (PRIVATE methodology repo). Thin adapters under
     # app/scoring/* re-export from here; the scanner is the single source of truth.
     # Requires forgejo auth (same trust boundary as this repo).
-    "rugmunch-scanner @ git+https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git",
+    #
+    # ── PINNED TO AN IMMUTABLE COMMIT SHA — DO NOT "SIMPLIFY" THIS TO A TAG ──
+    # WHY A SHA AND NOT A TAG (or a bare branch):
+    #   A tag is a MUTABLE pointer. Anyone can `git tag -f v0.2.0 <new-sha>` and
+    #   every build afterwards silently installs different code under the same
+    #   name. A branch name is worse: it moves on every merge, so a rebuilt image
+    #   picks up unreviewed commits with no diff in this file. Only a 40-hex
+    #   commit SHA is content-addressed and can never be rewritten. Pinning the
+    #   SHA is what makes "which commit is the running backend built from?" and
+    #   "roll back to the last good one" answerable at all.
+    #   If you are tempted to swap this for `@v0.2.0` to "make upgrades easier",
+    #   you have just deleted the rollback target. The upgrade procedure that
+    #   makes a tag unnecessary lives in docs/DEPENDENCY-PINNING.md.
+    #
+    # TO MOVE THE PIN FORWARD (the ONE place to change it — this line):
+    #   1. git -C <scanner-repo> log --oneline -20
+    #   2. pick the scanner commit you have actually reviewed/tested
+    #   3. replace the @<40-hex-sha> below
+    #   4. verify:  uv lock --dry-run   (read-only check, writes no lockfile)
+    #   5. update the table in docs/DEPENDENCY-PINNING.md
+    #   6. commit as:  fix(deps): pin rugmunch-scanner to <short-sha>
+    "rugmunch-scanner @ git+https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git@13d7878cfe62f9bcda847c9b1f94ba498b1b6d45",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",

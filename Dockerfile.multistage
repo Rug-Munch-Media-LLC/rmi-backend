@@ -13,6 +13,27 @@
 ARG INSTALL_FACE=0
 
 # ---------------------------------------------------------------------------
+# Scanner dependency pin — THE build-time override point
+# ---------------------------------------------------------------------------
+# The authoritative pin lives in pyproject.toml (`rugmunch-scanner @ git+...@<sha>`).
+# This ARG exists so an intentional upgrade can be done WITHOUT editing a
+# source file, and — more importantly — so a ROLLBACK is a one-flag rebuild.
+#
+# HOW IT WORKS: the ARG value is substituted into pyproject.toml via an
+# environment variable, which PEP 508 direct references cannot interpolate, so
+# the substitution is done explicitly with sed before pip reads the file.
+# If RUGMUNCH_SCANNER_REF is empty the committed SHA in pyproject.toml is used
+# verbatim (the default — see docs/DEPENDENCY-PINNING.md).
+#
+#   UPGRADE:  --build-arg RUGMUNCH_SCANNER_REF=<40-hex-sha>
+#   ROLLBACK: --build-arg RUGMUNCH_SCANNER_REF=<previous-good-sha>
+#
+# Why an ARG and not a tag: a tag is a mutable pointer and a branch moves on
+# every merge. Either one means a rebuilt image can silently install
+# unreviewed scanner code, which leaves no rollback target. See pyproject.toml.
+ARG RUGMUNCH_SCANNER_REF=""
+
+# ---------------------------------------------------------------------------
 # Stage 1: builder — install all Python packages with build deps
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS builder
@@ -37,6 +58,21 @@ COPY requirements.txt .
 # the build stage needs the project metadata + package source to resolve it.
 COPY pyproject.toml DESIGN.md LICENSE ./
 COPY app/ app/
+
+# Honor the build-time scanner pin override (no-op when unset, so the default
+# build uses the SHA committed in pyproject.toml — see pyproject.toml:16 and
+# docs/DEPENDENCY-PINNING.md). The REF is validated as a 40-hex commit SHA and
+# the substitution is anchored on the literal `rugmunch-scanner.git@` prefix, so
+# a bad or hostile --build-arg value fails the build loudly instead of
+# rewriting the URL or silently installing from a branch.
+RUN if [ -n "${RUGMUNCH_SCANNER_REF}" ]; then \
+        echo "${RUGMUNCH_SCANNER_REF}" | grep -qE '^[0-9a-f]{40}$' \
+          || { echo "ERROR: RUGMUNCH_SCANNER_REF must be a 40-hex commit SHA (got: ${RUGMUNCH_SCANNER_REF})" >&2; exit 1; }; \
+        sed -i -E "s#(rugmunch-scanner\.git)@[0-9a-f]{40}#\1@${RUGMUNCH_SCANNER_REF}#" pyproject.toml && \
+        grep -n 'rugmunch-scanner @' pyproject.toml; \
+    else \
+        echo "RUGMUNCH_SCANNER_REF unset — using SHA committed in pyproject.toml"; \
+    fi
 
 # Private git+https deps (rugmunch-scanner) authenticate via a BuildKit secret
 # mounted as /root/.netrc (forgejo token). The secret is never baked into the
