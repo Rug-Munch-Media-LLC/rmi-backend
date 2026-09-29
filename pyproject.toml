@@ -34,7 +34,7 @@ dependencies = [
     #   4. verify:  uv lock --dry-run   (read-only check, writes no lockfile)
     #   5. update the table in docs/DEPENDENCY-PINNING.md
     #   6. commit as:  fix(deps): pin rugmunch-scanner to <short-sha>
-    "rugmunch-scanner @ git+https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git@13d7878cfe62f9bcda847c9b1f94ba498b1b6d45",
+    "rugmunch-scanner @ git+https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git@2c694e32fea2ff63a83cd3341d7d85c88744a3be",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",

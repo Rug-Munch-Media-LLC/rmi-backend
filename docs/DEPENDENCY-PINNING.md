@@ -15,9 +15,9 @@ There is exactly **one** authoritative pin.
 
 | What | Where | Value |
 |---|---|---|
-| Authoritative pin (committed) | `pyproject.toml` — `rugmunch-scanner @ git+…` | `13d7878cfe62f9bcda847c9b1f94ba498b1b6d45` |
+| Authoritative pin (committed) | `pyproject.toml` — `rugmunch-scanner @ git+…` | `2c694e32fea2ff63a83cd3341d7d85c88744a3be` |
 | Build-time override | `Dockerfile.multistage` — `ARG RUGMUNCH_SCANNER_REF` | *empty* (means: use the committed SHA) |
-| Resolved record (not authoritative for Docker) | `uv.lock` | `…rugmunch-scanner.git#13d7878cfe62…` |
+| Resolved record (not authoritative for Docker) | `uv.lock` | `…rugmunch-scanner.git#2c694e3cfe62…` |
 
 > **Why a commit SHA and not a tag?** A tag is a *mutable* pointer: anyone can
 > run `git tag -f v0.2.0 <other-sha>` and every subsequent build installs
@@ -44,7 +44,7 @@ is no second place to keep in sync — that is deliberate.
 ```
 Dockerfile.multistage:46  pip install -r requirements-prod.txt
 requirements.txt:2        -e .
-pyproject.toml:37         "rugmunch-scanner @ git+…rugmunch-scanner.git@13d7878…"
+pyproject.toml:37         "rugmunch-scanner @ git+…rugmunch-scanner.git@2c694e3…"
 ```
 
 ---
@@ -89,7 +89,7 @@ docker build -f Dockerfile.multistage \
 3. Once green, commit the new SHA as the default so the repo is self-consistent:
 
    ```bash
-   # Edit pyproject.toml: replace @13d7878… with @<candidate-sha>
+   # Edit pyproject.toml: replace @2c694e3… with @<candidate-sha>
    uv lock            # refresh the lock's resolved source line
    #   (Expect exactly the scanner source line to change; if uv rewrites many
    #    other packages, that is NOT a pin move — stop and use `uv lock
@@ -131,7 +131,7 @@ which is the safe default.
 
 ```bash
 docker build -f Dockerfile.multistage \
-  --build-arg RUGMUNCH_SCANNER_REF=13d7878cfe62f9bcda847c9b1f94ba498b1b6d45 \
+  --build-arg RUGMUNCH_SCANNER_REF=2c694e32fea2ff63a83cd3341d7d85c88744a3be \
   -t backend-rmi-backend:rollback .
 docker compose -f <compose-backend-file>.yml up -d rmi-backend
 ```
@@ -182,3 +182,35 @@ uv lock --dry-run
 A successful `uv lock` that reports the scanner at the pinned SHA proves the
 ref is both syntactically valid and reachable. If uv instead reports
 `(HEAD)` / branch tip, the pin is not being honored.
+
+## Why the pin was re-pointed, not left where uv.lock had it
+
+`uv.lock` already recorded a scanner revision. Pinning to THAT revision looked
+like agreement between two sources of truth, and it was the wrong move.
+
+rmi-backend is a DOCKERISED service: `rmi-backend` resolves the scanner at
+IMAGE BUILD time through `pyproject.toml`. So the pin is not a documentation
+detail, it decides what production runs.
+
+Measured before re-pointing:
+  running rmi-backend container : scanner 0.1.0, real site-packages install
+  that revision                  : 45 commits behind scanner main
+  scanner main                   : 0.2.0, all correctness fixes present
+
+So the containerised backend was already running stale scanner code, and
+pinning to the lock's revision would have frozen it there permanently. A pin
+must record a KNOWN-GOOD current commit, not merely agree with another lock.
+
+## Upgrading
+
+  # 1. read the scanner main SHA
+  git -C [SCANNER_REPO_PATH] rev-parse HEAD
+  # 2. update pyproject.toml and this file
+  # 3. rebuild — never build against a branch or tag
+  docker compose build rmi-backend
+  # 4. confirm the container actually moved
+  docker exec rmi-backend python3 -c \
+    "import rugmunch_scanner; print(rugmunch_scanner.__version__)"
+
+Step 4 is not optional. The pin being correct does not prove the running image
+was rebuilt with it.
