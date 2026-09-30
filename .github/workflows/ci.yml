@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with: { go-version: '1.22' }
       - name: Install archfit
         run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
