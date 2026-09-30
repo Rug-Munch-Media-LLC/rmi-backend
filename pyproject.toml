@@ -35,14 +35,14 @@ dependencies = [
     "langchain-openai>=1.0.0",
     "pydantic-ai-slim[openai]>=2.27.0",  # Pydantic AI agent framework (app/agents); openai extra required by OpenAIChatModel
     # Exact pins (dev: pip install -e .; Docker build uses requirements.txt)
-    "scalar-fastapi==1.8.2",  # Scalar OpenAPI docs UI for FastAPI
+    "scalar-fastapi==1.9.1",  # Scalar OpenAPI docs UI for FastAPI
     "pyrevm==0.3.7",  # EVM runtime for contract simulation
     "eth-utils==6.0.0",  # Ethereum utilities — pinned explicitly (transitive via eth-account)
     "heimdall-py==0.9.11",  # Heimdall EVM bytecode decompiler (unverified-contract ABI extraction)
-    "pyod==3.6.4",  # PyOD anomaly detection ensemble (app/pyod_anomaly.py)
+    "pyod==3.6.6",  # PyOD anomaly detection ensemble (app/pyod_anomaly.py)
     "dnspython==2.8.0",  # DNS lookups (app/osint/domain.py)
     "python-whois==0.9.6",  # WHOIS lookups (app/osint/domain.py)
-    "phonenumbers==9.0.37",  # phone validation/carrier (app/osint/phone.py)
+    "phonenumbers==9.0.40",  # phone validation/carrier (app/osint/phone.py)
     "rapidocr-onnxruntime==1.4.4",  # OCR (app/ocr_utils.py)
     # Merged from requirements.txt (2026-09-05) — pyproject.toml is now the
     # single source of truth; requirements.txt is just `-e .`.
