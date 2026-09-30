@@ -48,6 +48,9 @@
 #### `GET /api/v1/auth/jwks`
 Get JWKS public key for JWT verification.
 
+> ⚠️ Returns `{"error":"JWKS only available for RS256","algorithm":"HS256"}`
+> in production, which signs HS256. No key is published. `app/routers/jwks.py`
+
 - **Tags:** `auth`
 - **Auth:** None (public)
 - **Rate limit:** 100 req/min
