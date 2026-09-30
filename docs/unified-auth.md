@@ -9,12 +9,12 @@ and their JWT is accepted by all services.
 ## Architecture
 
 ```
-┌──────────────┐     JWT (RS256 signed)     ┌──────────────┐
+┌──────────────┐   JWT (HS256 in production) ┌──────────────┐
 │              │ ◄───────────────────────── │  rmi-backend │
 │  walletpress │     Auth: Bearer <jwt>     │  (rugmunch)  │
 │              │                            │              │
 │  pryscraper  │ ◄───────────────────────── │  Issues JWT  │
-│              │     Auth: Bearer <jwt>     │  RS256-signed│
+│              │     Auth: Bearer <jwt>     │  HS256-signed│
 │              │                            │              │
 │  degenfeed   │ ◄───────────────────────── │  Serves JWKS │
 │              │     Cookie / Bearer        │ /.well-known │
@@ -24,7 +24,14 @@ and their JWT is accepted by all services.
 ### Token Flow
 
 1. User logs in at rugmunch.io (email, wallet, Google, GitHub, Telegram)
-2. rmi-backend issues an RS256-signed JWT
+> ⚠️ **The diagram above is the target state, not what runs.** Production
+> signs **HS256**, so step 4's JWKS route is dead: both JWKS endpoints
+> return `{"error":"JWKS only available for RS256","algorithm":"HS256"}`.
+> `pryscraper` (`src/pry/core/jwt_auth.py`) is RS256-only and fail-closed,
+> so it **cannot verify an rmi-backend token today**; there is no
+> shared-secret path on the pry side.
+
+2. rmi-backend issues an HS256-signed JWT (`JWT_ALGORITHM=HS256` in production)
 3. JWT is stored as `rmi_token` HttpOnly cookie + returned in response body
 4. All services accept this JWT via:
    - `Authorization: Bearer <jwt>` header (API clients)

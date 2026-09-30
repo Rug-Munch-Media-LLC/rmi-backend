@@ -1,13 +1,22 @@
 # Web3-Forward User Profile — Design Spec
 
 > Status: DRAFT · Owner: RugMunch Engineering · Date: 2026-08-13 · READ-ONLY design (no code)
+> ⚠️ **Partly SUPERSEDED (corrected 2026-09-30).** The "Better Auth sidecar"
+> (`127.0.0.1:3011`) described below **was never deployed**: no listener on
+> `:3011`, no `better-auth` dependency in `rmi-frontend/package.json`, and
+> `rmi-frontend/src/contexts/AuthContext.tsx` posts to `/api/auth/*` on the
+> **backend**, with the HttpOnly `rmi_token` cookie as the only session. There
+> is therefore **no split-brain** and **no reconciliation job to build** — the
+> one-system design below is already the shipped state. Every "Better Auth"
+> reference in this file is aspirational target design, not current state.
+> Also: production signs **HS256**, not RS256 (see `DEPLOYMENT.md`).
 > Inputs audited: `rmi-frontend/src` (AuthContext, ProfilePage, components/profile/*, services/auth-client) · `rmi-backend/app` (domains/auth, models/user|alert|scan|payment, community_badges, api/v1/public/wallet)
 
 ## 0. Current state (audit summary)
 
 | Concern | Today |
 |---|---|
-| Identity | **Split-brain.** Better Auth sidecar (Hono, `127.0.0.1:3011`, `/api/auth/*`) is frontend source of truth for email+social. Legacy backend auth (`app/domains/auth/`) owns JWT (RS256, cookie `rmi_token`), Telegram WebApp HMAC, Google/X/GitHub OAuth, TOTP 2FA, **and wallet nonce-signature** (Redis `rmi:wallet_nonce:{nonce}`, 5-min TTL, single-use; EVM via `eth_account` personal_sign, Solana via nacl+base58) in a Redis hash (`rmi:users`). No reconciliation layer. |
+| Identity | **Single system — no split-brain.** There is **no** Better Auth sidecar: nothing listens on `127.0.0.1:3011` and `AuthContext.tsx` calls the backend `/api/auth/*` directly. Backend auth (`app/domains/auth/`) is the sole source of truth for email+social and owns JWT (HS256 in production, cookie `rmi_token`), Telegram WebApp HMAC, Google/X/GitHub OAuth, TOTP 2FA, **and wallet nonce-signature** (Redis `rmi:wallet_nonce:{nonce}`, 5-min TTL, single-use; EVM via `eth_account` personal_sign, Solana via nacl+base58) in a Redis hash (`rmi:users`). No reconciliation layer is needed. |
 | Wallet connect | `AuthContext` connects via injected providers (`window.ethereum`, `window.solana`: MetaMask/Coinbase/Rainbow/Phantom/Solflare/Backpack); persists only address+provider in `localStorage` (`rmi_wallet_address`). `WalletsTab` links/unlinks/primary via `/api/v1/auth/wallet/{chains,list,link,unlink,set-primary}` with a **client-generated `Math.random()` nonce** — replay-weak vs. the server nonce flow. |
 | Activity | Postgres `scan_results` (owner_id nullable), `alerts`/`alert_subscriptions` (owner_id), `payments`. **No canonical watchlist table**; portfolio only as domain module (`app/domains/portfolio`). No user-activity event stream. |
 | Achievements | Static hardcoded `ALL_BADGES` in `BadgesTab.tsx` (10 badges) + legacy `string[]`/JSONB on user. `community_badges.py` runs on **SQLite** (separate from Postgres) with vote→tier leaderboard. XP/level in Redis user record. No server-issued badge registry, no on-chain mechanics. |
@@ -123,7 +132,7 @@ src/features/profile/
 
 ## 9. Open questions / REVIEW flags
 
-1. **[REVIEW] Identity split-brain**: Better Auth sidecar (source of truth for email/social) vs legacy Redis JWT (wallet/Telegram/2FA). Profile spec assumes Postgres `users` becomes profile-of-record — needs an owner decision on auth-of-record and a reconciliation job (touched: `AuthContext` comment "legacy router is not mounted").
+1. ~~**[REVIEW] Identity split-brain**~~ — **RESOLVED, no split exists** (2026-09-30): the sidecar was never deployed, so there is nothing to reconcile. The open question is now only *where* the profile of record lives (Redis `rmi:users` today vs Postgres `users`) — an owner decision, not a correctness bug.
 2. **[REVIEW] Wallet link nonce is client-generated** (`Math.random()` in `WalletsTab`) — replay-weak. Spec mandates server-issued nonce; confirm legacy `/api/v1/auth/wallet/link` accepts it or migrate to Better Auth SIWE/SIWS.
 3. **[REVIEW] community_badges runs on SQLite**, separate from Postgres profile tables — unify into Postgres to make reputation/badges consistent.
 4. **[REVIEW] `scan_results.owner_id` and `alerts.owner_id` are nullable** — anonymous scans won't attribute to profiles until attribution is added at scan time.
