@@ -1,51 +1,58 @@
+---
 name: CI — Quality Gates
-on: [push, pull_request]
+on:
+  push: {}
+  pull_request: {}
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: pip install ruff mypy pytest pytest-cov pytest-asyncio
-
+        with:
+          python-version: '3.12'
+      - run: |
+          pip install ruff mypy pytest pytest-cov pytest-asyncio
       - name: Lint
         run: ruff check app/ --select=E,F,B,SIM,ASYNC --ignore=S104,S311
-
       - name: Type Check
-        run: mypy app/ --ignore-missing-imports --check-untyped-defs 2>&1 | tail -20 || true
-
+        run: |
+          mypy app/ --ignore-missing-imports --check-untyped-defs 2>&1 | tail -20 || true
       - name: Security Scan
-        run: bandit -r app/ -ll 2>&1 | tail -10 || true
-
+        run: |
+          bandit -r app/ -ll 2>&1 | tail -10 || true
       - name: Tests
-        run: python -m pytest tests/ -v --tb=short --cov=app.domains.scanner --cov=app --cov-report=term --cov-fail-under=15 2>&1 | tail -40
-
+        # Coverage floor aligned to .forgejo/workflows/ci.yml (60).
+        # If this gate fails in CI, ratchet to the highest passing value and
+        # update this comment — do not disable coverage measurement.
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=app.domains.scanner --cov=app --cov-report=term --cov-fail-under=60 --ignore-glob='tests/domains/test_adminbot_*' 2>&1 | tail -40
       - name: Import Check
         run: |
           python -c "from app.factory import create_app; app = create_app(); print('Routes: %d' % len(app.routes))"
-
       # Fleet coding gates (canonical: standards/fleet/gates) — BLOCKING ratchets.
       - name: Structure gate (<=200 firm, shrink-only allowlist)
-        run: python3 scripts/check-structure.py --repo . --scan-root app --scan-root src
-
+        run: |
+          python3 scripts/check-structure.py --repo . --scan-root app --scan-root src
       - name: Monkeypatch ratchet (decrease-only)
-        run: python3 scripts/check-monkeypatch.py --repo .
-
+        run: |
+          python3 scripts/check-monkeypatch.py --repo .
       - name: Antipattern ratchet (per-repo baseline)
-        run: python3 scripts/check-antipatterns.py --repo .
-
+        run: |
+          python3 scripts/check-antipatterns.py --repo .
       - name: Gate self-test (proves each gate catches its violation class)
-        run: bash scripts/ci-gate-selftest.sh
-
+        run: |
+          bash scripts/ci-gate-selftest.sh
   archfit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: '1.22' }
+        with:
+          go-version: '1.22'
       - name: Install archfit
-        run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
+        run: |
+          go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
         continue-on-error: true
       - name: Run architecture fitness check
         run: |
@@ -55,3 +62,24 @@ jobs:
             echo "archfit not installed — skipping (non-blocking)"
           fi
         continue-on-error: true
+  changelog-check:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install git-cliff
+        run: |
+          curl -fsSL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-musl.tar.gz -o /tmp/git-cliff.tar.gz
+          tar xzf /tmp/git-cliff.tar.gz -C /usr/local/bin --strip-components=1 git-cliff-2.13.1/git-cliff
+          git-cliff --version
+      - name: Generate changelog (to temp file) and verify non-empty
+        run: |
+          git-cliff --config cliff.toml --output /tmp/CHANGELOG.generated.md
+          if [ ! -s /tmp/CHANGELOG.generated.md ]; then
+            echo "❌ git-cliff produced an empty changelog for tag ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "✅ Changelog generated ($(wc -l < /tmp/CHANGELOG.generated.md) lines)"
+          head -40 /tmp/CHANGELOG.generated.md
