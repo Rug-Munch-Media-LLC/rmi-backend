@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.routers.scam_school.content.advanced_forensics.modules import (
+from . import (
     on_chain_fund_tracing,
     entity_attribution_clustering,
     mixer_tumbler_detection,
