@@ -931,6 +931,27 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
+      - name: Upload SBOM to Dependency-Track (conditional)
+        if: env.DTRACK_API_KEY != '' && vars.DTRACK_URL != ''
+        env:
+          DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
+          DTRACK_URL: ${{ vars.DTRACK_URL }}
+        run: |
+          set -euo pipefail
+          echo "📤 Uploading SBOM to Dependency-Track at $DTRACK_URL"
+          if ! curl -sf -X POST "${DTRACK_URL}/api/v1/bom" \
+               -H "X-Api-Key: ${DTRACK_API_KEY}" \
+               -F "projectName=rmi-backend" \
+               -F "projectVersion=${GITHUB_SHA::8}" \
+               -F "autoCreate=true" \
+               -F "bom=@sbom.spdx.json" \
+               --retry 2 --retry-delay 5 --max-time 30 > /tmp/dtrack-upload.json 2>&1; then
+            echo "⚠️  Dependency-Track upload failed or unreachable (skipping gracefully)"
+            cat /tmp/dtrack-upload.json
+            exit 0
+          fi
+          echo "✅ SBOM uploaded to Dependency-Track"
+          cat /tmp/dtrack-upload.json
       - uses: actions/upload-artifact@v5.0.0
         with:
           name: sbom
