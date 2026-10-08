@@ -5,56 +5,13 @@ import json
 import time
 from typing import Any
 
-import httpx
-
-from app.core.logging import get_logger
 from app.caching_shield.unified.cache import TieredCache
 from app.caching_shield.unified.chains import ProviderChain
 from app.caching_shield.unified.models import ToolResult
-from app.caching_shield.unified.providers import (
-    PriceProviders,
-    TokenMetaProviders,
-    WalletBalanceProviders,
-    RiskScanProviders,
-    TxHistoryProviders,
-    FundingSourceProviders,
-)
+from app.caching_shield.unified.providers import UnifiedDataProviders
+from app.core.logging import get_logger
 
 logger = get_logger("unified_data_layer")
-
-
-class UnifiedDataProviders(
-    PriceProviders,
-    TokenMetaProviders,
-    WalletBalanceProviders,
-    RiskScanProviders,
-    TxHistoryProviders,
-    FundingSourceProviders,
-):
-    """All provider implementations grouped by data type."""
-
-    def __init__(self) -> None:
-        self._token_buckets: dict[str, tuple[float, float]] = {}  # provider -> (tokens, last_refill)
-        self._bucket_lock = None  # lazy init
-
-    def _get_lock(self):
-        import asyncio
-
-        if self._bucket_lock is None:
-            self._bucket_lock = asyncio.Lock()
-        return self._bucket_lock
-
-    async def _check_rate(self, provider: str, rps: float) -> bool:
-        async with self._get_lock():
-            now = time.monotonic()
-            bucket = self._token_buckets.get(provider)
-            if not bucket:
-                self._token_buckets[provider] = (rps, now)
-                return True
-            tokens, last = bucket
-            tokens = min(rps, tokens + (now - last) * rps)
-            self._token_buckets[provider] = (tokens - 1, now) if tokens >= 1 else (tokens, now)
-            return tokens >= 1
 
 
 class UnifiedDataLayer:
