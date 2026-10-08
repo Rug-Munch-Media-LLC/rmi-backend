@@ -16,9 +16,21 @@ Registers Hypothesis profiles:
   - `ci`:       derandomized, 200 examples, 5s deadline — for CI pipelines.
   - `dev`:      50 examples, no deadline, tolerant health checks — for local dev.
   - `ci-quick`: derandomized, 50 examples, 2s deadline — fast CI smoke tests.
+
+Loads the quarantine plugin for flaky test management.
 """
 
 import os
+import sys
+from pathlib import Path
+
+# ── Load quarantine plugin ───────────────────────────────────────────────
+QUARANTINE_DIR = Path(__file__).parent.parent / "quarantine"
+if str(QUARANTINE_DIR) not in sys.path:
+    sys.path.insert(0, str(QUARANTINE_DIR))
+
+# Import to register pytest hooks
+import pytest_quarantine  # type: ignore[import-not-found]  # noqa: F401
 
 # ── Auth env defaults (BEFORE any app import) ────────────────────────
 # get_settings() is @lru_cache(maxsize=1): the FIRST import in a worker

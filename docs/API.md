@@ -94,6 +94,12 @@ ReDoc documentation.
 ### `GET /.well-known/jwks.json`
 JWKS public keys for JWT verification.
 
+> ⚠️ **Currently returns an error, not keys.** Production signs HS256, and
+> `app/auth/jwt_validation.py:get_jwks()` refuses to publish an RSA key unless
+> `JWT_ALGORITHM=RS256`. Live response:
+> `{"error":"JWKS only available for RS256","algorithm":"HS256"}`.
+> Source: `app/routers/jwks.py`.
+
 ---
 
 ## 3. Authentication API
