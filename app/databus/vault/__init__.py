@@ -6,7 +6,7 @@ from app.databus.vault.pool import VaultKeyPool
 from app.databus.vault.registry import KEY_REGISTRY
 
 # Main vault class and functions
-from app.databus.vault import (
+from app.databus.vault.core import (
     DataBusVault,
     PROVIDER_CONFIG,
     get_vault,
