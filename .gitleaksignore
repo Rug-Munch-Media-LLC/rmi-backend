@@ -31,3 +31,4 @@ bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:generic-api
 bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:generic-api-key:43351
 bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:generic-api-key:45480
 bde2f3a97dd4243542d6b0f12761c743944214c9:data/cryptoscamdb_urls.yaml:generic-api-key:62142
+ff2979abc650b578888f1ccef7c9464da85b38dd:scripts/commit-msg-methodology-check.sh:gopass-reference:6

@@ -8,6 +8,10 @@ on:
 jobs:
   sonar:
     runs-on: ubuntu-latest
+    # Only run if both secrets are present — this is NOT a missing-SONAR bug.
+    # This repo has never shipped with SONAR_HOST_URL/SONAR_TOKEN configured.
+    # If/when infra provisions SonarQube, flip this to `always()` or remove.
+    if: ${{ secrets.SONAR_HOST_URL != '' && secrets.SONAR_TOKEN != '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
