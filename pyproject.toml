@@ -191,7 +191,7 @@ skips = [
 ]
 
 [tool.ruff]
-extend = "../../w10-standards/standards/templates/ruff-base.toml"
+extend = "../standards/templates/ruff-base.toml"
 line-length = 120
 extend-exclude = [
     "_legacy_main.py",
