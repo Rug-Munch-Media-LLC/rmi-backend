@@ -20,35 +20,31 @@ scam_detection = {
 }
 
 # Modules
+from .honeypot_contracts import honeypot_contracts
+from .holder_distribution_analysis import holder_distribution_analysis
+from .liquidity_pool_forensics import liquidity_pool_forensics
+from .smart_contract_vulnerability_patterns import smart_contract_vulnerability_patterns
+from .proxy_contract_risks import proxy_contract_risks
+from .tokenomics_red_flags import tokenomics_red_flags
+from .dex_manipulation_techniques import dex_manipulation_techniques
+from .cross_chain_scam_patterns import cross_chain_scam_patterns
+from .nft_scam_detection import nft_scam_detection
+from .social_sentiment_analysis import social_sentiment_analysis
+from .memecoin_launch_patterns import memecoin_launch_patterns
+from .building_scam_investigation import building_scam_investigation
 scam_detection["modules"] = [
-    __import__("scam_detection.honeypot_contracts", fromlist=["honeypot_contracts"]).honeypot_contracts,
-    __import__(
-        "scam_detection.holder_distribution_analysis", fromlist=["holder_distribution_analysis"]
-    ).holder_distribution_analysis,
-    __import__(
-        "scam_detection.liquidity_pool_forensics", fromlist=["liquidity_pool_forensics"]
-    ).liquidity_pool_forensics,
-    __import__(
-        "scam_detection.smart_contract_vulnerability_patterns", fromlist=["smart_contract_vulnerability_patterns"]
-    ).smart_contract_vulnerability_patterns,
-    __import__("scam_detection.proxy_contract_risks", fromlist=["proxy_contract_risks"]).proxy_contract_risks,
-    __import__("scam_detection.tokenomics_red_flags", fromlist=["tokenomics_red_flags"]).tokenomics_red_flags,
-    __import__(
-        "scam_detection.dex_manipulation_techniques", fromlist=["dex_manipulation_techniques"]
-    ).dex_manipulation_techniques,
-    __import__(
-        "scam_detection.cross_chain_scam_patterns", fromlist=["cross_chain_scam_patterns"]
-    ).cross_chain_scam_patterns,
-    __import__("scam_detection.nft_scam_detection", fromlist=["nft_scam_detection"]).nft_scam_detection,
-    __import__(
-        "scam_detection.social_sentiment_analysis", fromlist=["social_sentiment_analysis"]
-    ).social_sentiment_analysis,
-    __import__(
-        "scam_detection.memecoin_launch_patterns", fromlist=["memecoin_launch_patterns"]
-    ).memecoin_launch_patterns,
-    __import__(
-        "scam_detection.building_scam_investigation", fromlist=["building_scam_investigation"]
-    ).building_scam_investigation,
+    honeypot_contracts,
+    holder_distribution_analysis,
+    liquidity_pool_forensics,
+    smart_contract_vulnerability_patterns,
+    proxy_contract_risks,
+    tokenomics_red_flags,
+    dex_manipulation_techniques,
+    cross_chain_scam_patterns,
+    nft_scam_detection,
+    social_sentiment_analysis,
+    memecoin_launch_patterns,
+    building_scam_investigation,
 ]
 
 __all__ = ["scam_detection"]

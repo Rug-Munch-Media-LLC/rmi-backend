@@ -20,37 +20,31 @@ crypto_basics = {
 }
 
 # Modules
+from .what_is_a_rug_pull import what_is_a_rug_pull
+from .how_blockchains_work import how_blockchains_work
+from .wallet_safety_fundamentals import wallet_safety_fundamentals
+from .recognizing_common_scams import recognizing_common_scams
+from .understanding_token_contracts import understanding_token_contracts
+from .liquidity_and_market_caps import liquidity_and_market_caps
+from .introduction_to_rugcheck_tools import introduction_to_rugcheck_tools
+from .red_flags_new_token_launches import red_flags_new_token_launches
+from .social_engineering_in_crypto import social_engineering_in_crypto
+from .safe_trading_practices import safe_trading_practices
+from .understanding_gas_and_fees import understanding_gas_and_fees
+from .building_your_security_routine import building_your_security_routine
 crypto_basics["modules"] = [
-    __import__("crypto_basics.what_is_a_rug_pull", fromlist=["what_is_a_rug_pull"]).what_is_a_rug_pull,
-    __import__("crypto_basics.how_blockchains_work", fromlist=["how_blockchains_work"]).how_blockchains_work,
-    __import__(
-        "crypto_basics.wallet_safety_fundamentals", fromlist=["wallet_safety_fundamentals"]
-    ).wallet_safety_fundamentals,
-    __import__(
-        "crypto_basics.recognizing_common_scams", fromlist=["recognizing_common_scams"]
-    ).recognizing_common_scams,
-    __import__(
-        "crypto_basics.understanding_token_contracts", fromlist=["understanding_token_contracts"]
-    ).understanding_token_contracts,
-    __import__(
-        "crypto_basics.liquidity_and_market_caps", fromlist=["liquidity_and_market_caps"]
-    ).liquidity_and_market_caps,
-    __import__(
-        "crypto_basics.introduction_to_rugcheck_tools", fromlist=["introduction_to_rugcheck_tools"]
-    ).introduction_to_rugcheck_tools,
-    __import__(
-        "crypto_basics.red_flags_new_token_launches", fromlist=["red_flags_new_token_launches"]
-    ).red_flags_new_token_launches,
-    __import__(
-        "crypto_basics.social_engineering_in_crypto", fromlist=["social_engineering_in_crypto"]
-    ).social_engineering_in_crypto,
-    __import__("crypto_basics.safe_trading_practices", fromlist=["safe_trading_practices"]).safe_trading_practices,
-    __import__(
-        "crypto_basics.understanding_gas_and_fees", fromlist=["understanding_gas_and_fees"]
-    ).understanding_gas_and_fees,
-    __import__(
-        "crypto_basics.building_your_security_routine", fromlist=["building_your_security_routine"]
-    ).building_your_security_routine,
+    what_is_a_rug_pull,
+    how_blockchains_work,
+    wallet_safety_fundamentals,
+    recognizing_common_scams,
+    understanding_token_contracts,
+    liquidity_and_market_caps,
+    introduction_to_rugcheck_tools,
+    red_flags_new_token_launches,
+    social_engineering_in_crypto,
+    safe_trading_practices,
+    understanding_gas_and_fees,
+    building_your_security_routine,
 ]
 
 __all__ = ["crypto_basics"]
