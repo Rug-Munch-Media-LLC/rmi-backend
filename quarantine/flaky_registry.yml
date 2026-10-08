@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "description": "Known flaky tests registry. Tests listed here will be rerun with pytest-rerunfailures. Each entry requires: test_id (nodeid), owner, review_date (ISO 8601), reason, and rerun_config.",
+  "entries": [
+    {
+      "test_id": "tests/test_scan_numbers.py::TestIsPumpfunToken::test_mint_suffix_pump",
+      "owner": "scanner-engineer",
+      "review_date": "2026-11-08",
+      "reason": "Flaky due to external RPC timing variance in wall-clock benchmark tests",
+      "rerun_config": {
+        "reruns": 3,
+        "reruns_delay": 2,
+        "reruns_delay_backoff_factor": 1.5
+      }
+    },
+    {
+      "test_id": "tests/test_feed_quality_pipeline.py::TestFeedScoringEdgeCases::test_score_normalization",
+      "owner": "databus-engineer",
+      "review_date": "2026-11-08",
+      "reason": "Time-dependent data quality scoring with external API variance",
+      "rerun_config": {
+        "reruns": 3,
+        "reruns_delay": 1,
+        "reruns_delay_backoff_factor": 1.0
+      }
+    },
+    {
+      "test_id": "tests/test_rugmaps_engine.py::test_calculate_connection_strength_single_tx",
+      "owner": "rugmaps-engineer",
+      "review_date": "2026-11-08",
+      "reason": "Non-deterministic clustering results with minor data variation",
+      "rerun_config": {
+        "reruns": 2,
+        "reruns_delay": 1,
+        "reruns_delay_backoff_factor": 1.0
+      }
+    }
+  ],
+  "meta": {
+    "created": "2026-10-08T00:00:00Z",
+    "last_reviewed": "2026-10-08T00:00:00Z",
+    "next_mandatory_review": "2026-11-08T00:00:00Z"
+  }
+}
