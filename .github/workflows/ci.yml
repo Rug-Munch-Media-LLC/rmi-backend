@@ -4,6 +4,65 @@ on:
   push: {}
   pull_request: {}
 jobs:
+  # ── SLSA Provenance (GitHub Actions mirror only) ────────────────
+  # Constraint: slsa-framework/slsa-github-generator reusable workflow
+  # requires GitHub Actions OIDC identity (id-token:write) and GitHub
+  # Actions reusable workflow syntax. Forgejo runners do not provide
+  # these, so provenance attestation is limited to the GitHub mirror.
+  # The container image is built and pushed by Forgejo CI
+  # (.forgejo/workflows/ci.yml sign-image job); this job attests to
+  # that image using GitHub's OIDC identity. Skips cleanly when the
+  # registry token secret is absent or the image is not yet available.
+  # ────────────────────────────────────────────────────────────────
+  slsa-provenance:
+    name: SLSA Provenance (L3)
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.3'
+      - name: Set up Docker BuildKit
+        run: echo "DOCKER_BUILDKIT=1" >> "$GITHUB_ENV"
+      - name: Pull and resolve image digest
+        id: resolve
+        env:
+          IMAGE: registry.rugmunch.io/rmi-backend:${{ github.sha }}
+        run: |
+          if [ -z "${{ secrets.IMAGE_REGISTRY_TOKEN }}" ]; then
+            echo "registry_auth=missing" >> "$GITHUB_OUTPUT"
+            echo "⚠️ IMAGE_REGISTRY_TOKEN not set — SLSA provenance skipped (non-breaking)"
+            exit 0
+          fi
+          echo "${{ secrets.IMAGE_REGISTRY_TOKEN }}" | docker login registry.rugmunch.io -u "${{ github.actor }}" --password-stdin
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            DIGEST=$(docker buildx imagetools inspect "$IMAGE" --format '{{.Digest}}')
+            echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+            echo "registry_auth=present" >> "$GITHUB_OUTPUT"
+            echo "✅ Resolved digest: $DIGEST"
+          else
+            echo "digest=" >> "$GITHUB_OUTPUT"
+            echo "registry_auth=present" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Image not yet in registry — SLSA provenance skipped (non-breaking)"
+          fi
+      - name: Generate SLSA Build L3 provenance attestation
+        if: steps.resolve.outputs.digest != ''
+        continue-on-error: true
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.10.0
+        with:
+          image: registry.rugmunch.io/rmi-backend:${{ github.sha }}
+          digest: ${{ steps.resolve.outputs.digest }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.IMAGE_REGISTRY_TOKEN }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
   quality:
     runs-on: ubuntu-latest
     steps:

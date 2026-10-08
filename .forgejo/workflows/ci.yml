@@ -950,6 +950,14 @@ jobs:
           name: sbom
           path: sbom.spdx.json
 
+   # ── SLSA Provenance Constraint (Forgejo vs GitHub Actions) ────────────────
+   # Note: The slsa-framework/slsa-github-generator reusable workflow used in
+   # .github/workflows/ci.yml requires GitHub Actions OIDC identity (id-token:write)
+   # and GitHub Actions reusable workflow syntax, which Forgejo runners do not provide.
+   # Therefore, SLSA Build L3 provenance is generated ONLY on the GitHub Actions mirror
+   # (see .github/workflows/ci.yml slsa-provenance job). This sign-image job remains
+   # unchanged for cosign keyless signing on Forgejo.
+   # ────────────────────────────────────────────────────────────────
   sign-image:
     runs-on: docker-x64
     needs: build-and-test
@@ -986,8 +994,8 @@ jobs:
       - name: Verify signature
         run: |
           cosign verify \
-            --certificate-identity "https://git.rugmunch.io/RugMunchMedia/rmi-backend/.forgejo/workflows/ci.yml@refs/heads/main" \
-            --certificate-oidc-issuer "https://git.rugmunch.io" \
+            --certificate-identity "https://[INTERNAL_HOST]/RugMunchMedia/rmi-backend/.forgejo/workflows/ci.yml@refs/heads/main" \
+            --certificate-oidc-issuer "https://[INTERNAL_HOST]" \
             registry.rugmunch.io/rmi-backend:${{ github.sha }}
         env:
           COSIGN_EXPERIMENTAL: "1"
