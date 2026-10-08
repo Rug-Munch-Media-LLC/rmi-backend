@@ -2,6 +2,19 @@
 
 from __future__ import annotations
 
+from .building_your_security_routine import building_your_security_routine
+from .how_blockchains_work import how_blockchains_work
+from .introduction_to_rugcheck_tools import introduction_to_rugcheck_tools
+from .liquidity_and_market_caps import liquidity_and_market_caps
+from .recognizing_common_scams import recognizing_common_scams
+from .red_flags_new_token_launches import red_flags_new_token_launches
+from .safe_trading_practices import safe_trading_practices
+from .social_engineering_in_crypto import social_engineering_in_crypto
+from .understanding_gas_and_fees import understanding_gas_and_fees
+from .understanding_token_contracts import understanding_token_contracts
+from .wallet_safety_fundamentals import wallet_safety_fundamentals
+from .what_is_a_rug_pull import what_is_a_rug_pull
+
 # Course metadata
 crypto_basics = {
     "id": "crypto-basics",
@@ -20,18 +33,6 @@ crypto_basics = {
 }
 
 # Modules
-from .what_is_a_rug_pull import what_is_a_rug_pull
-from .how_blockchains_work import how_blockchains_work
-from .wallet_safety_fundamentals import wallet_safety_fundamentals
-from .recognizing_common_scams import recognizing_common_scams
-from .understanding_token_contracts import understanding_token_contracts
-from .liquidity_and_market_caps import liquidity_and_market_caps
-from .introduction_to_rugcheck_tools import introduction_to_rugcheck_tools
-from .red_flags_new_token_launches import red_flags_new_token_launches
-from .social_engineering_in_crypto import social_engineering_in_crypto
-from .safe_trading_practices import safe_trading_practices
-from .understanding_gas_and_fees import understanding_gas_and_fees
-from .building_your_security_routine import building_your_security_routine
 crypto_basics["modules"] = [
     what_is_a_rug_pull,
     how_blockchains_work,
