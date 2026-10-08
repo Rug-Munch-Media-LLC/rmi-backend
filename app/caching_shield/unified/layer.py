@@ -1,8 +1,6 @@
 """Unified data layer with tiered caching and provider fallback chains."""
 
-import hashlib
-import json
-import time
+import asyncio
 from typing import Any
 
 import httpx
@@ -16,6 +14,13 @@ from app.caching_shield.unified.providers import (
     RiskScanProviders,
     TxHistoryProviders,
     FundingSourceProviders,
+)
+from app.caching_shield.unified.core import (
+    TieredCache,
+    ProviderChain,
+    TokenBucketRateLimiter,
+    make_cache_key,
+    ttl_for,
 )
 
 logger = get_logger("unified_data_layer")
@@ -32,75 +37,10 @@ class UnifiedDataProviders(
     """All provider implementations grouped by data type."""
 
     def __init__(self) -> None:
-        self._token_buckets: dict[str, tuple[float, float]] = {}  # provider -> (tokens, last_refill)
-        self._bucket_lock = None  # lazy init
-
-    def _get_lock(self):
-        import asyncio
-
-        if self._bucket_lock is None:
-            self._bucket_lock = asyncio.Lock()
-        return self._bucket_lock
+        self._rate_limiter = TokenBucketRateLimiter()
 
     async def _check_rate(self, provider: str, rps: float) -> bool:
-        async with self._get_lock():
-            now = time.monotonic()
-            bucket = self._token_buckets.get(provider)
-            if not bucket:
-                self._token_buckets[provider] = (rps, now)
-                return True
-            tokens, last = bucket
-            tokens = min(rps, tokens + (now - last) * rps)
-            self._token_buckets[provider] = (tokens - 1, now) if tokens >= 1 else (tokens, now)
-            return tokens >= 1
-
-
-class TieredCache:
-    """Simple tiered cache with TTL support."""
-
-    def __init__(self) -> None:
-        self._cache: dict[str, tuple[Any, float]] = {}  # key -> (value, expiry)
-        self.hits = 0
-        self.misses = 0
-
-    async def get(self, key: str) -> Any | None:
-        entry = self._cache.get(key)
-        if entry is None:
-            return None
-        value, expiry = entry
-        if time.monotonic() > expiry:
-            del self._cache[key]
-            return None
-        return value
-
-    async def set(self, key: str, value: Any, ttl: int) -> None:
-        self._cache[key] = (value, time.monotonic() + ttl)
-
-
-class ProviderChain:
-    """Fallback chain of providers for a data type."""
-
-    def __init__(self, name: str, hedge_after_s: float = 0.0) -> None:
-        self.name = name
-        self.hedge_after_s = hedge_after_s
-        self._providers: list[tuple[str, Any, float]] = []  # (name, func, weight)
-        self._last_provider: str | None = None
-
-    def add(self, name: str, func: Any, weight: float) -> "ProviderChain":
-        self._providers.append((name, func, weight))
-        return self
-
-    async def fetch(self, **kwargs: Any) -> Any | None:
-        for name, func, _weight in self._providers:
-            try:
-                result = await func(**kwargs)
-                if result is not None:
-                    self._last_provider = name
-                    return result
-            except Exception as e:
-                logger.warning(f"Provider {name} failed for {self.name}: {e}")
-                continue
-        return None
+        return await self._rate_limiter.check_rate(provider, rps)
 
 
 class UnifiedDataLayer:
@@ -195,9 +135,7 @@ class UnifiedDataLayer:
             return None
 
         # Cache key
-        cache_key = hashlib.sha256(
-            f"{data_type}:{json.dumps(kwargs, sort_keys=True, default=str)}".encode()
-        ).hexdigest()[:24]
+        cache_key = make_cache_key(data_type, **kwargs)
 
         # Check cache
         cached = await self._cache.get(cache_key)
@@ -211,29 +149,20 @@ class UnifiedDataLayer:
         result = await chain.fetch(**kwargs)
         if result:
             # Cache with TTL based on data type
-            ttl = self._ttl_for(data_type)
-            await self._cache.set(cache_key, result, ttl)
+            await self._cache.set(cache_key, result.data, ttl_for(data_type))
             return ToolResult(
-                data=result,
+                data=result.data,
                 source=getattr(chain, "_last_provider", "unknown"),
-                latency_ms=0,
+                latency_ms=result.latency_ms,
+                fallback_used=result.fallback_used,
+                confidence=result.confidence,
             )
 
         return None
 
-    def _ttl_for(self, dt: str) -> int:
-        return {
-            "token_price": 15,
-            "token_meta": 120,
-            "wallet_balance": 10,
-            "risk_scan": 300,
-            "tx_history": 30,
-            "funding_source": 3600,
-        }.get(dt, 60)
-
-    # ═══════════════════════════════════════════════════════════════════════════
+    # ════════════════════════════════════════════════════════════════════════════
     # STATS
-    # ═══════════════════════════════════════════════════════════════════════════
+    # ════════════════════════════════════════════════════════════════════════════
 
     def stats(self) -> dict[str, Any]:
         return {
@@ -244,9 +173,9 @@ class UnifiedDataLayer:
         }
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
 # SINGLETON
-# ════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
 
 _layer: UnifiedDataLayer | None = None
 

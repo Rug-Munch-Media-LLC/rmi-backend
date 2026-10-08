@@ -3,12 +3,9 @@
 from app.databus.vault.loader import VaultKeyLoader
 from app.databus.vault.models import KeyState, ManagedKey
 from app.databus.vault.pool import VaultKeyPool
-from app.databus.vault.registry import KEY_REGISTRY
-
-# Main vault class and functions
-from app.databus.vault import (
+from app.databus.vault.registry import KEY_REGISTRY, PROVIDER_CONFIG
+from app.databus.vault_core import (
     DataBusVault,
-    PROVIDER_CONFIG,
     get_vault,
     get_vault_sync,
     resolve_key,
