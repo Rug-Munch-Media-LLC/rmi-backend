@@ -38,7 +38,7 @@ from enum import Enum
 from typing import Any
 
 from app.core.logging import get_logger
-from app.databus.vault_core import resolve_key
+from app.databus.vault import resolve_key
 
 logger = get_logger("databus.access_control")
 
