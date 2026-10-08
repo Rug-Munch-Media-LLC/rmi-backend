@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 async def run_risk_report_phase(r: ScanResult, address: str, chain: str) -> None:
     """Run the RiskReport phase: resolve deployer, run own engines, attach report.
 

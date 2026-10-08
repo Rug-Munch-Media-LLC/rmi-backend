@@ -17,7 +17,8 @@ async def _queue_depths() -> list[tuple[str, int]]:
 
     client = aioredis.from_url(
         _build_redis_url(REDIS_URL, os.environ.get("REDIS_PASSWORD")),
-        decode_responses=True, protocol=2,
+        decode_responses=True,
+        protocol=2,
     )
     try:
         return [(q, int(await client.llen(q))) for q in ALERT_QUEUES]

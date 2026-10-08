@@ -65,7 +65,9 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict[s
 
 
 @router.get("/safe-swap")
-async def safe_swap_params(address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)) -> dict[str, Any]:
+async def safe_swap_params(
+    address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)
+) -> dict[str, Any]:
     """Get optimal swap parameters to avoid MEV."""
     risk = await check_mev_risk(address, chain)
 

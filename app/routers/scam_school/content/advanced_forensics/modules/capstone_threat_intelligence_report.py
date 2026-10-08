@@ -1,13 +1,87 @@
 """capstone-threat-intelligence-report module."""
+
 from __future__ import annotations
 
 capstone_threat_intelligence_report = {
-    "title": 'Capstone: Full Threat Intelligence Report',
-    "type": 'exam',
+    "title": "Capstone: Full Threat Intelligence Report",
+    "type": "exam",
     "duration": 24,
     "xp": 420,
     "passing_score": 90,
-    "content": {'slides': [{'type': 'title', 'text': 'Forensic Analyst Certification', 'sub': 'Capstone exam — produce a professional threat intelligence report'}, {'type': 'interactive', 'title': 'Capstone Briefing', 'description': 'You are assigned to investigate a real-world crypto incident. Using all the skills from this course: trace the stolen funds, attribute the attacker, identify the vulnerability exploited, estimate total losses, and produce a professional threat intelligence report suitable for law enforcement or insurance claims.'}, {'type': 'quiz', 'question': 'Which component is MOST critical for a professional threat intelligence report?', 'options': ['The font choice and layout', 'A clear executive summary, evidence-based findings with on-chain proof, and actionable recommendations', 'A list of all transactions', 'Screenshots of social media posts'], 'correct': 1, 'explanation': "Professional reports must be actionable. Decision-makers need a clear summary, evidence-backed findings (transaction hashes, timestamps, addresses), and specific recommendations. Raw data without analysis isn't intelligence."}, {'type': 'quiz', 'question': 'How can you trace funds that went through a mixer?', 'options': ["You can't — mixers make tracing impossible", "By analyzing deposit/withdrawal timing, amounts, and behavior patterns — mixers obscure but don't perfectly anonymize", 'Mixers automatically reverse the transactions', 'By asking the mixer operators'], 'correct': 1, 'explanation': "While mixers break the direct on-chain link, timing analysis, amount correlation, and behavioral patterns can still provide probabilistic attribution. It's harder but not impossible — especially when combined with off-chain intelligence."}, {'type': 'quiz', 'question': "What does a 'transaction graph' reveal about an attack?", 'options': ['Just the gas prices', "The complete flow of funds: source, intermediate hops, destinations — revealing the attacker's operational patterns and infrastructure", 'Only the total amount stolen', 'Nothing useful'], 'correct': 1, 'explanation': "A transaction graph maps every movement of funds. It reveals the attacker's operational security level (did they use mixers? bridges? CEX deposits?), their infrastructure (funding sources, consolidation patterns), and potential attribution points (CEX deposit = KYC record)."}, {'type': 'quiz', 'question': 'What is the most important ethical consideration when publishing a threat intelligence report?', 'options': ['Getting more followers', 'Protecting victim privacy, verifying facts before publication, and not endangering ongoing investigations', 'Publishing as fast as possible', 'Making the report go viral'], 'correct': 1, 'explanation': 'Threat intelligence reports must balance transparency with responsibility. Revealing victim identities, sharing unverified claims, or compromising active law enforcement investigations can cause real harm.'}, {'type': 'quiz', 'question': "You've completed ALL three courses in Scam School. What is the single most important lesson?", 'options': ['Buy every new token', "Trust, but verify — always do your own research, use multiple tools, and never invest what you can't lose", 'Follow influencers blindly', 'Trading is the only way to make money'], 'correct': 1, 'explanation': 'Congratulations on completing Scam School! The most important lesson is that crypto safety is a continuous practice. There is no single tool, no guarantee, and no shortcut. Trust nothing, verify everything, and always protect yourself.'}]},
+    "content": {
+        "slides": [
+            {
+                "type": "title",
+                "text": "Forensic Analyst Certification",
+                "sub": "Capstone exam — produce a professional threat intelligence report",
+            },
+            {
+                "type": "interactive",
+                "title": "Capstone Briefing",
+                "description": "You are assigned to investigate a real-world crypto incident. Using all the skills from this course: trace the stolen funds, attribute the attacker, identify the vulnerability exploited, estimate total losses, and produce a professional threat intelligence report suitable for law enforcement or insurance claims.",
+            },
+            {
+                "type": "quiz",
+                "question": "Which component is MOST critical for a professional threat intelligence report?",
+                "options": [
+                    "The font choice and layout",
+                    "A clear executive summary, evidence-based findings with on-chain proof, and actionable recommendations",
+                    "A list of all transactions",
+                    "Screenshots of social media posts",
+                ],
+                "correct": 1,
+                "explanation": "Professional reports must be actionable. Decision-makers need a clear summary, evidence-backed findings (transaction hashes, timestamps, addresses), and specific recommendations. Raw data without analysis isn't intelligence.",
+            },
+            {
+                "type": "quiz",
+                "question": "How can you trace funds that went through a mixer?",
+                "options": [
+                    "You can't — mixers make tracing impossible",
+                    "By analyzing deposit/withdrawal timing, amounts, and behavior patterns — mixers obscure but don't perfectly anonymize",
+                    "Mixers automatically reverse the transactions",
+                    "By asking the mixer operators",
+                ],
+                "correct": 1,
+                "explanation": "While mixers break the direct on-chain link, timing analysis, amount correlation, and behavioral patterns can still provide probabilistic attribution. It's harder but not impossible — especially when combined with off-chain intelligence.",
+            },
+            {
+                "type": "quiz",
+                "question": "What does a 'transaction graph' reveal about an attack?",
+                "options": [
+                    "Just the gas prices",
+                    "The complete flow of funds: source, intermediate hops, destinations — revealing the attacker's operational patterns and infrastructure",
+                    "Only the total amount stolen",
+                    "Nothing useful",
+                ],
+                "correct": 1,
+                "explanation": "A transaction graph maps every movement of funds. It reveals the attacker's operational security level (did they use mixers? bridges? CEX deposits?), their infrastructure (funding sources, consolidation patterns), and potential attribution points (CEX deposit = KYC record).",
+            },
+            {
+                "type": "quiz",
+                "question": "What is the most important ethical consideration when publishing a threat intelligence report?",
+                "options": [
+                    "Getting more followers",
+                    "Protecting victim privacy, verifying facts before publication, and not endangering ongoing investigations",
+                    "Publishing as fast as possible",
+                    "Making the report go viral",
+                ],
+                "correct": 1,
+                "explanation": "Threat intelligence reports must balance transparency with responsibility. Revealing victim identities, sharing unverified claims, or compromising active law enforcement investigations can cause real harm.",
+            },
+            {
+                "type": "quiz",
+                "question": "You've completed ALL three courses in Scam School. What is the single most important lesson?",
+                "options": [
+                    "Buy every new token",
+                    "Trust, but verify — always do your own research, use multiple tools, and never invest what you can't lose",
+                    "Follow influencers blindly",
+                    "Trading is the only way to make money",
+                ],
+                "correct": 1,
+                "explanation": "Congratulations on completing Scam School! The most important lesson is that crypto safety is a continuous practice. There is no single tool, no guarantee, and no shortcut. Trust nothing, verify everything, and always protect yourself.",
+            },
+        ]
+    },
 }
 
 __all__ = ["capstone_threat_intelligence_report"]

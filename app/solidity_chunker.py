@@ -54,7 +54,8 @@ def parse_solidity_ast(source: str) -> dict[str, Any] | None:
             input=source.encode(),
             capture_output=True,
             timeout=30,
-        shell=False)
+            shell=False,
+        )
         if result.returncode != 0:
             logger.debug(f"solc AST parse failed: {result.stderr.decode()[:200]}")
             return None

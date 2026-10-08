@@ -9,10 +9,14 @@ from .constants import SERVICE_UNITS
 
 async def _unit_states() -> list[tuple[str, str]]:
     """Return (unit, state) for every watched service."""
+
     async def one(unit: str) -> tuple[str, str]:
         proc = await asyncio.create_subprocess_exec(
-            "systemctl", "is-active", unit,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+            "systemctl",
+            "is-active",
+            unit,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
         )
         try:
             out = await proc.communicate()

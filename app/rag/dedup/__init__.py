@@ -13,6 +13,7 @@ ingestion):
 Implementations live in sub-modules. This package re-exports the public
 surface so existing imports keep working.
 """
+
 from __future__ import annotations
 
 from app.rag.dedup._base import (

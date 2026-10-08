@@ -20,4 +20,3 @@ async def cmd_selftest(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("🩺 Running self-test…")
     results = await run_selftest()
     await msg.edit_text(format_selftest(results), reply_markup=selftest_keyboard())
-

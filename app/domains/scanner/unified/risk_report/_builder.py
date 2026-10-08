@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 def build_risk_report(
     r: ScanResult,
     *,

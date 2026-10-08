@@ -88,7 +88,9 @@ class GovernanceAttackResult:
 # ─── HTTP helpers (minimal dependencies) ─────────────────────────
 
 
-async def _fetch_json(url: str, headers: dict[str, Any] | None = None, params: dict[str, Any] | None = None, timeout: int = 10) -> Any:
+async def _fetch_json(
+    url: str, headers: dict[str, Any] | None = None, params: dict[str, Any] | None = None, timeout: int = 10
+) -> Any:
     """Single URL fetch returning parsed JSON or None."""
     import aiohttp
 

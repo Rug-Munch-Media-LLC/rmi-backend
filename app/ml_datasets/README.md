@@ -27,10 +27,12 @@ gt = load_dataset("realcats", chains=("ethereum",), limit=2000)
 # 2. Wrap an existing detector into a predict(identifier) -> risk_label callback
 from app.fraud_gnn import get_fraud_gnn
 
+
 def predict(addr: str) -> str:
-    fp = your_pipeline_enrich(addr)          # build a FRAUD_FEATURES fingerprint
+    fp = your_pipeline_enrich(addr)  # build a FRAUD_FEATURES fingerprint
     _, is_fraud, _ = get_fraud_gnn().predict(fp)
     return "high" if is_fraud else "low"
+
 
 # 3. Score precision / recall / F1
 result = evaluate(predict, gt)

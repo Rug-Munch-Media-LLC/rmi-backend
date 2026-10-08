@@ -117,9 +117,27 @@ def _market_price_free_providers(g: dict[str, Any]) -> list[Provider]:
             rate_limit_rps=2.0,
             description="GeckoTerminal token price (free, no auth)",
         ),
-        Provider("free_market_paraswap_quote", ProviderTier.FREE_API, g["_free_market_paraswap_quote"], weight=3.0, rate_limit_rps=2.0, description="ParaSwap prices — best-route DEX quote (free, no auth)"),
-        Provider("free_market_oneinch_quote", ProviderTier.FREEMIUM, g["_free_market_oneinch_quote"], weight=2.0, rate_limit_rps=2.0, requires_key=True, key_env="ONEINCH_API_KEY", description="1inch swap quote — freemium (API key required as of 2026)"),
+        Provider(
+            "free_market_paraswap_quote",
+            ProviderTier.FREE_API,
+            g["_free_market_paraswap_quote"],
+            weight=3.0,
+            rate_limit_rps=2.0,
+            description="ParaSwap prices — best-route DEX quote (free, no auth)",
+        ),
+        Provider(
+            "free_market_oneinch_quote",
+            ProviderTier.FREEMIUM,
+            g["_free_market_oneinch_quote"],
+            weight=2.0,
+            rate_limit_rps=2.0,
+            requires_key=True,
+            key_env="ONEINCH_API_KEY",
+            description="1inch swap quote — freemium (API key required as of 2026)",
+        ),
     ]
+
+
 def _market_price_free_chain(g: dict[str, Any]) -> ProviderChain:
     """Free market price fallback: ClickHouse TWAP → DexScreener → CoinGecko → GeckoTerminal → DEX quotes."""
     return ProviderChain(

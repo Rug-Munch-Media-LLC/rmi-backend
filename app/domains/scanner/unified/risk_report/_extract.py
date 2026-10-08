@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 def _factor(key: str, score: float | None, explanation: str) -> RiskFactor:
     """Build a RiskFactor from a score + why-it's-risky text (band mapping)."""
     if score is None:

@@ -20,6 +20,7 @@ _RUG_MIN = 70.0  # composite >= 70 → rug (or rugged-dev + bundle)
 _RISKY_MIN = 45.0  # composite >= 45 → risky
 _MIN_KNOWN_FOR_DETERMINATION = 6  # need >= 6 known factors to declare a verdict
 
+
 @dataclass
 class RiskFactor:
     """One explainable risk factor.

@@ -140,7 +140,9 @@ class AlchemyConnector:
             await _alchemy_cb.record_failure(is_server_error=True)
             return None
 
-    async def _get(self, endpoint: str, network: str = "eth", params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    async def _get(
+        self, endpoint: str, network: str = "eth", params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """REST API call to Alchemy with circuit breaker."""
         base = self._network_url(network)
         url = f"{base}/{self.api_key}/{endpoint}"
@@ -205,7 +207,9 @@ class AlchemyConnector:
         params = {"contractAddress": contract, "tokenId": token_id}
         return await self._get("getNFTMetadata", network, params) or {}
 
-    async def get_owners_for_collection(self, contract: str, network: str = "eth", page_size: int = 50) -> dict[str, Any]:
+    async def get_owners_for_collection(
+        self, contract: str, network: str = "eth", page_size: int = 50
+    ) -> dict[str, Any]:
         """Get all owners of an NFT collection."""
         params = {"contractAddress": contract, "pageSize": page_size}
         return await self._get("getOwnersForCollection", network, params) or {}
@@ -262,7 +266,9 @@ class AlchemyConnector:
         """Get transaction receipt with enhanced data."""
         return await self._rpc_call(network, "eth_getTransactionReceipt", [tx_hash]) or {}
 
-    async def get_block_by_number(self, block_number: int, network: str = "eth", include_txs: bool = False) -> dict[str, Any]:
+    async def get_block_by_number(
+        self, block_number: int, network: str = "eth", include_txs: bool = False
+    ) -> dict[str, Any]:
         """Get block data."""
         return await self._rpc_call(network, "eth_getBlockByNumber", [hex(block_number), include_txs]) or {}
 

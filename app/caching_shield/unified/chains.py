@@ -1,11 +1,7 @@
 """Provider chain implementation for fallback and hedged execution."""
 
 import asyncio
-import time
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from typing import Any
 
 
 class ProviderChain:
@@ -32,7 +28,6 @@ class ProviderChain:
         return await self._fetch_sequential(**kwargs)
 
     async def _fetch_sequential(self, **kwargs: Any) -> Any | None:
-        start = time.monotonic()
         for prov_name, fn, _rps in self._providers:
             try:
                 data = await fn(**kwargs)
@@ -48,7 +43,6 @@ class ProviderChain:
         the first usable result wins. Each attempt is bounded by
         ``per_try_timeout_s`` so a hanging provider cannot set the tail.
         """
-        start = time.monotonic()
         primary = self._providers[0][0] if self._providers else ""
         queue = list(self._providers)
         pending: dict[asyncio.Task[Any], tuple[str, bool]] = {}

@@ -1,4 +1,5 @@
 """Lesson module content for the Advanced Forensics course."""
+
 from __future__ import annotations
 
 from app.routers.scam_school.content.advanced_forensics.modules import (

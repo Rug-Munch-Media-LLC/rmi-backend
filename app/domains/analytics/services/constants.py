@@ -1,4 +1,5 @@
 """Analytics constants — protocols, time periods."""
+
 from __future__ import annotations
 
 SUPPORTED_PROTOCOLS = ["nostr", "farcaster", "bluesky", "mastodon", "direct"]

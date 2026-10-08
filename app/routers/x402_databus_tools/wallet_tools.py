@@ -6,7 +6,6 @@ and elite institutional endpoints (Arkham, Nansen, portfolio).
 Mixed BASIC, PREMIUM, and ELITE tier pricing.
 """
 
-
 from typing import Any
 
 from fastapi import Request  # runtime: FastAPI dependency injection

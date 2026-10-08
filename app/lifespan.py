@@ -35,7 +35,7 @@ def _acquire_x_shill_lock() -> IO[str] | None:
     import fcntl
     import os
 
-    lock_path = os.getenv("RMI_X_SHILL_LOCK_PATH", "/dev/shm/rmi-x-shill.lock")  # noqa: S108
+    lock_path = os.getenv("RMI_X_SHILL_LOCK_PATH", "/dev/shm/rmi-x-shill.lock")  # noqa: S108 — /dev/shm is tmpfs (memory), not disk /tmp
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     handle = os.fdopen(fd, "w", encoding="utf-8")
     try:

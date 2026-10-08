@@ -189,7 +189,9 @@ async def correlate_addresses(req: CorrelationRequest) -> dict[str, Any]:
 
 
 @router.get("/leaderboard", summary="Community Leaderboard")
-async def get_leaderboard(period: str = Query(default="weekly", pattern="^(daily|weekly|monthly|all)$")) -> dict[str, Any]:
+async def get_leaderboard(
+    period: str = Query(default="weekly", pattern="^(daily|weekly|monthly|all)$"),
+) -> dict[str, Any]:
     """Get community forensics leaderboard (top sleuths by contributions)."""
     try:
         r = await _get_redis()

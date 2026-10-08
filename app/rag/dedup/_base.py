@@ -1,4 +1,5 @@
 """Core dedup primitives: hashing, normalization, DedupResult."""
+
 from __future__ import annotations
 
 import hashlib

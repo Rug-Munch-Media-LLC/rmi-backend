@@ -182,7 +182,9 @@ class BubbleMapsPro:
             logger.debug("Failed to fetch tx detail %s: %s", signature[:12], e)
         return None
 
-    def _extract_connected_wallets(self, txs: list[dict[str, Any]], current_wallet: str, center_wallet: str) -> set[str]:
+    def _extract_connected_wallets(
+        self, txs: list[dict[str, Any]], current_wallet: str, center_wallet: str
+    ) -> set[str]:
         """Extract unique connected wallet addresses from transactions."""
         connected = set()
         for tx in txs:

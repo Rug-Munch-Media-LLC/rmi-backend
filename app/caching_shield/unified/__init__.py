@@ -17,7 +17,7 @@ from app.caching_shield.unified.models import ToolResult
 
 __all__ = [
     "TieredCache",
-    "ProviderChain", 
+    "ProviderChain",
     "ToolResult",
     "UnifiedDataLayer",
     "get_data_layer",

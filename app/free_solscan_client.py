@@ -182,7 +182,9 @@ class FreeSolscanClient:
         return _request("/account/balance_change", {"address": address})
 
     @staticmethod
-    def account_portfolio(address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True) -> dict[str, Any] | None:
+    def account_portfolio(
+        address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True
+    ) -> dict[str, Any] | None:
         """Get token portfolio for an address."""
         return _request(
             "/account/tokenaccounts",

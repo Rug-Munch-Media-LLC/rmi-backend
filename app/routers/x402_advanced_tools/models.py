@@ -2,7 +2,6 @@
 Request models for x402 advanced tool endpoints.
 """
 
-
 from pydantic import BaseModel, Field
 
 

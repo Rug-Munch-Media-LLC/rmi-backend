@@ -1,6 +1,5 @@
 """Pydantic request models for x402 DataBus tools."""
 
-
 from pydantic import BaseModel
 
 

@@ -1,13 +1,110 @@
 """building-scam-investigation module."""
+
 from __future__ import annotations
 
 building_scam_investigation = {
-    "title": 'Building a Scam Investigation',
-    "type": 'exam',
+    "title": "Building a Scam Investigation",
+    "type": "exam",
     "duration": 18,
     "xp": 280,
     "passing_score": 85,
-    "content": {'slides': [{'type': 'title', 'text': 'Final Exam: Scam Detection & Analysis', 'sub': '20 questions · 85% to pass · Scam Hunter badge on completion'}, {'type': 'interactive', 'title': 'Full Investigation Workflow', 'description': 'Step-by-step guide: (1) Gather on-chain evidence (transactions, holder data), (2) Analyze contract code for vulnerabilities, (3) Trace fund flows through wallets and mixers, (4) Collect off-chain evidence (social media, archives), (5) Write investigation report, (6) Share findings with community.'}, {'type': 'quiz', 'question': 'A token has 92% of its supply in the top 10 wallets, unverified contract, and unlocked LP. Your assessment:', 'options': ['Low risk', 'Extreme risk — multiple critical red flags present', 'Medium risk, worth a small investment', 'Safe because it has a website'], 'correct': 1}, {'type': 'quiz', 'question': "What does 'LP not locked or burned' mean for investors?", 'options': ['Liquidity is guaranteed long-term', 'The developer can withdraw all liquidity at any moment, leaving tokens worthless', 'The token price will increase', 'Trading is disabled'], 'correct': 1}, {'type': 'quiz', 'question': 'You identify 30 wallets funded by the same address, all buying a new token in the first block. This is:', 'options': ['Organic demand', 'A bundler attack', 'Market making', 'Staking rewards'], 'correct': 1}, {'type': 'quiz', 'question': 'What is the key indicator of wash trading?', 'options': ['High volume from unique wallets', 'The same wallets repeatedly buying and selling to each other in circular patterns', 'Transactions during business hours', 'Trading on multiple exchanges'], 'correct': 1}, {'type': 'quiz', 'question': 'A proxy contract with a single EOA admin can:', 'options': ["Nothing — it's locked", 'Be upgraded to malicious code at any moment by that one person', 'Only change minor parameters', 'Automatically audit itself'], 'correct': 1}, {'type': 'quiz', 'question': "What is the safest way to verify an NFT collection's authenticity?", 'options': ['Check the artwork looks similar', "Verify the contract address matches the official one from the project's verified channels", 'Ask in Discord', 'Check the collection name'], 'correct': 1}, {'type': 'quiz', 'question': 'A Telegram group with 100K members has 30 active chatters. This suggests:', 'options': ['Most members are busy', 'The member count is heavily inflated with bots — treat all claims with skepticism', 'The community is very organized', "It's a holiday"], 'correct': 1}, {'type': 'quiz', 'question': 'What is the #1 rule of crypto safety?', 'options': ['Always follow crypto influencers on Twitter', 'Never invest more than you can afford to lose, and always do your own research', 'Always buy the dip', 'Hold all tokens forever'], 'correct': 1}]},
+    "content": {
+        "slides": [
+            {
+                "type": "title",
+                "text": "Final Exam: Scam Detection & Analysis",
+                "sub": "20 questions · 85% to pass · Scam Hunter badge on completion",
+            },
+            {
+                "type": "interactive",
+                "title": "Full Investigation Workflow",
+                "description": "Step-by-step guide: (1) Gather on-chain evidence (transactions, holder data), (2) Analyze contract code for vulnerabilities, (3) Trace fund flows through wallets and mixers, (4) Collect off-chain evidence (social media, archives), (5) Write investigation report, (6) Share findings with community.",
+            },
+            {
+                "type": "quiz",
+                "question": "A token has 92% of its supply in the top 10 wallets, unverified contract, and unlocked LP. Your assessment:",
+                "options": [
+                    "Low risk",
+                    "Extreme risk — multiple critical red flags present",
+                    "Medium risk, worth a small investment",
+                    "Safe because it has a website",
+                ],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "What does 'LP not locked or burned' mean for investors?",
+                "options": [
+                    "Liquidity is guaranteed long-term",
+                    "The developer can withdraw all liquidity at any moment, leaving tokens worthless",
+                    "The token price will increase",
+                    "Trading is disabled",
+                ],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "You identify 30 wallets funded by the same address, all buying a new token in the first block. This is:",
+                "options": ["Organic demand", "A bundler attack", "Market making", "Staking rewards"],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "What is the key indicator of wash trading?",
+                "options": [
+                    "High volume from unique wallets",
+                    "The same wallets repeatedly buying and selling to each other in circular patterns",
+                    "Transactions during business hours",
+                    "Trading on multiple exchanges",
+                ],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "A proxy contract with a single EOA admin can:",
+                "options": [
+                    "Nothing — it's locked",
+                    "Be upgraded to malicious code at any moment by that one person",
+                    "Only change minor parameters",
+                    "Automatically audit itself",
+                ],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "What is the safest way to verify an NFT collection's authenticity?",
+                "options": [
+                    "Check the artwork looks similar",
+                    "Verify the contract address matches the official one from the project's verified channels",
+                    "Ask in Discord",
+                    "Check the collection name",
+                ],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "A Telegram group with 100K members has 30 active chatters. This suggests:",
+                "options": [
+                    "Most members are busy",
+                    "The member count is heavily inflated with bots — treat all claims with skepticism",
+                    "The community is very organized",
+                    "It's a holiday",
+                ],
+                "correct": 1,
+            },
+            {
+                "type": "quiz",
+                "question": "What is the #1 rule of crypto safety?",
+                "options": [
+                    "Always follow crypto influencers on Twitter",
+                    "Never invest more than you can afford to lose, and always do your own research",
+                    "Always buy the dip",
+                    "Hold all tokens forever",
+                ],
+                "correct": 1,
+            },
+        ]
+    },
 }
 
 __all__ = ["building_scam_investigation"]

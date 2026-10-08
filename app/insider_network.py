@@ -218,7 +218,9 @@ async def _fetch_etherscan_holders(
     return []
 
 
-async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, limit: int = 100) -> list[dict[str, Any]]:
+async def _fetch_solscan_holders(
+    client: httpx.AsyncClient, token_address: str, limit: int = 100
+) -> list[dict[str, Any]]:
     """Fetch top token holders from Solscan (free public API)."""
     params = {
         "tokenAddress": token_address,
@@ -235,7 +237,9 @@ async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, 
     return []
 
 
-async def _fetch_birdeye_holders(client: httpx.AsyncClient, token_address: str, chain: str = "solana") -> list[dict[str, Any]]:
+async def _fetch_birdeye_holders(
+    client: httpx.AsyncClient, token_address: str, chain: str = "solana"
+) -> list[dict[str, Any]]:
     """Fetch holder data from Birdeye public API."""
     chain_map: dict[str, str] = {
         "solana": "solana",

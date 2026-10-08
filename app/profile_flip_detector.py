@@ -105,7 +105,9 @@ _BEHAVIOR_RISK_TABLE = {
 }
 
 
-async def _fetch(url: str, timeout: int = 10, headers: dict[str, Any] | None = None, max_retries: int = 2) -> dict[str, Any] | None:
+async def _fetch(
+    url: str, timeout: int = 10, headers: dict[str, Any] | None = None, max_retries: int = 2
+) -> dict[str, Any] | None:
     """Single URL fetch with aiohttp and retry logic."""
     import asyncio
 

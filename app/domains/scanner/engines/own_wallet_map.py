@@ -106,10 +106,7 @@ logger = get_logger(__name__)
 #: classify holders as 📦. Lowercased (matches ``_enrich_holders`` output).
 
 
-
-
 #: Human display names for CEX registry keys (entity_registry / known_entities).
-
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -406,21 +403,9 @@ async def _enrich_buy_ts(token_address: str, holder_addrs: list[str], chain_norm
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-
-
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # CEX FUNDING CLASSIFICATION (who funded the wallets — "who's behind this")
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-
-
-
-
-
-
 
 
 async def _fetch_wallet_funder(deployer: str, chain_norm: str) -> str | None:
@@ -432,8 +417,6 @@ async def _fetch_wallet_funder(deployer: str, chain_norm: str) -> str | None:
     except Exception as exc:
         logger.debug("wallet_map_deployer_funder_failed: %s", exc)
     return None
-
-
 
 
 async def _classify_deployer_funding(
@@ -507,10 +490,6 @@ async def _classify_deployer_funding(
     return result
 
 
-
-
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # BUYER TIMING (fresh-wallet % + recently-funded %)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -526,14 +505,6 @@ async def _classify_deployer_funding(
 # HAVE both timestamps — missing data is never assumed to be organic. When
 # no holder has usable timestamps the payload degrades to ``result:
 # "unavailable"`` and the renderer shows "—".
-
-
-
-
-
-
-
-
 
 
 def _build_map_line(roles: dict[str, int]) -> str:
@@ -553,7 +524,3 @@ def _cache_map(key: str, data: dict[str, Any]) -> None:
     _WALLET_MAP_CACHE[key] = data
     if len(_WALLET_MAP_CACHE) > _WALLET_MAP_CACHE_MAX:
         _WALLET_MAP_CACHE.pop(next(iter(_WALLET_MAP_CACHE)), None)
-
-
-
-

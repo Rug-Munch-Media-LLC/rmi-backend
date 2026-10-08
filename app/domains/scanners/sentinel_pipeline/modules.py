@@ -57,7 +57,6 @@ from .config import SentinelConfig
 # Wallet Memory Bank integration — import doubles as an availability probe;
 # the engine is intentionally unused here (only _WALLET_MEMORY_AVAILABLE matters).
 try:
-
     _WALLET_MEMORY_AVAILABLE = True
 except ImportError:
     _WALLET_MEMORY_AVAILABLE = False

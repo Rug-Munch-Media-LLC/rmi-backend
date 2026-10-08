@@ -54,7 +54,7 @@ _SHILL_OCR_MAX_CHARS = 1200
 _BOT_DB_CANDIDATES: tuple[str, ...] = (
     os.getenv("BOT_DB_PATH", "").strip(),
     os.getenv("BOT_USERS_DB_PATH", ""),
-    "/tmp/rmi/telegram/bot_users.db",
+    "/tmp/rmi/telegram/bot_users.db",  # noqa: S108 — known bot DB mirror path, stable inter-process lookup
 )
 
 

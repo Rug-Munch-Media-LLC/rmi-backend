@@ -92,7 +92,8 @@ class TruffleHogScanner:
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes max
-            shell=False)
+                shell=False,
+            )
 
             if result.returncode != 0 and "no bugs found" not in result.stderr.lower():
                 logger.warning(f"TruffleHog scan warning: {result.stderr}")
@@ -159,7 +160,8 @@ class TruffleHogScanner:
                 capture_output=True,
                 text=True,
                 timeout=600,  # 10 minutes for git clone + scan
-            shell=False)
+                shell=False,
+            )
 
             findings = []
             for line in result.stdout.split("\n"):

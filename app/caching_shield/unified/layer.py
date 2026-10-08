@@ -4,15 +4,12 @@ import hashlib
 import json
 import os
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
 from app.caching_shield.unified.models import ToolResult
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 logger = get_logger("unified_data_providers")
 
@@ -26,6 +23,7 @@ class UnifiedDataProviders:
 
     def _get_lock(self):
         import asyncio
+
         if self._bucket_lock is None:
             self._bucket_lock = asyncio.Lock()
         return self._bucket_lock
@@ -365,7 +363,7 @@ class UnifiedDataLayer:
             await self._cache.set(cache_key, result, ttl)
             return ToolResult(
                 data=result,
-                source=getattr(chain, '_last_provider', 'unknown'),
+                source=getattr(chain, "_last_provider", "unknown"),
                 latency_ms=0,
             )
 

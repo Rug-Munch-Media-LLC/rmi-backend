@@ -9,10 +9,7 @@ def _resources_and_verdict(lines: list[str], results: dict[str, Any], issues: in
     """Append the resources line and the closing verdict."""
     engine_ids = results.get("engines", [])
     lines.append("")
-    lines.append(
-        f"Engines available: {len(engine_ids)}/{results.get('engines_total', '?')} — "
-        + ", ".join(engine_ids)
-    )
+    lines.append(f"Engines available: {len(engine_ids)}/{results.get('engines_total', '?')} — " + ", ".join(engine_ids))
 
     res = results.get("resources", {})
     lines.append("")

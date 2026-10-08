@@ -1,6 +1,7 @@
 ---
 name: CI — Quality Gates
 on:
+  workflow_dispatch:
   push: {}
   pull_request: {}
 jobs:

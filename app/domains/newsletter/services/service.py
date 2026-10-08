@@ -67,6 +67,7 @@ class NewsletterService(BaseService[Newsletter]):
     def _slugify(cls, text: str) -> str:
         """Slugify a string for URLs and filenames."""
         from app.domains.newsletter.services.helpers import slugify as _slugify_fn
+
         return _slugify_fn(text)
 
     # ── Newsletter CRUD ─────────────────────────────────────────────
