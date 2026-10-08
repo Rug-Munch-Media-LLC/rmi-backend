@@ -19,13 +19,11 @@ PostgreSQL ``42P01`` (undefined_table) and ``42704`` (undefined_object) codes.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import DBAPIError, ProgrammingError
 
 if TYPE_CHECKING:
-    from app.core.logging import get_logger
-
     log = None
 
 # PostgreSQL SQLSTATEs raised when a referenced relation is absent.

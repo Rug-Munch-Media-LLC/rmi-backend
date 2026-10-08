@@ -1,18 +1,17 @@
 """Group management for deduplication."""
+
 from __future__ import annotations
 
 import contextlib
 import hashlib
-import time
 from typing import Any
-
-from app.rag.dedup._base import DedupResult
 
 _GROUP_MEMBERS_PREFIX = "rag:dedup:group:members:"
 
 
 def _get_redis() -> Any | None:
     from app.core.redis_client import get_redis
+
     try:
         return get_redis()
     except Exception:

@@ -1,4 +1,5 @@
 """URL-level deduplication."""
+
 from __future__ import annotations
 
 import contextlib
@@ -6,14 +7,13 @@ import hashlib
 import time
 from typing import Any
 
-from app.rag.dedup._base import DedupResult
-
 _URL_ZSET = "rag:dedup:urls"
 _URL_GROUP_HASH = "rag:dedup:url:group"
 
 
 def _get_redis() -> Any | None:
     from app.core.redis_client import get_redis
+
     try:
         return get_redis()
     except Exception:
