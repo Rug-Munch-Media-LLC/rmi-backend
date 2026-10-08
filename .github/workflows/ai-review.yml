@@ -1,0 +1,76 @@
+---
+# AI Code Review — non-breaking when tokens are absent
+# Triggers on PR events, uses OpenRouter-compatible endpoint (DeepSeek, etc.)
+# Requires: GitHub secret OPENROUTER_API_KEY (or DEEPSEEK_API_KEY)
+
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run AI review (OpenRouter-compatible)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "ℹ️  No AI review API key configured — skipping (non-blocking)"
+            exit 0
+          fi
+
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            API_URL="https://openrouter.ai/api/v1/chat/completions"
+            MODEL="deepseek/deepseek-chat"
+            AUTH_HEADER="Authorization: Bearer $OPENROUTER_API_KEY"
+          else
+            API_URL="https://api.deepseek.com/chat/completions"
+            MODEL="deepseek-chat"
+            AUTH_HEADER="Authorization: Bearer $DEEPSEEK_API_KEY"
+          fi
+
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          git diff "$BASE_SHA".."$HEAD_SHA" \
+            -- '*.py' '*.toml' '*.yml' '*.yaml' '*.json' '*.md' \
+            > /tmp/pr.diff 2>/dev/null || true
+
+          if [ ! -s /tmp/pr.diff ]; then
+            echo "ℹ️  No relevant changes to review — skipping"
+            exit 0
+          fi
+
+          DIFF=$(head -c 8000 /tmp/pr.diff | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          MODEL="$MODEL" DIFF="$DIFF" python3 scripts/ai-review-payload.py
+
+          RESPONSE=$(curl -s -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            -H "$AUTH_HEADER" \
+            -d @/tmp/review-payload.json 2>/dev/null || true)
+
+          if echo "$RESPONSE" | grep -q '"choices"'; then
+            echo "$RESPONSE" | python3 -c "import sys, json; exec(sys.stdin.read())" <<'PYEOF'
+try:
+    data = json.load(sys.stdin)
+    content = data['choices'][0]['message']['content']
+    print('=== AI Code Review ===')
+    print(content)
+except:
+    print('ℹ️  AI review response parsing failed')
+PYEOF
+          else
+            echo "ℹ️  AI review API call failed or returned error (non-blocking)"
+            echo "Response: $RESPONSE" | head -c 500
+          fi
