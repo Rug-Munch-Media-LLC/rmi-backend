@@ -80,6 +80,12 @@ tags = ["rmi", "critical"]
 
 # ─── ALLOWLIST ──────────────────────────────────────────────────────────────
 
+[[rules]]
+id = "generic-oauth-client-secret"
+description = "Generic OAuth client_secret with a literal value"
+regex = '''(?i)client_secret['"]?\s*[:=]\s*['"][A-Za-z0-9+/_=-]{20,}['"]'''
+tags = ["secret", "oauth"]
+
 [allowlist]
 description = "Build artifacts + specific known false positives (no blanket directory excludes)"
 commits = [
