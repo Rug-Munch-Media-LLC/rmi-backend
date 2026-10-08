@@ -924,6 +924,21 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
+      - name: Downgrade SBOM specVersion to 1.6 (DTrack compatibility)
+        run: |
+          python3 -c "
+import json
+with open("sbom.spdx.json") as f:
+    d = json.load(f)
+if d.get("specVersion") == "1.7":
+    d["specVersion"] = "1.6"
+    with open("sbom.spdx.json", "w") as f:
+        json.dump(d, f)
+    print("Downgraded specVersion to 1.6")
+else:
+    print("specVersion already", d.get("specVersion"))
+"
+
       - name: Upload SBOM to Dependency-Track (conditional)
         if: env.DTRACK_API_KEY != '' && vars.DTRACK_URL != ''
         env:
@@ -945,6 +960,7 @@ jobs:
           fi
           echo "✅ SBOM uploaded to Dependency-Track"
           cat /tmp/dtrack-upload.json
+
       - uses: actions/upload-artifact@v5.0.0
         with:
           name: sbom

@@ -8,11 +8,12 @@ This document describes the conditional SBOM upload to Dependency-Track (DTrack)
 
 1. **SBOM Generation**: The `sbom` job generates a CycloneDX JSON SBOM using `anchore/sbom-action`
 2. **SBOM Verification**: The SBOM is validated via `scripts/sbom-verify.sh`
-3. **Conditional Upload**: If `DTRACK_API_KEY` secret is configured, the SBOM is POSTed to the DTrack API:
+3. **SpecVersion Downgrade**: DTrack currently accepts CycloneDX specVersion 1.6; the CI step downgrades 1.7→1.6 when needed
+4. **Conditional Upload**: If `DTRACK_API_KEY` secret is configured, the SBOM is POSTed to the DTrack API:
    - Endpoint: `${DTRACK_URL}/api/v1/bom` (default: `http://[INTERNAL_HOST]:8089`)
    - Method: `multipart/form-data`
    - Fields: `projectName`, `projectVersion`, `autoCreate`, `bom`
-4. **Graceful Skip**: If the key is missing or the service is unreachable, the step exits 0 with a notice — the build continues
+5. **Graceful Skip**: If the key is missing or the service is unreachable, the step exits 0 with a notice — the build continues
 
 ## Required Secrets / Variables
 
@@ -28,7 +29,7 @@ This document describes the conditional SBOM upload to Dependency-Track (DTrack)
 **Critical**: CI runners may not be able to reach the default endpoint (DTrack runs on the production host, not in the runner container/network).
 
 - **Forgejo runners on production host**: Can reach `http://[INTERNAL_HOST]:8089` (default works)
-- **GitHub Actions runners**: Cannot reach production localhost — **must** set `DTRACK_URL` to a Tailscale or public endpoint (e.g., `http://[INTERNAL_TAILSCALE_IP]:8089`)
+- **GitHub Actions runners / external runners**: Cannot reach production localhost — **must** set `DTRACK_URL` to a reachable endpoint
 
 Set `DTRACK_URL` as a repository variable in Forgejo/GitHub settings.
 
@@ -43,10 +44,11 @@ Set `DTRACK_URL` as a repository variable in Forgejo/GitHub settings.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `⚠️ Dependency-Track upload failed` + connection refused | Runner cannot reach `DTRACK_URL` | Set `DTRACK_URL` to a reachable endpoint (Tailscale IP) |
+| `⚠️ Dependency-Track upload failed` + connection refused | Runner cannot reach `DTRACK_URL` | Set `DTRACK_URL` to a reachable endpoint |
 | `401 Unauthorized` | Invalid/expired API key | Rotate key (see above) |
 | `403 Forbidden` | Key lacks `BOM_UPLOAD` permission | Add permission in DTrack team settings |
-| `400 Bad Request: Schema validation failed` | SBOM missing required fields | Check `scripts/sbom-verify.sh` output; ensure CycloneDX 1.4 format |
+| `400 Bad Request: Schema validation failed` | SBOM missing required fields | Check `scripts/sbom-verify.sh` output; ensure CycloneDX format |
+| `400 Bad Request: Unrecognized specVersion 1.7` | DTrack doesn't support CycloneDX 1.7 | CI downgrades to 1.6 automatically; if not, update workflow |
 | Upload succeeds but project not visible | Project created but not latest version | Check `isLatest` flag; DTrack only shows latest by default |
 
 ## Testing Locally
@@ -54,6 +56,17 @@ Set `DTRACK_URL` as a repository variable in Forgejo/GitHub settings.
 ```bash
 # Generate test SBOM
 syft scan . -o cyclonedx-json > sbom.json
+
+# Downgrade specVersion if needed (DTrack currently accepts 1.6)
+python3 -c "
+import json
+with open('sbom.json') as f:
+    d = json.load(f)
+if d.get('specVersion') == '1.7':
+    d['specVersion'] = '1.6'
+    with open('sbom.json', 'w') as f:
+        json.dump(d, f)
+"
 
 # Upload (requires DTRACK_API_KEY in env)
 export DTRACK_URL=http://[INTERNAL_HOST]:8089
@@ -71,4 +84,3 @@ curl -X POST "${DTRACK_URL}/api/v1/bom" \
 After a successful CI run, check DTrack UI:
 - Projects → `rmi-backend` → latest version should show the new BOM import timestamp
 - Vulnerability analysis runs automatically after import
-
