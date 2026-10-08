@@ -6,6 +6,7 @@ from app.caching_shield.unified.providers.risk_scan import RiskScanProviders
 from app.caching_shield.unified.providers.token_meta import TokenMetaProviders
 from app.caching_shield.unified.providers.tx_history import TxHistoryProviders
 from app.caching_shield.unified.providers.wallet_balance import WalletBalanceProviders
+import time
 
 __all__ = [
     "FundingSourceProviders",
