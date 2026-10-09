@@ -447,10 +447,7 @@ def _score_governance_risk(
 # ─── Main detection function ─────────────────────────────────────
 
 
-async def detect_governance_attack(
-    token_address: str,
-    chain: str,
-) -> dict[str, Any]:
+async def detect_governance_attack(token_address: str, chain: str) -> dict[str, Any]:
     """Run full governance attack risk analysis.
 
     Args:

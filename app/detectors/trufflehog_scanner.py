@@ -87,13 +87,7 @@ class TruffleHogScanner:
             cmd.append("-v")
 
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,  # 5 minutes max
-                shell=False,
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, shell=False)  # 5 minutes max
 
             if result.returncode != 0 and "no bugs found" not in result.stderr.lower():
                 logger.warning(f"TruffleHog scan warning: {result.stderr}")

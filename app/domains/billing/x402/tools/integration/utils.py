@@ -207,12 +207,7 @@ async def record_payment(tool_id: str, price_usd: str, payer: str) -> None:
     await record_x402_payment(tool_id, price_usd, payer)
 
 
-async def verify_onchain_direct(
-    tx_hash: str,
-    chain: str,
-    token_info: dict[str, Any],
-    expected_pay_to: str,
-) -> bool:
+async def verify_onchain_direct(tx_hash: str, chain: str, token_info: dict[str, Any], expected_pay_to: str) -> bool:
     """Direct on-chain verification fallback for human payments."""
     async with aiohttp.ClientSession() as session:
         if chain == "solana":

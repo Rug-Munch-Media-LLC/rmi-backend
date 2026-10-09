@@ -141,10 +141,7 @@ class BubbleMapsPro:
         return calculate_risk(transactions, node_count)
 
     async def _get_transactions(
-        self,
-        address: str,
-        center_address: str | None = None,
-        depth: int = 1,
+        self, address: str, center_address: str | None = None, depth: int = 1
     ) -> list[dict[str, Any]]:
         """Fetch transactions for a wallet address."""
         if address in self.transaction_cache:

@@ -11,12 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from app.domains.scanner.engines._logging import get_logger
-from app.domains.scanner.unified.risk_report._model import (
-    _CRITICAL_MIN,
-    _RISK_MIN,
-    FACTOR_LABELS,
-    RiskFactor,
-)
+from app.domains.scanner.unified.risk_report._model import _CRITICAL_MIN, _RISK_MIN, FACTOR_LABELS, RiskFactor
 
 if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult

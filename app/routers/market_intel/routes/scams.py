@@ -5,13 +5,20 @@ Scam alerts from DexScreener suspicious tokens and combined alerts feed.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
 from app.core.logging import get_logger
 from app.routers.market_intel.providers import _cg, _ds
+from app.routers.market_intel.scams_helpers import (
+    _build_alert_item,
+    _build_scam_item,
+    _classify_alert,
+    _classify_scam,
+    _extract_token_data,
+    _fetch_pairs_for_boosts,
+)
 from app.routers.market_intel.utils import _now, _safe_float
 
 logger = get_logger(__name__)
@@ -36,74 +43,18 @@ async def get_market_scams(
                 trending_symbols.add(c.get("item", {}).get("symbol", "").upper())
 
         boosts = boosts[:20]
-        _pairs_sem = asyncio.Semaphore(8)
-
-        async def _pairs(addr: str) -> Any:
-            if not addr:
-                return None
-            async with _pairs_sem:
-                return await _ds(f"/latest/dex/search?q={addr}", ttl=120)
-
-        _pairs_all = await asyncio.gather(*(_pairs(b.get("tokenAddress", "")) for b in boosts))
-        for b, pairs_data in zip(boosts, _pairs_all, strict=False):
+        processed = await _fetch_pairs_for_boosts(boosts)
+        for b, pairs_data in processed:
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
-            price = 0.0
-            mcap = 0.0
-            vol_24h = 0.0
-            change_24h = 0.0
-            name = b.get("description", "")[:30] if b.get("description") else ""
-            symbol = addr[:6].upper()
-            liquidity = 0.0
-            if pairs_data and isinstance(pairs_data, dict) and pairs_data.get("pairs"):
-                p = pairs_data["pairs"][0]
-                bt = p.get("baseToken", {})
-                symbol = bt.get("symbol", symbol).upper()
-                name = bt.get("name", name)
-                price = _safe_float(p.get("priceUsd"))
-                mcap = _safe_float(p.get("fdv"))
-                liquidity = _safe_float(
-                    p.get("liquidity", {}).get("usd") if isinstance(p.get("liquidity"), dict) else 0
-                )
-                vol_24h = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
-                change_24h = _safe_float(
-                    (p.get("priceChange") or {}).get("h24") if isinstance(p.get("priceChange"), dict) else 0
-                )
+            token_data = _extract_token_data(pairs_data, addr[:6].upper())
 
-            if (
-                abs(change_24h) > 300
-                or (mcap > 0 and liquidity > 0 and liquidity / mcap < 0.01)
-                or (price > 0 and price < 0.00001 and vol_24h > 100000)
-            ):
-                scam_type = "rug_pull" if change_24h > 500 else "honeypot" if price < 0.0001 else "copycat"
-                severity = "critical" if change_24h > 500 else "high" if change_24h > 300 else "medium"
-                indicators = []
-                if change_24h > 300:
-                    indicators.append(f"+{change_24h:.0f}% 24h pump")
-                if liquidity > 0 and mcap > 0 and liquidity / mcap < 0.01:
-                    indicators.append(f"Low liquidity ratio ({liquidity / mcap * 100:.1f}%)")
-                if mcap > 0 and mcap < 50000:
-                    indicators.append("Micro-cap (<$50K)")
-                if not indicators:
-                    indicators.append("Suspicious trading pattern")
+            scam_type, severity, indicators = _classify_scam(token_data)
 
-                items.append(
-                    {
-                        "id": f"scam_{chain}_{addr[:12]}",
-                        "token_address": addr,
-                        "symbol": symbol,
-                        "name": name or symbol,
-                        "chain": chain,
-                        "type": scam_type,
-                        "severity": severity,
-                        "status": "active",
-                        "victims": int(vol_24h / 100) if vol_24h > 0 else 0,
-                        "amount_stolen": vol_24h * 0.3 if vol_24h > 0 else 0,
-                        "detected_at": now,
-                        "description": f"{symbol} showing {change_24h:+.0f}% 24h change with ${liquidity:,.0f} liquidity. {'Extreme pump detected.' if change_24h > 500 else 'Suspicious pattern flagged.'}",
-                        "indicators": indicators[:4],
-                    }
-                )
+            if not scam_type:
+                continue
+
+            items.append(_build_scam_item(b, chain, token_data, scam_type, severity, indicators, now))
 
     items = items[:limit]
     return {"items": items, "total": len(items), "updated_at": now}
@@ -123,82 +74,13 @@ async def get_market_alerts_feed(
     boosts = await _ds("/token-boosts/latest/v1", ttl=60)
     if boosts and isinstance(boosts, list):
         boosts = boosts[:30]
-        _pairs_sem = asyncio.Semaphore(8)
-
-        async def _pairs(addr: str) -> Any:
-            if not addr:
-                return None
-            async with _pairs_sem:
-                return await _ds(f"/latest/dex/search?q={addr}", ttl=120)
-
-        _pairs_all = await asyncio.gather(*(_pairs(b.get("tokenAddress", "")) for b in boosts))
-        for b, pairs_data in zip(boosts, _pairs_all, strict=False):
+        processed = await _fetch_pairs_for_boosts(boosts)
+        for b, pairs_data in processed:
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
-            price = 0.0
-            mcap = 0.0
-            vol_24h = 0.0
-            change_24h = 0.0
-            liquidity = 0.0
-            symbol = addr[:6].upper()
-            if pairs_data and isinstance(pairs_data, dict) and pairs_data.get("pairs"):
-                p = pairs_data["pairs"][0]
-                bt = p.get("baseToken", {})
-                symbol = bt.get("symbol", symbol).upper()
-                bt.get("name", "")
-                price = _safe_float(p.get("priceUsd"))
-                mcap = _safe_float(p.get("fdv"))
-                liquidity = _safe_float(
-                    p.get("liquidity", {}).get("usd") if isinstance(p.get("liquidity"), dict) else 0
-                )
-                vol_24h = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
-                change_24h = _safe_float(
-                    (p.get("priceChange") or {}).get("h24") if isinstance(p.get("priceChange"), dict) else 0
-                )
-
-            if abs(change_24h) > 200 or (mcap > 0 and liquidity > 0 and liquidity / mcap < 0.02):
-                if change_24h > 500:
-                    alert_type = "pump_dump"
-                    severity = "critical"
-                    desc = f"{symbol} pumped {change_24h:+.0f}% in 24h. Classic pump-and-dump pattern with ${liquidity:,.0f} liquidity."
-                elif change_24h < -80:
-                    alert_type = "rug_pull"
-                    severity = "critical"
-                    desc = f"{symbol} crashed {change_24h:.0f}% in 24h. Likely rug pull or honeypot."
-                elif mcap > 0 and liquidity / mcap < 0.02:
-                    alert_type = "low_liquidity"
-                    severity = "high"
-                    desc = f"{symbol} has only {liquidity / mcap * 100:.1f}% liquidity ratio. Exit liquidity trap."
-                elif price > 0 and price < 0.00001 and vol_24h > 50000:
-                    alert_type = "shill_campaign"
-                    severity = "medium"
-                    desc = f"{symbol} micro-cap token with high volume relative to price. Likely shill campaign."
-                else:
-                    alert_type = "suspicious"
-                    severity = "medium"
-                    desc = f"{symbol} showing anomalous trading. {change_24h:+.0f}% 24h, ${liquidity:,.0f} liq."
-
-                items.append(
-                    {
-                        "id": f"scam_{chain}_{addr[:12]}",
-                        "type": alert_type,
-                        "title": f"{alert_type.replace('_', ' ').title()}: {symbol} on {chain.title()}",
-                        "description": desc,
-                        "severity": severity,
-                        "token": symbol,
-                        "chain": chain,
-                        "wallet": addr[:16] + "...",
-                        "amount_usd": vol_24h,
-                        "created_at": now,
-                        "source": "dexscreener",
-                        "metadata": {
-                            "price": price,
-                            "change_24h": change_24h,
-                            "liquidity": liquidity,
-                            "market_cap": mcap,
-                        },
-                    }
-                )
+            token_data = _extract_token_data(pairs_data, addr[:6].upper())
+            alert_type, severity, desc = _classify_alert(token_data)
+            items.append(_build_alert_item(b, chain, token_data, alert_type, severity, desc, now))
 
     # 2. System alerts from the existing alerts endpoint (internal fetch)
     try:

@@ -428,13 +428,7 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         "ohlcv",
         description="Real-time OHLCV candle aggregation (1m/5m/15m/1h/4h/1d) with authenticity scoring",
         providers=[
-            Provider(
-                "ohlcv_fetcher",
-                ProviderTier.LOCAL,
-                fetch_ohlcv,
-                weight=10.0,
-                rate_limit_rps=20.0,
-            ),
+            Provider("ohlcv_fetcher", ProviderTier.LOCAL, fetch_ohlcv, weight=10.0, rate_limit_rps=20.0),
             Provider(
                 "ohlcv_ingest",
                 ProviderTier.LOCAL,

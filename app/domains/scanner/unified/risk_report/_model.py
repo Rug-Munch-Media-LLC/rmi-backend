@@ -1,8 +1,7 @@
 """Data model + factor weights for the risk_report package.
 
 Defines the ``RiskFactor`` / ``ClusterInfo`` / ``RiskReport`` dataclasses
-(including JSON round-trip via ``to_dict`` / ``from_dict``), the shared risk
-thresholds, and the per-factor weights / labels used by the composite score.
+(including JSON round-trip via ``to_dict`` / ``from_dict``), the shared risk thresholds, and the per-factor weights / labels used by the composite score.
 """
 
 from __future__ import annotations

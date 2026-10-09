@@ -83,9 +83,7 @@ class NewsletterService(BaseService[Newsletter]):
         """
         slug = slugify(data.title)
         # Check slug uniqueness
-        existing = await self.db.execute(
-            select(Newsletter).where(Newsletter.slug == slug),
-        )
+        existing = await self.db.execute(select(Newsletter).where(Newsletter.slug == slug))
         if existing.scalar_one_or_none():
             slug = f"{slug}-{uuid.uuid4().hex[:8]}"
 

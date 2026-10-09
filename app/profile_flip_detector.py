@@ -225,9 +225,7 @@ def _detect_branding_flip(project_name: str, description: str) -> dict[str, Any]
     return {"risk": min(risk, 1.0), "flags": flags}
 
 
-def _detect_wallet_behavior_flip(
-    wallet_history: dict[str, Any] | None,
-) -> dict[str, Any]:
+def _detect_wallet_behavior_flip(wallet_history: dict[str, Any] | None) -> dict[str, Any]:
     """
     Analyze wallet behavior transitions to detect flips.
     wallet_history should contain:
@@ -556,9 +554,7 @@ async def detect_profile_flip(
 # ── Batch detection for monitoring ───────────────────────────────
 
 
-async def batch_detect_profile_flips(
-    targets: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+async def batch_detect_profile_flips(targets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Batch profile flip detection for multiple targets.
 
