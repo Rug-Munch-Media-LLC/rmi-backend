@@ -164,6 +164,12 @@ class DataBusVault:
                 if key.state == KeyState.EXHAUSTED:
                     key.state = KeyState.ACTIVE
 
+    def capacity_report(self) -> dict[str, Any]:
+        """Full capacity and credit report (delegates to capacity.py)."""
+        from app.databus.vault.capacity import capacity_report as _capacity_report
+
+        return _capacity_report(self.pools)
+
 
 # Re-export public types for backward compatibility
 __all__ = [
