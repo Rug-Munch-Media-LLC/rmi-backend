@@ -17,7 +17,6 @@ Endpoints:
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -27,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from app.core.errors import NotFoundError
 from app.core.logging import get_logger
+from app.routers.community_forensics_redis import get_redis
 from app.workers.community_forensics_worker import CommunityForensicsWorker
 
 logger = get_logger(__name__)
@@ -42,19 +42,6 @@ def _get_worker() -> CommunityForensicsWorker:
     if _worker is None:
         _worker = CommunityForensicsWorker()
     return _worker
-
-
-# ── Redis helpers ─────────────────────────────────────
-async def _get_redis():
-    import redis.asyncio as aioredis
-
-    return aioredis.Redis(
-        host=os.getenv("REDIS_HOST", "rmi-redis"),
-        port=int(os.getenv("REDIS_PORT", "6379")),
-        password=os.getenv("REDIS_PASSWORD", "") or None,
-        db=int(os.getenv("REDIS_DB", "0")),
-        decode_responses=True,
-    )
 
 
 # ── Models ────────────────────────────────────────────
@@ -89,7 +76,7 @@ async def list_reports(
 ) -> dict[str, Any]:
     """List community-submitted forensic reports (newest first)."""
     try:
-        r = await _get_redis()
+        r = await get_redis()
         report_ids = await r.zrevrange("community:forensics:reports:index", offset, offset + limit - 1)
 
         reports = []
@@ -122,7 +109,7 @@ async def list_reports(
 async def get_report(report_id: str) -> dict[str, Any]:
     """Get full details of a community forensics report."""
     try:
-        r = await _get_redis()
+        r = await get_redis()
         data = await r.get(f"community:forensics:report:{report_id}")
         if not data:
             raise NotFoundError(message=f"Report {report_id} not found")
@@ -154,7 +141,7 @@ async def submit_report(req: ReportSubmit) -> dict[str, Any]:
     }
 
     try:
-        r = await _get_redis()
+        r = await get_redis()
         await r.set(f"community:forensics:report:{report_id}", json.dumps(report))
         await r.zadd("community:forensics:reports:index", {report_id: datetime.now(UTC).timestamp()})
         logger.info(f"community_forensics_report_submitted report_id={report_id}")
@@ -194,7 +181,7 @@ async def get_leaderboard(
 ) -> dict[str, Any]:
     """Get community forensics leaderboard (top sleuths by contributions)."""
     try:
-        r = await _get_redis()
+        r = await get_redis()
         key = f"community:forensics:leaderboard:{period}"
         entries = await r.zrevrange(key, 0, 19, withscores=True)
 
@@ -224,7 +211,7 @@ async def health_check() -> dict[str, Any]:
     worker = _get_worker()
     health = {"redis": "unknown", "blockscout": "unknown"}
     try:
-        r = await _get_redis()
+        r = await get_redis()
         await r.ping()
         health["redis"] = "ok"
     except Exception:

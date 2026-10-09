@@ -109,3 +109,37 @@ def validate_startup() -> None:
     if not OWNER_IDS:
         logger.error("FATAL: TELEGRAM_ALLOWED_USERS environment variable must list at least one owner id.")
         sys.exit(1)
+
+
+# Keep Telegram's slash-command picker curated. The bot still accepts the
+# legacy aliases below, but exposing every historical alias made the picker
+# look like a broken command catalog.
+CANONICAL_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("start", "Open the control panel"),
+    ("help", "Show the control panel"),
+    ("menu", "Open the interactive menu"),
+    ("commands", "List supported commands"),
+    ("status", "Host status"),
+    ("health", "Fleet health dashboard"),
+    ("disk", "Disk usage"),
+    ("mem", "Memory usage"),
+    ("top", "Top CPU processes"),
+    ("uptime", "Uptime and load"),
+    ("docker", "Docker management"),
+    ("dps", "Docker containers"),
+    ("services", "Fleet services"),
+    ("svc", "Service control"),
+    ("logs", "Service logs"),
+    ("backup", "Backup status"),
+    ("ragstats", "RAG statistics"),
+    ("news", "News feed"),
+    ("scanstats", "Scanner statistics"),
+    ("indexer", "Indexer status"),
+    ("ai", "Read-only AI query"),
+    ("models", "Choose an AI model"),
+    ("engine", "Choose an interaction engine"),
+    ("ask", "Run the selected engine"),
+    ("oc", "Confirmed tooled OpenCode run"),
+    ("term", "Enter terminal mode"),
+    ("selftest", "Run bot self-test"),
+)
