@@ -11,7 +11,7 @@ Covers ``app/domains/chat_tools.py`` + the ``chat.py`` integration helpers:
     tool result is injected into the system context and omitted when the
     executor returns None.
 
-No network, DB, or LLM calls — all data modules are mocked.
+No network, DB, or LLM calls — all data modules are mocked via fixtures.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from app.domains import chat_tools
 from app.domains.chat_tools import (
     _chain_for_address,
     _detect_tool_intent,
@@ -37,6 +36,208 @@ from app.routers.chat import _fetch_tool_context, _inject_tool_result
 
 _EVM = "0x" + "a" * 40
 _SOL = "D8pom1W4v6j8kQkfQq2mNnXxYyZzAaBbCcDdEeFfGgHh"  # 44-char base58-like
+
+
+# ── Fixtures to consolidate mock.patch calls ─────────────────────────────
+
+
+@pytest.fixture
+def mock_extract_price_symbol(monkeypatch):
+    """Patch _extract_price_symbol to return BTC."""
+    monkeypatch.setattr("app.domains.chat_tools._extract_price_symbol", lambda _: "BTC")
+
+
+@pytest.fixture
+def mock_extract_first_address_evm(monkeypatch):
+    """Patch _extract_first_address to return EVM address."""
+    monkeypatch.setattr("app.domains.chat_tools._extract_first_address", lambda _: _EVM)
+
+
+@pytest.fixture
+def mock_coingecko_connector(monkeypatch):
+    """Patch get_coingecko_connector with configurable return value."""
+
+    def _make_conn(return_value=None, side_effect=None):
+        conn = mock.MagicMock()
+        conn.get_token_price = mock.AsyncMock(return_value=return_value, side_effect=side_effect)
+        monkeypatch.setattr("app.coingecko_connector.get_coingecko_connector", lambda: conn)
+        return conn
+
+    return _make_conn
+
+
+@pytest.fixture
+def mock_dexscreener_price(monkeypatch):
+    """Patch _dexscreener_price with configurable return value."""
+
+    def _patch(return_value=None, side_effect=None):
+        monkeypatch.setattr(
+            "app.databus.provider_implementations.price._dexscreener_price",
+            mock.AsyncMock(return_value=return_value, side_effect=side_effect),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_fetch_coincap_price(monkeypatch):
+    """Patch _fetch_coincap_price with configurable return value."""
+
+    def _patch(return_value=None, side_effect=None):
+        monkeypatch.setattr(
+            "app.domains.chat_tools.price._fetch_coincap_price",
+            mock.AsyncMock(return_value=return_value, side_effect=side_effect),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_fetch_cmc_price(monkeypatch):
+    """Patch _fetch_cmc_price with configurable return value."""
+
+    def _patch(return_value=None, side_effect=None):
+        monkeypatch.setattr(
+            "app.domains.chat_tools.price._fetch_cmc_price",
+            mock.AsyncMock(return_value=return_value, side_effect=side_effect),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_all_price_sources_fail(monkeypatch):
+    """Patch all price sources to raise RuntimeError (fail-open test)."""
+    monkeypatch.setattr(
+        "app.coingecko_connector.get_coingecko_connector", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    monkeypatch.setattr(
+        "app.databus.provider_implementations.price._dexscreener_price",
+        mock.AsyncMock(side_effect=RuntimeError("boom")),
+    )
+    monkeypatch.setattr(
+        "app.domains.chat_tools.price._fetch_coincap_price", mock.AsyncMock(side_effect=RuntimeError("boom"))
+    )
+    monkeypatch.setattr(
+        "app.domains.chat_tools.price._fetch_cmc_price", mock.AsyncMock(side_effect=RuntimeError("boom"))
+    )
+
+
+@pytest.fixture
+def mock_all_price_sources_none(
+    monkeypatch, mock_coingecko_connector, mock_dexscreener_price, mock_fetch_coincap_price, mock_fetch_cmc_price
+):
+    """Patch all price sources to return None."""
+    mock_coingecko_connector(return_value=None)
+    mock_dexscreener_price(return_value=None)
+    mock_fetch_coincap_price(return_value=None)
+    mock_fetch_cmc_price(return_value=None)
+
+
+@pytest.fixture
+def mock_scan_token(monkeypatch):
+    """Patch scan_token with configurable return value."""
+
+    def _patch(return_value=None, side_effect=None):
+        monkeypatch.setattr(
+            "app.domains.scanner.service.scan.scan_token",
+            mock.AsyncMock(return_value=return_value, side_effect=side_effect),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_risk_level_from_safety(monkeypatch):
+    """Patch _risk_level_from_safety with configurable return value."""
+
+    def _patch(return_value="HIGH RISK"):
+        monkeypatch.setattr(
+            "app.domains.scanner.service.scan._risk_level_from_safety",
+            lambda _: return_value,
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_fetch_ohlcv(monkeypatch):
+    """Patch fetch_ohlcv with configurable return value."""
+
+    def _patch(return_value=None, side_effect=None):
+        monkeypatch.setattr(
+            "app.databus.ohlcv_engine.fetch_ohlcv",
+            mock.AsyncMock(return_value=return_value, side_effect=side_effect),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_ta_summary(monkeypatch):
+    """Patch ta_summary and ta_summary_text with configurable return values."""
+
+    def _patch(summary_return=None, text_return=None):
+        monkeypatch.setattr("app.domains.chat_tools.ta_summary", lambda *_, **__: summary_return)
+        monkeypatch.setattr("app.domains.chat_tools.ta_summary_text", lambda *_, **__: text_return)
+
+    return _patch
+
+
+@pytest.fixture
+def mock_market_context(monkeypatch):
+    """Patch _fetch_market_context and _fetch_fear_greed with configurable return values."""
+
+    def _patch(market_return=None, fg_return=None):
+        monkeypatch.setattr(
+            "app.domains.chat_tools.market_fetch._fetch_market_context",
+            mock.AsyncMock(return_value=market_return or {}),
+        )
+        monkeypatch.setattr(
+            "app.domains.chat_tools._fetch_fear_greed",
+            mock.AsyncMock(return_value=fg_return),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_route_intent(monkeypatch):
+    """Patch _detect_tool_intent and _run_tool_for_intent for route integration tests."""
+
+    def _patch(intent_return="price", tool_return="BTC is $67,000"):
+        monkeypatch.setattr("app.routers.chat._detect_tool_intent", lambda _: intent_return)
+        monkeypatch.setattr(
+            "app.routers.chat._run_tool_for_intent",
+            mock.AsyncMock(return_value=tool_return),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_executors_dict(monkeypatch):
+    """Patch _EXECUTORS dict with a fake executor."""
+
+    def _patch(executor_dict):
+        monkeypatch.setattr("app.domains.chat_tools.dispatcher._EXECUTORS", executor_dict)
+
+    return _patch
+
+
+def _make_candles(n: int = 20, start: float = 100.0) -> list[dict]:
+    return [
+        {
+            "timestamp": i,
+            "open": start + i,
+            "high": start + i + 1,
+            "low": start + i - 1,
+            "close": start + i,
+            "volume": 100.0,
+            "trades": 5,
+        }
+        for i in range(n)
+    ]
 
 
 def _make_candles(n: int = 20, start: float = 100.0) -> list[dict]:
@@ -131,123 +332,108 @@ def test_chain_for_address() -> None:
 # ── 3. Executors fail open (never raise) ──────────────────────────────
 
 
-async def test_exec_price_returns_none_when_fetch_raises() -> None:
+async def test_exec_price_returns_none_when_fetch_raises(
+    mock_extract_price_symbol,
+    mock_all_price_sources_fail,
+) -> None:
     """All price sources failing → executor returns None (fail-open).
 
     2026-08-23: the fallback chain grew (coingecko → dexscreener →
     coincap/cmc). Mocking only coingecko leaked a LIVE coinmarketcap
     call into unit tests. Every source in the chain must be neutralized.
     """
-    with (
-        mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
-        mock.patch("app.coingecko_connector.get_coingecko_connector", side_effect=RuntimeError("boom")),
-        mock.patch("app.databus.provider_implementations.price._dexscreener_price", side_effect=RuntimeError("boom")),
-        mock.patch("app.domains.chat_tools.price._fetch_coincap_price", side_effect=RuntimeError("boom")),
-        mock.patch("app.domains.chat_tools.price._fetch_cmc_price", side_effect=RuntimeError("boom")),
-    ):
-        assert await _exec_price("price of btc") is None
+    assert await _exec_price("price of btc") is None
 
 
-async def test_exec_price_returns_none_when_no_price_data() -> None:
+async def test_exec_price_returns_none_when_no_price_data(
+    mock_extract_price_symbol,
+    mock_all_price_sources_none,
+) -> None:
     """Every source returning nothing → None (no live fallback leakage)."""
-    conn = mock.MagicMock()
-    conn.get_token_price = mock.AsyncMock(return_value=None)
-    with (
-        mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
-        mock.patch("app.coingecko_connector.get_coingecko_connector", return_value=conn),
-        mock.patch("app.databus.provider_implementations.price._dexscreener_price", return_value=None),
-        mock.patch("app.domains.chat_tools.price._fetch_coincap_price", return_value=None),
-        mock.patch("app.domains.chat_tools.price._fetch_cmc_price", return_value=None),
-    ):
-        assert await _exec_price("price of btc") is None
+    assert await _exec_price("price of btc") is None
 
 
-async def test_exec_price_formats_live_line() -> None:
-    conn = mock.MagicMock()
-    conn.get_token_price = mock.AsyncMock(return_value={"usd": 67000.5, "usd_24h_change": 1.25})
-    with (
-        mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
-        mock.patch("app.coingecko_connector.get_coingecko_connector", return_value=conn),
-    ):
-        text = await _exec_price("price of btc")
+async def test_exec_price_formats_live_line(
+    mock_extract_price_symbol,
+    mock_coingecko_connector,
+) -> None:
+    mock_coingecko_connector(return_value={"usd": 67000.5, "usd_24h_change": 1.25})
+    text = await _exec_price("price of btc")
     assert text is not None
     assert "BTC" in text
     assert "67,000" in text
     assert "+1.2%" in text
 
 
-async def test_exec_scan_returns_none_when_scanner_raises() -> None:
-    with (
-        mock.patch("app.domains.chat_tools._extract_first_address", return_value=_EVM),
-        mock.patch("app.domains.scanner.service.scan.scan_token", new=mock.AsyncMock(side_effect=RuntimeError("boom"))),
-    ):
-        assert await _exec_scan(f"scan {_EVM}") is None
+async def test_exec_scan_returns_none_when_scanner_raises(
+    mock_extract_first_address_evm,
+    mock_scan_token,
+) -> None:
+    mock_scan_token(side_effect=RuntimeError("boom"))
+    assert await _exec_scan(f"scan {_EVM}") is None
 
 
-async def test_exec_scan_formats_risk_summary() -> None:
+async def test_exec_scan_formats_risk_summary(
+    mock_extract_first_address_evm,
+    mock_scan_token,
+    mock_risk_level_from_safety,
+) -> None:
     fake_result = SimpleNamespace(safety_score=23, risk_flags=["honeypot", "concentrated_holders"])
-    with (
-        mock.patch("app.domains.chat_tools._extract_first_address", return_value=_EVM),
-        mock.patch("app.domains.scanner.service.scan.scan_token", new=mock.AsyncMock(return_value=fake_result)),
-        mock.patch("app.domains.scanner.service.scan._risk_level_from_safety", return_value="HIGH RISK"),
-    ):
-        text = await _exec_scan(f"scan {_EVM}")
+    mock_scan_token(return_value=fake_result)
+    mock_risk_level_from_safety("HIGH RISK")
+    text = await _exec_scan(f"scan {_EVM}")
     assert text is not None
     assert "23/100" in text
     assert "HIGH RISK" in text
     assert "honeypot" in text
 
 
-async def test_exec_ta_returns_none_when_fetch_raises() -> None:
-    with (
-        mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
-        mock.patch("app.databus.ohlcv_engine.fetch_ohlcv", new=mock.AsyncMock(side_effect=RuntimeError("boom"))),
-    ):
-        assert await _exec_ta("rsi of btc") is None
+async def test_exec_ta_returns_none_when_fetch_raises(
+    mock_extract_price_symbol,
+    mock_fetch_ohlcv,
+) -> None:
+    mock_fetch_ohlcv(side_effect=RuntimeError("boom"))
+    assert await _exec_ta("rsi of btc") is None
 
 
-async def test_exec_ta_uses_ta_summary_when_available() -> None:
+async def test_exec_ta_uses_ta_summary_when_available(
+    mock_extract_price_symbol,
+    mock_fetch_ohlcv,
+    mock_ta_summary,
+) -> None:
     fake_summary = {"rsi": 60.5, "signal": "bullish"}
-    with (
-        mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
-        mock.patch(
-            "app.databus.ohlcv_engine.fetch_ohlcv",
-            new=mock.AsyncMock(
-                return_value={
-                    "candles": _make_candles(),
-                    "summary": {"current_price": 110.0, "price_change_pct": 10.0},
-                }
-            ),
-        ),
-        mock.patch("app.domains.chat_tools.ta_summary", return_value=fake_summary),
-        mock.patch("app.domains.chat_tools.ta_summary_text", return_value="RSI 60.5 (neutral) · signal bullish"),
-    ):
-        text = await _exec_ta("rsi of btc")
+    mock_fetch_ohlcv(
+        return_value={
+            "candles": _make_candles(),
+            "summary": {"current_price": 110.0, "price_change_pct": 10.0},
+        }
+    )
+    mock_ta_summary(summary_return=fake_summary, text_return="RSI 60.5 (neutral) · signal bullish")
+    text = await _exec_ta("rsi of btc")
     assert text == "RSI 60.5 (neutral) · signal bullish"
 
 
-async def test_exec_ta_inline_fallback_without_ta_domain() -> None:
-    with (
-        mock.patch("app.domains.chat_tools._extract_price_symbol", return_value="BTC"),
-        mock.patch(
-            "app.databus.ohlcv_engine.fetch_ohlcv",
-            new=mock.AsyncMock(
-                return_value={
-                    "candles": _make_candles(),
-                    "summary": {"current_price": 110.0, "price_change_pct": 10.0},
-                }
-            ),
-        ),
-        mock.patch("app.domains.chat_tools.ta_summary", None),
-        mock.patch("app.domains.chat_tools.ta_summary_text", None),
-    ):
-        text = await _exec_ta("rsi of btc")
+async def test_exec_ta_inline_fallback_without_ta_domain(
+    mock_extract_price_symbol,
+    mock_fetch_ohlcv,
+    mock_ta_summary,
+) -> None:
+    mock_fetch_ohlcv(
+        return_value={
+            "candles": _make_candles(),
+            "summary": {"current_price": 110.0, "price_change_pct": 10.0},
+        }
+    )
+    mock_ta_summary(summary_return=None, text_return=None)
+    text = await _exec_ta("rsi of btc")
     assert text is not None
     assert "RSI" in text
     assert "110" in text
 
 
-async def test_exec_market_formats_snapshot() -> None:
+async def test_exec_market_formats_snapshot(
+    mock_market_context,
+) -> None:
     ctx = {
         "btc_price": 67000.0,
         "btc_change_24h": 1.2,
@@ -256,11 +442,8 @@ async def test_exec_market_formats_snapshot() -> None:
         "sol_price": 150.0,
         "sol_change_24h": 3.1,
     }
-    with (
-        mock.patch("app.domains.chat_tools.market_fetch._fetch_market_context", new=mock.AsyncMock(return_value=ctx)),
-        mock.patch("app.domains.chat_tools._fetch_fear_greed", new=mock.AsyncMock(return_value="72/100 (Greed)")),
-    ):
-        text = await _exec_market()
+    mock_market_context(market_return=ctx, fg_return="72/100 (Greed)")
+    text = await _exec_market()
     assert text is not None
     assert "BTC" in text
     assert "67,000" in text
@@ -269,12 +452,11 @@ async def test_exec_market_formats_snapshot() -> None:
     assert "Greed" in text
 
 
-async def test_exec_market_returns_none_on_empty_context() -> None:
-    with (
-        mock.patch("app.domains.chat_tools.market_fetch._fetch_market_context", new=mock.AsyncMock(return_value={})),
-        mock.patch("app.domains.chat_tools._fetch_fear_greed", new=mock.AsyncMock(return_value=None)),
-    ):
-        assert await _exec_market() is None
+async def test_exec_market_returns_none_on_empty_context(
+    mock_market_context,
+) -> None:
+    mock_market_context(market_return={}, fg_return=None)
+    assert await _exec_market() is None
 
 
 # ── 4. Dispatcher ─────────────────────────────────────────────────────
@@ -284,24 +466,24 @@ async def test_run_tool_unknown_intent_returns_none() -> None:
     assert await _run_tool_for_intent("hello", "bogus") is None
 
 
-async def test_run_tool_dispatches_to_executor() -> None:
+async def test_run_tool_dispatches_to_executor(mock_executors_dict) -> None:
     fake = mock.AsyncMock(return_value="BTC is $67,000")
-    with mock.patch.dict(chat_tools._EXECUTORS, {"price": fake}):
-        result = await _run_tool_for_intent("price of btc", "price")
+    mock_executors_dict({"price": fake})
+    result = await _run_tool_for_intent("price of btc", "price")
     assert result == "BTC is $67,000"
     fake.assert_awaited_once_with("price of btc")
 
 
-async def test_run_tool_fails_open_on_executor_error() -> None:
+async def test_run_tool_fails_open_on_executor_error(mock_executors_dict) -> None:
     fake = mock.AsyncMock(side_effect=RuntimeError("boom"))
-    with mock.patch.dict(chat_tools._EXECUTORS, {"price": fake}):
-        assert await _run_tool_for_intent("price of btc", "price") is None
+    mock_executors_dict({"price": fake})
+    assert await _run_tool_for_intent("price of btc", "price") is None
 
 
-async def test_run_tool_fails_open_on_empty_result() -> None:
+async def test_run_tool_fails_open_on_empty_result(mock_executors_dict) -> None:
     fake = mock.AsyncMock(return_value="   ")
-    with mock.patch.dict(chat_tools._EXECUTORS, {"price": fake}):
-        assert await _run_tool_for_intent("price of btc", "price") is None
+    mock_executors_dict({"price": fake})
+    assert await _run_tool_for_intent("price of btc", "price") is None
 
 
 # ── 5. Route integration (fake route path) ────────────────────────────
@@ -326,32 +508,22 @@ def test_inject_tool_result_into_empty_context() -> None:
     assert ctx.startswith("TOOL RESULT (live data):")
 
 
-async def test_route_integration_injects_tool_result_into_system_context() -> None:
-    with (
-        mock.patch("app.routers.chat._detect_tool_intent", return_value="price"),
-        mock.patch("app.routers.chat._run_tool_for_intent", new=mock.AsyncMock(return_value="BTC is $67,000")),
-    ):
-        tool_result = await _fetch_tool_context("price of btc")
+async def test_route_integration_injects_tool_result_into_system_context(mock_route_intent) -> None:
+    mock_route_intent(intent_return="price", tool_return="BTC is $67,000")
+    tool_result = await _fetch_tool_context("price of btc")
     assert tool_result == "BTC is $67,000"
     ctx = _inject_tool_result("RAG Context:\nsome hits", tool_result)
     assert "TOOL RESULT (live data):" in ctx
     assert "BTC is $67,000" in ctx
 
 
-async def test_route_integration_omits_when_executor_returns_none() -> None:
-    with (
-        mock.patch("app.routers.chat._detect_tool_intent", return_value="price"),
-        mock.patch("app.routers.chat._run_tool_for_intent", new=mock.AsyncMock(return_value=None)),
-    ):
-        tool_result = await _fetch_tool_context("price of btc")
+async def test_route_integration_omits_when_executor_returns_none(mock_route_intent) -> None:
+    mock_route_intent(intent_return="price", tool_return=None)
+    tool_result = await _fetch_tool_context("price of btc")
     assert tool_result is None
     assert _inject_tool_result("RAG Context:\nsome hits", tool_result) == "RAG Context:\nsome hits"
 
 
-async def test_route_integration_no_intent_skips_executor() -> None:
-    with (
-        mock.patch("app.routers.chat._detect_tool_intent", return_value=None),
-        mock.patch("app.routers.chat._run_tool_for_intent", new=mock.AsyncMock()) as executor,
-    ):
-        assert await _fetch_tool_context("what is a honeypot") is None
-    executor.assert_not_awaited()
+async def test_route_integration_no_intent_skips_executor(mock_route_intent) -> None:
+    mock_route_intent(intent_return=None, tool_return=None)
+    assert await _fetch_tool_context("what is a honeypot") is None

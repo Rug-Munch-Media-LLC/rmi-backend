@@ -23,7 +23,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-import httpx
 import pytest
 
 from app import deep_scan
@@ -130,6 +129,7 @@ def _slither_result(
 
 
 # ── Fixture: install default (all-safe) sub-module stubs ────────────────────
+# Additional fixtures for common override patterns ──────────────────────────
 
 
 @pytest.fixture
@@ -188,6 +188,130 @@ def stub_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+@pytest.fixture
+def mock_fraud_gnn(monkeypatch: pytest.MonkeyPatch):
+    """Patch fraud_gnn with configurable return value."""
+
+    def _patch(probability=0.9, is_fraud=True, model_type="stub-model"):
+        monkeypatch.setattr(
+            "app.fraud_gnn.get_fraud_gnn",
+            lambda: SimpleNamespace(predict=lambda fingerprint: (probability, is_fraud, model_type)),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_pyod_anomaly(monkeypatch: pytest.MonkeyPatch):
+    """Patch pyod_anomaly with configurable return value."""
+
+    def _patch(score=0.95, is_anomaly=True, model_type="stub-pyod"):
+        monkeypatch.setattr(
+            "app.pyod_anomaly.get_pyod_anomaly",
+            lambda: SimpleNamespace(
+                score=lambda features: _anomaly_result(score=score, is_anomaly=is_anomaly, model_type=model_type)
+            ),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_pygod_anomaly(monkeypatch: pytest.MonkeyPatch):
+    """Patch pygod_anomaly with configurable return value."""
+
+    def _patch(score=0.99, is_anomaly=True, model_type="stub-pygod"):
+        monkeypatch.setattr(
+            "app.pygod_anomaly.get_pygod_anomaly",
+            lambda: SimpleNamespace(
+                score=lambda graph: _anomaly_result(score=score, is_anomaly=is_anomaly, model_type=model_type)
+            ),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_heimdall_bytecode(monkeypatch: pytest.MonkeyPatch):
+    """Patch heimdall_bytecode with configurable return value or a custom callable."""
+
+    def _patch(success=True, functions=None, fn=None, **extra):
+        if fn is None:
+
+            def fn(code, **kwargs):
+                return _decompiled(success=success, functions=functions, **extra)
+
+        monkeypatch.setattr("app.heimdall_bytecode.analyze_bytecode", fn)
+
+    return _patch
+
+
+@pytest.fixture
+def mock_pyrevm_engine(monkeypatch: pytest.MonkeyPatch):
+    """Patch pyrevm_engine with configurable return value."""
+
+    def _patch(**overrides):
+        monkeypatch.setattr(
+            "app.pyrevm_engine.simulate_sell_round_trip",
+            lambda address, chain="ethereum": _sell_result(**overrides),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_slither_analyzer(monkeypatch: pytest.MonkeyPatch):
+    """Patch slither_analyzer with configurable return value."""
+
+    def _patch(success=True, detectors=None, error=None):
+        monkeypatch.setattr(
+            "app.slither_analyzer.analyze_source",
+            lambda source, solc_version=None: _slither_result(success=success, detectors=detectors, error=error),
+        )
+
+    return _patch
+
+
+@pytest.fixture
+def mock_is_security_relevant(monkeypatch: pytest.MonkeyPatch):
+    """Patch is_security_relevant with configurable return value."""
+
+    def _patch(filter_fn=lambda check: True):
+        monkeypatch.setattr("app.slither_analyzer.is_security_relevant", filter_fn)
+
+    return _patch
+
+
+@pytest.fixture
+def mock_fetch_code(monkeypatch: pytest.MonkeyPatch):
+    """Patch _fetch_code with configurable return value."""
+
+    def _patch(return_value=CONTRACT_CODE):
+        monkeypatch.setattr(deep_scan, "_fetch_code", lambda rpc_urls, address, timeout: return_value)
+
+    return _patch
+
+
+@pytest.fixture
+def mock_address_to_fingerprint(monkeypatch: pytest.MonkeyPatch):
+    """Patch address_to_fingerprint with configurable return value or error."""
+
+    def _patch(fn=lambda address, **kwargs: dict(FINGERPRINT)):
+        monkeypatch.setattr("app.ml_datasets.adapters.address_to_fingerprint", fn)
+
+    return _patch
+
+
+@pytest.fixture
+def mock_httpx_client(monkeypatch: pytest.MonkeyPatch):
+    """Patch httpx.Client with a fake client."""
+
+    def _patch(client):
+        monkeypatch.setattr(deep_scan.httpx, "Client", lambda **kwargs: client)
+
+    return _patch
+
+
 # ── Composition ─────────────────────────────────────────────────────────────
 
 
@@ -231,46 +355,30 @@ def test_chain_resolution() -> None:
 # ── Risk derivation ─────────────────────────────────────────────────────────
 
 
-def test_fraud_high_drives_overall_risk(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.fraud_gnn.get_fraud_gnn",
-        lambda: SimpleNamespace(predict=lambda fingerprint: (0.9, True, "stub-model")),
-    )
+def test_fraud_high_drives_overall_risk(stub_modules: None, mock_fraud_gnn) -> None:
+    mock_fraud_gnn(probability=0.9, is_fraud=True)
     report = deep_scan_address(EVM_ADDR)
     assert report.risk_scores["fraud_gnn"]["risk_level"] == 2
     assert report.overall_risk == "high"
     assert any("fraud probability 0.9000" in f["message"] for f in report.findings)
 
 
-def test_fraud_medium_threshold(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.fraud_gnn.get_fraud_gnn",
-        lambda: SimpleNamespace(predict=lambda fingerprint: (0.5, False, "stub-model")),
-    )
+def test_fraud_medium_threshold(stub_modules: None, mock_fraud_gnn) -> None:
+    mock_fraud_gnn(probability=0.5, is_fraud=False)
     report = deep_scan_address(EVM_ADDR)
     assert report.risk_scores["fraud_gnn"]["risk_level"] == 1
     assert report.overall_risk == "medium"
 
 
-def test_pyod_anomaly_drives_overall_risk(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.pyod_anomaly.get_pyod_anomaly",
-        lambda: SimpleNamespace(
-            score=lambda features: _anomaly_result(score=0.95, is_anomaly=True, model_type="stub-pyod")
-        ),
-    )
+def test_pyod_anomaly_drives_overall_risk(stub_modules: None, mock_pyod_anomaly) -> None:
+    mock_pyod_anomaly(score=0.95, is_anomaly=True)
     report = deep_scan_address(EVM_ADDR)
     assert report.risk_scores["pyod"]["risk_level"] == 2
     assert report.overall_risk == "high"
 
 
-def test_pygod_anomaly_with_transfers(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.pygod_anomaly.get_pygod_anomaly",
-        lambda: SimpleNamespace(
-            score=lambda graph: _anomaly_result(score=0.99, is_anomaly=True, model_type="stub-pygod")
-        ),
-    )
+def test_pygod_anomaly_with_transfers(stub_modules: None, mock_pygod_anomaly) -> None:
+    mock_pygod_anomaly(score=0.99, is_anomaly=True)
     transfers = [{"from_addr": "0x" + "aa" * 20, "to_addr": "0x" + "bb" * 20}]
     report = deep_scan_address(EVM_ADDR, transfers=transfers)
     assert report.risk_scores["pygod"]["is_anomaly"] is True
@@ -278,37 +386,26 @@ def test_pygod_anomaly_with_transfers(stub_modules: None, monkeypatch: pytest.Mo
     assert report.overall_risk == "high"
 
 
-def test_sell_sim_critical_drives_overall_risk(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.pyrevm_engine.simulate_sell_round_trip",
-        lambda address, chain="ethereum": _sell_result(risk="critical", simulation_success=True, tax_pct=0.5),
-    )
+def test_sell_sim_critical_drives_overall_risk(stub_modules: None, mock_pyrevm_engine) -> None:
+    mock_pyrevm_engine(risk="critical", simulation_success=True, tax_pct=0.5)
     report = deep_scan_address(EVM_ADDR)
     assert report.risk_scores["sell_sim"]["risk_level"] == 3
     assert report.overall_risk == "critical"
 
 
-def test_sell_sim_honeypot_extra_finding(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.pyrevm_engine.simulate_sell_round_trip",
-        lambda address, chain="ethereum": _sell_result(
-            can_sell=True, sell_to_pair_reverted=True, simulation_success=True
-        ),
-    )
+def test_sell_sim_honeypot_extra_finding(stub_modules: None, mock_pyrevm_engine) -> None:
+    mock_pyrevm_engine(can_sell=True, sell_to_pair_reverted=True, simulation_success=True)
     report = deep_scan_address(EVM_ADDR)
     assert any("honeypot" in f["message"] for f in report.findings)
 
 
-def test_decompile_dangerous_function_names(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.heimdall_bytecode.analyze_bytecode",
-        lambda code, **kwargs: _decompiled(
-            success=True,
-            functions=[
-                {"name": "transfer", "signature": "transfer(address,uint256)"},
-                {"name": "emergencyWithdraw", "signature": "emergencyWithdraw()"},
-            ],
-        ),
+def test_decompile_dangerous_function_names(stub_modules: None, mock_heimdall_bytecode) -> None:
+    mock_heimdall_bytecode(
+        success=True,
+        functions=[
+            {"name": "transfer", "signature": "transfer(address,uint256)"},
+            {"name": "emergencyWithdraw", "signature": "emergencyWithdraw()"},
+        ],
     )
     report = deep_scan_address(EVM_ADDR)
     assert report.risk_scores["decompiled"]["risk_level"] == 1
@@ -317,39 +414,32 @@ def test_decompile_dangerous_function_names(stub_modules: None, monkeypatch: pyt
     assert "emergencyWithdraw" in dangerous_findings[0]["message"]  # original-case names joined
 
 
-def test_decompile_incomplete_warns(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.heimdall_bytecode.analyze_bytecode",
-        lambda code, **kwargs: _decompiled(success=False, decompile_error="panik"),
-    )
+def test_decompile_incomplete_warns(stub_modules: None, mock_heimdall_bytecode) -> None:
+    mock_heimdall_bytecode(success=False, decompile_error="panik")
     report = deep_scan_address(EVM_ADDR)
     assert report.risk_scores["decompiled"]["success"] is False
     assert report.risk_scores["decompiled"]["risk_level"] == 0
     assert any("decompile incomplete" in f["message"] for f in report.findings)
 
 
-def test_slither_high_impact(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.slither_analyzer.analyze_source",
-        lambda source, solc_version=None: _slither_result(
-            success=True, detectors=[{"check": "unprotected-withdraw", "impact": "High", "description": "x"}]
-        ),
+def test_slither_high_impact(stub_modules: None, mock_slither_analyzer, mock_is_security_relevant) -> None:
+    mock_slither_analyzer(
+        success=True,
+        detectors=[{"check": "unprotected-withdraw", "impact": "High", "description": "x"}],
     )
-    monkeypatch.setattr("app.slither_analyzer.is_security_relevant", lambda check: check == "unprotected-withdraw")
+    mock_is_security_relevant(lambda check: check == "unprotected-withdraw")
     report = deep_scan_address(EVM_ADDR, source_code="pragma solidity ^0.8.0; contract C {}")
     assert report.risk_scores["slither"]["risk_level"] == 2
     assert any("high-impact security-relevant" in f["message"] for f in report.findings)
     assert report.overall_risk == "high"
 
 
-def test_slither_medium_impact(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.slither_analyzer.analyze_source",
-        lambda source, solc_version=None: _slither_result(
-            success=True, detectors=[{"check": "assembly", "impact": "Medium", "description": "x"}]
-        ),
+def test_slither_medium_impact(stub_modules: None, mock_slither_analyzer, mock_is_security_relevant) -> None:
+    mock_slither_analyzer(
+        success=True,
+        detectors=[{"check": "assembly", "impact": "Medium", "description": "x"}],
     )
-    monkeypatch.setattr("app.slither_analyzer.is_security_relevant", lambda check: True)
+    mock_is_security_relevant(lambda check: True)
     report = deep_scan_address(EVM_ADDR, source_code="pragma solidity ^0.8.0; contract C {}")
     assert report.risk_scores["slither"]["risk_level"] == 1
     assert report.overall_risk == "medium"
@@ -370,14 +460,14 @@ def test_slither_skipped_without_source(stub_modules: None) -> None:
     assert report.risk_scores["slither"]["risk_level"] == 0
 
 
-def test_solana_skips_evm_only_modules(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_solana_skips_evm_only_modules(stub_modules: None, mock_fetch_code) -> None:
     fetch_called: list[bool] = []
 
     def spy_fetch(*args: Any, **kwargs: Any) -> str:
         fetch_called.append(True)
         return CONTRACT_CODE
 
-    monkeypatch.setattr(deep_scan, "_fetch_code", spy_fetch)
+    mock_fetch_code(spy_fetch)
     report = deep_scan_address(SOLANA_ADDR)
 
     assert report.chain == "solana"
@@ -388,15 +478,15 @@ def test_solana_skips_evm_only_modules(stub_modules: None, monkeypatch: pytest.M
     assert report.risk_scores["fraud_gnn"]["risk_level"] == 0
 
 
-def test_eoa_no_code_path(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_eoa_no_code_path(stub_modules: None, mock_heimdall_bytecode, mock_fetch_code) -> None:
     analyze_called: list[bool] = []
 
     def spy_analyze(code: str, **kwargs: Any) -> Any:
         analyze_called.append(True)
         return _decompiled(success=True)
 
-    monkeypatch.setattr("app.heimdall_bytecode.analyze_bytecode", spy_analyze)
-    monkeypatch.setattr(deep_scan, "_fetch_code", lambda rpc_urls, address, timeout: "0x")
+    mock_heimdall_bytecode(fn=spy_analyze)
+    mock_fetch_code("0x")
     report = deep_scan_address(EVM_ADDR)
 
     assert not analyze_called, "analyze_bytecode must not run when there is no code"
@@ -422,91 +512,28 @@ def test_module_exception_becomes_error_finding(stub_modules: None, monkeypatch:
     assert report.overall_risk == "low"
 
 
-def test_every_module_failing_still_returns_report(stub_modules: None, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.fraud_gnn.get_fraud_gnn", lambda: (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setattr("app.pyod_anomaly.get_pyod_anomaly", lambda: (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setattr("app.pygod_anomaly.get_pygod_anomaly", lambda: (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setattr(
-        "app.heimdall_bytecode.analyze_bytecode", lambda code, **kw: (_ for _ in ()).throw(RuntimeError("x"))
-    )
-    monkeypatch.setattr(
-        "app.pyrevm_engine.simulate_sell_round_trip",
-        lambda address, chain="ethereum": (_ for _ in ()).throw(RuntimeError("x")),
-    )
-    monkeypatch.setattr(
-        "app.slither_analyzer.analyze_source",
-        lambda source, solc_version=None: (_ for _ in ()).throw(RuntimeError("x")),
-    )
+@pytest.fixture
+def failing_modules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch every heavy module to fail hard - the scan must still return a report."""
 
+    def _boom(*args, **kwargs):
+        raise RuntimeError("x")
+
+    for target in (
+        "app.fraud_gnn.get_fraud_gnn",
+        "app.pyod_anomaly.get_pyod_anomaly",
+        "app.pygod_anomaly.get_pygod_anomaly",
+        "app.heimdall_bytecode.analyze_bytecode",
+        "app.pyrevm_engine.simulate_sell_round_trip",
+        "app.slither_analyzer.analyze_source",
+    ):
+        monkeypatch.setattr(target, _boom)
+
+
+def test_every_module_failing_still_returns_report(stub_modules: None, failing_modules: None) -> None:
     report = deep_scan_address(EVM_ADDR, transfers=[{"from_addr": "0x" + "aa" * 20, "to_addr": "0x" + "bb" * 20}])
 
     assert report.overall_risk == "low"
     error_findings = [f for f in report.findings if f["level"] == "error"]
     assert len(error_findings) >= 5  # fraud, pyod, pygod, heimdall, pyrevm, slither
     assert report.risk_scores["fraud_gnn"]["risk_level"] == 0
-
-
-def test_fingerprint_adapter_failure_falls_back_to_zeros(monkeypatch: pytest.MonkeyPatch) -> None:
-    def boom(address: str, **kwargs: Any) -> dict[str, Any]:
-        raise RuntimeError("adapter down")
-
-    monkeypatch.setattr("app.ml_datasets.adapters.address_to_fingerprint", boom)
-    fp = deep_scan._build_fingerprint(EVM_ADDR, "ethereum")
-    assert isinstance(fp, dict)
-    assert fp
-    assert all(isinstance(v, float) and v == 0.0 for v in fp.values())
-
-
-# ── _fetch_code (httpx mocked) ──────────────────────────────────────────────
-
-
-class _FakeResponse:
-    def __init__(self, payload: dict[str, Any] | None = None, error: Exception | None = None) -> None:
-        self._payload = payload
-        self._error = error
-
-    def raise_for_status(self) -> None:
-        if self._error is not None:
-            raise self._error
-
-    def json(self) -> dict[str, Any]:
-        return self._payload or {}
-
-
-class _FakeClient:
-    def __init__(self, payloads: list[dict[str, Any] | None], errors: list[Exception | None]) -> None:
-        self._payloads = payloads
-        self._errors = errors
-        self.calls: list[tuple[Any, Any]] = []
-
-    def __enter__(self) -> _FakeClient:
-        return self
-
-    def __exit__(self, *exc: Any) -> None:
-        return None
-
-    def post(self, url: str, json: dict[str, Any]) -> _FakeResponse:
-        idx = len(self.calls)
-        self.calls.append((url, json))
-        if idx < len(self._errors) and self._errors[idx] is not None:
-            return _FakeResponse(error=self._errors[idx])
-        return _FakeResponse(payload=self._payloads[idx] if idx < len(self._payloads) else None)
-
-
-def test_fetch_code_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = _FakeClient(payloads=[{"jsonrpc": "2.0", "result": CONTRACT_CODE}], errors=[])
-    monkeypatch.setattr(deep_scan.httpx, "Client", lambda **kwargs: client)
-    assert deep_scan._fetch_code(["https://rpc.example.invalid"], EVM_ADDR, 5.0) == CONTRACT_CODE
-    assert client.calls[0][1]["method"] == "eth_getCode"
-
-
-def test_fetch_code_skips_rpc_error_payload(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = _FakeClient(payloads=[{"jsonrpc": "2.0", "error": {"code": -32000}}], errors=[])
-    monkeypatch.setattr(deep_scan.httpx, "Client", lambda **kwargs: client)
-    assert deep_scan._fetch_code(["https://rpc.example.invalid"], EVM_ADDR, 5.0) == ""
-
-
-def test_fetch_code_all_urls_fail_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = _FakeClient(payloads=[], errors=[httpx.ConnectError("down"), httpx.ConnectError("down")])
-    monkeypatch.setattr(deep_scan.httpx, "Client", lambda **kwargs: client)
-    assert deep_scan._fetch_code(["https://a.invalid", "https://b.invalid"], EVM_ADDR, 5.0) == ""
