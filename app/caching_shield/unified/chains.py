@@ -1,7 +1,14 @@
 """Provider chain implementation for fallback and hedged execution."""
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ProviderChain:
@@ -28,12 +35,13 @@ class ProviderChain:
         return await self._fetch_sequential(**kwargs)
 
     async def _fetch_sequential(self, **kwargs: Any) -> Any | None:
-        for prov_name, fn, _rps in self._providers:
+        for _prov_name, fn, _rps in self._providers:
             try:
                 data = await fn(**kwargs)
                 if data is not None:
                     return data
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Provider {_prov_name} failed: {e}")
                 continue
         return None
 
@@ -53,10 +61,11 @@ class ProviderChain:
 
         def _harvest(done: set[asyncio.Task[Any]]) -> Any | None:
             for task in done:
-                prov_name, is_primary = pending.pop(task)
+                _prov_name, _is_primary = pending.pop(task)
                 try:
                     data = task.result()
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"Provider {_prov_name} failed: {e}")
                     continue
                 if data is not None:
                     return data

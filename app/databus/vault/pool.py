@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
-from app.databus.vault.models import ManagedKey, KeyState
+from app.databus.vault.models import KeyState, ManagedKey
 
 logger = get_logger("databus.vault.pool")
 

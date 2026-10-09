@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import logging
 import time
 from http import HTTPStatus
 from typing import Any
@@ -435,16 +434,3 @@ EXCHANGE_DOMAINS = {
 def is_known_exchange(wallet_address: str) -> str | None:
     """Check if a wallet belongs to a known exchange."""
     return KNOWN_EXCHANGE_WALLETS.get(wallet_address)
-
-
-# ─── Quick Test ───────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    # Test with a known token
-    token = "So11111111111111111111111111111111111111112"  # wSOL  # noqa: S105 — config default
-    print("Testing Free Solscan Client...")
-    data = FreeSolscanClient.token_data(token)
-    print(f"Token: {data}")
-    holders = FreeSolscanClient.token_holders_total(token)
-    print(f"Total holders: {holders}")

@@ -1,8 +1,7 @@
 """Vault key loader - loads keys from GPG pass store."""
 
+import asyncio
 import os
-import subprocess
-from typing import Any
 
 from app.core.logging import get_logger
 
@@ -27,15 +26,21 @@ class VaultKeyLoader:
         # Try vault first
         if self._vault_available:
             try:
-                result = subprocess.run(
-                    ["python3", VAULT_SCRIPT, "get", vault_path], capture_output=True, text=True, timeout=5, shell=False
+                proc = await asyncio.create_subprocess_exec(
+                    "python3",
+                    VAULT_SCRIPT,
+                    "get",
+                    vault_path,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
-                if result.returncode == 0 and result.stdout.strip():
-                    val = result.stdout.strip()
+                stdout, _ = await proc.communicate()
+                if proc.returncode == 0:
+                    val = stdout.decode().strip()
                     if val and val not in ("", "None", "***"):
                         return val
-            except subprocess.TimeoutExpired:
-                pass  # Vault unavailable, fall back to env
+            except Exception as e:
+                logger.debug("vault unavailable, falling back to env: %s", e)
 
         # Fallback to env var
         val = os.getenv(env_name, "").strip()

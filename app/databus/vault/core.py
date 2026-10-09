@@ -1,6 +1,6 @@
 """
 DataBus Vault Integration - Zero-Plaintext Key Management
-===========================================================
+==========================================================
 
 Never reads API keys from .env. Never logs them. Never exposes them in responses.
 Pulls from the GPG pass store at runtime, keeps them encrypted in memory,
@@ -17,44 +17,18 @@ Architecture:
 
 from __future__ import annotations
 
-import asyncio
 import os
 from typing import Any
 
 from app.core.logging import get_logger
+from app.databus.vault.config import PROVIDER_CONFIG
 from app.databus.vault.loader import VaultKeyLoader
 from app.databus.vault.models import KeyState, ManagedKey
 from app.databus.vault.pool import VaultKeyPool
 from app.databus.vault.registry import KEY_REGISTRY
+from app.databus.vault.singleton import resolve_key
 
 logger = get_logger("databus.vault")
-
-# Provider config: rate limits, quotas
-PROVIDER_CONFIG: dict[str, dict[str, Any]] = {
-    "helius": {"rps": 25.0, "burst": 25, "quota": 0},
-    "solana_tracker": {"rps": 3.0, "burst": 3, "quota": 2500},
-    "birdeye": {"rps": 5.0, "burst": 5, "quota": 0},
-    "solscan": {"rps": 5.0, "burst": 5, "quota": 0},
-    "moralis": {"rps": 25.0, "burst": 25, "quota": 0},
-    "etherscan": {"rps": 5.0, "burst": 5, "quota": 0},
-    "alchemy": {"rps": 25.0, "burst": 25, "quota": 0},
-    "quicknode": {"rps": 25.0, "burst": 25, "quota": 0},
-    "coingecko_pro": {"rps": 30.0, "burst": 30, "quota": 0},
-    "coinmarketcap": {"rps": 10.0, "burst": 10, "quota": 0},
-    "arkham": {"rps": 5.0, "burst": 5, "quota": 100000},
-    "goplus": {"rps": 5.0, "burst": 5, "quota": 0},
-    "nansen": {"rps": 5.0, "burst": 5, "quota": 0},
-    "dune": {"rps": 5.0, "burst": 5, "quota": 0},
-    "openrouter": {"rps": 20.0, "burst": 30, "quota": 0},
-    "deepseek": {"rps": 50.0, "burst": 100, "quota": 0},
-    "gemini": {"rps": 15.0, "burst": 20, "quota": 0},
-    "blockscout": {"rps": 5.0, "burst": 5, "quota": 0},
-    "bitquery": {"rps": 5.0, "burst": 5, "quota": 0},
-    "lunarcrush": {"rps": 5.0, "burst": 5, "quota": 0},
-    "thegraph": {"rps": 5.0, "burst": 5, "quota": 0},
-    "apify": {"rps": 5.0, "burst": 5, "quota": 0},
-    "getxapi": {"rps": 1.0, "burst": 2, "quota": 100000},
-}
 
 
 class DataBusVault:
@@ -163,59 +137,6 @@ class DataBusVault:
             "providers": {name: pool.status() for name, pool in self.pools.items()},
         }
 
-    def capacity_report(self) -> dict[str, Any]:
-        """Generate capacity analysis with recommendations."""
-        bottlenecks = []
-        recommendations = []
-        providers = {}
-
-        for name, pool in self.pools.items():
-            total_keys = len(pool.keys)
-            combined_rps = pool.rate_rps * total_keys
-            combined_quota = pool.monthly_quota * total_keys if pool.monthly_quota > 0 else None
-            active = sum(1 for k in pool.keys if k.is_available())
-
-            status = "OK"
-            if combined_rps < 10:
-                status = "LOW_RPS"
-                bottlenecks.append(f"{name}: {combined_rps:.0f} RPS from {total_keys} key(s)")
-            if combined_quota and combined_quota < 10000:
-                status = "LOW_QUOTA"
-                bottlenecks.append(f"{name}: {combined_quota}/mo across {total_keys} key(s)")
-            if total_keys == 1 and pool.rate_rps < 10:
-                status = "SINGLE_KEY_LIMITED"
-                recommendations.append(f"Get 2-3 more {name} free accounts for pool rotation")
-
-            providers[name] = {
-                "keys": total_keys,
-                "active": active,
-                "rps_per_key": pool.rate_rps,
-                "combined_rps": combined_rps,
-                "monthly_quota": combined_quota,
-                "status": status,
-            }
-
-        # Auto-recommendations for free tier expansion
-        free_tier_accounts = {
-            "helius": "https://dev.helius.xyz - 3 free accounts = 75 RPS",
-            "moralis": "https://admin.moralis.io - 3 free accounts = 75 RPS",
-            "etherscan": "https://etherscan.io/register - multiple free keys",
-            "birdeye": "https://birdeye.io - free tier available",
-            "solscan": "https://solscan.io - Pro API free tier",
-        }
-        for prov, info in free_tier_accounts.items():
-            if prov in providers and providers[prov]["status"] != "OK":
-                recommendations.append(f"FREE: Create more {prov} accounts at {info}")
-
-        return {
-            "total_keys": sum(len(p.keys) for p in self.pools.values()),
-            "active_keys": sum(sum(1 for k in p.keys if k.is_available()) for p in self.pools.values()),
-            "providers": providers,
-            "bottlenecks": bottlenecks,
-            "recommendations": recommendations,
-            "free_tier_opportunities": list(free_tier_accounts.keys()),
-        }
-
     async def reload(self) -> None:
         """Force reload all keys from vault. Useful after adding new keys."""
         self._loaded = False
@@ -244,48 +165,13 @@ class DataBusVault:
                     key.state = KeyState.ACTIVE
 
 
-# ── Singleton ─────────────────────────────────────────────────────────────────
-
-_vault: DataBusVault | None = None
-
-
-async def get_vault() -> DataBusVault:
-    global _vault
-    if _vault is None:
-        _vault = DataBusVault()
-        await _vault.load()
-    return _vault
-
-
-def get_vault_sync() -> DataBusVault:
-    """Synchronous access - vault must already be loaded."""
-    global _vault
-    if _vault is None:
-        _vault = DataBusVault()
-    return _vault
-
-
-def resolve_key(key_name: str) -> str:
-    """Module-level key resolver: vault pool first, env as documented fallback.
-
-    Unlike ``get_vault_sync()`` this does NOT create the singleton — it only
-    consults the already-loaded vault (if any) so the deferred async ``load()``
-    in ``get_vault()`` is never skipped by an import-time access.
-    """
-    v = _vault
-    if v is not None and v._loaded:
-        return v.resolve_key(key_name)
-    return os.getenv(key_name, "")
-
 # Re-export public types for backward compatibility
 __all__ = [
-    "DataBusVault",
-    "ManagedKey",
-    "KeyState",
-    "VaultKeyPool",
     "KEY_REGISTRY",
     "PROVIDER_CONFIG",
-    "get_vault",
-    "get_vault_sync",
+    "DataBusVault",
+    "KeyState",
+    "ManagedKey",
+    "VaultKeyPool",
     "resolve_key",
 ]

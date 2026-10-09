@@ -115,13 +115,6 @@ class InsiderNetworkReport:
 # ── Address Validation ───────────────────────────────────────────
 
 
-def _validate_eip55_checksum(address: str) -> bool:
-    """Validate EIP-55 mixed-case checksum - delegates to shared_utils."""
-    from app.core.shared_utils import validate_eip55_checksum as _check
-
-    return _check(address)
-
-
 def is_valid_address(address: str) -> bool:
     """Validate Solana or EVM address with checksum - delegates to shared_utils."""
     from app.core.shared_utils import is_valid_address as _check
