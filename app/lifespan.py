@@ -256,38 +256,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("x_shill_ingest_background_start_failed err=%s", exc)
 
-    # 13. Scheduled Telegram channel ingest — sweeps monitored channels
-    #     (TELEGRAM_MONITORED_CHANNELS env, falling back to the enabled
-    #     news-kind registry channels) every 15 minutes and embeds the
-    #     normalized articles into Qdrant news_v2.
-    tg_ingest_task = None
-    try:
-        import asyncio as _asyncio
-        import os as _os
+    # 13-14. Scheduled news ingest (Telegram + Pryscraper) - extracted to lifespan_ingest.
+    from app.lifespan_ingest import start_pryscraper_ingest, start_telegram_ingest
 
-        from app.domains.news_ingest.scheduler import start_ingest_scheduler
-
-        _tg_interval = max(5, int(_os.getenv("RMI_TG_INGEST_INTERVAL_MINUTES", "15")))
-        tg_ingest_task = await start_ingest_scheduler(_tg_interval, first_delay_seconds=90)
-        log.info("tg_news_ingest_background_started interval_min=%d", _tg_interval)
-    except Exception as exc:
-        log.warning("tg_news_ingest_background_start_failed err=%s", exc)
-
-    # 14. Scheduled Pryscraper news ingest — searches the Pry web
-    #     intelligence engine for crypto news every 30 minutes and embeds
-    #     the quality-gated articles into Qdrant news_v2.
-    pry_ingest_task = None
-    try:
-        import asyncio as _asyncio
-        import os as _os
-
-        from app.domains.news_ingest.scheduler import start_pryscraper_scheduler
-
-        _pry_interval = max(5, int(_os.getenv("RMI_PRY_INGEST_INTERVAL_MINUTES", "30")))
-        pry_ingest_task = await start_pryscraper_scheduler(_pry_interval, first_delay_seconds=120)
-        log.info("pryscraper_news_ingest_background_started interval_min=%d", _pry_interval)
-    except Exception as exc:
-        log.warning("pryscraper_news_ingest_background_start_failed err=%s", exc)
+    tg_ingest_task = await start_telegram_ingest()
+    pry_ingest_task = await start_pryscraper_ingest()
 
     # 15. Wallet label RAG sync — embeds newly labeled wallets into the Qdrant
     #     ``wallet_labels`` collection and runs auto_expand_labels to suggest

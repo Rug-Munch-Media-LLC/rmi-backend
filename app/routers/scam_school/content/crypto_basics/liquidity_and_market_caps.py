@@ -25,7 +25,7 @@ liquidity_and_market_caps = {
                     "The token has strong community backing",
                 ],
                 "correct": 1,
-                "explanation": "Market cap = price × supply. High market cap with low liquidity means the price would collapse the moment anyone tries to sell. It's a mirage — your 'value' can't be realized.",
+                "explanation": "Market cap = price x supply. High market cap with low liquidity means the price would collapse the moment anyone tries to sell. It's a mirage — your 'value' can't be realized.",
             },
             {
                 "type": "interactive",
