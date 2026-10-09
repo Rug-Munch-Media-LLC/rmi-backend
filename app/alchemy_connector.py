@@ -1,6 +1,5 @@
 """
-Alchemy Connector - NFT API, Enhanced APIs, Transaction API.
-Free tier: 300M compute credits/month (~10M/day).
+Alchemy Connector - NFT API, Enhanced APIs, Transaction API. Free tier: 300M compute credits/month (~10M/day).
 Supports: Ethereum, Polygon, Arbitrum, Optimism, Base, Solana (via partnerships).
 
 Key features:
@@ -25,12 +24,7 @@ from app.databus.vault import resolve_key
 logger = get_logger(__name__)
 
 # Circuit breaker for Alchemy API
-_alchemy_cb = AsyncCircuitBreaker(
-    name="alchemy",
-    failure_threshold=5,
-    failure_window=60.0,
-    recovery_timeout=30.0,
-)
+_alchemy_cb = AsyncCircuitBreaker(name="alchemy", failure_threshold=5, failure_window=60.0, recovery_timeout=30.0)
 
 # ── API Keys ────────────────────────────────────────────────
 
