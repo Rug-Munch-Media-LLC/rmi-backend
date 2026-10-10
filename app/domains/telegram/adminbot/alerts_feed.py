@@ -27,8 +27,11 @@ from typing import Any
 from app.core.logging import get_logger
 from app.domains.telegram.adminbot.alerts_render import (
     QUEUE_KEYS,
+    SECURITY_QUEUE as SECURITY_QUEUE,  # explicit re-export (tests import from this module)
+    SYSTEM_QUEUE as SYSTEM_QUEUE,  # explicit re-export
     AlertDedupe,
     _deliver,
+    fingerprint as fingerprint,  # explicit re-export
     format_alert,
     redis_should_send,
 )

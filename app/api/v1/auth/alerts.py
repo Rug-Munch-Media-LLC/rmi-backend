@@ -49,7 +49,11 @@ async def list_alerts() -> AlertList:
     return AlertList(count=0, items=[])
 
 
-@router.post("", status_code=501)
+@router.post(
+    "",
+    status_code=501,
+    responses={201: {"description": "Alert rule created (contract; returns 501 until persistence is wired)"}},
+)
 async def create_alert(rule: AlertRule) -> dict[str, str]:
     """Create a new alert rule.
 
@@ -62,7 +66,11 @@ async def create_alert(rule: AlertRule) -> dict[str, str]:
     )
 
 
-@router.delete("/{rule_id}", status_code=501)
+@router.delete(
+    "/{rule_id}",
+    status_code=501,
+    responses={204: {"description": "Alert rule deleted (contract; returns 501 until persistence is wired)"}},
+)
 async def delete_alert(rule_id: str) -> dict[str, str]:
     """Delete an alert rule by ID."""
     raise HTTPException(

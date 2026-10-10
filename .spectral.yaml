@@ -33,16 +33,10 @@ rules:
         notMatch: "^basic$"
 
   # ── Responses ─────────────────────────────────────────
-  operation-success-response:
-    description: "Operations must have at least one 2xx response"
-    severity: error
-    recommended: true
-    given: "$.paths[*][*].responses"
-    then:
-      field: "@key"
-      function: pattern
-      functionOptions:
-        match: "^2"
+  # NOTE: the custom override was REMOVED 2026-10-10. As written it pattern-matched
+  # EVERY response key (flagging each 4xx/5xx entry — 650+ false errors), not the
+  # operation's success response. The built-in `spectral:oas` rule with the same
+  # name enforces "at least one 2xx response" correctly.
 
   # ── Schema quality ────────────────────────────────────
   schema-description:
