@@ -18,6 +18,8 @@ from app.core.errors import AppError
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 from app.features import get_token_scanner, get_wallet_scanner
+from app.config import settings
+from app.domains.scanner.read_side import fetch_read_side
 
 if TYPE_CHECKING:
     from app.domains.scanner.unified import UnifiedTokenScanner
@@ -298,6 +300,10 @@ async def _run_scan(
             scan_mode=scan_mode,
         )
         payload = _format_scan_response(result, scan_mode=scan_mode)
+        if settings.scanner_service_url:
+            read_side_data = await fetch_read_side(body.address, body.chain)
+            if read_side_data is not None:
+                payload["read_side_scan"] = read_side_data
         # DexScreener enrichment (icons/socials/dev info) — best-effort merge.
         payload.update(await _enrich_token_metadata(body.chain, body.address))
         return await _attach_rug_prediction(await _attach_ai_verdict(payload), scan_mode)

@@ -457,6 +457,10 @@ class Settings(BaseSettings):
         default="",
         description="Ethereum labels API URL. Auto-derived if empty.",
     )
+    scanner_service_url: str = Field(
+        default="",
+        description="Standalone rugmunch-scanner service URL. Set SCANNER_SERVICE_URL env var (e.g. http://127.0.0.1:8098). Default empty = feature disabled.",
+    )
     llama_rag_enabled: bool = Field(
         default=False,
         description=(
