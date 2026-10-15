@@ -18,16 +18,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import logging
-import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import feedparser
 import httpx
-
-log = logging.getLogger(__name__)
+from _news_feed_client import fetch_with_retry
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCES_FILE = REPO_ROOT / "app" / "databus" / "unified_news_sources.json"
@@ -38,11 +35,6 @@ DEFAULT_CONCURRENCY = 4
 DEFAULT_TIMEOUT_SECONDS = 10.0
 DEFAULT_MAX_AGE_DAYS = 30
 
-# A browser UA, deliberately: the bot-identifying UA got 403/429 from
-# Cloudflare-protected feeds and mis-flagged live sources as DEAD
-# (the Substack block of 2026-08-13 was entirely this — all 9 feeds
-# answered real RSS to a browser UA).
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 VERIFIED = "VERIFIED"
 DEAD = "DEAD"
@@ -63,48 +55,16 @@ def _entry_datetime(entry: dict[str, Any]) -> datetime | None:
     return None
 
 
-def _fetch_feed(url: str, timeout_seconds: float) -> tuple[int, str]:
-    """Fetch a feed with a browser TLS fingerprint when available.
-
-    httpx's TLS signature is blocked (403) by Cloudflare-protected feeds that
-    answer curl/urllib fine — the Substack block of 2026-08-13 was entirely
-    this. curl_cffi impersonates a real Chrome handshake, so blocked feeds
-    classify correctly. Falls back to httpx when curl_cffi is absent.
-    """
-    try:
-        from curl_cffi import requests as cffi_requests  # type: ignore[import-not-found]
-
-        r = cffi_requests.get(url, impersonate="chrome", timeout=timeout_seconds, allow_redirects=True)
-        return int(r.status_code), r.text
-    except ImportError:
-        pass
-    except Exception as exc:  # curl_cffi fetch failure -> httpx fallback
-        log.debug("curl_cffi fallback for %s: %s", url, exc)
-    r = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout_seconds, follow_redirects=True)
-    return r.status_code, r.text
-
-
 def _classify_feed(
     url: str,
     max_age_days: int,
     timeout_seconds: float,
 ) -> tuple[str, datetime | None, int, str | None]:
     """Fetch + parse one feed URL; returns (status, last_good, item_count, error)."""
-    status_code = 0
-    text = ""
-    for attempt in range(2):
-        try:
-            status_code, text = _fetch_feed(url, timeout_seconds)
-        except (httpx.HTTPError, TimeoutError, OSError) as exc:
-            if attempt == 0:
-                time.sleep(1.5)
-                continue
-            return DEAD, None, 0, f"fetch error: {exc.__class__.__name__}: {exc}"
-        if status_code in (429, 403, 202) and attempt == 0:
-            # Throttle/WAF answers are NOT death — retry once, gently.
-            time.sleep(4.0)
-            continue
-        break
+    try:
+        status_code, text = fetch_with_retry(url, timeout_seconds)
+    except (httpx.HTTPError, TimeoutError, OSError) as exc:
+        return DEAD, None, 0, f"fetch error: {exc.__class__.__name__}: {exc}"
 
     if status_code != 200:
         return DEAD, None, 0, f"HTTP {status_code}"
