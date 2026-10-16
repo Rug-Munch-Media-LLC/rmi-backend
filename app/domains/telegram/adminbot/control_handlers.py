@@ -122,93 +122,130 @@ async def _do_trigger(query: CallbackQuery, token: str) -> None:
     )
 
 
+async def _tap_units(query: CallbackQuery) -> None:
+    await query.edit_message_text(UNITS_TEXT, parse_mode=ParseMode.HTML, reply_markup=units_keyboard())
+
+
+async def _tap_gates(query: CallbackQuery) -> None:
+    result = control_ops.gate_status()
+    await query.edit_message_text(
+        f"{GATES_TEXT}\n<pre>{_fmt(result)}</pre>", parse_mode=ParseMode.HTML, reply_markup=gates_keyboard()
+    )
+
+
+async def _tap_dataops(query: CallbackQuery) -> None:
+    await query.edit_message_text(
+        "🗄 <b>Data Ops</b> — each trigger asks for confirmation.",
+        parse_mode=ParseMode.HTML,
+        reply_markup=data_ops_keyboard(),
+    )
+
+
+async def _tap_vitals(query: CallbackQuery) -> None:
+    result = control_ops.host_vitals()
+    await query.edit_message_text(
+        f"📈 <b>Host Vitals</b>\n<pre>{_fmt(result)}</pre>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_button("main"),
+    )
+
+
+async def _tap_failed(query: CallbackQuery) -> None:
+    result = control_ops.failed_units()
+    body = _fmt(result) or "🟢 no failed units"
+    await query.edit_message_text(
+        f"🔴 <b>Failed Units</b>\n<pre>{body}</pre>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_button("main"),
+    )
+
+
+async def _tap_unit_card(query: CallbackQuery, data: str, prefix: str) -> None:
+    parsed = control_ops.parse_unit_key(data[len(prefix) :])
+    if parsed:
+        await _show_unit_card(query, *parsed)
+
+
+async def _tap_logs(query: CallbackQuery, data: str) -> None:
+    parsed = control_ops.parse_unit_key(data[len("ctl_logs_") :])
+    if not parsed:
+        return
+    kind, name = parsed
+    result = control_ops.unit_logs(kind, name, 40)
+    await query.edit_message_text(
+        f"📜 <b>{kind}:{name}</b> (last 40)\n<pre>{_fmt(result)}</pre>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=unit_card_keyboard(kind, name),
+    )
+
+
+async def _tap_ask(query: CallbackQuery, data: str) -> None:
+    action, _, key = data[len("ctl_ask_") :].partition("_")
+    if action == "trigger":
+        token = control_actions.mint_token("trigger", "data", key)
+        await query.edit_message_text(
+            f"⚠️ <b>Confirm trigger</b>\n\nQueue data op <code>{key}</code>?\n"
+            f"<i>Expires in {control_actions.CONFIRM_TTL_SECONDS}s.</i>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=confirm_keyboard("trigger", "data", key, token),
+        )
+        return
+    parsed = control_ops.parse_unit_key(key)
+    if parsed:
+        await _ask_confirm(query, action, *parsed)
+
+
+async def _tap_do(query: CallbackQuery, data: str) -> None:
+    action, _, token = data[len("ctl_do_") :].partition("_")
+    if action == "trigger":
+        await _do_trigger(query, token)
+    else:
+        await _do_action(query, action, token)
+
+
+async def _tap_cancel(query: CallbackQuery) -> None:
+    await query.edit_message_text("❌ Cancelled.", reply_markup=back_button("ctl_units"))
+
+
+# Exact-match buttons → handler. Prefix buttons are handled in _tap_prefixed.
+_EXACT_TAPS = {
+    "ctl_units": _tap_units,
+    "ctl_gates": _tap_gates,
+    "ctl_dataops": _tap_dataops,
+    "ctl_vitals": _tap_vitals,
+    "ctl_failed": _tap_failed,
+    "ctl_no_": _tap_cancel,
+}
+
+
+async def _tap_prefixed(query: CallbackQuery, data: str) -> bool:
+    """Dispatch a ``ctl_*`` prefix button. Returns True when handled."""
+    if data.startswith("ctl_unit_"):
+        await _tap_unit_card(query, data, "ctl_unit_")
+    elif data.startswith("ctl_status_"):
+        await _tap_unit_card(query, data, "ctl_status_")
+    elif data.startswith("ctl_logs_"):
+        await _tap_logs(query, data)
+    elif data.startswith("ctl_ask_"):
+        await _tap_ask(query, data)
+    elif data.startswith("ctl_do_"):
+        await _tap_do(query, data)
+    else:
+        return False
+    return True
+
+
 async def on_control_tap(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Route every ``ctl_*`` callback. One branch per button."""
     query: Any = update.callback_query
     await query.answer()
     data: str = query.data or ""
 
-    if data == "ctl_units":
-        await query.edit_message_text(UNITS_TEXT, parse_mode=ParseMode.HTML, reply_markup=units_keyboard())
+    exact = _EXACT_TAPS.get(data)
+    if exact is not None:
+        await exact(query)
         return
-    if data == "ctl_gates":
-        result = control_ops.gate_status()
-        await query.edit_message_text(
-            f"{GATES_TEXT}\n<pre>{_fmt(result)}</pre>", parse_mode=ParseMode.HTML, reply_markup=gates_keyboard()
-        )
-        return
-    if data == "ctl_dataops":
-        await query.edit_message_text(
-            "🗄 <b>Data Ops</b> — each trigger asks for confirmation.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=data_ops_keyboard(),
-        )
-        return
-    if data == "ctl_vitals":
-        result = control_ops.host_vitals()
-        await query.edit_message_text(
-            f"📈 <b>Host Vitals</b>\n<pre>{_fmt(result)}</pre>",
-            parse_mode=ParseMode.HTML,
-            reply_markup=back_button("main"),
-        )
-        return
-    if data == "ctl_failed":
-        result = control_ops.failed_units()
-        body = _fmt(result) or "🟢 no failed units"
-        await query.edit_message_text(
-            f"🔴 <b>Failed Units</b>\n<pre>{body}</pre>",
-            parse_mode=ParseMode.HTML,
-            reply_markup=back_button("main"),
-        )
-        return
-
-    if data.startswith("ctl_unit_"):
-        parsed = control_ops.parse_unit_key(data[len("ctl_unit_") :])
-        if parsed:
-            await _show_unit_card(query, *parsed)
-        return
-    if data.startswith("ctl_status_"):
-        parsed = control_ops.parse_unit_key(data[len("ctl_status_") :])
-        if parsed:
-            await _show_unit_card(query, *parsed)
-        return
-    if data.startswith("ctl_logs_"):
-        parsed = control_ops.parse_unit_key(data[len("ctl_logs_") :])
-        if parsed:
-            kind, name = parsed
-            result = control_ops.unit_logs(kind, name, 40)
-            await query.edit_message_text(
-                f"📜 <b>{kind}:{name}</b> (last 40)\n<pre>{_fmt(result)}</pre>",
-                parse_mode=ParseMode.HTML,
-                reply_markup=unit_card_keyboard(kind, name),
-            )
-        return
-    if data.startswith("ctl_ask_"):
-        rest = data[len("ctl_ask_") :]
-        action, _, key = rest.partition("_")
-        if action == "trigger":
-            token = control_actions.mint_token("trigger", "data", key)
-            await query.edit_message_text(
-                f"⚠️ <b>Confirm trigger</b>\n\nQueue data op <code>{key}</code>?\n"
-                f"<i>Expires in {control_actions.CONFIRM_TTL_SECONDS}s.</i>",
-                parse_mode=ParseMode.HTML,
-                reply_markup=confirm_keyboard("trigger", "data", key, token),
-            )
-            return
-        parsed = control_ops.parse_unit_key(key)
-        if parsed:
-            await _ask_confirm(query, action, *parsed)
-        return
-    if data.startswith("ctl_do_"):
-        rest = data[len("ctl_do_") :]
-        action, _, token = rest.partition("_")
-        if action == "trigger":
-            await _do_trigger(query, token)
-        else:
-            await _do_action(query, action, token)
-        return
-    if data.startswith("ctl_no_"):
-        await query.edit_message_text("❌ Cancelled.", reply_markup=back_button("ctl_units"))
+    if await _tap_prefixed(query, data):
         return
 
     logger.warning("ctl UNHANDLED data=%s", data)
