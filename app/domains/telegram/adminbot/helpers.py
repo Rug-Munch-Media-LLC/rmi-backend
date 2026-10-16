@@ -136,7 +136,15 @@ async def edit_or_reply(
 
 
 def main_menu_keyboard() -> Any:
-    """Categorized main menu — each section expands to a sub-menu."""
+    """Top-tier categorized main menu — 3 sections per row, clear grouping.
+
+    Layout (top → bottom):
+      Row 1  📊 System   🐳 Docker   🗄️ Data
+      Row 2  🤖 AI       🤖 Bots     🚨 Alerts
+      Row 3  ⚙️ Ops      🔧 Tools    ⚡ Quick Ops
+      Row 4  🔄 Status   📊 Health   🩺 Self-Test
+    Every button resolves to a real handler (verified 2026-10-16).
+    """
     return InlineKeyboardMarkup(
         [
             [
@@ -164,7 +172,10 @@ def main_menu_keyboard() -> Any:
 
 
 def control_panel_keyboard() -> Any:
-    """/start control panel: quick actions + navigation to sub-menus."""
+    """/start control panel: quick actions + navigation to sub-menus.
+
+    Top-tier layout — the four most-used actions first, then the section grid.
+    """
     return InlineKeyboardMarkup(
         [
             [

@@ -49,7 +49,25 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    await cmd_start(update, ctx)
+    """Categorized help — the command reference plus the interactive menu.
+
+    /start is the control panel (live status + quick actions); /help is the
+    reference (what every command does). They are deliberately different.
+    """
+    if update.message is None:
+        return
+    lines = ["🛡️ *RMI Admin Bot — Help*\n", "Tap a section below, or use a command:\n"]
+    for section, cmds in _COMMANDS_REFERENCE:
+        lines.append(f"*{section}*")
+        for name, desc in cmds:
+            lines.append(f"  `/{name}` — {desc}")
+        lines.append("")
+    lines.append("_Plain English works too: “restart nginx”, “disk”, “status”._")
+    await update.message.reply_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=main_menu_keyboard(),
+    )
 
 
 #: Command reference for /commands — grouped by category. Every entry here

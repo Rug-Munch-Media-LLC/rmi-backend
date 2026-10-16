@@ -87,8 +87,13 @@ def find_handler(
     Keeping resolution in one place means a new button is added in SECTIONS and
     dispatched by namespace — the two cannot drift apart.
     """
-    if callback_data in {"menu:refresh", "noop"}:
+    if callback_data == "menu:refresh":
         return ("menu", "refresh")
+    if callback_data == "noop":
+        # Section headers are non-interactive labels. Resolve them to a
+        # no-op that re-renders the board instead of falling through to the
+        # "Unhandled action" branch (dead button until 2026-10-16).
+        return ("menu", "noop")
     namespace, _, action = callback_data.partition(":")
     known = {data for _, buttons in SECTIONS for _, data in buttons}
     if callback_data in known:

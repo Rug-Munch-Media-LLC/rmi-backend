@@ -61,7 +61,7 @@ async def on_tap(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await query.edit_message_text("❓ Unknown button.")
         return
     namespace, action = resolved
-    if resolved == ("menu", "refresh"):
+    if resolved == ("menu", "refresh") or resolved == ("menu", "noop"):
         await query.edit_message_text(MENU_TEXT, reply_markup=build_menu())
         return
     await query.edit_message_text("⏳ Running…")

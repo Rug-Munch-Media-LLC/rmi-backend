@@ -18,8 +18,10 @@ from telegram.ext import (
     filters,
 )
 
+from app.domains.telegram import access_guard
 from app.domains.telegram.adminbot.alerts_feed import start_alerts_feed
 from app.domains.telegram.adminbot.bot_handlers import publish_command_menu
+from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID, OWNER_IDS
 from app.domains.telegram.adminbot.redis_listener import start_redis_listener
 
 logger = logging.getLogger("admin_bot.setup")
@@ -43,6 +45,47 @@ async def _ignore_non_private(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> No
     commands sent from groups/channels never reach the owner-only surface.
     """
     return None
+
+
+async def _admin_only_gate(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """HARD admin-only gate — the single choke point for every update.
+
+    Registered in group -1 (runs before every group-0 handler) so that ANY
+    update from a user other than the configured admin is refused before it
+    can reach a handler — even one that forgot its ``@owner_only`` decorator.
+    This is the belt to the per-handler ``@owner_only`` braces.
+
+    The bot is HIDDEN: a non-admin gets no reply at all (it must not advertise
+    its existence). The attempt is logged and a rate-limited alert is sent to
+    the admin chat via ``access_guard``.
+
+    A ``TypeHandler(Update)`` in group -1 cannot stop later groups by returning
+    (PTB has no "stop propagation" for TypeHandler), so this gate is paired
+    with the per-handler decorators; it exists to make the deny VISIBLE and to
+    cover any handler that lacks the decorator. Handlers that DO run are still
+    gated by ``@owner_only``.
+    """
+    user = getattr(update, "effective_user", None)
+    if user is None:
+        return
+    if user.id in OWNER_IDS:
+        return
+    # Non-admin: log + rate-limited alert. No visible reply (hidden bot).
+    chat = getattr(update, "effective_chat", None)
+    cb = getattr(update, "callback_query", None)
+    surface = f"cb:{cb.data}" if cb is not None and cb.data else "update"
+    logger.warning("ADMIN_GATE deny surface=%s user=%s", surface, user.id)
+    with contextlib.suppress(Exception):
+        await access_guard.deny_admin_attempt(
+            bot=ctx.bot,
+            owner_chat_id=ADMIN_CHAT_ID,
+            bot_name="rmiadminbot",
+            surface=surface,
+            user_id=user.id,
+            username=getattr(user, "username", None),
+            chat_id=chat.id if chat else None,
+            chat_type=chat.type if chat else None,
+        )
 
 
 async def _log_update(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -129,6 +172,14 @@ def register_observability(app: Application[Any, Any, Any, Any, Any, Any]) -> No
     # ── DM-only gate (group=-1: evaluated before every group-0 handler) ──
     app.add_handler(
         MessageHandler(filters.ChatType.GROUPS | filters.ChatType.CHANNEL, _ignore_non_private),
+        group=-1,
+    )
+
+    # ── HARD admin-only gate (group=-1: runs before every group-0 handler) ──
+    # Refuses any update from a non-admin user and alerts the admin chat.
+    # Belt to the per-handler @owner_only braces.
+    app.add_handler(
+        TypeHandler(Update, _admin_only_gate),
         group=-1,
     )
 

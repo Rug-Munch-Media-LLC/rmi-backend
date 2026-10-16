@@ -175,3 +175,20 @@ def register_canonical_commands(app: Application[Any, Any, Any, Any, Any, Any]) 
     app.add_handler(CommandHandler("community", cmd_community))
     app.add_handler(CommandHandler("selftest", cmd_selftest))
     app.add_handler(CommandHandler("admin_bot_users", cmd_admin_bot_users))
+
+
+#: Natural-language router targets — the subset of commands the plain-text
+#: handler may execute. Keys are the command names emitted by chat/intents.py;
+#: values are the SAME handler functions registered above, so a translated
+#: phrase runs one implementation, not two.
+COMMAND_HANDLERS: dict[str, Any] = {
+    "status": cmd_status,
+    "disk": cmd_disk,
+    "mem": cmd_mem,
+    "dps": cmd_dps,
+    "uptime": cmd_uptime,
+    "alerts": cmd_alerts,
+    "deploy": cmd_deploy,
+    "git": cmd_git,
+    "admin_backup_status": cmd_backup_status,
+}

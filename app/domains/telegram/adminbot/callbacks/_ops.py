@@ -97,6 +97,19 @@ async def handle(data: str, query: CallbackQuery) -> bool:
         )
         return True
 
+    # ── Service list (exact match — MUST precede the generic svc_* branch,
+    #    which would otherwise parse "svc_list" as action="list", svc="" and
+    #    silently no-op. This was a dead button until 2026-10-16.) ──
+    elif data == "svc_list":
+        await query.edit_message_text("⏳ Listing services...")
+        result = admin_server.services_report(filter_str="")
+        await query.edit_message_text(
+            admin_server.format_services(result),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=refresh_keyboard("svc_list", extra=[("📜 Logs", "svc_logs_menu")]),
+        )
+        return True
+
     # ── Services ──
     elif data.startswith("svc_") and "_confirm_" in data:
         # svc_<action>_confirm_<service> — execute the confirmed action.
