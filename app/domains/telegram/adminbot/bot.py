@@ -99,6 +99,17 @@ def main() -> None:
     except Exception as exc:  # menu is optional, never fatal
         logger.warning("telegram menu not registered: %s", exc)
 
+    # Server-control surface (/units, /gates, /dataops + ctl_* callbacks).
+    # Additive: a failure here must never stop the bot from starting.
+    try:
+        from app.domains.telegram.adminbot.control_handlers import (
+            register as register_control,
+        )
+
+        register_control(app)
+    except Exception as exc:  # control surface is optional, never fatal
+        logger.warning("server-control handlers not registered: %s", exc)
+
     app.run_polling(drop_pending_updates=True)
 
 

@@ -10,12 +10,9 @@ Architecture:
 No tool anywhere in the system makes a raw HTTP call. Period.
 """
 
-from app.caching_shield.unified.layer import (
-    TieredCache,
-    ToolResult,
-    UnifiedDataLayer,
-    get_data_layer,
-)
+from app.caching_shield.unified.cache import TieredCache
+from app.caching_shield.unified.layer import UnifiedDataLayer, get_data_layer
+from app.caching_shield.unified.models import ToolResult
 
 __all__ = [
     "TieredCache",

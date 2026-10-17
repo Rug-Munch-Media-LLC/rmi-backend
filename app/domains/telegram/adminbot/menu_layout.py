@@ -45,6 +45,11 @@ def main_menu_keyboard() -> Any:
                 InlineKeyboardButton("📊 Health", callback_data="health"),
                 InlineKeyboardButton("🩺 Self-Test", callback_data="selftest_run"),
             ],
+            [
+                InlineKeyboardButton("🖥 Units", callback_data="ctl_units"),
+                InlineKeyboardButton("🚦 Gates", callback_data="ctl_gates"),
+                InlineKeyboardButton("🗄 Data Ops", callback_data="ctl_dataops"),
+            ],
         ]
     )
 
@@ -77,5 +82,10 @@ def control_panel_keyboard() -> Any:
                 InlineKeyboardButton("⚙️ Ops", callback_data="menu_ops"),
             ],
             [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
+            [
+                InlineKeyboardButton("🖥 Units", callback_data="ctl_units"),
+                InlineKeyboardButton("🚦 Gates", callback_data="ctl_gates"),
+            ],
+            [InlineKeyboardButton("🗄 Data Ops", callback_data="ctl_dataops")],
         ]
     )

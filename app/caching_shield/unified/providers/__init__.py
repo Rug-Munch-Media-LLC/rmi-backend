@@ -1,5 +1,6 @@
 """Unified data layer providers package."""
 
+import asyncio
 import time
 
 from app.caching_shield.unified.providers.funding_source import FundingSourceProviders
@@ -31,11 +32,9 @@ class UnifiedDataProviders(
 
     def __init__(self) -> None:
         self._token_buckets: dict[str, tuple[float, float]] = {}  # provider -> (tokens, last_refill)
-        self._bucket_lock = None  # lazy init
+        self._bucket_lock: asyncio.Lock | None = None  # lazy init
 
     def _get_lock(self):
-        import asyncio
-
         if self._bucket_lock is None:
             self._bucket_lock = asyncio.Lock()
         return self._bucket_lock

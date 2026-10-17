@@ -48,6 +48,16 @@ SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         ),
     ),
     (
+        "🎛 Control",
+        (
+            ("🖥 Units", "ctl_units"),
+            ("🚦 Gates", "ctl_gates"),
+            ("🗄 Data Ops", "ctl_dataops"),
+            ("📈 Vitals", "ctl_vitals"),
+            ("🔴 Failed units", "ctl_failed"),
+        ),
+    ),
+    (
         "🌐 Fleet",
         (
             ("📡 Fleet parity", "fleet:parity"),

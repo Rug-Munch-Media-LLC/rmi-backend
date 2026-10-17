@@ -38,7 +38,7 @@ class VaultKeyPool:
             burst=self.burst,
             monthly_quota=self.monthly_quota,
         )
-        mk._set_value(value)  # type: ignore[reportPrivateUsage]
+        mk._set_value(value)
 
         self.keys.append(mk)
 

@@ -9,7 +9,7 @@ from app.routers.market_intel.providers import _ds
 from app.routers.market_intel.utils import _safe_float
 
 
-async def _fetch_pairs_for_boosts(boosts: list[dict], semaphore_limit: int = 8) -> list[tuple[dict, Any]]:
+async def _fetch_pairs_for_boosts(boosts: list[dict[str, Any]], semaphore_limit: int = 8) -> list[tuple[dict[str, Any], Any]]:
     """Fetch pair data for a list of boosts from DexScreener."""
     sem = asyncio.Semaphore(semaphore_limit)
 

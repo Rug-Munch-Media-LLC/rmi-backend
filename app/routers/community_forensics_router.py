@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -77,10 +77,11 @@ async def list_reports(
     """List community-submitted forensic reports (newest first)."""
     try:
         r = await get_redis()
-        report_ids = await r.zrevrange("community:forensics:reports:index", offset, offset + limit - 1)
+        report_ids = cast("list[Any]", await r.zrevrange("community:forensics:reports:index", offset, offset + limit - 1))
 
         reports = []
-        for rid in report_ids:
+        for raw_id in report_ids:
+            rid = raw_id.decode() if isinstance(raw_id, bytes) else str(raw_id)
             data = await r.get(f"community:forensics:report:{rid}")
             if data:
                 report = json.loads(data)
@@ -183,10 +184,11 @@ async def get_leaderboard(
     try:
         r = await get_redis()
         key = f"community:forensics:leaderboard:{period}"
-        entries = await r.zrevrange(key, 0, 19, withscores=True)
+        entries = cast("list[tuple[Any, float]]", await r.zrevrange(key, 0, 19, withscores=True))
 
         leaderboard = []
-        for username, score in entries:
+        for raw_user, score in entries:
+            username = raw_user.decode() if isinstance(raw_user, bytes) else str(raw_user)
             # Get user stats
             stats_raw = await r.get(f"community:forensics:user:{username}")
             stats = json.loads(stats_raw) if stats_raw else {}
