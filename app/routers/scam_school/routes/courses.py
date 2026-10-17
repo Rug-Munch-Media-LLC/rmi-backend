@@ -17,6 +17,24 @@ from app.routers.scam_school.progress import ACHIEVEMENTS, BADGES, LEVELS
 courses_router = APIRouter(tags=["scam-school"])
 
 
+def _module_id(module: dict[str, Any], index: int) -> str:
+    """Stable id for a course module.
+
+    36 of the authored modules ship without an ``id`` key; the list endpoint
+    used to raise KeyError: 'id' and 500 the whole Scam School page. Derive a
+    deterministic slug from the title so the id is stable across restarts and
+    matches what the detail endpoint can look up.
+    """
+    explicit = str(module.get("id") or "").strip()
+    if explicit:
+        return explicit
+    title = str(module.get("title") or "").strip().lower()
+    slug = "".join(c if c.isalnum() else "-" for c in title).strip("-")
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    return slug or f"module-{index + 1}"
+
+
 @courses_router.get("/scam-school/courses")
 async def list_courses() -> dict[str, Any]:
     """List all available courses with metadata."""
@@ -38,13 +56,13 @@ async def list_courses() -> dict[str, Any]:
                 "image_alt": c.get("image_alt"),
                 "modules": [
                     {
-                        "id": m["id"],
+                        "id": _module_id(m, i),
                         "title": m["title"],
                         "type": m["type"],
                         "duration": m["duration"],
                         "xp": m["xp"],
                     }
-                    for m in c["modules"]
+                    for i, m in enumerate(c["modules"])
                 ],
             }
             for c in COURSES
