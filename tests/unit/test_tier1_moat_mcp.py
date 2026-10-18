@@ -97,7 +97,7 @@ def test_server_version_is_set():
 
 
 def test_protocol_version_is_set():
-    """MCP protocol version must be set (2024-11-05 is the current spec)."""
+    """MCP protocol version must be set (the current spec revision is 2026-07-28)."""
     assert MCP_PROTOCOL_VERSION
     assert len(MCP_PROTOCOL_VERSION) > 5
 

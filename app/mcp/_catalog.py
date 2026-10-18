@@ -468,4 +468,4 @@ TOOL_SUCCESSORS: dict[str, str] = {}  # empty - no successor mappings yet
 
 # Server version (single source of truth for /mcp/info)
 MCP_SERVER_VERSION = "5.0.0"
-MCP_PROTOCOL_VERSION = "2024-11-05"
+MCP_PROTOCOL_VERSION = "2026-07-28"

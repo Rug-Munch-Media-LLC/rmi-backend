@@ -69,7 +69,7 @@ async def jsonrpc_handler(req: JsonRpcRequest) -> dict[str, Any]:
         return {
             "jsonrpc": "2.0",
             "result": {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": "2026-07-28",
                 "serverInfo": {
                     "name": "rugmunch-intelligence",
                     "version": MCP_SERVER_VERSION,

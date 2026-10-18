@@ -8,7 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("rmi_mcp_v3")
 
-MCP_PROTOCOL_VERSION = "2024-11-05"
+MCP_PROTOCOL_VERSION = "2026-07-28"
 SERVER_NAME = "Rug Munch Intelligence"
 SERVER_VERSION = "3.2.0"
 
