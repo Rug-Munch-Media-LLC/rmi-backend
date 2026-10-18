@@ -17,6 +17,8 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from app.mcp._catalog import MCP_PROTOCOL_VERSION
+
 router = APIRouter(tags=["mcp-quality"])
 _start_time = time.time()
 
@@ -134,7 +136,7 @@ console.log(`Risk score: ${result.data.score}`);""",
         },
         "mcp_native": {
             "endpoint": "https://mcp.rugmunch.io/mcp",
-            "protocol": "MCP 2024-11-05",
+            "protocol": f"MCP {MCP_PROTOCOL_VERSION}",
             "transport": "Streamable HTTP",
             "setup_claude_desktop": """{
   "mcpServers": {

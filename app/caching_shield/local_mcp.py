@@ -17,7 +17,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import os
@@ -26,6 +25,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from app.caching_shield.mcp_stdio import call_tool, discover_tools
 from app.core.logging import get_logger
 
 logger = get_logger("local_mcp")
@@ -46,7 +46,6 @@ class LocalMCPClient:
         name = name or repo.split("/")[-1]
         server_dir = MCP_HOME / name
 
-        # Clone if not exists
         if not server_dir.exists():
             r = subprocess.run(
                 ["git", "clone", f"https://github.com/{repo}.git", str(server_dir)],
@@ -58,7 +57,6 @@ class LocalMCPClient:
             if r.returncode != 0:
                 raise RuntimeError(f"Clone failed: {r.stderr[:200]}")
 
-        # Detect package manager and install deps
         if (server_dir / "package.json").exists():
             subprocess.run(
                 ["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60, shell=False
@@ -72,114 +70,18 @@ class LocalMCPClient:
                 shell=False,
             )
 
-        # Discover tools via MCP stdio handshake
-        tools = await self._discover_tools(name, server_dir)
+        tools, proc = await discover_tools(name, server_dir)
         self._servers[name] = {"repo": repo, "dir": str(server_dir), "tools": tools}
+        if proc is not None:
+            self._servers[name]["process"] = proc
 
         logger.info(f"MCP {name}: {len(tools)} tools from {repo}")
         return {"name": name, "tools": len(tools), "repo": repo}
-
-    async def _discover_tools(self, name: str, server_dir: Path) -> list[dict[str, Any]]:
-        """Run MCP server and call tools/list to discover available tools."""
-        entry = self._find_entrypoint(server_dir)
-        if not entry:
-            return []
-
-        try:
-            # Start MCP server as subprocess
-            proc = await asyncio.create_subprocess_exec(
-                *entry["command"],
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=server_dir,
-            )
-            if proc.stdin is None or proc.stdout is None:
-                raise RuntimeError(f"MCP {name}: stdio pipes unavailable")
-
-            # MCP initialize
-            init_msg = (
-                json.dumps(
-                    {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "initialize",
-                        "params": {
-                            "protocolVersion": "2024-11-05",
-                            "capabilities": {},
-                            "clientInfo": {"name": "rmi-caching-shield", "version": "1.0"},
-                        },
-                    }
-                )
-                + "\n"
-            )
-
-            proc.stdin.write(init_msg.encode())
-            await proc.stdin.drain()
-
-            # Read response
-            line = await asyncio.wait_for(proc.stdout.readline(), timeout=10)
-            json.loads(line.decode())
-
-            # Send initialized notification
-            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode() + b"\n")
-            await proc.stdin.drain()
-
-            # List tools
-            proc.stdin.write(
-                json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}).encode() + b"\n"
-            )
-            await proc.stdin.drain()
-            line = await asyncio.wait_for(proc.stdout.readline(), timeout=10)
-            tools_resp = json.loads(line.decode())
-
-            tools = tools_resp.get("result", {}).get("tools", [])
-
-            # Keep process alive for future calls
-            self._servers[name] = self._servers.get(name, {})
-            self._servers[name]["process"] = proc
-
-            proc.stdin.close()
-            return tools
-        except Exception as e:
-            logger.warning(f"MCP discover {name} failed: {e}")
-            return []
-
-    def _find_entrypoint(self, server_dir: Path) -> dict[str, Any] | None:
-        """Find how to start the MCP server."""
-        # Check package.json for bin/main
-        pkg = server_dir / "package.json"
-        if pkg.exists():
-            try:
-                data = json.loads(pkg.read_text())
-                if data.get("main"):
-                    return {"command": ["node", data["main"]]}
-                if data.get("bin"):
-                    bin_val = data["bin"]
-                    if isinstance(bin_val, str):
-                        return {"command": ["node", bin_val]}
-                    if isinstance(bin_val, dict):
-                        return {"command": ["node", next(iter(bin_val.values()))]}
-            except json.JSONDecodeError as e:
-                logger.warning(f"_find_entrypoint failed: {e}")
-
-        # Check for Python entrypoint
-        for entry in ["server.py", "mcp_server.py", "main.py", "__main__.py"]:
-            if (server_dir / entry).exists():
-                return {"command": ["python3", entry]}
-
-        # Check for TypeScript entry
-        for entry in ["src/index.ts", "src/server.ts", "index.ts"]:
-            if (server_dir / entry).exists():
-                return {"command": ["npx", "tsx", entry]}
-
-        return None
 
     async def call(self, server: str, tool: str, args: dict[str, Any], ttl: int = 60) -> dict[str, Any] | None:
         """Call an MCP tool through caching shield."""
         cache_key = hashlib.sha256(f"mcp:{server}:{tool}:{json.dumps(args, sort_keys=True)}".encode()).hexdigest()[:24]
 
-        # L1 cache
         entry = self._l1.get(cache_key)
         if entry:
             expiry, data = entry
@@ -187,36 +89,14 @@ class LocalMCPClient:
                 return data
             del self._l1[cache_key]
 
-        svr = self._servers.get(server, {})
-        proc = svr.get("process")
-
+        proc = self._servers.get(server, {}).get("process")
         if not proc:
             return None
 
-        try:
-            req = (
-                json.dumps(
-                    {
-                        "jsonrpc": "2.0",
-                        "id": 99,
-                        "method": "tools/call",
-                        "params": {"name": tool, "arguments": args},
-                    }
-                )
-                + "\n"
-            )
-            proc.stdin.write(req.encode())
-            await proc.stdin.drain()
-            line = await asyncio.wait_for(proc.stdout.readline(), timeout=30)
-            resp = json.loads(line.decode())
-            result = resp.get("result", {}).get("content", [{}])[0].get("text", "")
-            data = json.loads(result) if result else None
-            if data:
-                self._l1[cache_key] = (time.monotonic() + ttl, data)
-            return data
-        except Exception as e:
-            logger.debug(f"MCP call {server}/{tool}: {e}")
-            return None
+        data = await call_tool(proc, tool, args)
+        if data:
+            self._l1[cache_key] = (time.monotonic() + ttl, data)
+        return data
 
     def list_servers(self) -> list[dict[str, Any]]:
         return [{"name": n, "repo": s["repo"]} for n, s in self._servers.items()]
@@ -233,78 +113,3 @@ def get_local_mcp() -> LocalMCPClient:
     if _mcp_client is None:
         _mcp_client = LocalMCPClient()
     return _mcp_client
-
-
-# Curated list of free, open-source MCPs to clone and expose.
-# These were vetted for: non-overlap with RMI native, MIT/Apache/AGPL license,
-# active maintenance, real-world value to crypto intelligence users.
-EXPANDED_MCP_REPOS = {
-    "fear-greed-mcp": {
-        "repo": "kukapay/crypto-feargreed-mcp",
-        "service": "fear-greed-mcp",
-        "category": "sentiment",
-        "license": "MIT",
-        "description": "Crypto Fear & Greed Index via Alternative.me",
-    },
-    "crypto-indicators-mcp": {
-        "repo": "kukapay/crypto-indicators-mcp",
-        "service": "crypto-indicators-mcp",
-        "category": "analysis",
-        "license": "MIT",
-        "description": "50+ technical analysis indicators",
-    },
-    "openzeppelin-wizard": {
-        "repo": "OpenZeppelin/contracts-wizard",
-        "service": "openzeppelin-wizard",
-        "category": "security",
-        "license": "AGPL-3.0",
-        "description": "OpenZeppelin audited smart contract generator",
-    },
-    "web3-research-mcp": {
-        "repo": "aaronjmars/web3-research-mcp",
-        "service": "web3-research-mcp",
-        "category": "research",
-        "license": "MIT",
-        "description": "Local web research: CoinGecko + DefiLlama + URL fetcher",
-    },
-}
-
-
-async def install_curated_mcps() -> dict[str, Any]:
-    """Install all curated free MCPs from GitHub and discover their tools.
-
-    Returns summary: {server_name: {repo, tools_count, status, error}}
-    """
-    client = get_local_mcp()
-    results = {}
-
-    for name, meta in EXPANDED_MCP_REPOS.items():
-        try:
-            info = await client.install(meta["repo"], name=name)
-            results[name] = {
-                "repo": meta["repo"],
-                "service": meta["service"],
-                "license": meta["license"],
-                "tools_count": info.get("tools", 0),
-                "status": "ok",
-            }
-        except Exception as e:
-            results[name] = {
-                "repo": meta["repo"],
-                "service": meta["service"],
-                "license": meta["license"],
-                "tools_count": 0,
-                "status": "error",
-                "error": str(e)[:200],
-            }
-
-    return results
-
-
-async def call_expanded_tool(
-    service: str, tool_name: str, args: dict[str, Any] | None = None, ttl: int = 60
-) -> dict[str, Any] | None:
-    """Call a tool from a curated MCP service."""
-    args = args or {}
-    client = get_local_mcp()
-    return await client.call(service, tool_name, args, ttl=ttl)
