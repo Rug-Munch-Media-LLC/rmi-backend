@@ -6,6 +6,7 @@ Aggregates all sub-routers into a single APIRouter with prefix /api/v1/market.
 from fastapi import APIRouter
 
 from app.routers.market_intel.routes.hyperliquid import router as hyperliquid_router
+from app.routers.market_intel.routes.liqmap_map import router as liqmap_map_router
 from app.routers.market_intel.routes.market_data import router as market_data_router
 from app.routers.market_intel.routes.overview import router as overview_router
 from app.routers.market_intel.routes.premium import router as premium_router
@@ -17,3 +18,4 @@ router.include_router(market_data_router)
 router.include_router(scams_router)
 router.include_router(premium_router)
 router.include_router(hyperliquid_router)
+router.include_router(liqmap_map_router)
