@@ -16,7 +16,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc=4:14.2.0-1 \
     libpq-dev=17.11-0+deb13u1 \
-    curl=8.14.1-2+deb13u5 \
+    curl=8.14.1-2+deb13u7 \
     git=1:2.47.3-0+deb13u1 \
     ca-certificates=20250419 \
     whois=5.6.3 \
