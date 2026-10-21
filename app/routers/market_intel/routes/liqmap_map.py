@@ -6,7 +6,8 @@ by aggregate cascade pressure. All venues fail independently, so one venue
 being down or geo-blocked only removes it from the map.
 
 The per-venue snapshots live in ``liqmap_venues`` (the geo-blocked ones) and
-``liqmap_venues_direct`` (the ones that answer our egress directly).
+``liqmap_venues_direct`` (the ones that answer our egress directly). The
+per-asset aggregation lives in ``liqmap_aggregate``; this module is the route.
 """
 
 from __future__ import annotations
@@ -17,6 +18,12 @@ from typing import Any
 from fastapi import APIRouter, Query, Request
 
 from app.routers.market_intel.providers import _hyperliquid_markets
+from app.routers.market_intel.routes.liqmap_aggregate import (
+    build_rows,
+    collect_assets,
+    merge_xbt_into_btc,
+    rank_rows,
+)
 from app.routers.market_intel.routes.liqmap_venues import (
     _binance_liquidation_snapshot,
     _bybit_liquidation_snapshot,
@@ -58,34 +65,7 @@ async def get_multi_venue_liquidation_map(
         _kucoin_liquidation_snapshot(),
         return_exceptions=True,
     )
-    bybit = bybit if isinstance(bybit, dict) else {}
-    binance = binance if isinstance(binance, dict) else {}
-    okx = okx if isinstance(okx, dict) else {}
-    bitget = bitget if isinstance(bitget, dict) else {}
-    gate = gate if isinstance(gate, dict) else {}
-    mexc = mexc if isinstance(mexc, dict) else {}
-    kucoin = kucoin if isinstance(kucoin, dict) else {}
-
-    try:
-        hl_markets = await hl_task
-    except Exception:
-        hl_markets = []
-
-    assets: dict[str, dict[str, Any]] = {}
-    for m in hl_markets:
-        sym = str(m.get("asset") or m.get("symbol") or "").upper()
-        if not sym:
-            continue
-        row = assets.setdefault(sym, {"venues": {}, "total_oi_usd": 0.0})
-        oi = float(m.get("open_interest_usd") or 0)
-        row["venues"]["Hyperliquid"] = {
-            "oi_usd": round(oi),
-            "funding": m.get("funding_rate"),
-            "mark": m.get("mark_price"),
-        }
-        row["total_oi_usd"] += oi
-        row.setdefault("marks", []).append(float(m.get("mark_price") or 0))
-    for venue, snap in (
+    venue_snapshots = (
         ("Bybit", bybit),
         ("Binance", binance),
         ("OKX", okx),
@@ -93,56 +73,16 @@ async def get_multi_venue_liquidation_map(
         ("Gate.io", gate),
         ("MEXC", mexc),
         ("KuCoin", kucoin),
-    ):
-        for sym, d in snap.items():
-            row = assets.setdefault(sym, {"venues": {}, "total_oi_usd": 0.0})
-            oi = float(d.get("oi_usd") or 0)
-            row["venues"][venue] = {"oi_usd": round(oi), "funding": d.get("funding"), "mark": d.get("mark")}
-            row["total_oi_usd"] += oi
-            if d.get("mark"):
-                row.setdefault("marks", []).append(float(d["mark"]))
+    )
 
-    rows: list[dict[str, Any]] = []
-    import re as _re
+    try:
+        hl_markets = await hl_task
+    except Exception:
+        hl_markets = []
 
-    # Ticker normalization: XBT is legacy BTC naming (Bitget/KuCoin).
-    if "XBT" in assets and "BTC" in assets:
-        btc = assets["BTC"]
-        xbt = assets.pop("XBT")
-        btc["total_oi_usd"] += xbt["total_oi_usd"]
-        for venue, d in xbt["venues"].items():
-            if venue not in btc["venues"]:
-                btc["venues"][venue] = d
-                btc["total_oi_usd"] = btc.get("total_oi_usd", 0)
-        btc.setdefault("marks", []).extend(xbt.get("marks", []))
-
-    for sym, row in assets.items():
-        if not _re.fullmatch(r"[A-Z]{2,6}", sym):
-            continue  # skip indices (NAS100), dated pairs, malformed keys
-        marks = [m for m in row.get("marks", []) if m > 0]
-        if not marks or row["total_oi_usd"] <= 0:
-            continue
-        mark = sum(marks) / len(marks)
-        long10 = mark * (1 - 1 / 10)
-        short10 = mark * (1 + 1 / 10)
-        fundings = [v["funding"] for v in row["venues"].values() if isinstance(v.get("funding"), (int, float))]
-        rows.append(
-            {
-                "asset": sym,
-                "total_oi_usd": round(row["total_oi_usd"]),
-                "venue_count": len(row["venues"]),
-                "venues": row["venues"],
-                "weighted_mark": round(mark, 6 if mark < 1 else 2),
-                "long_liq_10x": round(long10, 6 if mark < 1 else 2),
-                "short_liq_10x": round(short10, 6 if mark < 1 else 2),
-                "funding_spread": round(max(fundings) - min(fundings), 6) if len(fundings) > 1 else None,
-                "pressure": round(row["total_oi_usd"]),
-            }
-        )
-    rows.sort(key=lambda x: x["pressure"], reverse=True)
-    total = sum(r["total_oi_usd"] for r in rows) or 1
-    for r in rows:
-        r["oi_share_pct"] = round(r["total_oi_usd"] / total * 100, 2)
+    assets = collect_assets(hl_markets, venue_snapshots)
+    merge_xbt_into_btc(assets)
+    rows, total = rank_rows(build_rows(assets))
 
     return {
         "heatmap": rows[:limit],

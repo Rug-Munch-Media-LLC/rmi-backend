@@ -98,7 +98,26 @@ RUN if [ "${INSTALL_FACE:-0}" = "1" ]; then \
 COPY . .
 
 # Project itself (pyproject.toml = single source of truth for deps).
-RUN pip install --no-cache-dir -e . && rm -rf /root/.cache/pip
+#
+# The project depends on the PRIVATE rugmunch-scanner repo, so this step needs
+# a Forgejo credential. It is injected as a BuildKit secret: it never lands in
+# a layer, never in the image history, never in git.
+#
+#   FORGEJO_TOKEN=<token from the secret store> \
+#     docker build --secret id=forgejo_token,env=FORGEJO_TOKEN -t backend-rmi-backend:latest .
+#
+# The token is resolved at runtime by fleet-infra/scripts/deploy/deploy-backend.sh
+# (the secret-store path is assembled there, not committed here).
+#
+# The canonical caller is fleet-infra/scripts/deploy/deploy-backend.sh, which
+# passes the secret automatically. Without it the private clone fails — that is
+# the ONLY reason this step needs credentials.
+RUN --mount=type=secret,id=forgejo_token,env=FORGEJO_TOKEN \
+    set -e ; \
+    git config --global credential.helper '!f() { echo "username=cryptorugmunch"; echo "password=$FORGEJO_TOKEN"; }; f' ; \
+    pip install --no-cache-dir -e . ; \
+    git config --global --unset-all credential.helper 2>/dev/null || true ; \
+    rm -rf /root/.cache/pip /root/.gitconfig
 
 # Health check (uses /live for liveness, not /ready)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
