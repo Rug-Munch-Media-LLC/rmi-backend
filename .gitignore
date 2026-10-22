@@ -174,3 +174,9 @@ mutants/
 
 # local serena MCP project state — never commit
 .serena/
+
+# RAG seed corpus — third-party licensed intel; PRIVATE, never commit (see app/rag/seed_corpus/README.md)
+app/rag/seed_corpus/*.jsonl
+
+# encrypted wallet keystores — NEVER commit (see docs/audit/KEYSTORE-ROTATION.md)
+data/wallets/*.enc
