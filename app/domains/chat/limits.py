@@ -52,7 +52,7 @@ class UserRateLimiter:
             await client.ping()
             self._redis = client
             return client
-        except Exception as exc:  # noqa: BLE001 — degrade to memory, never fail chat
+        except Exception as exc:
             self._redis_failed = True
             log.warning("chat_rate_limit_redis_down err=%s", type(exc).__name__)
             return None
@@ -81,7 +81,7 @@ class UserRateLimiter:
                 await client.expire(redis_key, WINDOW_S)
             ttl = await client.ttl(redis_key)
             return count <= self.per_minute, max(1, int(ttl if ttl and ttl > 0 else WINDOW_S))
-        except Exception as exc:  # noqa: BLE001 — Redis failure must not block chat
+        except Exception as exc:
             self._redis = None
             self._redis_failed = True
             log.warning("chat_rate_limit_incr_failed err=%s", type(exc).__name__)

@@ -41,6 +41,7 @@ _FALLBACK_PROMPTS: dict[str, str] = {
 class ModelResult(NamedTuple):
     text: str
     provider: str
+    model: str | None = None
 
 
 def _extract_prompt(value: Any) -> str | None:
@@ -58,14 +59,14 @@ def persona_prompt(persona: str) -> str:
     """Return the persona system prompt, preferring the sibling module."""
     try:
         module = importlib.import_module("app.domains.chat.personas")
-    except Exception:  # noqa: BLE001 — module not landed yet
+    except Exception:
         return _FALLBACK_PROMPTS.get(persona, _FALLBACK_PROMPTS["desk"])
     for name in ("get_persona_system_prompt", "system_prompt", "get_prompt"):
         func = getattr(module, name, None)
         if callable(func):
             try:
                 prompt = _extract_prompt(func(persona))
-            except Exception:  # noqa: BLE001
+            except Exception:
                 prompt = None
             if prompt:
                 return prompt
@@ -94,16 +95,20 @@ def _coerce(result: Any) -> ModelResult | None:
     if isinstance(result, dict):
         text = result.get("text") or result.get("content") or ""
         provider = str(result.get("provider") or result.get("_provider") or "model_chain")
-        return ModelResult(str(text), provider) if str(text).strip() else None
+        model = result.get("model")
+        model = str(model) if model and str(model) != "-" else None
+        return ModelResult(str(text), provider, model) if str(text).strip() else None
     text = getattr(result, "text", None) or getattr(result, "content", None)
     provider = str(getattr(result, "provider", None) or "model_chain")
-    return ModelResult(str(text), provider) if text and str(text).strip() else None
+    model = getattr(result, "model", None)
+    model = str(model) if model and str(model) != "-" else None
+    return ModelResult(str(text), provider, model) if text and str(text).strip() else None
 
 
 async def _call_sibling(messages: list[dict[str, str]]) -> ModelResult | None:
     try:
         module = importlib.import_module("app.domains.chat.model_chain")
-    except Exception:  # noqa: BLE001 — module not landed yet
+    except Exception:
         return None
     for name in ("complete", "chat", "generate"):
         func = getattr(module, name, None)
@@ -114,10 +119,10 @@ async def _call_sibling(messages: list[dict[str, str]]) -> ModelResult | None:
         except TypeError:
             try:
                 return _coerce(await func(messages))
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("chat_model_chain_failed name=%s err=%s", name, type(exc).__name__)
                 return None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning("chat_model_chain_failed name=%s err=%s", name, type(exc).__name__)
             return None
     return None
@@ -135,7 +140,7 @@ async def complete(messages: list[dict[str, str]]) -> ModelResult | None:
         from app.ai_router import chat_completion
 
         raw = await chat_completion(messages, temperature=0.2, max_tokens=400)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("chat_ai_router_failed err=%s", type(exc).__name__)
         return None
     return _coerce(raw)

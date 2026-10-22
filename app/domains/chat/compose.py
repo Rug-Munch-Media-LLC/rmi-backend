@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+
 import re
 
-from app.domains.chat.retrieval import Passage
+from app.domains.chat.retrieval import Passage  # noqa: TC001 — used at runtime
 from app.domains.chat.schemas import Citation
 
 MAX_WORDS = 180
@@ -89,7 +90,7 @@ def validate_answer(text: str, passage_count: int) -> tuple[bool, str]:
 def to_citations(passages: list[Passage]) -> list[Citation]:
     return [
         Citation(
-            index=idx,
+            n=idx,
             title=passage.title,
             url=passage.url,
             library_id=passage.library_id,

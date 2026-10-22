@@ -165,7 +165,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.bulletin_board",  # /api/v1/bulletin-board/*  (22 routes, app/bulletin_board.py)
     "app.routers.intelligence_router",  # /api/v1/intelligence/*  (19 routes, n8n-fed)
     "app.routers.intelligence_panel",  # /api/v1/intelligence/*  (4 routes, /feed /latest /crypto-fear-index)
-    "app.routers.chat",  # /api/v1/chat/*  (5 routes, AI chat surface)
+    "app.domains.chat.mount",  # /api/v1/chat canonical + legacy sub-paths + /legacy alias
     "app.routers.web3_chat",  # /api/v1/chat/web3/*  (20 routes, Web3 chat: payments, tokens, NFTs)
     "app.routers.address_profiler",  # /api/v1/address-profiler/*  (1 route, scanner ext)
     "app.routers.chain_comparability",  # /api/v1/chain-compare/*  (2 routes, multi-chain)

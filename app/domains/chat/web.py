@@ -57,7 +57,7 @@ async def _safe_url(url: str) -> bool:
     loop = asyncio.get_running_loop()
     try:
         return await asyncio.wait_for(loop.run_in_executor(None, _is_public, host), 3.0)
-    except Exception:  # noqa: BLE001 — any failure means unsafe
+    except Exception:
         return False
 
 
@@ -85,7 +85,7 @@ async def extract_page(url: str) -> str:
         return ""
     try:
         return await _fetch(url)
-    except Exception as exc:  # noqa: BLE001 — extraction is best-effort
+    except Exception as exc:
         log.warning("chat_web_extract_failed err=%s", type(exc).__name__)
         return ""
 
@@ -98,7 +98,7 @@ async def search_and_extract(query: str, max_pages: int = _PAGE_LIMIT) -> list:
         from app.core.web_search import searxng_search
 
         results = await searxng_search(query, max_results=max_pages + 2)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("chat_web_search_failed err=%s", type(exc).__name__)
         return []
     candidates = [r for r in (results or []) if r.get("url")][:max_pages]

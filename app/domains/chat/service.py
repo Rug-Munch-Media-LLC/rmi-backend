@@ -67,8 +67,8 @@ async def _evidence(query: str) -> tuple[list[Passage], bool]:
 
 async def _draft(
     req: ChatRequest, passages: list[Passage], history: list[dict[str, str]]
-) -> tuple[str, str] | None:
-    """Return ``(text, provider)`` or ``None`` when no valid draft exists."""
+) -> tuple[str, str, str | None] | None:
+    """Return ``(text, provider, model)`` or ``None`` when no draft exists."""
     system = ports.persona_prompt(req.persona)
     messages = compose.build_messages(system, passages, req.message, history)
     for attempt in range(2):
@@ -78,14 +78,14 @@ async def _draft(
         text = result.text.strip()
         ok, reason = compose.validate_answer(text, len(passages))
         if ok:
-            return text, result.provider
+            return text, result.provider, result.model
         if reason == "too_long":
-            trimmed = compose._truncate_words(text)  # noqa: SLF001 — same package
+            trimmed = compose._truncate_words(text)
             if compose.validate_answer(trimmed, len(passages))[0]:
-                return trimmed, result.provider
+                return trimmed, result.provider, result.model
         log.warning("chat_draft_rejected attempt=%d reason=%s", attempt + 1, reason)
         if attempt == 0:
-            messages = messages + [compose.stricter_nudge()]
+            messages = [*messages, compose.stricter_nudge()]
     return None
 
 
@@ -106,11 +106,12 @@ async def _run(req: ChatRequest, started: float) -> ChatResponse:
     draft = await _draft(req, passages, history)
     if draft is None:
         return _degraded(started, passages, "model_unavailable", web_used)
-    text, provider = draft
+    text, provider, model = draft
     response = ChatResponse(
         answer=text,
         citations=compose.to_citations(passages),
         provider=provider,
+        model=model,
         fallback_used=web_used,
         latency_ms=_ms(started),
     )
@@ -135,6 +136,6 @@ async def answer(req: ChatRequest) -> ChatResponse:
     except TimeoutError:
         log.warning("chat_timeout budget_s=%s", TOTAL_TIMEOUT_S)
         return _degraded(started, [], "timeout", False)
-    except Exception as exc:  # noqa: BLE001 — the endpoint must never 500
+    except Exception as exc:
         log.error("chat_unhandled err=%s", type(exc).__name__)
         return _degraded(started, [], "error", False)

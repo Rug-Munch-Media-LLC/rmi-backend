@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.domains.chat import providers
-from app.domains.chat.breaker import BREAKER, CircuitBreaker
+from app.domains.chat.breaker import BREAKER
 from app.domains.chat.model_chain import complete
 from app.domains.chat.providers import ProviderSpec, resolve_chain
 from app.domains.chat.retrieval_fallback import retrieval_only_answer
@@ -13,6 +11,21 @@ from app.domains.chat.transport import ProviderError
 
 MESSAGES = [{"role": "user", "content": "what is ETH?"}]
 OK = ("Answer text", {"prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5})
+
+
+class Recorder:
+    """Replaces request_provider; records order and plays a failure plan."""
+
+    def __init__(self, fail_keys: set[str], error: ProviderError | None = None) -> None:
+        self.fail_keys = fail_keys
+        self.error = error or ProviderError("HTTP 500: down", retryable=False)
+        self.calls: list[str] = []
+
+    async def __call__(self, spec, messages, max_tokens):
+        self.calls.append(spec.key)
+        if spec.key in self.fail_keys:
+            raise self.error
+        return OK
 
 
 # ── ordering / fallback ────────────────────────────────────────────────

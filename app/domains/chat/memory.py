@@ -33,7 +33,7 @@ class ConversationMemory:
             from app.core.redis import get_redis_async
 
             return get_redis_async()
-        except Exception as exc:  # noqa: BLE001 — memory is best-effort
+        except Exception as exc:
             log.warning("chat_memory_redis_unavailable err=%s", type(exc).__name__)
             return None
 
@@ -54,7 +54,7 @@ class ConversationMemory:
                 if isinstance(parsed, dict) and parsed.get("role") and parsed.get("content"):
                     turns.append({"role": str(parsed["role"]), "content": str(parsed["content"])})
             return turns[-MAX_ENTRIES:]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning("chat_memory_read_failed err=%s", type(exc).__name__)
             return []
 
@@ -73,5 +73,5 @@ class ConversationMemory:
                 await client.rpush(key, payload)
             await client.ltrim(key, -MAX_ENTRIES, -1)
             await client.expire(key, TTL_S)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning("chat_memory_write_failed err=%s", type(exc).__name__)

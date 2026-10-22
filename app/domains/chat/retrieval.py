@@ -51,7 +51,13 @@ def collections() -> list[str]:
 
 
 def _api_url() -> str:
-    return os.getenv("RAG_API_URL", "http://127.0.0.1:8012/api/v1").rstrip("/")
+    """Normalise ``RAG_API_URL`` to include the ``/api/v1`` segment.
+
+    The deployed env carries a bare origin (``http://172.18.0.1:8012``); the
+    route lives under ``/api/v1``. Without this both forms 404.
+    """
+    base = os.getenv("RAG_API_URL", "http://127.0.0.1:8012/api/v1").rstrip("/")
+    return base if base.endswith("/api/v1") else f"{base}/api/v1"
 
 
 def _api_key() -> str:
@@ -59,7 +65,7 @@ def _api_key() -> str:
         from app.databus.vault import resolve_key
 
         return resolve_key("RMI_RAG_API_KEY") or ""
-    except Exception:  # noqa: BLE001 — key resolution must never break chat
+    except Exception:
         return os.getenv("RMI_RAG_API_KEY", "")
 
 
@@ -94,7 +100,23 @@ def _to_passages(hits: list[dict[str, Any]]) -> list[Passage]:
     return passages
 
 
+async def _direct(query: str, limit: int) -> list[dict[str, Any]]:
+    """Second lane: the canonical client (Qdrant direct when the HTTP hop dies)."""
+    try:
+        from app.integrations.rugbrain_client import rugbrain_search
+
+        hits = await rugbrain_search(
+            query, collections=collections(), limit=limit, rerank=False
+        )
+        log.info("chat_rag_direct hits=%d", len(hits or []))
+        return list(hits or [])
+    except Exception as exc:
+        log.warning("chat_rag_direct_failed err=%s", type(exc).__name__)
+        return []
+
+
 async def _search(query: str, limit: int) -> list[dict[str, Any]]:
+    """``POST /api/v1/search/multi`` on rugbrain; direct Qdrant lane on failure."""
     body = {
         "query": query,
         "collections": collections(),
@@ -111,11 +133,12 @@ async def _search(query: str, limit: int) -> list[dict[str, Any]]:
             )
         if resp.status_code != 200:
             log.warning("chat_rag_non_200 status=%s", resp.status_code)
-            return []
-        return list(resp.json().get("results") or [])
-    except Exception as exc:  # noqa: BLE001
+            return await _direct(query, limit)
+        results = list(resp.json().get("results") or [])
+        return results if results else await _direct(query, limit)
+    except Exception as exc:
         log.warning("chat_rag_failed err=%s", type(exc).__name__)
-        return []
+        return await _direct(query, limit)
 
 
 async def _rerank(query: str, passages: list[Passage], top_k: int) -> list[Passage]:
@@ -127,10 +150,9 @@ async def _rerank(query: str, passages: list[Passage], top_k: int) -> list[Passa
         ranked = await rerank_results(
             query, [p.text for p in passages], top_n=top_k, tier="live"
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("chat_rerank_failed err=%s", type(exc).__name__)
-        bottom = float(os.getenv("CHAT_RERANK_FLOOR", "0.10"))
-        return [p for p in passages[:top_k] if p.score >= bottom]
+        return _pre_rerank_order(passages, top_k)
     out: list[Passage] = []
     for item in ranked or []:
         idx = item.get("index")
@@ -147,7 +169,13 @@ async def _rerank(query: str, passages: list[Passage], top_k: int) -> list[Passa
                 score=float(item.get("relevance_score") or 0.0),
             )
         )
-    return out
+    return out or _pre_rerank_order(passages, top_k)
+
+
+def _pre_rerank_order(passages: list[Passage], top_k: int) -> list[Passage]:
+    """Reranker down or empty -> keep embedded similarity order (fail-open)."""
+    bottom = float(os.getenv("CHAT_RERANK_FLOOR", "0.10"))
+    return [p for p in passages[:top_k] if p.score >= bottom]
 
 
 async def retrieve(query: str, top_k: int = 6) -> list[Passage]:
