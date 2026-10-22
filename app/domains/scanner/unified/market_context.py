@@ -41,6 +41,33 @@ _MARKET_CONTEXT_URL = f"{RUG_BRAIN_API_URL}/api/v1/market/context"
 
 _HTTP_TIMEOUT = 5.0
 
+_missing_key_logged = False
+
+
+def _auth_headers() -> dict[str, str]:
+    """Return the RugBrain auth header, or ``{}`` when the key is unset.
+
+    Every RugBrain endpoint requires ``X-API-Key``; calling without it is a
+    401 and the market context silently degrades. The key is a fail-fast
+    startup requirement (see ``app.core.lifespan``), so a missing value here
+    is logged once and the call proceeds unauthenticated rather than
+    crashing the scan.
+    """
+    global _missing_key_logged
+
+    from app.config import settings
+
+    api_key = (settings.rmi_rag_api_key or "").strip()
+    if api_key:
+        return {"X-API-Key": api_key}
+    if not _missing_key_logged:
+        _missing_key_logged = True
+        logger.warning(
+            "market_context_missing_api_key",
+            detail="RMI_RAG_API_KEY is unset; RugBrain market calls will be rejected.",
+        )
+    return {}
+
 
 def _cache_key(chain: str) -> str:
     return f"scanner:market_context:{chain}"
@@ -60,7 +87,7 @@ def _neutral(reason: str = "unavailable") -> MarketContext:
 async def _get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """GET a JSON payload, returning None on any failure."""
     try:
-        r = await client.get(url, params=params, timeout=_HTTP_TIMEOUT)
+        r = await client.get(url, params=params, headers=_auth_headers(), timeout=_HTTP_TIMEOUT)
         if r.status_code != 200:
             logger.debug("market_context_http_failed", url=url, status=r.status_code)
             return None

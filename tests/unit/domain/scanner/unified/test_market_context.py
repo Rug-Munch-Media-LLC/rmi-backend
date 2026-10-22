@@ -109,8 +109,16 @@ class TestFetchMarketContext:
         real_async_client = httpx.AsyncClient  # capture before patching
 
         with (
-            patch("app.domains.scanner.unified.market_context.redis_get", new_callable=AsyncMock, return_value=None),
-            patch("app.domains.scanner.unified.market_context.redis_set", new_callable=AsyncMock, return_value=True),
+            patch(
+                "app.domains.scanner.unified.market_context.redis_get",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "app.domains.scanner.unified.market_context.redis_set",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
             patch("httpx.AsyncClient", side_effect=lambda: real_async_client(transport=mock_transport)),
         ):
             ctx = await fetch_market_context("0x" + "a" * 40, "ethereum")
@@ -153,15 +161,84 @@ class TestFetchMarketContext:
         real_async_client2 = httpx.AsyncClient  # capture before patching
 
         with (
-            patch("app.domains.scanner.unified.market_context.redis_get", new_callable=AsyncMock, return_value=None),
+            patch(
+                "app.domains.scanner.unified.market_context.redis_get",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
             patch("app.domains.scanner.unified.market_context.redis_set", new_callable=AsyncMock),
-            patch("httpx.AsyncClient", side_effect=lambda: real_async_client2(transport=mock_transport)),
+            patch(
+                "httpx.AsyncClient",
+                side_effect=lambda: real_async_client2(transport=mock_transport),
+            ),
         ):
             ctx = await fetch_market_context("0x" + "c" * 40, "ethereum")
 
         assert ctx is not None
         assert ctx.source.startswith("fallback")
         assert ctx.fear_index == 50.0
+
+
+class TestRugBrainAuthHeader:
+    """Every RugBrain market call must carry the X-API-Key header."""
+
+    @staticmethod
+    def _recording_transport(seen: list[httpx.Request]) -> httpx.MockTransport:
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            if "fear-index" in request.url.path:
+                return httpx.Response(200, json={"value": 30.0})
+            return httpx.Response(200, json={"recent_exploits_24h": 0})
+
+        return httpx.MockTransport(handler=handler)
+
+    @pytest.mark.asyncio
+    async def test_api_key_header_sent_on_every_call(self) -> None:
+        seen: list[httpx.Request] = []
+        transport = self._recording_transport(seen)
+        real_client = httpx.AsyncClient
+
+        with (
+            patch(
+                "app.domains.scanner.unified.market_context.redis_get",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch("app.domains.scanner.unified.market_context.redis_set", new_callable=AsyncMock),
+            patch("httpx.AsyncClient", side_effect=lambda: real_client(transport=transport)),
+            patch("app.config.settings") as mock_settings,
+        ):
+            mock_settings.rmi_rag_api_key = "test-rag-key"
+            await fetch_market_context("0x" + "d" * 40, "ethereum")
+
+        assert len(seen) == 3  # fear-index, market/mood, market/context/{address}
+        assert {r.headers.get("x-api-key") for r in seen} == {"test-rag-key"}
+
+    @pytest.mark.asyncio
+    async def test_missing_key_logs_once_and_does_not_crash(self) -> None:
+        seen: list[httpx.Request] = []
+        transport = self._recording_transport(seen)
+        real_client = httpx.AsyncClient
+
+        with (
+            patch(
+                "app.domains.scanner.unified.market_context.redis_get",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch("app.domains.scanner.unified.market_context.redis_set", new_callable=AsyncMock),
+            patch("httpx.AsyncClient", side_effect=lambda: real_client(transport=transport)),
+            patch("app.config.settings") as mock_settings,
+            patch("app.domains.scanner.unified.market_context.logger") as mock_logger,
+            patch("app.domains.scanner.unified.market_context._missing_key_logged", False),
+        ):
+            mock_settings.rmi_rag_api_key = ""
+            ctx = await fetch_market_context("0x" + "e" * 40, "ethereum")
+
+        assert ctx is not None
+        assert "x-api-key" not in seen[0].headers
+        warnings = [c for c in mock_logger.warning.call_args_list if c.args[0] == "market_context_missing_api_key"]
+        assert len(warnings) == 1
 
 
 class TestApplyMarketScoring:
