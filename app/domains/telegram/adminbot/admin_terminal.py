@@ -1,82 +1,78 @@
 """
-admin_terminal — terminal mode for the RMI Admin Bot.
+admin_terminal — terminal mode sessions + command gating for the RMI Admin Bot.
 
-Manages terminal sessions: enter, execute, format, and exit.
-Commands are allowlist-gated for safety.
+Commands are classified by ``terminal_policy`` before they run: read-only runs
+freely, mutating needs a per-invocation confirmation, destructive needs the typed
+token, anything unclassified is refused. Execution and the JSONL audit trail
+live in ``admin_terminal_exec``; presentation in ``terminal.py``; the quick menu
+in ``admin_terminal_quick``.
 """
 
 from __future__ import annotations
 
+import hmac
+import os
+import secrets
 import shlex
-import subprocess
 import time
 from typing import Any
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from app.domains.telegram.adminbot import terminal_policy as policy
+from app.domains.telegram.adminbot.admin_terminal_exec import MAX_OUTPUT, deny, run_argv
+from app.domains.telegram.adminbot.admin_terminal_quick import quick_commands_keyboard, run_quick
+from app.domains.telegram.adminbot.config import OWNER_IDS
 
-# Commands allowed in terminal mode (base command only)
-_ALLOWED_COMMANDS: frozenset[str] = frozenset(
-    {
-        "ls",
-        "pwd",
-        "cd",
-        "df",
-        "free",
-        "ps",
-        "docker",
-        "systemctl",
-        "git",
-        "journalctl",
-        "cat",
-        "head",
-        "tail",
-        "grep",
-        "uptime",
-        "who",
-        "w",
-        "last",
-        "netstat",
-        "ss",
-        "ip",
-        "ping",
-        "curl",
-        "docker-compose",
-        "du",
-        "top",
-        "htop",
-        "lsof",
-        "stat",
-        "find",
-        "tree",
-        "mkdir",
-        "touch",
-        "cp",
-        "mv",
-    }
-)
+TERMINAL_TIMEOUT: int = 30 * 60
+TERMINAL_MAX_LIFETIME: int = 60 * 60  # hard cap; activity does not extend it
+CONFIRM_TTL: int = 120
+
+#: Kept for callers that render help text (chat/owner_commands.py).
+_ALLOWED_COMMANDS: frozenset[str] = policy.allowed_binaries()
 
 _sessions: dict[int, dict[str, Any]] = {}
 
-# Auto-expire terminal sessions after this many seconds of inactivity
-# (hardened 2026-08-13 — P0.4: no more unlimited interactive sessions).
-TERMINAL_TIMEOUT: int = 30 * 60  # 30 minutes
+__all__ = [
+    "MAX_OUTPUT",
+    "TERMINAL_MAX_LIFETIME",
+    "TERMINAL_TIMEOUT",
+    "cancel",
+    "confirm",
+    "enter_terminal",
+    "execute",
+    "exit_terminal",
+    "in_terminal",
+    "quick_commands_keyboard",
+    "run_quick",
+    "touch",
+]
 
 
 def enter_terminal(user_id: int) -> None:
-    _sessions[user_id] = {"cwd": "/root", "history": [], "entered": time.time()}
+    now = time.time()
+    _sessions[user_id] = {
+        "cwd": policy.DEFAULT_CWD,
+        "history": [],
+        "entered": now,
+        "started": now,
+        "owner": user_id,
+    }
 
 
 def touch(user_id: int) -> None:
-    """Refresh the idle timer for an active session."""
     if user_id in _sessions:
         _sessions[user_id]["entered"] = time.time()
 
 
 def in_terminal(user_id: int) -> bool:
+    """True only for a live session owned by a current owner (hard cap enforced)."""
     session = _sessions.get(user_id)
     if session is None:
         return False
-    if time.time() - session.get("entered", 0) > TERMINAL_TIMEOUT:
+    now = time.time()
+    stale = (
+        now - session.get("entered", 0) > TERMINAL_TIMEOUT or now - session.get("started", 0) > TERMINAL_MAX_LIFETIME
+    )
+    if stale or session.get("owner") != user_id or user_id not in OWNER_IDS:
         _sessions.pop(user_id, None)
         return False
     return True
@@ -86,154 +82,78 @@ def exit_terminal(user_id: int) -> None:
     _sessions.pop(user_id, None)
 
 
-def _get_base_command(cmd: str) -> str | None:
-    """Extract the base command name. Returns None on parse error."""
-    try:
-        return shlex.split(cmd.strip())[0]
-    except (ValueError, IndexError):
-        return None
+def _cd(session: dict[str, Any], argv: list[str], user_id: int) -> dict[str, Any]:
+    cwd = session.get("cwd", policy.DEFAULT_CWD)
+    target = argv[1] if len(argv) > 1 else policy.DEFAULT_CWD
+    real = policy.resolve_in_jail(target, cwd)
+    if real is None:
+        return deny(user_id, cwd, argv, f"path outside the jail ({', '.join(policy.ROOTS)})")
+    if not os.path.isdir(real):
+        return {"ok": False, "output": "", "error": f"Not a directory: {real}", "duration": 0.0}
+    session["cwd"] = real
+    return {"ok": True, "output": f"→ {real}", "error": "", "duration": 0.0}
 
 
-def _check_safe_cmd(cmd: str) -> str | None:
-    """Check if command is allowed. Returns None if ok, error string if blocked."""
-    stripped = cmd.strip()
-    if not stripped:
-        return "Empty command"
-    base = _get_base_command(stripped)
-    if base is None:
-        return "Invalid command syntax"
-    if stripped == "exit":
-        return None  # handled by execute()
-    if base not in _ALLOWED_COMMANDS:
-        return f"Command not allowed: '{base}'. Allowed: {', '.join(sorted(_ALLOWED_COMMANDS))}"
-    return None
+def _pending(session: dict[str, Any], argv: list[str], tier: str, reason: str) -> dict[str, Any]:
+    """Stage a mutating/destructive command; it runs only after confirmation."""
+    request = {"nonce": secrets.token_hex(3), "argv": argv, "tier": tier, "reason": reason}
+    request.update({"cwd": session.get("cwd", policy.DEFAULT_CWD), "ts": time.time()})
+    session["pending"] = request
+    return {"ok": False, "output": "", "error": "", "duration": 0.0, "pending": request}
 
 
-def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
+def confirm(session: dict[str, Any], nonce: str, user_id: int, typed: bool = False) -> dict[str, Any]:
+    """Complete a staged command. Mutating via button; destructive needs the typed code."""
+    pending = session.pop("pending", None)
+    if pending is None:
+        return {
+            "ok": False,
+            "output": "",
+            "error": "No command is awaiting confirmation.",
+            "duration": 0.0,
+        }
+    if time.time() - pending["ts"] > CONFIRM_TTL:
+        return {
+            "ok": False,
+            "output": "",
+            "error": "Confirmation expired — resend the command.",
+            "duration": 0.0,
+        }
+    if not nonce or not hmac.compare_digest(pending["nonce"], nonce):
+        return {"ok": False, "output": "", "error": "Wrong confirmation code.", "duration": 0.0}
+    if pending["tier"] == policy.DANGER and not typed:
+        return {
+            "ok": False,
+            "output": "",
+            "error": "Destructive command needs the code typed back.",
+            "duration": 0.0,
+        }
+    return run_argv(pending["argv"], pending["cwd"], user_id, pending["tier"])
+
+
+def cancel(session: dict[str, Any]) -> None:
+    session.pop("pending", None)
+
+
+def execute(session: dict[str, Any], cmd: str, user_id: int = 0) -> dict[str, Any]:
+    """Classify then run (or stage) one terminal command."""
     stripped = cmd.strip()
     if stripped == "exit":
         return {"exit": True, "output": "", "error": ""}
-
-    # Activity refreshes the idle timer (session expiry handled by in_terminal).
     session["entered"] = time.time()
-
-    # Check allowlist
-    err_msg = _check_safe_cmd(stripped)
-    if err_msg:
-        return {"ok": False, "output": "", "error": err_msg, "duration": 0.0}
-
     try:
-        parts = shlex.split(stripped)
+        argv = shlex.split(stripped)
     except ValueError as exc:
         return {"ok": False, "output": "", "error": str(exc), "duration": 0.0}
-
-    if not parts:
+    if not argv:
         return {"ok": False, "output": "", "error": "Empty command", "duration": 0.0}
-
-    # Handle cd internally (subprocess can't persist directory changes)
-    if parts[0] == "cd":
-        if len(parts) >= 2:
-            session["cwd"] = parts[1]
-        return {"ok": True, "output": "", "error": "", "duration": 0.0}
-
-    t0 = time.time()
-    try:
-        r = subprocess.run(
-            parts,
-            shell=False,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            cwd=session.get("cwd", "/root"),
-        )
-        session["history"].append(stripped)
-        return {
-            "ok": r.returncode == 0,
-            "output": r.stdout or r.stderr,
-            "error": r.stderr if r.returncode != 0 else "",
-            "duration": time.time() - t0,
-        }
-    except subprocess.TimeoutExpired:
-        return {
-            "ok": False,
-            "output": "",
-            "error": "Command timed out (15s)",
-            "duration": time.time() - t0,
-        }
-    except FileNotFoundError:
-        return {
-            "ok": False,
-            "output": "",
-            "error": f"Command not found: {parts[0]}",
-            "duration": time.time() - t0,
-        }
-    except (ConnectionError, OSError, TimeoutError) as e:
-        return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
-
-
-def format_prompt(session: dict[str, Any]) -> str:
-    return f"`{session.get('cwd', '/root')}$`"
-
-
-def format_result(result: dict[str, Any], session: dict[str, Any]) -> str:
-    output = result.get("output", "") or result.get("error", "")
-    return f"```\n{output[:2000]}\n```"
-
-
-def run_quick(cmd_name: str) -> dict[str, Any]:
-    """Run a predefined quick command — no shell, allowlist-gated."""
-    quick: dict[str, list[str]] = {
-        "df": ["df", "-h", "--total"],
-        "mem": ["free", "-h"],
-        "ps": ["ps", "aux", "--sort=-%mem"],
-        "docker": ["docker", "ps", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"],
-        "uptime": ["uptime"],
-        "disk": ["df", "-h", "/"],
-        "load": ["cat", "/proc/loadavg"],
-        "docker-all": ["docker", "ps", "-a", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"],
-    }
-    cmd_parts = quick.get(cmd_name)
-    if cmd_parts is None:
-        return {"ok": False, "output": "", "error": f"Unknown quick command: '{cmd_name}'"}
-
-    t0 = time.time()
-    try:
-        r = subprocess.run(
-            cmd_parts,
-            shell=False,
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        return {
-            "ok": r.returncode == 0,
-            "output": r.stdout or r.stderr,
-            "error": r.stderr if r.returncode != 0 else "",
-            "duration": time.time() - t0,
-        }
-    except (ValueError, TypeError, KeyError, OSError) as e:
-        return {"ok": False, "output": "", "error": str(e), "duration": time.time() - t0}
-
-
-def quick_commands_keyboard() -> Any:
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("💾 Disk All", callback_data="term_quick_df"),
-                InlineKeyboardButton("🧠 Memory", callback_data="term_quick_mem"),
-            ],
-            [
-                InlineKeyboardButton("📋 Processes", callback_data="term_quick_ps"),
-                InlineKeyboardButton("🐳 Docker", callback_data="term_quick_docker"),
-            ],
-            [
-                InlineKeyboardButton("⏱ Uptime", callback_data="term_quick_uptime"),
-                InlineKeyboardButton("📊 Load", callback_data="term_quick_load"),
-            ],
-            [
-                InlineKeyboardButton("💾 Disk /", callback_data="term_quick_disk"),
-                InlineKeyboardButton("🐳 All Containers", callback_data="term_quick_docker-all"),
-            ],
-            [InlineKeyboardButton("⬅️ Back", callback_data="main")],
-        ]
-    )
+    cwd = session.get("cwd", policy.DEFAULT_CWD)
+    if argv[0] == "cd":
+        return _cd(session, argv, user_id)
+    tier, reason = policy.classify(argv, cwd)
+    if tier == policy.DENY:
+        return deny(user_id, cwd, argv, reason)
+    if tier in (policy.MUTATE, policy.DANGER):
+        return _pending(session, argv, tier, reason)
+    session.setdefault("history", []).append(stripped)
+    return run_argv(argv, cwd, user_id, tier)

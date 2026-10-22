@@ -24,6 +24,13 @@ WATCH_TTL_SECONDS = 90 * 24 * 3600
 SNAPSHOT_TTL_SECONDS = 30 * 24 * 3600
 
 
+def _text(value: Any) -> str:
+    """Redis returns bytes on the shared pool (``decode_responses=False``)."""
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).decode()
+    return str(value)
+
+
 def _watch_key(token: str, chain: str) -> str:
     return f"premium:watch:{chain}:{token}"
 
@@ -56,7 +63,7 @@ async def remove_watch(redis: Any, token: str, chain: str, chat_id: str) -> bool
 
 async def watchers_for(redis: Any, token: str, chain: str) -> list[str]:
     """Every chat watching this token, as a stable sorted list."""
-    return sorted(str(chat) for chat in await redis.hkeys(_watch_key(token, chain)))
+    return sorted(_text(chat) for chat in await redis.hkeys(_watch_key(token, chain)))
 
 
 async def watcher_count(redis: Any, token: str, chain: str) -> int:
@@ -68,10 +75,10 @@ async def list_watches(redis: Any, chat_id: str = "") -> list[dict[str, Any]]:
     """Watches for one chat, or every token that has at least one watcher."""
     tokens: set[str] = set()
     if chat_id:
-        tokens = {str(member) for member in await redis.smembers(_chat_key(chat_id))}
+        tokens = {_text(member) for member in await redis.smembers(_chat_key(chat_id))}
     else:
         async for key in redis.scan_iter(match="premium:watch:*:*"):
-            parts = str(key).split(":")
+            parts = _text(key).split(":")
             if len(parts) == 4 and parts[2] != "chat":
                 tokens.add(f"{parts[2]}:{parts[3]}")
     rows: list[dict[str, Any]] = []

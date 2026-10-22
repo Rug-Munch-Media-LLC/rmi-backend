@@ -15,10 +15,19 @@ from typing import Any
 class FakeRedis:
     """Async Redis subset used by ``watch_store``."""
 
-    def __init__(self) -> None:
+    def __init__(self, decode: bool = False) -> None:
+        # The app pool is built without decode_responses, so reads come back as
+        # bytes; keep that fidelity here or a str-only bug cannot be caught.
+        self.decode = decode
         self.hashes: dict[str, dict[str, str]] = {}
         self.sets: dict[str, set[str]] = {}
         self.kv: dict[str, str] = {}
+
+    def _out(self, value: str) -> str | bytes:
+        return value if self.decode else value.encode()
+
+    def _in(self, value: str | bytes) -> str:
+        return value.decode() if isinstance(value, bytes) else value
 
     async def hset(self, key: str, field: str, value: str) -> int:
         bucket = self.hashes.setdefault(key, {})
@@ -30,7 +39,7 @@ class FakeRedis:
         return len(self.hashes.get(key, {}))
 
     async def hkeys(self, key: str) -> list[str]:
-        return list(self.hashes.get(key, {}))
+        return [self._out(k) for k in self.hashes.get(key, {})]  # type: ignore[list-item]
 
     async def hdel(self, key: str, field: str) -> int:
         return 1 if self.hashes.get(key, {}).pop(field, None) is not None else 0
@@ -48,12 +57,12 @@ class FakeRedis:
         return 1 if present else 0
 
     async def smembers(self, key: str) -> set[str]:
-        return set(self.sets.get(key, set()))
+        return {self._out(m) for m in self.sets.get(key, set())}  # type: ignore[misc]
 
     async def scan_iter(self, match: str = "*", **_kwargs: Any) -> Any:
         for key in list(set(self.hashes) | set(self.sets) | set(self.kv)):
             if fnmatch(key, match):
-                yield key
+                yield self._out(key)
 
     async def get(self, key: str) -> str | None:
         return self.kv.get(key)
