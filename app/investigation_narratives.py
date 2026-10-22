@@ -174,11 +174,7 @@ async def _execute_hop(
     try:
         from app.integrations.rugbrain_client import rugbrain_search
 
-        results = await rugbrain_search(
-            query=hop_query,
-            collections=[collection],
-            limit=10,
-        )
+        results = await rugbrain_search(query=hop_query, collections=[collection], limit=10)
 
         hits = results[:5]  # Keep top 5 per hop; rugbrain_search returns a hit list
         top_score = max((float(h.get("score") or 0.0) for h in hits), default=0.0)

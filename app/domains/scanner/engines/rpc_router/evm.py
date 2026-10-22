@@ -178,15 +178,10 @@ EVM_RPC_ENDPOINTS: dict[str, list[str]] = {
 class EvmRpcMixin:
     """EVM-specific convenience methods (mixed into RpcRouter)."""
 
-    if TYPE_CHECKING:
-        # Supplied by the concrete host class (``RpcRouter.call``). Declared
-        # here so the mixin is type-checkable on its own; no runtime effect.
+    if TYPE_CHECKING:  # supplied by the concrete host class (RpcRouter.call)
+
         async def call(
-            self,
-            chain: str,
-            method: str,
-            params: list[Any] | None = None,
-            timeout: float | None = None,
+            self, chain: str, method: str, params: list[Any] | None = None, timeout: float | None = None
         ) -> dict[str, Any] | None: ...
 
     async def eth_call(
@@ -225,11 +220,7 @@ class EvmRpcMixin:
 
         Returns the list of logs, or None on failure.
         """
-        filter_params: dict[str, Any] = {
-            "address": address,
-            "fromBlock": from_block,
-            "toBlock": to_block,
-        }
+        filter_params: dict[str, Any] = {"address": address, "fromBlock": from_block, "toBlock": to_block}
         if topics:
             filter_params["topics"] = topics
 
@@ -239,6 +230,4 @@ class EvmRpcMixin:
             [filter_params],
             timeout=timeout,
         )
-        if result and isinstance(result, dict):
-            return result.get("result")
-        return None
+        return result.get("result") if result and isinstance(result, dict) else None

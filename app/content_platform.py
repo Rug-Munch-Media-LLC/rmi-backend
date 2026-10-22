@@ -18,9 +18,8 @@ Post types:
 
 Auth (Admin API, write): HS256 JWT signed with the Admin API key
   (``id:secret``, secret hex-decoded, ``kid=<id>``, ``aud=/admin/``,
-  ``exp<=5min``) — read from ``/srv/secrets/ghost_admin_key`` (canonical
-  Talos path), then ``GHOST_ADMIN_API_KEY`` env, then the legacy session
-  cookie file. Content API (read) uses ``GHOST_CONTENT_API_KEY`` env.
+  ``exp<=5min``) — read from ``$RMI_SECRETS_DIR/ghost_admin_key`` (default
+  ``/srv/secrets``), then ``GHOST_ADMIN_API_KEY`` env, then the legacy cookie file.
 """
 
 from __future__ import annotations
@@ -41,11 +40,12 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+RMI_SECRETS_DIR = os.getenv("RMI_SECRETS_DIR", "/srv/secrets")  # overridable; no path baked in
 GHOST_API = "https://blog.rugmunch.io"
 GHOST_CONTENT_KEY = os.getenv("GHOST_CONTENT_API_KEY", "")
-GHOST_ADMIN_KEY_FILE = "/srv/secrets/ghost_admin_key"
+GHOST_ADMIN_KEY_FILE = os.path.join(RMI_SECRETS_DIR, "ghost_admin_key")
 GHOST_SESSION_COOKIE = "/home/dev/rmi/backend/.secrets/ghost_session_cookies"
-GHOST_SESSION_COOKIE_TALOS = "/srv/secrets/ghost_session_cookies"
+GHOST_SESSION_COOKIE_TALOS = os.path.join(RMI_SECRETS_DIR, "ghost_session_cookies")
 
 PROFILE = {
     "name": "Crypto Rug Muncher",
@@ -344,7 +344,7 @@ async def create_post(
     if not auth:
         return {
             "error": "No Ghost admin credentials",
-            "help": "Set /srv/secrets/ghost_admin_key or GHOST_ADMIN_API_KEY",
+            "help": "Set $RMI_SECRETS_DIR/ghost_admin_key or GHOST_ADMIN_API_KEY",
         }
 
     try:
@@ -546,9 +546,9 @@ async def generate_newsletter() -> dict[str, Any]:
                 collections=["known_scams", "forensic_reports", "market_intel", "token_analysis"],
                 limit=3,
             )
-            if results.get("results"):
+            if results:
                 content_parts.append(f"\n## {section}")
-                for r in results["results"][:3]:
+                for r in results[:3]:
                     snippet = (r.get("content") or "")[:400]
                     if snippet:
                         content_parts.append(f"- {snippet}")

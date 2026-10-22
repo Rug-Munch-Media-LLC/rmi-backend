@@ -86,15 +86,8 @@ async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int =
 
 async def _gather_all_data() -> dict[str, Any]:
     """Gather comprehensive data from ALL DataBus sources + RAG knowledge base."""
-    data: dict[str, Any] = {
-        "market": {},
-        "fear_greed": {},
-        "news": {},
-        "ct": {},
-        "social": {},
-        "prediction_markets": {},
-        "rag_top_stories": [],
-    }
+    data: dict[str, Any] = {k: {} for k in ("market", "fear_greed", "news", "ct", "social", "prediction_markets")}
+    data["rag_top_stories"] = []
 
     # Market data
     try:

@@ -334,8 +334,7 @@ async def ghost_feed_posts(
     if page > 1:
         params["page"] = page
     filter_parts = ["status:published"]
-    ghost_tag = (os.getenv("GHOST_FEED_TAG") or "").strip()
-    if ghost_tag:
+    if ghost_tag := (os.getenv("GHOST_FEED_TAG") or "").strip():
         filter_parts.append(f"tag:{ghost_tag}")
     params["filter"] = "+".join(filter_parts)
     try:

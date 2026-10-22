@@ -140,17 +140,13 @@ def _signal_liquidity(payload: dict[str, Any]) -> tuple[float, list[str]]:
         elif liq < 25_000:
             score += 20
             findings.append(f"thin liquidity (${liq:,.0f})")
-    if liq is not None and mcap is not None and mcap > 0:
-        ratio = liq / mcap
-        if ratio < 0.02:
-            score += 25
-            findings.append(f"liquidity/mcap ratio {ratio:.2%} — exit liquidity poor")
+    ratio = liq / mcap if liq is not None and mcap else None
+    if ratio is not None and ratio < 0.02:
+        score += 25
+        findings.append(f"liquidity/mcap ratio {ratio:.2%} — exit liquidity poor")
     sent = payload.get("sentinel")
-    sent_free: dict[str, Any] = {}
-    if isinstance(sent, dict):
-        free = sent.get("free")
-        if isinstance(free, dict):
-            sent_free = free
+    free = sent.get("free") if isinstance(sent, dict) else None
+    sent_free: dict[str, Any] = free if isinstance(free, dict) else {}
     lp = sent_free.get("lp_verification")
     if isinstance(lp, dict):
         locked = lp.get("locked") or lp.get("is_locked") or lp.get("lp_locked")
