@@ -464,6 +464,14 @@ def _format_scan_response(result: Any, scan_mode: str = "basic") -> dict[str, An
         bundler_count = int(bundle_wallets)
     elif ba.get("funded_count") is not None:
         bundler_count = ba.get("funded_count")
+    # Bundle graph (multi-signal): wallets, edges, clusters + the two shares.
+    graph = ba.get("bundle_graph") if isinstance(ba.get("bundle_graph"), dict) else None
+    bundle_pct_of_supply = (graph or {}).get("bundle_pct_of_supply")
+    bundle_pct_of_fmv = (graph or {}).get("bundle_pct_of_first_minute_volume")
+    bundle_conf = (graph or {}).get("confidence")
+    bundle_tier = (graph or {}).get("confidence_tier")
+    if bundler_count is None and isinstance(graph, dict) and graph.get("clusters"):
+        bundler_count = int(graph["clusters"][0].get("size") or 0) or None
     buyers_list = fb.get("buyers") if isinstance(fb.get("buyers"), list) else []
     bundled_buyers = sum(1 for b in buyers_list if isinstance(b, dict) and b.get("bundled"))
     buyers_analyzed = fb.get("total_buyers") or len(buyers_list) or None
@@ -547,6 +555,11 @@ def _format_scan_response(result: Any, scan_mode: str = "basic") -> dict[str, An
         "holder_count": holder_count,
         "contract_authority": contract_authority,
         "bundler_count": bundler_count,
+        "bundle_graph": graph,
+        "bundle_pct_of_supply": bundle_pct_of_supply,
+        "bundle_pct_of_first_minute_volume": bundle_pct_of_fmv,
+        "bundle_confidence": bundle_conf,
+        "bundle_confidence_tier": bundle_tier,
         "bundled_first_buyers": bundled_buyers or None,
         "bundler_pct": bundler_pct,
         "wallet_metrics_summary": {

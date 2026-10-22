@@ -428,9 +428,31 @@ async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
             )
         if isinstance(same_slot, dict) and isinstance(r.bundle_analysis, dict):
             r.bundle_analysis["same_slot"] = same_slot
+        if isinstance(r.bundle_analysis, dict):
+            await _attach_bundle_graph(r, address, chain)
     except Exception as exc:
         logger.warning("bundle_analysis_failed", error=str(exc)[:200], chain=chain, token=address[:16])
         _record_module_error(r, "bundle_analysis", chain, str(exc))
+
+
+#: Wall-clock budget for the bundle graph (own ClickHouse reads only).
+BUNDLE_GRAPH_BUDGET_S = 8.0
+
+
+async def _attach_bundle_graph(r: ScanResult, address: str, chain: str) -> None:
+    """Attach the multi-signal bundle graph to ``bundle_analysis``.
+
+    Best-effort and inside the phase's existing budget: a graph failure leaves
+    the legacy bundle verdict untouched and records why.
+    """
+    try:
+        from app.domains.scanner.engines.bundle_graph import build_bundle_graph
+
+        graph = await asyncio.wait_for(build_bundle_graph(address, chain), timeout=BUNDLE_GRAPH_BUDGET_S)
+        if isinstance(graph, dict) and isinstance(r.bundle_analysis, dict):
+            r.bundle_analysis["bundle_graph"] = graph
+    except Exception as exc:  # noqa: BLE001 - never fail a scan for the graph
+        logger.debug("bundle_graph_attach_failed error=%s", str(exc)[:160])
 
 
 #: First-buyers sample size per scan tier (2026-08-29 depth push — synced
