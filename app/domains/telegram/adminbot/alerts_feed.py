@@ -22,9 +22,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from dataclasses import dataclass
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.telegram.adminbot.alerts_age import is_stale
 from app.domains.telegram.adminbot.alerts_render import (
     QUEUE_KEYS,
     SECURITY_QUEUE as SECURITY_QUEUE,  # explicit re-export (tests import from this module)
@@ -50,6 +52,48 @@ POLL_TIMEOUT_SECONDS = int(os.getenv("ALERTS_FEED_POLL", "10"))
 DEDUPE_WINDOW_SECONDS = int(os.getenv("ALERTS_FEED_DEDUPE", "1800"))
 DEDUPE_MAX_ENTRIES = 500
 DEDUPE_REDIS_PREFIX = "rmi:alerts:dedupe:"
+
+
+@dataclass(slots=True)
+class _FeedState:
+    """Everything the payload handler needs that outlives one message."""
+
+    client: Any
+    bot_app: Any
+    chat_id: int
+    dedupe: AlertDedupe
+
+
+async def _handle_payload(state: _FeedState, key: str, raw: str) -> None:
+    """Deliver one queued alert, or drop it.
+
+    Extracted from start_alerts_feed to keep the consumer loop's cyclomatic
+    complexity inside the repo ceiling. Bad payloads are dropped silently;
+    json.JSONDecodeError propagates so the caller keeps its existing handler.
+    """
+    alert = json.loads(raw)
+    if not isinstance(alert, dict):
+        logger.warning("Alerts feed: non-dict payload dropped")
+        return
+    if is_stale(alert):
+        # Suppressed, not delivered late. One flush of backlogged events is
+        # indistinguishable from noise and re-pages an already-handled incident.
+        return
+    try:
+        should_send = await redis_should_send(state.client, alert)
+    except Exception as exc:
+        logger.warning("Alerts feed Redis dedupe failed; using memory: %s", exc)
+        should_send = state.dedupe.should_send(alert)
+    if not should_send or state.chat_id <= 0:
+        return
+    await _deliver(state.bot_app, state.chat_id, format_alert(alert, str(key)))
+    labels = alert.get("labels") or {}
+    logger.info(
+        "alert_forwarded queue=%s name=%s status=%s",
+        key,
+        labels.get("alertname"),
+        alert.get("status"),
+    )
 
 
 async def start_alerts_feed(bot_app: Any) -> None:
@@ -81,6 +125,7 @@ async def start_alerts_feed(bot_app: Any) -> None:
     chat_id = int(os.environ.get("ADMIN_CHAT_ID", "0") or 0)
     if chat_id <= 0:
         logger.error("ADMIN_CHAT_ID unset — alerts feed started but cannot deliver")
+    state = _FeedState(client=client, bot_app=bot_app, chat_id=chat_id, dedupe=dedupe)
 
     try:
         while True:
@@ -89,27 +134,7 @@ async def start_alerts_feed(bot_app: Any) -> None:
                 if result is None:
                     continue
                 key, raw = result
-                alert = json.loads(raw)
-                if not isinstance(alert, dict):
-                    logger.warning("Alerts feed: non-dict payload dropped")
-                    continue
-                try:
-                    should_send = await redis_should_send(client, alert)
-                except Exception as exc:
-                    logger.warning("Alerts feed Redis dedupe failed; using memory: %s", exc)
-                    should_send = dedupe.should_send(alert)
-                if not should_send:
-                    continue
-                text = format_alert(alert, str(key))
-                if chat_id > 0:
-                    await _deliver(bot_app, chat_id, text)
-                    labels = alert.get("labels") or {}
-                    logger.info(
-                        "alert_forwarded queue=%s name=%s status=%s",
-                        key,
-                        labels.get("alertname"),
-                        alert.get("status"),
-                    )
+                await _handle_payload(state, key, raw)
             except json.JSONDecodeError:
                 logger.warning("Alerts feed: non-JSON payload skipped")
             except asyncio.CancelledError:

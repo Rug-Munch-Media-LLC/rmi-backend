@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
@@ -104,7 +105,12 @@ async def _get_redis() -> Any | None:
 
 async def _push(r: Any, queue: str, alert: AlertmanagerAlert) -> None:
     """Push a single alert onto a Redis list queue."""
-    await r.rpush(queue, json.dumps(alert.model_dump(by_alias=True)))
+    item = alert.model_dump(by_alias=True)
+    # Queue residence time is the only sound basis for the max-age drop:
+    # startsAt survives every Alertmanager repeat and would suppress a real
+    # ongoing incident.
+    item["queuedAt"] = datetime.now(UTC).isoformat()
+    await r.rpush(queue, json.dumps(item))
 
 
 @router.post("/webhook")

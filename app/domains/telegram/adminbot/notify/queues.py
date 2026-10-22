@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime
 from typing import Any
 
 SYSTEM = "rmi:alerts:system"
@@ -26,6 +27,8 @@ async def push(queue: str, alert: dict[str, Any]) -> None:
     # HELLO/AUTH ordering. Same workaround the alerts listener uses.
     client = aioredis.from_url(url, decode_responses=True, protocol=2)
     try:
-        await client.rpush(queue, json.dumps(alert))
+        payload = dict(alert)
+        payload.setdefault("queuedAt", datetime.now(UTC).isoformat())
+        await client.rpush(queue, json.dumps(payload))
     finally:
         await client.aclose()
