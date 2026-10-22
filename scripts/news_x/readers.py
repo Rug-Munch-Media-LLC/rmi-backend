@@ -12,17 +12,15 @@ auth bypass. Readers return (posts, error) and never raise.
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
 
 import httpx
-
+import x_graphql
 from http_get import MIN_BYTES, Limiter, get
 from markdown_parse import parse_markdown
 from model import Post, parse_nitter, parse_syndication
-import x_graphql  # noqa: E402  (sibling: guest-token GraphQL client)
 
 PRY_URL = os.environ.get("PRY_URL", "http://127.0.0.1:8005/v1/scrape")
 PRY_TIMEOUT = 120.0

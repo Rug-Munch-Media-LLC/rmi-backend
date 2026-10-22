@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "news_fallback"))
 
-import db  # noqa: E402  (shared connection helper)
+import db
 
 HALF_LIFE_H = 12.0
 #: An id-less post (pry renders the pinned post, which carries no date) is never
@@ -75,29 +75,28 @@ def top(limit: int = 10) -> list[Ranked]:
         LIMIT 2000
     """
     out: list[Ranked] = []
-    with db.connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            for row in cur.fetchall():
-                news_id, handle, klass, trust, quality, published, url, title, tweet_id = row
-                age_h = _age(published, now)
-                if tweet_id is None:
-                    age_h = max(age_h, UNDATED_MIN_AGE_H)
-                content = float(quality or 0) / 100.0
-                out.append(
-                    Ranked(
-                        news_id=str(news_id),
-                        handle=str(handle),
-                        klass=str(klass or "media"),
-                        trust=float(trust or 0.0),
-                        age_h=round(age_h, 2),
-                        score=rank_score(
-                            content, float(trust or 0.0), str(klass or "media"), age_h
-                        ),
-                        url=str(url),
-                        title=str(title or "")[:70],
-                    )
+    with db.connect() as conn, conn.cursor() as cur:
+        cur.execute(query)
+        for row in cur.fetchall():
+            news_id, handle, klass, trust, quality, published, url, title, tweet_id = row
+            age_h = _age(published, now)
+            if tweet_id is None:
+                age_h = max(age_h, UNDATED_MIN_AGE_H)
+            content = float(quality or 0) / 100.0
+            out.append(
+                Ranked(
+                    news_id=str(news_id),
+                    handle=str(handle),
+                    klass=str(klass or "media"),
+                    trust=float(trust or 0.0),
+                    age_h=round(age_h, 2),
+                    score=rank_score(
+                        content, float(trust or 0.0), str(klass or "media"), age_h
+                    ),
+                    url=str(url),
+                    title=str(title or "")[:70],
                 )
+            )
     out.sort(key=lambda row: row.score, reverse=True)
     return out[:limit]
 

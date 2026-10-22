@@ -30,6 +30,7 @@ async def ingest_channel(
     *,
     limit: int = 200,
     kind_hint: str | None = None,
+    weight: float | None = None,
     delay: float = PAGE_DELAY,
     root: str | None = None,
 ) -> dict[str, Any]:
@@ -80,6 +81,11 @@ async def ingest_channel(
     written = store.append_posts(handle, annotated, root)
     window = annotated or classify.annotate(collected, kind)
     profile = classify.channel_profile(window, kind)
+    if weight is not None:
+        # Curated weight wins over the rubric: a measured squat or a dormant
+        # desk must never out-rank a live one on rubric luck.
+        profile["trust_weight"] = float(weight)
+        profile["weight_source"] = "curated"
 
     newest = max((post["message_id"] for post in collected), default=last_id or 0)
     state.save_state(

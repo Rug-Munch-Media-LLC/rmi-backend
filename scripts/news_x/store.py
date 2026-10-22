@@ -18,10 +18,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "news_fallback"))
 
-import db  # noqa: E402  (single connection helper, shared with news_fallback)
-import quality_x  # noqa: E402  (sibling: canonical scorer, no app import)
-
-from model import Post  # noqa: E402  (sibling module)
+import db
+import quality_x
+from model import Post
 
 MIN_POST = 40
 _CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z0-9]{1,9})\b")
@@ -122,10 +121,9 @@ def store_many(posts: list[Post], source: str, trust: float, klass: str) -> dict
 
 def rag_ready(news_id: str) -> bool:
     """True when the row exists without an embedding (safe to (re)embed)."""
-    with db.connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT rag_embedding_id FROM news_items WHERE news_id=%s", (news_id,))
-            row = cur.fetchone()
+    with db.connect() as conn, conn.cursor() as cur:
+        cur.execute("SELECT rag_embedding_id FROM news_items WHERE news_id=%s", (news_id,))
+        row = cur.fetchone()
     return bool(row) and row[0] is None
 
 

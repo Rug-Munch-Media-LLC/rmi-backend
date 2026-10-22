@@ -30,6 +30,7 @@ async def ingest_all(
                     seed.username,
                     limit=limit,
                     kind_hint=seed.kind_hint,
+                    weight=seed.weight,
                     delay=delay,
                     root=root,
                 )

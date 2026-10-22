@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from pathlib import Path
 
 import x_graphql
 from http_get import Limiter

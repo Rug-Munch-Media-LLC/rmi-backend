@@ -21,7 +21,6 @@ import os
 from urllib.parse import quote
 
 import httpx
-
 import x_session
 from http_get import Limiter
 from model import Post
@@ -59,7 +58,7 @@ def _call(
     if proxy:
         kwargs["proxy"] = proxy
     try:
-        resp = httpx.get(url, headers=head, **kwargs)  # noqa: S113 - explicit timeout
+        resp = httpx.get(url, headers=head, **kwargs)
     except httpx.HTTPError as exc:
         return {}, type(exc).__name__
     if resp.status_code in (401, 403):

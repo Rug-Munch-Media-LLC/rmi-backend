@@ -17,7 +17,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "news_fallback"))
 
-import db  # noqa: E402  (shared connection helper)
+import db
 
 RAG_INGEST = "http://127.0.0.1:8012/api/v1/ingest"
 COLLECTION = os.environ.get("X_RAG_COLLECTION", "news_v2_8b")
@@ -68,29 +68,27 @@ def pending(news_ids: list[str]) -> list[str]:
     """Only the rows that still lack an embedding."""
     if not news_ids:
         return []
-    with db.connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT news_id FROM news_items WHERE news_id = ANY(%s) AND rag_embedding_id IS NULL",
-                (news_ids,),
-            )
-            return [str(row[0]) for row in cur.fetchall()]
+    with db.connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT news_id FROM news_items WHERE news_id = ANY(%s) AND rag_embedding_id IS NULL",
+            (news_ids,),
+        )
+        return [str(row[0]) for row in cur.fetchall()]
 
 
 def rows(news_ids: list[str]) -> list[dict]:
     """Fetch the columns the RAG document needs."""
     if not news_ids:
         return []
-    with db.connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT news_id, title, body_markdown, source, url,
+    with db.connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT news_id, title, body_markdown, source, url,
                           source_trust, category, published_at
                    FROM news_items WHERE news_id = ANY(%s)""",
-                (news_ids,),
-            )
-            cols = ("news_id", "title", "body", "source", "url", "trust", "klass", "published")
-            return [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
+            (news_ids,),
+        )
+        cols = ("news_id", "title", "body", "source", "url", "trust", "klass", "published")
+        return [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
 
 
 def push(news_ids: list[str], dry_run: bool = False) -> dict[str, object]:

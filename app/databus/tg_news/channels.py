@@ -1,11 +1,14 @@
 """Seed channel set for the public-preview ingester.
 
-``kind_hint`` encodes what we verified by hand on 2026-10-23: ``news_crypto``
-republishes other channels' posts (forward-heavy, no primary links) so it is an
-*aggregator*; the upstream handles are treated as *primary* until measured.
+``kind_hint`` encodes what the probe of 2026-10-23 measured (see
+``verified_channels``): a desk that republishes other channels is an
+*aggregator*, a desk that links the primary source is *primary*, a security desk
+is *security*. ``weight`` is the curated source weight for that handle; when set
+it wins over the rubric score, because a measured squat or a dormant desk must
+not out-rank a live one on rubric luck.
 
-These seeds are merged with enabled ``news`` entries from the canonical
-registry (``app/databus/tg_channels.json``); explicit ``--channels`` overrides.
+Seeds are merged with enabled ``news`` entries from the canonical registry
+(``app/databus/tg_channels.json``); explicit ``--channels`` overrides.
 """
 
 from __future__ import annotations
@@ -14,7 +17,7 @@ from dataclasses import dataclass
 
 from app.core.logging import get_logger
 from app.databus import tg_channel_registry as registry
-from app.databus.tg_news.verified_channels import PREVIEW_OFF, ROLES, VERIFIED
+from app.databus.tg_news.verified_channels import IMPOSTOR, PREVIEW_OFF, ROLES, SWEPT, WEIGHTS
 
 logger = get_logger("tg_news")
 
@@ -23,6 +26,7 @@ logger = get_logger("tg_news")
 class SeedChannel:
     username: str
     kind_hint: str
+    weight: float | None = None
 
 
 SEED_CHANNELS: tuple[SeedChannel, ...] = (
@@ -38,10 +42,16 @@ _KINDS.update(ROLES)
 
 
 def channel_list(explicit: list[str] | None = None) -> list[SeedChannel]:
-    """Explicit handles, else seeds + enabled registry news channels (deduped)."""
+    """Explicit handles, else seeds + measured channels + registry news channels."""
     if explicit:
-        return [SeedChannel(name.lstrip("@"), _KINDS.get(name.lstrip("@").lower(), "unknown")) for name in explicit]
-    result = list(SEED_CHANNELS) + [SeedChannel(channel.username, channel.role) for channel in VERIFIED]
+        names = [name.lstrip("@") for name in explicit]
+        return [
+            SeedChannel(name, _KINDS.get(name.lower(), "unknown"), WEIGHTS.get(name.lower()))
+            for name in names
+        ]
+    result = list(SEED_CHANNELS) + [
+        SeedChannel(channel.username, channel.role, channel.weight) for channel in SWEPT
+    ]
     seen = {seed.username.lower() for seed in result}
     try:
         extra = [c for c in registry.enabled_channels() if str(c.get("kind")) == "news"]
@@ -50,7 +60,13 @@ def channel_list(explicit: list[str] | None = None) -> list[SeedChannel]:
         return result
     for entry in extra:
         handle = str(entry.get("username", "")).lstrip("@")
-        if handle and handle.lower() not in seen and handle.lower() not in PREVIEW_OFF:
-            result.append(SeedChannel(handle, "unknown"))
-            seen.add(handle.lower())
+        lowered = handle.lower()
+        if (
+            handle
+            and lowered not in seen
+            and lowered not in PREVIEW_OFF
+            and lowered not in IMPOSTOR
+        ):
+            result.append(SeedChannel(handle, "unknown", WEIGHTS.get(lowered)))
+            seen.add(lowered)
     return result

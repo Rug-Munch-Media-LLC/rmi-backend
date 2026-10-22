@@ -36,9 +36,13 @@ def _authority(payload: dict[str, Any]) -> dict[str, str | None]:
 def _lp(payload: dict[str, Any]) -> dict[str, Any]:
     liquidity = payload.get("liquidity") or {}
     authority = payload.get("contract_authority") or {}
-    usd = _num(payload.get("liquidity_usd"))
+    usd = _num(liquidity.get("usd"))
     if usd is None:
-        usd = _num(liquidity.get("usd"))
+        usd = _num(payload.get("liquidity_usd"))
+    if usd == 0.0 and not liquidity:
+        # A zero from a scan that reported no pool block is *absent data*, not an
+        # empty pool. Keeping it would let ``lp_unlocked`` fire a false "drained".
+        usd = None
     locked = _num(liquidity.get("locked_pct"))
     if locked is None:
         locked = _num(authority.get("lp_locked_pct"))
@@ -74,7 +78,12 @@ def _bundle_wallets(payload: dict[str, Any]) -> list[str]:
     for bundle in bundles:
         if isinstance(bundle, dict):
             found.extend(str(w) for w in (bundle.get("wallets") or []))
-    found.extend(str(w) for w in (payload.get("bundled_first_buyers") or []))
+    first_buyers = payload.get("bundled_first_buyers")
+    if isinstance(first_buyers, (list, tuple, set)):
+        found.extend(str(w) for w in first_buyers)
+    # An int here is a *count* of bundled first buyers, not a wallet list; the
+    # EVM scanner emits both shapes and iterating the int used to crash. Keep
+    # the count as a count — ``bundle_wallets`` is a set of addresses or empty.
     return sorted({wallet for wallet in found if wallet})
 
 

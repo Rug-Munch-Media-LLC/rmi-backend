@@ -20,12 +20,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import fetch  # noqa: E402  (sibling)
-import rag  # noqa: E402  (sibling)
-import rank  # noqa: E402  (sibling)
-import store  # noqa: E402  (sibling)
-from model import Post  # noqa: E402  (sibling)
-from sources import Source, load_registry  # noqa: E402  (sibling)
+import fetch
+import rag
+import rank
+import store
+from model import Post
+from sources import Source, load_registry
 
 
 def _recent(posts: list[Post], hours: int) -> list[Post]:
