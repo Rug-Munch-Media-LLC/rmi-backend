@@ -26,6 +26,20 @@ class VerifiedChannel:
 
 
 VERIFIED: tuple[VerifiedChannel, ...] = (
+    # Security / scam-intel primaries. Re-probed 2026-10-23 (HTTP 200 on
+    # t.me/s/<handle>, message nodes present). ``zachxbt`` publishes its own
+    # investigations and links tx hashes; the rest are alert desks. ``subs`` is
+    # intentionally null where the preview page does not expose it.
+    VerifiedChannel("zachxbt", "security", None, 0.9, "on-chain investigation; open preview"),
+    VerifiedChannel("certikalert", "security", None, 0.9, "alert desk; open preview"),
+    VerifiedChannel("rektnews", "security", None, 0.9, "exploit post-mortems; open preview"),
+    VerifiedChannel("scamsnifferalert", "security", None, 0.9, "wallet drainer alerts; open preview"),
+    VerifiedChannel("slowmistteam", "security", None, 0.9, "SlowMist incident alerts; open preview"),
+    VerifiedChannel("lookonchainchannel", "security", None, 0.85, "on-chain flows; open preview"),
+    VerifiedChannel("arkhamintelligence", "security", None, 0.85, "entity/attribution; open preview"),
+    VerifiedChannel("rekt_news", "security", None, 0.8, "secondary; open preview, thin"),
+    VerifiedChannel("hypernativelabs", "security", None, 0.8, "exploit detection; open preview, thin"),
+    VerifiedChannel("peckshieldalert", "security", None, 0.9, "alert desk; open preview, thin"),
     VerifiedChannel("binance_announcements", "primary", 3_290_000, 1.0, "exchange notices"),
     VerifiedChannel("cointelegraph", "primary", 329_000, 1.0, "outlet, links articles"),
     VerifiedChannel("whale_alert_io", "primary", 297_000, 1.0, "on-chain transfers"),
@@ -45,7 +59,11 @@ VERIFIED: tuple[VerifiedChannel, ...] = (
 )
 
 #: t.me/s/ 302-redirects to the plain channel page => public preview closed.
-#: Verified 2026-10-23; skipped here, still monitored by the userbot/registry.
+#: Verified 2026-10-23 by a live GET per handle; skipped in this sweep, still
+#: monitored by the userbot/registry and carried by the web/X fallback
+#: (``config/security_feeds.txt`` in rugbrain + the X lane ``x_sources.json``).
+#: ``zachxbt`` was WRONGLY listed here — its preview answers 200 — and is now
+#: swept; the closed rows below are the ones that genuinely 302.
 PREVIEW_OFF: frozenset[str] = frozenset(
     name.lower()
     for name in (
@@ -63,7 +81,6 @@ PREVIEW_OFF: frozenset[str] = frozenset(
         "ambcrypto",
         "AMBCrypto",
         "bitcoinmagazine",
-        "zachxbt",
         "SlowMist",
         "PeckShield",
         "BlockSecTeam",

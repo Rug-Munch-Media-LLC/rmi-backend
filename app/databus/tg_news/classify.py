@@ -10,8 +10,8 @@ Post rubric (start 55):
 
 Bands: ``high`` >= 70, ``medium`` >= 45, else ``low``.
 
-``KIND_WEIGHTS`` is the multiplier Rugbrain may apply per channel role
-(``primary`` 1.0, ``aggregator`` 0.35, unknown 0.5); it is emitted both per
+``KIND_WEIGHTS`` is the multiplier Rugbrain applies per channel role
+(``primary`` 1.0, ``security`` 0.9, ``aggregator`` 0.35, unknown 0.5); it is emitted both per
 post (``kind_weight``) and on the channel profile (``trust_weight``).
 """
 
@@ -25,11 +25,15 @@ _BAIT_MARKERS = ("just in", "breaking", "urgent", "🚨", "⚠️", "🔥")
 _WS_RE = re.compile(r"\s+")
 KIND_AGGREGATOR = "aggregator"
 KIND_PRIMARY = "primary"
+KIND_SECURITY = "security"
 KIND_SHILL = "shill"
 KIND_UNKNOWN = "unknown"
 #: Weight persisted with each source; ``shill`` is 0.0 by design (monitored only).
 KIND_WEIGHTS = {
     KIND_PRIMARY: 1.0,
+    # Security/scam primaries: own reporting, but single-source and unverified
+    # until a second desk or the chain confirms (matches news_fallback's 0.90).
+    KIND_SECURITY: 0.9,
     KIND_AGGREGATOR: 0.35,
     KIND_SHILL: 0.0,
     KIND_UNKNOWN: 0.5,
@@ -89,7 +93,7 @@ def channel_profile(posts: list[dict[str, Any]], kind_hint: str | None = None) -
     link_share = round(linked / total, 3)
     cadence = round(len(posts) / _hours_span(posts), 2)
     derived = KIND_AGGREGATOR if (forward_share >= 0.25 or link_share < 0.2) else KIND_PRIMARY
-    kind = kind_hint if kind_hint in (KIND_PRIMARY, KIND_AGGREGATOR, KIND_SHILL) else derived
+    kind = kind_hint if kind_hint in (KIND_PRIMARY, KIND_AGGREGATOR, KIND_SHILL, KIND_SECURITY) else derived
     mean_score = sum(int(post.get("trust_score", 0)) for post in posts) / total
     trust = mean_score + (-10 if kind == KIND_AGGREGATOR else 5 if link_share > 0.5 else 0)
     trust -= 10 if cadence > 6 else 5 if cadence > 2 else 0
