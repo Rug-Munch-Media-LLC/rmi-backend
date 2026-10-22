@@ -36,7 +36,7 @@ def _short(value: str | None) -> str:
     return f"{value[:6]}…{value[-4:]}" if len(value) > 12 else value
 
 
-def _describe(event: dict[str, Any]) -> str:
+def describe_event(event: dict[str, Any]) -> str:
     """One postable sentence: who, from what, to what."""
     kind = event["kind"]
     if kind == "cashed_out":
@@ -88,7 +88,7 @@ def rows_for_events(
                 "alert_type": kind,
                 "severity": _SEVERITY.get(kind, "info"),
                 "title": f"{_LEAD.get(kind, kind)} on {chain} {_short(token)} ({watchers_n} watching)",
-                "description": _describe(event) + ".",
+                "description": describe_event(event) + ".",
                 "evidence": {
                     "source": "premium_watch",
                     "watchers_n": watchers_n,

@@ -19,6 +19,7 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.alerts.postgres_store import save_alerts
+from app.domains.premium.bot_queue import enqueue_watch_alerts
 from app.domains.premium.snapshot import snapshot_from_scan
 from app.domains.premium.watch_alerts import rows_for_events
 from app.domains.premium.watch_events import diff_snapshots
@@ -59,6 +60,22 @@ async def run_watch_cycle(
     events = diff_snapshots(previous, snapshot)
     rows = rows_for_events(token, chain, events, watchers_n, snapshot) if watchers_n and events else []
     inserted = await save_alerts(session, rows) if rows else 0
+    watchers = await watchers_for(redis, token, chain)
+    # Only a genuinely new alert is delivered: the store dedupes, so re-running
+    # the same cycle must not page the same chat twice.
+    queued = (
+        await enqueue_watch_alerts(
+            redis,
+            token,
+            chain,
+            str(payload.get("token_symbol") or payload.get("symbol") or ""),
+            events,
+            snapshot,
+            watchers,
+        )
+        if inserted
+        else 0
+    )
 
     await save_snapshot(redis, token, chain, snapshot)
     if events:
@@ -78,5 +95,6 @@ async def run_watch_cycle(
         "events": events,
         "alert_rows": len(rows),
         "inserted": inserted,
-        "watchers": await watchers_for(redis, token, chain),
+        "queued": queued,
+        "watchers": watchers,
     }

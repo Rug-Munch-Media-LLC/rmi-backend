@@ -22,6 +22,7 @@ class FakeRedis:
         self.hashes: dict[str, dict[str, str]] = {}
         self.sets: dict[str, set[str]] = {}
         self.kv: dict[str, str] = {}
+        self.lists: dict[str, list[str]] = {}
 
     def _out(self, value: str) -> str | bytes:
         return value if self.decode else value.encode()
@@ -43,6 +44,11 @@ class FakeRedis:
 
     async def hdel(self, key: str, field: str) -> int:
         return 1 if self.hashes.get(key, {}).pop(field, None) is not None else 0
+
+    async def lpush(self, key: str, value: str) -> int:
+        bucket = self.lists.setdefault(key, [])
+        bucket.insert(0, self._in(value))
+        return len(bucket)
 
     async def sadd(self, key: str, member: str) -> int:
         bucket = self.sets.setdefault(key, set())
