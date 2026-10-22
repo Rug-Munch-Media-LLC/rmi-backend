@@ -103,7 +103,6 @@ def run_opencode(
     cmd = [
         opencode,
         "run",
-        "--pure",
         "--format",
         "default",
         "--model",
@@ -193,3 +192,21 @@ async def chat(
         "tokens": session["tokens"],
         "messages": session["messages"],
     }
+
+
+def __getattr__(name: str):
+    """Lazy re-exports.
+
+    ai_keyboard imports MODELS from this module, so importing model_keyboard at
+    module scope is circular. _cmd_ops calls admin_ai.model_keyboard() and
+    ai_gateway calls admin_ai.get_usage(); resolve both on first access.
+    """
+    if name == "model_keyboard":
+        from app.domains.telegram.adminbot.ai_keyboard import model_keyboard
+
+        return model_keyboard
+    if name == "get_usage":
+        from app.domains.telegram.adminbot.ai_session import get_usage
+
+        return get_usage
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
