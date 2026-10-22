@@ -1,0 +1,42 @@
+<b>▮▯▯▯ LOW · $MIM · SOLANA · 99/100</b>
+<code>4VdAC7rzxabkNg1hh8UxiuNUiqMGYzq8t6sU5K3Dpump</code>
+
+<i>2026-10-22 18:31 UTC · source degen</i>
+
+<b>Verdict</b> 99/100 safety · no determination
+<b>Driver</b> No graded risk driver surfaced
+<b>Action</b> No disqualifying signal in the data we hold.
+
+<pre>              init   sold realised
+Team             —      —        —
+Insiders         —      —        —
+Snipers          —      —        —
+Bundles          —      —        —</pre>
+
+<pre>Bundle       —
+Top-10       12.0%
+Holders      2,803</pre>
+
+<pre>Liquidity    $47.22K
+LP           burned (100.0%)
+Vol 24h      $485.32K
+Price        $0.00030 (+472.0%)
+±1% move     $236.10
+±5% move     $1.18K
+±10% move    $2.36K</pre>
+
+<pre>Mint         revoked
+Freeze       revoked</pre>
+
+<pre>Prior tokens —
+Prior rugs   0
+Scammer      unknown</pre>
+
+<pre>KOLs         no data</pre>
+
+<b>Flags</b>
+None recorded.
+
+<i>— no data · * realised estimated from wallet PnL · ± move = notional for that price move (CPMM)</i>
+
+<a href="https://dexscreener.com/solana/39bxxn69nx6tcnpignp4sxnjdbybnaivwbauacl5984w">DexScreener ↗</a>

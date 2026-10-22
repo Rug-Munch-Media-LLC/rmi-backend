@@ -1,0 +1,12 @@
+<b>▮▮▯▯ MEDIUM · $CHARLIE · SOLANA · 99/100</b>
+<code>63oXihJWAuauiXDHAs7xqYAgBubWzEq7RXpUjusQM8AD</code>
+
+<b>Verdict</b> 99/100 safety · no determination
+<b>Driver</b> No graded risk driver surfaced
+<b>Action</b> Unproven, not disproven — size accordingly.
+
+<pre>Liquidity    $3.29K
+Top-10       91.7%
+Safety       99/100</pre>
+
+<a href="https://dexscreener.com/solana/3gh49m9o3huuqsecfh1a8elz4hbgvuam6q5ggusjtzy8">DexScreener ↗</a>

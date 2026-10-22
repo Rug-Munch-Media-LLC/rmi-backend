@@ -1,0 +1,14 @@
+<b>▮▮▮▯ HIGH · $CLUCK · SOLANA · 64/100</b>
+<code>8qx8J2SNyhpMk8cEMkhWtuagM6QMfzYt4YR9mUHPpump</code>
+
+<b>Verdict</b> 64/100 safety · no determination
+<b>Driver</b> Low Liquidity: $7.76
+<b>Action</b> Treat as hostile until a human reads the full report.
+
+<pre>Liquidity    $7.76
+Top-10       63.3%
+Safety       64/100</pre>
+
+<b>Flag</b> [warning] Low Liquidity: $7.76
+
+<a href="https://dexscreener.com/solana/hgyvnrlytqvfytpycrkav4e6vej8jcn5deewoa4kb9xf">DexScreener ↗</a>

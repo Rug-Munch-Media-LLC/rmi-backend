@@ -1,0 +1,42 @@
+<b>▮▮▯▯ MEDIUM · $CHARLIE · SOLANA · 99/100</b>
+<code>63oXihJWAuauiXDHAs7xqYAgBubWzEq7RXpUjusQM8AD</code>
+
+<i>2026-10-22 18:31 UTC · source degen</i>
+
+<b>Verdict</b> 99/100 safety · no determination
+<b>Driver</b> No graded risk driver surfaced
+<b>Action</b> Unproven, not disproven — size accordingly.
+
+<pre>              init   sold realised
+Team             —      —        —
+Insiders 4w      —      —        —
+Snipers          —      —        —
+Bundles          —      —        —</pre>
+
+<pre>Bundle       —
+Top-10       91.7%
+Holders      640</pre>
+
+<pre>Liquidity    $3.29K
+LP           burned (100.0%)
+Vol 24h      $122.34K
+Price        $0.0000041 (+4.6%)
+±1% move     $16.44
+±5% move     $82.18
+±10% move    $164.37</pre>
+
+<pre>Mint         revoked
+Freeze       revoked</pre>
+
+<pre>Prior tokens —
+Prior rugs   0
+Scammer      unknown</pre>
+
+<pre>KOLs         no data</pre>
+
+<b>Flags</b>
+None recorded.
+
+<i>— no data · * realised estimated from wallet PnL · ± move = notional for that price move (CPMM)</i>
+
+<a href="https://dexscreener.com/solana/3gh49m9o3huuqsecfh1a8elz4hbgvuam6q5ggusjtzy8">DexScreener ↗</a>

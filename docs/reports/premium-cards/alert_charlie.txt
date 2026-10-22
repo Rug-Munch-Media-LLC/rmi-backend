@@ -1,0 +1,8 @@
+<b>▮▮▯▯ MEDIUM · $CHARLIE · SOLANA · 99/100 · ALERT</b>
+<code>63oXihJWAuauiXDHAs7xqYAgBubWzEq7RXpUjusQM8AD</code>
+
+<b>No prior snapshot</b>
+First scan for this token — nothing to compare, so nothing to alert on.
+
+<a href="https://dexscreener.com/solana/3gh49m9o3huuqsecfh1a8elz4hbgvuam6q5ggusjtzy8">DexScreener ↗</a>
+<i>alert card · delta only</i>

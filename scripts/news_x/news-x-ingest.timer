@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the X ingestion lane every 30 minutes
+Documentation=file:///srv/work/repos/rmi-backend/scripts/news_x/README.md
+
+[Timer]
+OnCalendar=*:0/30
+OnBootSec=10min
+AccuracySec=1min
+RandomizedDelaySec=120
+Persistent=true
+Unit=news-x-ingest.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,8 @@
+<b>▮▯▯▯ LOW · $MIM · SOLANA · 99/100 · ALERT</b>
+<code>4VdAC7rzxabkNg1hh8UxiuNUiqMGYzq8t6sU5K3Dpump</code>
+
+<b>No prior snapshot</b>
+First scan for this token — nothing to compare, so nothing to alert on.
+
+<a href="https://dexscreener.com/solana/39bxxn69nx6tcnpignp4sxnjdbybnaivwbauacl5984w">DexScreener ↗</a>
+<i>alert card · delta only</i>

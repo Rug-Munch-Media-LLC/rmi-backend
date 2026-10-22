@@ -1,0 +1,20 @@
+[Unit]
+Description=X ingestion lane for the news pipeline (report only, not enabled)
+Documentation=file:///srv/work/repos/rmi-backend/scripts/news_x/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/work/repos/rmi-backend/scripts/news_x
+EnvironmentFile=-/root/backend/.env
+Environment=PYTHONUNBUFFERED=1
+# Politeness: fetch.Limiter enforces <=1 req/s/host and parks a host after 3
+# consecutive failures, so one pass is bounded in wall-clock.
+ExecStart=/usr/bin/python3 x_ingest.py --once --hours 24
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=900
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=news-x-ingest

@@ -1,0 +1,8 @@
+<b>▮▮▮▯ HIGH · $CLUCK · SOLANA · 64/100 · ALERT</b>
+<code>8qx8J2SNyhpMk8cEMkhWtuagM6QMfzYt4YR9mUHPpump</code>
+
+<b>No prior snapshot</b>
+First scan for this token — nothing to compare, so nothing to alert on.
+
+<a href="https://dexscreener.com/solana/hgyvnrlytqvfytpycrkav4e6vej8jcn5deewoa4kb9xf">DexScreener ↗</a>
+<i>alert card · delta only</i>

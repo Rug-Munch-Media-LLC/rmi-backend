@@ -1,0 +1,12 @@
+<b>▮▯▯▯ LOW · $MIM · SOLANA · 99/100</b>
+<code>4VdAC7rzxabkNg1hh8UxiuNUiqMGYzq8t6sU5K3Dpump</code>
+
+<b>Verdict</b> 99/100 safety · no determination
+<b>Driver</b> No graded risk driver surfaced
+<b>Action</b> No disqualifying signal in the data we hold.
+
+<pre>Liquidity    $47.22K
+Top-10       12.0%
+Safety       99/100</pre>
+
+<a href="https://dexscreener.com/solana/39bxxn69nx6tcnpignp4sxnjdbybnaivwbauacl5984w">DexScreener ↗</a>

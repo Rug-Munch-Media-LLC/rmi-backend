@@ -1,0 +1,42 @@
+<b>▮▮▮▯ HIGH · $CLUCK · SOLANA · 64/100</b>
+<code>8qx8J2SNyhpMk8cEMkhWtuagM6QMfzYt4YR9mUHPpump</code>
+
+<i>2026-10-22 18:31 UTC · source degen</i>
+
+<b>Verdict</b> 64/100 safety · no determination
+<b>Driver</b> Low Liquidity: $7.76
+<b>Action</b> Treat as hostile until a human reads the full report.
+
+<pre>              init   sold realised
+Team             —      —        —
+Insiders         —      —        —
+Snipers          —      —        —
+Bundles          —      —        —</pre>
+
+<pre>Bundle       —
+Top-10       63.3%
+Holders      244</pre>
+
+<pre>Liquidity    $7.76
+LP           not locked (0.0%)
+Vol 24h      $66.24K
+Price        $0.000015 (+321.0%)
+±1% move     $0.038781
+±5% move     $0.193904
+±10% move    $0.387807</pre>
+
+<pre>Mint         revoked
+Freeze       revoked</pre>
+
+<pre>Prior tokens —
+Prior rugs   0
+Scammer      unknown</pre>
+
+<pre>KOLs         no data</pre>
+
+<b>Flags</b>
+• [warning] Low Liquidity: $7.76
+
+<i>— no data · * realised estimated from wallet PnL · ± move = notional for that price move (CPMM)</i>
+
+<a href="https://dexscreener.com/solana/hgyvnrlytqvfytpycrkav4e6vej8jcn5deewoa4kb9xf">DexScreener ↗</a>
