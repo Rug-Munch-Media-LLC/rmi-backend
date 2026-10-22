@@ -17,8 +17,6 @@ from fastapi import Query
 # logger, _IMAGE_BACKFILL_CACHE); reading through the package module at
 # call time keeps those patches effective.
 import app.routers.news as _pkg
-from app.core.errors import AppError
-from app.domains.news.feed_source import is_ranked_result, load_ranked_result
 from app.routers.news import _helpers as _h
 from app.routers.news._helpers import (
     _COMMENTS,
@@ -28,6 +26,7 @@ from app.routers.news._helpers import (
     logger,
     router as router,
 )
+from app.routers.news.feed_lanes import resolve_envelope
 
 # ─── Main Feed ────────────────────────────────────────────────────
 
@@ -55,95 +54,13 @@ async def get_news_feed(
     then an inline legacy fetch time-boxed to 12s. Empty results are never
     memoized (a failed fetch must not poison the cache for the TTL window).
     """
-    result: dict[str, Any] | None = None
-
-    if not refresh:
-        # ── 1) In-process memo (3 min TTL) — ranked envelopes only ──
-        # /headlines writes the unranked Redis aggregate into this same memo, so
-        # a memo hit alone is not enough: an unscored envelope falls through.
-        if (
-            _h._NEWS_CACHE
-            and _h._CACHE_TS
-            and (datetime.now(UTC) - _h._CACHE_TS) < _h._CACHE_TTL
-            and is_ranked_result(_h._NEWS_CACHE)
-        ):
-            result = _h._NEWS_CACHE
-        # ── 2) Ranked DB lane — writes the scored envelope into the memo ──
-        if result is None:
-            try:
-                result = await load_ranked_result(limit=200, category=category)
-                if result is not None:
-                    _h._NEWS_CACHE = result
-                    _h._CACHE_TS = datetime.now(UTC)
-            except Exception as e:
-                logger.warning(f"Ranked feed lane failed: {e}")
-        # ── 3) Redis aggregate — instant read of the background refresh ──
-        if result is None:
-            try:
-                from app.databus.news_provider import get_aggregated_news
-
-                agg = await get_aggregated_news(limit=200)
-                agg_articles = (agg or {}).get("articles") or []
-                if agg_articles:
-                    result = {
-                        "status": "success",
-                        "articles": agg_articles,
-                        "total": len(agg_articles),
-                        "sources": sorted({str(a.get("source", "")) for a in agg_articles}),
-                        "source_count": len({a.get("source", "") for a in agg_articles}),
-                        "sentiment_summary": {},
-                        "tiers": sorted({str(a.get("tier") or "news") for a in agg_articles}),
-                    }
-                    _h._NEWS_CACHE = result
-                    _h._CACHE_TS = datetime.now(UTC)
-            except Exception as e:
-                logger.warning(f"Redis aggregate read failed: {e}")
-
-    if result is None:
-        # ── 4) Cold cache / forced refresh — inline legacy fetch, time-boxed ──
-        try:
-            from app.domains.news.news_service import get_news_service
-
-            svc = get_news_service()
-            fetched = await asyncio.wait_for(
-                svc.fetch_all(
-                    limit=200,
-                    include_rss=include_rss,
-                    include_reddit=include_reddit,
-                    include_internal=include_internal,
-                ),
-                timeout=12.0,
-            )
-            if fetched.get("articles"):
-                result = fetched
-                _h._NEWS_CACHE = fetched
-                _h._CACHE_TS = datetime.now(UTC)
-            elif _h._NEWS_CACHE:
-                result = _h._NEWS_CACHE
-        except TimeoutError:
-            logger.warning("News fetch_all timed out after 12s")
-            if _h._NEWS_CACHE:
-                result = _h._NEWS_CACHE
-        except Exception as e:
-            logger.error(f"News fetch failed: {e}")
-            if _h._NEWS_CACHE:
-                result = _h._NEWS_CACHE
-            else:
-                raise AppError(f"News aggregation failed: {e!s}") from e
-
-    if result is None:
-        # Nothing anywhere — explicit empty (never cached).
-        result = {
-            "status": "success",
-            "articles": [],
-            "total": 0,
-            "sources": [],
-            "source_count": 0,
-            "sentiment_summary": {},
-            "tiers": [],
-            "cached": False,
-            "fetched_at": datetime.now(UTC).isoformat(),
-        }
+    result = await resolve_envelope(
+        refresh=refresh,
+        category=category,
+        include_rss=include_rss,
+        include_reddit=include_reddit,
+        include_internal=include_internal,
+    )
 
     articles = result.get("articles", [])
 
