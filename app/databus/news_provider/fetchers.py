@@ -516,8 +516,18 @@ async def refresh_news_cache() -> dict[str, Any]:
         logger.warning(f"RSS fetch failed: {e}")
         rss_articles = []
 
+    # Telegram public-preview store: no network here (the scheduled job
+    # `python -m app.databus.tg_news run` fills data/telegram_news/).
+    try:
+        from app.databus.tg_news.databus import telegram_news_articles
+
+        tg_articles = telegram_news_articles(limit=40)
+    except Exception as e:  # fail-open: a missing/empty store never empties the feed
+        logger.warning(f"Telegram news store unavailable: {e}")
+        tg_articles = []
+
     # Merge, dedupe, sort, and relevance-rank (fail-open passes)
-    all_articles = sort_by_published(dedupe_articles(api_articles + rss_articles))
+    all_articles = sort_by_published(dedupe_articles(api_articles + rss_articles + tg_articles))
     all_articles = await relevance_rerank(all_articles)
 
     # Build the full news data
@@ -538,6 +548,7 @@ async def refresh_news_cache() -> dict[str, Any]:
             "Alternative.me (Fear & Greed Index)",
             "Polymarket (prediction markets)",
             f"RSS ({len(TOP_50_FEEDS)} feeds: CoinTelegraph, Decrypt, The Block, etc.)",
+            f"Telegram public preview ({len(tg_articles)} posts from t.me/s)",
         ],
         "source": "full_news_feed",
         "free": True,

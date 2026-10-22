@@ -108,6 +108,7 @@ data/kaggle/
 data/models/
 data/papers/
 data/wallet-labels-backups/
+data/telegram_news/
 data/wallet-labels-clean/
 data/wallet-labels/
 main.py.bak
