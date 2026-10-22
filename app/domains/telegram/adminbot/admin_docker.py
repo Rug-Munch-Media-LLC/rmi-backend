@@ -11,10 +11,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.domains.telegram.adminbot.admin_ops import _run_subprocess, _validate_name
+from app.domains.telegram.adminbot.admin_ops import _run_subprocess, _validate_name, clip_text
 
 _MEM_USAGE_RE = re.compile(r"^([\d.]+)([KMG]i?B)", re.IGNORECASE)
-_STATS_HEADER = ("CONTAINER", "MEM USED", "MEM%", "CPU%")
+_HEALTH_RE = re.compile(r"\((healthy|unhealthy|health: starting)\)", re.IGNORECASE)
+_UPTIME_RE = re.compile(r"^Up\s+(.+?)(?:\s+\((?:healthy|unhealthy|health: starting)\))?$", re.IGNORECASE)
 
 
 # ═══════════════════════════════════════════════
@@ -33,36 +34,67 @@ def _bytes_from_size(spec: str) -> float:
     return value * mult
 
 
+def _health_from_status(status: str) -> str:
+    """``healthy`` / ``unhealthy`` / ``health: starting`` from a docker status."""
+    m = _HEALTH_RE.search(status or "")
+    return m.group(1).lower() if m else ""
+
+
+def _uptime_from_status(status: str) -> str:
+    """The ``Up 7 minutes`` part of a docker status string."""
+    m = _UPTIME_RE.match((status or "").strip())
+    return f"Up {m.group(1).strip()}" if m else (status or "")[:24]
+
+
 def docker_ps_table() -> dict[str, Any]:
-    """docker ps formatted as name / status / ports table."""
-    r = _run_subprocess(
-        ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}\t{{.Ports}}"],
-        timeout=30,
-    )
+    """docker ps as structured rows: name, state, health, uptime."""
+    r = _run_subprocess(["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"], timeout=30)
     if not r["ok"]:
         return r
-    rows: list[tuple[str, str, str]] = []
+    rows: list[dict[str, str]] = []
     for line in r.get("output", "").splitlines():
         parts = line.split("\t")
-        if len(parts) >= 2:
-            rows.append((parts[0], parts[1], parts[2] if len(parts) > 2 else ""))
+        if len(parts) < 2:
+            continue
+        rows.append(
+            {
+                "name": parts[0],
+                "status": parts[1],
+                "health": _health_from_status(parts[1]),
+                "uptime": _uptime_from_status(parts[1]),
+            }
+        )
     return {**r, "rows": rows}
 
 
+def _short_name(name: str) -> str:
+    """Forgejo job containers carry 100+ char names - keep the readable tail."""
+    return name if len(name) <= 40 else "…" + name[-39:]
+
+
 def format_docker_ps(result: dict[str, Any]) -> str:
-    """Render docker ps as an aligned table (name, status, uptime, ports)."""
-    rows: list[tuple[str, str, str]] = result.get("rows", [])
+    """Render docker ps: unhealthy first, then health, then uptime per container."""
+    rows: list[dict[str, str]] = result.get("rows", [])
     if not rows:
+        if not result.get("ok", True):
+            return f"❌ `docker ps` failed: {result.get('error', 'unknown')[:200]}"
         return "🐳 No running containers."
-    lines = ["🐳 *Docker PS*\n```"]
-    lines.append(f"{'CONTAINER':<26} {'STATUS':<32} PORTS")
-    for name, status, ports in rows:
-        ports_short = (ports[:34] + "…") if len(ports) > 35 else ports
-        status_short = status[:30]
-        lines.append(f"{name[:25]:<26} {status_short:<32} {ports_short}")
+    unhealthy = [r for r in rows if r["health"] == "unhealthy"]
+    starting = [r for r in rows if r["health"] == "health: starting"]
+    rest = sorted((r for r in rows if r not in unhealthy and r not in starting), key=lambda r: (r["health"] != "healthy", r["name"].lower()))
+    healthy_n = sum(1 for r in rows if r["health"] == "healthy")
+    lines = [f"🐳 *Docker PS* — {len(rows)} running · {healthy_n} healthy · {len(rows) - healthy_n} unmonitored"]
+    if unhealthy:
+        lines.append(f"🔴 *UNHEALTHY ({len(unhealthy)})*: " + ", ".join(f"`{_short_name(r['name'])}`" for r in unhealthy))
+    if starting:
+        lines.append(f"🟡 health: starting ({len(starting)}): " + ", ".join(f"`{_short_name(r['name'])}`" for r in starting))
     lines.append("```")
-    lines.append(f"\n{len(rows)} running")
-    return "\n".join(lines)
+    lines.append(f"{'CONTAINER':<42} {'HEALTH':<10} UPTIME")
+    for r in unhealthy + starting + rest:
+        health = r["health"] or "-"
+        lines.append(f"{_short_name(r['name'])[:41]:<42} {health[:10]:<10} {r['uptime'][:22]}")
+    lines.append("```")
+    return clip_text("\n".join(lines))
 
 
 # ═══════════════════════════════════════════════

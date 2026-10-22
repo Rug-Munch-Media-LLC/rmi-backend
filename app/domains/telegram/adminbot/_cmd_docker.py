@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.domains.telegram.adminbot import admin_docker, admin_ops
+from app.domains.telegram.adminbot import admin_docker, admin_ops, admin_server
 from app.domains.telegram.adminbot.helpers import (
     back_button,
     docker_confirm_keyboard,
@@ -59,39 +59,38 @@ async def cmd_dps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+# /dlogs with no argument tails the main backend container - the usual question.
+_DEFAULT_DLOG = "rmi-backend"
+
+
 @owner_only
 async def cmd_dlogs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    """Tail docker logs for a container: /dlogs <container> [lines]."""
+    """Tail docker logs: /dlogs [container] [lines] (defaults to rmi-backend)."""
     args = ctx.args or []
-    if not args:
-        await update.message.reply_text(
-            "📜 *Docker Logs*\n\n"
-            "Usage: `/dlogs <container> [lines]`\n\n"
-            "Examples:\n"
-            "`/dlogs rmi-backend`\n"
-            "Default: 50 lines. Max: 500.",
-            parse_mode=ParseMode.MARKDOWN,
-        )
-        return
-    container = args[0]
+    container = args[0] if args else _DEFAULT_DLOG
     lines = int(args[1]) if len(args) > 1 and args[1].isdigit() else 50
+    note = "" if args else f" (default `{container}`)"
     msg = await update.message.reply_text(f"⏳ Fetching logs for `{container}`...", parse_mode=ParseMode.MARKDOWN)
     result = admin_docker.docker_logs_tail(container, lines)
     if result["ok"] and result["output"]:
+        body = admin_ops.clip_text(result["output"], 3500)
         await msg.edit_text(
-            f"📜 `{container}` (last {lines} lines):\n\n```\n{result['output'][:3000]}\n```",
+            f"📜 `{container}`{note} (last {lines} lines):\n\n```\n{body}\n```",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("logs_menu"),
         )
-    else:
-        j_result = admin_ops.run_shell(f"journalctl -u {container}.service --no-pager -n {lines} 2>&1", timeout=10)
-        await msg.edit_text(
-            f"📜 `{container}` (systemd fallback, last {lines} lines):\n\n```\n{j_result['output'][:3000]}\n```",
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=back_button("logs_menu"),
-        )
+        return
+    # Not a container: try the same name as a systemd unit (no shell - a
+    # container name from chat never reaches a shell string).
+    j_result = admin_server.service_logs(container, lines)
+    body = admin_ops.clip_text(j_result.get("output", "") or j_result.get("error", ""), 3500)
+    await msg.edit_text(
+        f"📜 `{container}`{note} (systemd fallback, last {lines} lines):\n\n```\n{body}\n```",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=back_button("logs_menu"),
+    )
 
 
 @owner_only
@@ -140,7 +139,7 @@ async def cmd_drestart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    """Show docker reclaimable space with prune option."""
+    """Show docker reclaimable space. Prune needs two taps: this -> confirm."""
     msg = await update.message.reply_text("⏳ Checking docker disk usage...")
     result = admin_docker.docker_disk_usage()
     await msg.edit_text(
@@ -149,7 +148,7 @@ async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("🧹 Prune Now", callback_data="dprune"),
+                    InlineKeyboardButton("🧹 Prune… (asks to confirm)", callback_data="dprune"),
                     InlineKeyboardButton("📊 Stats", callback_data="dstats"),
                 ],
                 [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],

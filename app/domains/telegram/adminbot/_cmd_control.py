@@ -21,6 +21,7 @@ from app.domains.telegram.adminbot._ops_control import (
     login_audit,
     pressure_report,
 )
+from app.domains.telegram.adminbot.admin_ops import clip_text
 from app.domains.telegram.adminbot.helpers import owner_only, refresh_keyboard
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ async def cmd_pressure(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Reading cgroup pressure...")
     result = pressure_report(extra_services=list(ctx.args or []))
     await msg.edit_text(
-        format_pressure(result),
+        clip_text(format_pressure(result)),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=refresh_keyboard("pressure"),
     )
@@ -50,7 +51,7 @@ async def cmd_logins(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Auditing logins...")
     result = login_audit()
     await msg.edit_text(
-        format_logins(result),
+        clip_text(format_logins(result)),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=refresh_keyboard("logins"),
     )
@@ -64,7 +65,7 @@ async def cmd_cleanup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Sizing reclaimable space...")
     result = cleanup_plan()
     await msg.edit_text(
-        format_cleanup(result),
+        clip_text(format_cleanup(result)),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=refresh_keyboard("cleanup"),
     )
@@ -78,7 +79,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Building fleet digest...")
     result = fleet_digest()
     await msg.edit_text(
-        format_digest(result),
+        clip_text(format_digest(result)),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=refresh_keyboard("digest"),
     )

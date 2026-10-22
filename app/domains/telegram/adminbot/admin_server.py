@@ -13,7 +13,7 @@ import re
 from typing import Any
 
 from app.domains.telegram.adminbot.admin_health import emoji_for_cert_days, parse_cert_enddate, parse_loadavg
-from app.domains.telegram.adminbot.admin_ops import _run_subprocess, _validate_name
+from app.domains.telegram.adminbot.admin_ops import _run_subprocess, _validate_name, clip_text
 
 _PS_HEADER = ("PID", "COMMAND", "%CPU", "%MEM", "RSS(MB)")
 _SS_LINE_RE = re.compile(r"^\S+\s+\S+\s+\S+\s+(\S+)\s+\S+\s+(.*)$")
@@ -295,42 +295,42 @@ def format_certs(result: dict[str, Any]) -> str:
 
 
 def services_report(filter_str: str = "", limit: int = 30) -> dict[str, Any]:
-    """List systemd services, optionally filtered, with status classification."""
+    """List systemd units, failed first, then active. Never hides a failure."""
     from app.domains.telegram.adminbot.admin_health import classify_systemd_status, parse_systemd_units
 
     r = _run_subprocess(["systemctl", "list-units", "--type=service", "--no-pager", "--no-legend"], timeout=30)
     if not r["ok"]:
         return r
-    units = parse_systemd_units(r.get("output", ""))
     needle = (filter_str or "").lower()
-    rows: list[dict[str, str]] = []
-    for u in units:
-        if needle and needle not in u["unit"].lower():
-            continue
-        u["level"] = classify_systemd_status(u.get("sub", ""), u.get("active", ""))
-        rows.append(u)
-    # Failed first, then running, keep stable order otherwise.
-    order = {"🔴": 0, "🟡": 1, "🟢": 2, "⚪": 3, "⚫": 4}
-    rows.sort(key=lambda u: order.get(u["level"], 5))
-    return {**r, "rows": rows[:limit], "total": len(rows)}
+    rows = [
+        {**u, "level": classify_systemd_status(u.get("sub", ""), u.get("active", ""))}
+        for u in parse_systemd_units(r.get("output", ""))
+        if not needle or needle in u["unit"].lower()
+    ]
+    failed = sorted((u for u in rows if u["level"] == "🔴"), key=lambda u: u["unit"])
+    active = [u for u in rows if u["level"] != "🔴"]
+    shown = failed + active[: max(10, limit - len(failed))]
+    return {**r, "rows": shown, "failed": len(failed), "active": len(active), "total": len(rows), "filter": needle}
 
 
 def format_services(result: dict[str, Any]) -> str:
-    """Render systemd services with status colors."""
+    """Render failed units first (full names), then the active ones that fit."""
     rows: list[dict[str, str]] = result.get("rows", [])
     if not rows:
-        needle_note = " matching filter" if result.get("total", 0) else ""
-        return f"🛠 No services found{needle_note}."
-    lines = ["🛠 *Systemd Services*\n"]
-    lines.append("```")
-    lines.append(f"{'UNIT':<44} {'ACTIVE':<8} {'SUB':<10}")
-    for u in rows:
-        lines.append(f"{u['level']} {u['unit'][:42]:<44} {u['active'][:8]:<8} {u['sub'][:10]:<10}")
-    lines.append("```")
-    total = result.get("total", len(rows))
-    shown = len(rows)
-    lines.append(f"\nShowing {shown}/{total} services")
-    return "\n".join(lines)
+        return "🛠 No services found" + (" matching filter." if result.get("total", 0) else ".")
+    failed = [u for u in rows if u["level"] == "🔴"]
+    rest = [u for u in rows if u["level"] != "🔴"]
+    lines = [f"🛠 *Systemd Services* — {result.get('failed', len(failed))} failed / {result.get('total', len(rows))} loaded"]
+    if failed:
+        lines.append(f"\n🔴 *FAILED ({len(failed)})*")
+        lines.extend(f"  `{u['unit'][:46]}` {u['sub'][:12]}" for u in failed)
+    if rest:
+        lines.append(f"\n🟢 *Active ({len(rest)} shown of {result.get('active', len(rest))})*\n```")
+        lines.append(f"{'UNIT':<44} {'ACTIVE':<8} SUB")
+        lines.extend(f"{u['level']} {u['unit'][:42]:<44} {u['active'][:8]:<8} {u['sub'][:10]}" for u in rest)
+        lines.append("```")
+    lines.append(f"\nShowing {len(rows)}/{result.get('total', len(rows))}")
+    return clip_text("\n".join(lines))
 
 
 # ═══════════════════════════════════════════════

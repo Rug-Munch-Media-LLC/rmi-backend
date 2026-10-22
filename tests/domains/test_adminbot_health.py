@@ -251,26 +251,35 @@ class TestFormatters:
         result = {
             "ok": True,
             "total": 2,
+            "failed": 1,
+            "active": 1,
             "rows": [
-                {"unit": "good.service", "active": "active", "sub": "running", "level": "🟢"},
                 {"unit": "bad.service", "active": "failed", "sub": "failed", "level": "🔴"},
+                {"unit": "good.service", "active": "active", "sub": "running", "level": "🟢"},
             ],
         }
         text = admin_server.format_services(result)
         assert "good.service" in text
         assert "bad.service" in text
-        assert "Showing 2/2 services" in text
+        assert "FAILED (1)" in text
+        assert "Showing 2/2" in text
 
     def test_format_docker_ps(self) -> None:
         result = {
             "ok": True,
             "rows": [
-                ("rmi-backend", "Up 2 minutes (healthy)", "127.0.0.1:8000->8000/tcp"),
+                {
+                    "name": "rmi-backend",
+                    "status": "Up 2 minutes (healthy)",
+                    "health": "healthy",
+                    "uptime": "Up 2 minutes",
+                },
             ],
         }
         text = admin_docker.format_docker_ps(result)
         assert "rmi-backend" in text
-        assert "8000" in text
+        assert "healthy" in text
+        assert "Up 2 minutes" in text
         assert "1 running" in text
 
     def test_format_docker_stats(self) -> None:

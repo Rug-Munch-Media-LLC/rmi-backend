@@ -131,36 +131,33 @@ async def cmd_svc_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+# /svc_logs with no argument tails the admin bot itself - the operator is
+# talking to it, so "what is this bot doing" is the default question.
+_DEFAULT_SVC_LOG = "rmiadminbot"
+
+
 @owner_only
 async def cmd_svc_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    """Tail journalctl for a systemd service: /svc_logs <service> [lines]."""
+    """Tail journalctl: /svc_logs [service] [lines] (defaults to rmiadminbot)."""
     args = ctx.args or []
-    if not args:
-        await update.message.reply_text(
-            "📜 *Service Logs*\n\n"
-            "Usage: `/svc_logs <service> [lines]`\n\n"
-            "Examples:\n"
-            "`/svc_logs rmiadminbot`\n"
-            "`/svc_logs rugmunchbot 100`\n\n"
-            "Default: 50 lines. Max: 500.",
-            parse_mode=ParseMode.MARKDOWN,
-        )
-        return
-    service = args[0]
+    service = args[0] if args else _DEFAULT_SVC_LOG
     lines = int(args[1]) if len(args) > 1 and args[1].isdigit() else 50
+    note = "" if args else f" (default `{service}`)"
     msg = await update.message.reply_text(f"⏳ Fetching logs for `{service}`...", parse_mode=ParseMode.MARKDOWN)
     result = admin_server.service_logs(service, lines)
     if result["ok"] and result["output"]:
+        body = admin_ops.clip_text(result["output"], 3500)
         await msg.edit_text(
-            f"📜 `{service}.service` (last {lines} lines):\n\n```\n{result['output'][:3000]}\n```",
+            f"📜 `{service}.service`{note} (last {lines} lines):\n\n```\n{body}\n```",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("services"),
         )
     else:
+        hint = "" if args else " — pass a unit: `/svc_logs <service>`"
         await msg.edit_text(
-            f"❌ {result.get('error', 'no output')}",
+            f"❌ {result.get('error', 'no output')}{hint}",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("services"),
         )

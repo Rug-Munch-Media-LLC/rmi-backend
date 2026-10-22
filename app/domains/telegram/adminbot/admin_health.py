@@ -212,7 +212,7 @@ def parse_systemd_units(output: str) -> list[dict[str, str]]:
     """Parse ``systemctl list-units --no-legend`` lines."""
     units: list[dict[str, str]] = []
     for line in output.splitlines():
-        parts = line.split(maxsplit=4)
+        parts = [p for p in line.split(maxsplit=4) if p not in ("●", "*")]
         if len(parts) >= 4:
             units.append(
                 {
