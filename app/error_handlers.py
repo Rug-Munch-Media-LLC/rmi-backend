@@ -116,11 +116,37 @@ def _register_500(app: FastAPI) -> None:
     log.info("error_handler_registered name=internal_error")
 
 
+
+def _payment_required_response(request: Request, exc: PaymentRequiredError):
+    """402 with the real x402 requirements, not a bare RFC-9457 body."""
+    from fastapi.responses import JSONResponse
+
+    from app.core.payment_challenge import payment_challenge
+
+    extra, headers = payment_challenge(request, exc)
+    return JSONResponse(
+        status_code=402,
+        content={
+            "type": "/errors/payment/required",
+            "title": "Payment Required",
+            "status": 402,
+            "detail": str(exc) or exc.code,
+            "instance": str(request.url),
+            "request_id": getattr(request.state, "request_id", None),
+            "code": exc.code,
+            **extra,
+        },
+        headers=headers,
+    )
+
+
 def _register_apperror(app: FastAPI) -> None:
     """AppError → RFC 7807 JSON via its declared status_code."""
 
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+        if isinstance(exc, PaymentRequiredError):
+            return _payment_required_response(request, exc)
         pd = ProblemDetail.create(
             status=exc.status_code,
             detail=str(exc) or exc.code,
