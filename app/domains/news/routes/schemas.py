@@ -53,7 +53,9 @@ def source_authority(source: str) -> float:
     return 0.3  # unknown source
 
 
-def trend_score(hours_old: float, source: str, sentiment: float | None, social_velocity: int = 0) -> float:
+def trend_score(
+    hours_old: float, source: str, sentiment: float | None, social_velocity: int = 0
+) -> float:
     """Composite trending score per v4.0 formula."""
     s_auth = source_authority(source)
     s_vel = min(2.0, 1.0 + social_velocity / 100.0)
@@ -83,6 +85,8 @@ class NewsItemOut(BaseModel):
     source_count: int | None = None
     bias_distribution: dict[str, int] = Field(default_factory=dict)
     score: float | None = None  # only set for /trending
+    score_components: dict[str, float] = Field(default_factory=dict)  # explained rank
+    also_covered_by: list[dict[str, Any]] = Field(default_factory=list)  # dedupe trail
     upvotes: int = 0  # from news_reactions (NEWS-PAGE-DESIGN.md §3)
     downvotes: int = 0  # from news_reactions
     comment_count: int = 0  # visible comments on news_comments

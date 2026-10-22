@@ -22,6 +22,7 @@ from app.catalog.llm_router import LLMRouter
 from app.catalog.models import utcnow
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
+from app.domains.news.ranking import news_item_payload, rank_items
 from app.domains.news.routes.schemas import (
     NewsAnalysisResponse,
     NewsItemOut,
@@ -266,52 +267,29 @@ async def trending_news(
     try:
         engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
-            _count_sql = (
-                "SELECT count(*) AS c FROM news_items WHERE published_at > $1"
-                if include_telegram
-                else "SELECT count(*) AS c FROM news_items WHERE published_at > $1 "
-                "AND NOT (news_id LIKE 'tg:%' OR url LIKE '%t.me/%')"
-            )
-            rows = await conn.fetch(_count_sql, cutoff)
-
             rows = await conn.fetch(
                 # nosec B608 — engagement fragments are internal; params bound
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "  # nosec B608 - engagement fragments internal, params bound
-                "n.image_url, "
+                "n.image_url, n.category, n.source_trust, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
                 f"{engagement_select}"
                 "FROM news_items n "
                 f"{engagement_join}"
-                "WHERE n.published_at > $1 "
-                + ("" if include_telegram else "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%') ")
-                + "ORDER BY n.published_at DESC LIMIT 500",
+                "WHERE n.published_at > $1 AND n.published_at <= now() "
+                "AND btrim(COALESCE(n.title, '')) <> '' "
+                + (
+                    ""
+                    if include_telegram
+                    else "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%') "
+                )
+                + "ORDER BY n.published_at DESC LIMIT 800",
                 cutoff,
             )
-        for r in rows:
-            hours_old = max(0, (now - r["published_at"]).total_seconds() / 3600)
-            item = NewsItemOut(
-                news_id=r["news_id"],
-                url=r["url"] or "",
-                title=r["title"] or "",
-                summary=r["summary"] or "",
-                image_url=r.get("image_url"),
-                source=r["source"] or "unknown",
-                published_at=r["published_at"],
-                chains_mentioned=list(r["chains_mentioned"] or []),
-                tokens_mentioned=list(r["tokens_mentioned"] or []),
-                sentiment_score=r["sentiment_score"],
-                bias=r.get("bias"),
-                sentiment_label=r.get("sentiment_label"),
-                factual_rating=r.get("factual_rating"),
-                source_tier=r.get("source_tier"),
-                rating_confidence=r.get("rating_confidence"),
-                upvotes=r["upvotes"],
-                downvotes=r["downvotes"],
-                comment_count=r["comment_count"],
-            )
-            item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
-            items.append(item)
+        # Transparent score + cross-source collapse (recency x trust x
+        # category interest x engagement); components ride on each item.
+        for d in rank_items([dict(r) for r in rows], now):
+            items.append(NewsItemOut(**news_item_payload(d)))
     except Exception as e:  # loud fallback — empty trending must never be silent
         from app.core.logging import get_logger
 
@@ -339,7 +317,9 @@ async def trending_news(
                 except (ConnectionError, OSError, TimeoutError) as e:
                     log.warning(f"trending_news failed: {e}")
                 item = _adapt_legacy_row(d)
-                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
+                item.score = round(
+                    trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4
+                )
                 items.append(item)
         except (ValueError, KeyError, TypeError) as e:
             from app.core.logging import get_logger
@@ -373,7 +353,9 @@ async def trending_news(
                     tokens_mentioned=list(a.get("tokens_mentioned") or []),
                     chains_mentioned=list(a.get("chains_mentioned") or []),
                 )
-                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
+                item.score = round(
+                    trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4
+                )
                 items.append(item)
         except Exception as e:  # fallback must never break the route
             from app.core.logging import get_logger
@@ -405,7 +387,9 @@ async def trending_news(
                     source=a.get("source") or "unknown",
                     published_at=pub_dt,
                 )
-                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
+                item.score = round(
+                    trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4
+                )
                 items.append(item)
         except Exception as e:  # fail-open
             from app.core.logging import get_logger
@@ -414,7 +398,9 @@ async def trending_news(
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     if not include_telegram:
-        items = [i for i in items if not (str(i.news_id).startswith("tg:") or "t.me/" in str(i.url))]
+        items = [
+            i for i in items if not (str(i.news_id).startswith("tg:") or "t.me/" in str(i.url))
+        ]
     return NewsListResponse(items=items[:limit], total=len(items), offset=0)
 
 
@@ -552,7 +538,9 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
         llm = LLMRouter()
         analysis = await llm.analyze_news(ni)
         if analysis is None:
-            return NewsAnalysisResponse(news_id=news_id, analysis=None, error="LLM router unavailable")
+            return NewsAnalysisResponse(
+                news_id=news_id, analysis=None, error="LLM router unavailable"
+            )
         return NewsAnalysisResponse(news_id=news_id, analysis=analysis, model="deepseek-v3")
     except HTTPException:
         raise

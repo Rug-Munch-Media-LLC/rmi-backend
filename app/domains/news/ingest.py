@@ -30,6 +30,7 @@ from app.catalog.models import NewsItem, utcnow
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
 from app.domains.news.news_service.sources import RSS_FEEDS
+from app.domains.news.quality import score_body
 from app.domains.news.ratings import rate_article
 
 logger = get_logger(__name__)
@@ -165,6 +166,10 @@ async def ingest_all(
                     content=entry["summary"],
                     source=entry["source"],
                 )
+                # Body quality is a separate fact from the ratings verdict:
+                # RSS rows carry a summary, not the article, until the
+                # backfill resolves the publisher URL.
+                quality = score_body(entry["summary"], entry["url"], entry["title"])
                 ni = NewsItem(
                     news_id=news_id,
                     url=HttpUrl(entry["url"]) if entry["url"] else HttpUrl("https://unknown.local"),
@@ -210,8 +215,10 @@ async def ingest_all(
                                 source, published_at, ingested_at,
                                 chains_mentioned, tokens_mentioned, sentiment_score,
                                 bias, sentiment_label, factual_rating, source_tier,
-                                rating_confidence, image_url
-                            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                                rating_confidence, image_url,
+                                body_source, body_quality_score, body_quality_verdict, truncated
+                            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+                                      $18,$19,$20,$21)
                             """,
                             ni.news_id,
                             str(ni.url),
@@ -230,6 +237,10 @@ async def ingest_all(
                             ni.source_tier,
                             ni.rating_confidence,
                             ni.image_url,
+                            quality.body_source,
+                            quality.score,
+                            quality.verdict,
+                            quality.truncated,
                         )
                         counts["ingested"] += 1
                         new_items.append(ni)
