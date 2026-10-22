@@ -180,14 +180,16 @@ async def _execute_hop(
             limit=10,
         )
 
+        hits = results[:5]  # Keep top 5 per hop; rugbrain_search returns a hit list
+        top_score = max((float(h.get("score") or 0.0) for h in hits), default=0.0)
         return {
             "hop": hop_name,
             "goal": hop.get("goal", ""),
             "query": hop_query,
-            "results_count": len(results.get("results", [])),
-            "results": results.get("results", [])[:5],  # Keep top 5 per hop
-            "confidence": results.get("confidence", {}),
-            "success": len(results.get("results", [])) > 0,
+            "results_count": len(results),
+            "results": hits,
+            "confidence": {"score": top_score},
+            "success": bool(hits),
         }
     except Exception as e:
         logger.warning(f"Hop '{hop_name}' failed: {e}")

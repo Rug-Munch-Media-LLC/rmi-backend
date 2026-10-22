@@ -109,20 +109,14 @@ class NewsService:
     async def _fetch_all_reddit(self) -> list[dict[str, Any]]:
         return await fetchers_rss.fetch_all_reddit(self)
 
-    async def _fetch_coingecko(self, limit: int = 15) -> list[dict[str, Any]]:
-        return await fetchers_api.fetch_coingecko(self, limit)
+    async def _fetch_coingecko(self) -> list[dict[str, Any]]:
+        return await fetchers_api.fetch_coin_gecko_news()
 
-    async def _fetch_cryptopanic(self, limit: int = 15) -> list[dict[str, Any]]:
-        return await fetchers_api.fetch_cryptopanic(self, limit)
-
-    async def _fetch_rmi_scanner(self) -> list[dict[str, Any]]:
-        return await fetchers_api.fetch_rmi_scanner(self)
+    async def _fetch_cryptopanic(self) -> list[dict[str, Any]]:
+        return await fetchers_api.fetch_crypto_panic_news()
 
     async def _fetch_rmi_alerts(self) -> list[dict[str, Any]]:
         return await fetchers_api.fetch_rmi_alerts(self)
-
-    async def _fetch_ghost(self, limit: int = 5) -> list[dict[str, Any]]:
-        return await fetchers_api.fetch_ghost(self, limit)
 
     # ─── MAIN AGGREGATOR ──────────────────────────────────────────
     async def fetch_all(
@@ -143,15 +137,11 @@ class NewsService:
             tasks.append(self._fetch_all_reddit())
             task_labels.append("Reddit")
         if include_api:
-            tasks.append(self._fetch_coingecko(15))
+            tasks.append(self._fetch_coingecko())
             task_labels.append("CoinGecko")
-            tasks.append(self._fetch_cryptopanic(15))
+            tasks.append(self._fetch_cryptopanic())
             task_labels.append("CryptoPanic")
         if include_internal:
-            tasks.append(self._fetch_ghost(5))
-            task_labels.append("Ghost")
-            tasks.append(self._fetch_rmi_scanner())
-            task_labels.append("Scanner")
             tasks.append(self._fetch_rmi_alerts())
             task_labels.append("Alerts")
 

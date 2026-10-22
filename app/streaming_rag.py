@@ -136,8 +136,8 @@ async def _run_watch_scans(watch_id: str) -> None:
                         "source": "rugbrain",
                         "timestamp": datetime.now(UTC).isoformat(),
                         "matches": len(rag_results),
-                        "top_match": rag_results["results"][0].get("content", "")[:200],
-                        "confidence": rag_results.get("confidence"),
+                        "top_match": (rag_results[0].get("content") or "")[:200],
+                        "confidence": rag_results[0].get("score"),
                     },
                 )
         except ImportError:

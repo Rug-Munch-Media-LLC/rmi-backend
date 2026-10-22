@@ -146,7 +146,11 @@ def _signal_liquidity(payload: dict[str, Any]) -> tuple[float, list[str]]:
             score += 25
             findings.append(f"liquidity/mcap ratio {ratio:.2%} — exit liquidity poor")
     sent = payload.get("sentinel")
-    sent_free = sent.get("free") if isinstance(sent, dict) and isinstance(sent.get("free"), dict) else {}
+    sent_free: dict[str, Any] = {}
+    if isinstance(sent, dict):
+        free = sent.get("free")
+        if isinstance(free, dict):
+            sent_free = free
     lp = sent_free.get("lp_verification")
     if isinstance(lp, dict):
         locked = lp.get("locked") or lp.get("is_locked") or lp.get("lp_locked")
@@ -336,7 +340,7 @@ async def predict_rug_probability(scan_result: dict[str, Any], chain: str, addre
         key=lambda t: t[1],
         reverse=True,
     )
-    key_signals = [
+    key_signals: list[dict[str, Any]] = [
         {"signal": n, "score": round(s, 1), "weight": _WEIGHTS[n], "findings": f}
         for n, s, f in contributions
         if s > 0 or f

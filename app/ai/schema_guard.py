@@ -39,7 +39,8 @@ def is_missing_relation_error(exc: BaseException) -> bool:
     and mislabelling one as a transient fault is what hid this incident.
     """
     if isinstance(exc, DBAPIError):
-        code = exc.orig.sqlstate if getattr(exc.orig, "sqlstate", None) else getattr(exc.orig, "pgcode", None)
+        orig = exc.orig
+        code = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
         return code in (UNDEFINED_TABLE_SQLSTATE, UNDEFINED_OBJECT_SQLSTATE) or not code
     return isinstance(exc, ProgrammingError)
 

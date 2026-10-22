@@ -170,6 +170,8 @@ async def _gather_all_data() -> dict[str, Any]:
     except (ImportError, AttributeError, Exception) as e:
         logger.debug("Daily Rug: RAG top stories unavailable: %s", e)
 
+    return data
+
 
 def _build_research_context(data: dict[str, Any]) -> str:
     """Build comprehensive context for the research model."""

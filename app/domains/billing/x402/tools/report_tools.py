@@ -130,7 +130,7 @@ async def governance_attack_endpoint(req: SentinelModuleRequest) -> dict[str, An
     Standalone module: app/governance_attack_detector.py
     """
     try:
-        from app.governance_attack_detector import detect_governance_attack
+        from app.detectors.governance_attack_detector import detect_governance_attack
 
         result = await detect_governance_attack(req.address, req.chain)
         await record_x402_payment("governance_attack", "0.08", req.address)

@@ -334,8 +334,9 @@ async def ghost_feed_posts(
     if page > 1:
         params["page"] = page
     filter_parts = ["status:published"]
-    if os.getenv("GHOST_FEED_TAG", "").strip():
-        filter_parts.append(f"tag:{os.getenv('GHOST_FEED_TAG').strip()}")
+    ghost_tag = (os.getenv("GHOST_FEED_TAG") or "").strip()
+    if ghost_tag:
+        filter_parts.append(f"tag:{ghost_tag}")
     params["filter"] = "+".join(filter_parts)
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:

@@ -203,14 +203,10 @@ class TestNewsServiceAggregation:
     @patch.object(NewsService, "_fetch_all_reddit", new_callable=AsyncMock)
     @patch.object(NewsService, "_fetch_coingecko", new_callable=AsyncMock)
     @patch.object(NewsService, "_fetch_cryptopanic", new_callable=AsyncMock)
-    @patch.object(NewsService, "_fetch_ghost", new_callable=AsyncMock)
-    @patch.object(NewsService, "_fetch_rmi_scanner", new_callable=AsyncMock)
     @patch.object(NewsService, "_fetch_rmi_alerts", new_callable=AsyncMock)
     async def test_fetch_all_aggregates_all_sources(
         self,
         mock_alerts,
-        mock_scanner,
-        mock_ghost,
         mock_cp,
         mock_cg,
         mock_reddit,
@@ -251,8 +247,6 @@ class TestNewsServiceAggregation:
             },
         ]
         mock_cp.return_value = []
-        mock_ghost.return_value = []
-        mock_scanner.return_value = []
         mock_alerts.return_value = []
 
         svc = NewsService()

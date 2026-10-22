@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 # ─── EVM Chains ─────────────────────────────────────────────────────
 
@@ -177,6 +177,17 @@ EVM_RPC_ENDPOINTS: dict[str, list[str]] = {
 
 class EvmRpcMixin:
     """EVM-specific convenience methods (mixed into RpcRouter)."""
+
+    if TYPE_CHECKING:
+        # Supplied by the concrete host class (``RpcRouter.call``). Declared
+        # here so the mixin is type-checkable on its own; no runtime effect.
+        async def call(
+            self,
+            chain: str,
+            method: str,
+            params: list[Any] | None = None,
+            timeout: float | None = None,
+        ) -> dict[str, Any] | None: ...
 
     async def eth_call(
         self,
