@@ -177,7 +177,7 @@ def test_unwritable_audit_refuses_execution(jail, monkeypatch):
         ["find", "/", "-exec", "id", ";"],
         ["rm", "-rf", "/"],
         ["dd", "if=/dev/zero", "of=/dev/sda"],
-        ["cat", "/srv/secrets/backend.env"],
+        ["cat", "/tmp/jailtest/secrets/backend.env"],
         ["cat", "/proc/self/environ"],
         ["/opt/evil/cat", "/etc/hostname"],
     ],
