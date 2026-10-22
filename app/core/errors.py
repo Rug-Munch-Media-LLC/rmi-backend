@@ -195,6 +195,27 @@ def register_error_handlers(app: FastAPI, debug: bool = False) -> None:
     before generic ones so FastAPI dispatches to the right handler.
     """
 
+    @app.exception_handler(PaymentRequiredError)
+    async def payment_required_handler(request: Request, exc: PaymentRequiredError) -> JSONResponse:
+        """402 carries the payment requirements, not just the problem.
+
+        Every x402 client (and our own paid-intel panel) reads the
+        ``PAYMENT-REQUIRED`` header first, then ``body.accepts[]``. Emitting
+        RFC-9457 alone made a real 402 unpayable.
+        """
+        from app.core.payment_challenge import payment_challenge
+
+        body_extra, headers = payment_challenge(request, exc)
+        pd = _build_problem(
+            request,
+            status=402,
+            detail=str(exc) or exc.code,
+            code=exc.code,
+        )
+        body = pd.model_dump()
+        body.update(body_extra)
+        return JSONResponse(status_code=402, content=body, headers=headers)
+
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         pd = _build_problem(

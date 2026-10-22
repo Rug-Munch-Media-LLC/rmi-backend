@@ -35,6 +35,39 @@ def _public_base() -> str:
     return os.getenv("X402_PUBLIC_BASE_URL", "https://api.rugmunch.io").rstrip("/")
 
 
+def build_accepts(
+    *,
+    path: str,
+    price_atoms: int,
+    description: str,
+    free_daily: int = 0,
+) -> dict[str, Any]:
+    """One x402 ``accepts[]`` entry for an arbitrary paid path.
+
+    Single source of truth for scheme/network/asset/payTo: the catalog sell
+    routes and the generic 402 handler both come through here.
+    """
+    return {
+        "scheme": "exact",
+        "network": NETWORK_BASE,
+        "maxAmountRequired": str(int(price_atoms)),
+        "resource": f"{_public_base()}{path}",
+        "description": description,
+        "mimeType": "application/json",
+        "payTo": _pay_to(),
+        "asset": USDC_BASE,
+        "maxTimeoutSeconds": 300,
+        "extra": {
+            "name": "USD Coin",
+            "version": "2",
+            "decimals": 6,
+            "nonce": uuid.uuid4().hex,
+            "freeDaily": int(free_daily),
+            "facilitator": os.getenv("X402_EXACT_FACILITATOR", "coffer"),
+        },
+    }
+
+
 def build_challenge(
     endpoint: PaidEndpoint,
     *,
@@ -42,31 +75,16 @@ def build_challenge(
     detail: str | None = None,
 ) -> dict[str, Any]:
     """Return the 402 body for an unpaid (or under-paid) call."""
-    nonce = uuid.uuid4().hex
-    resource = f"{_public_base()}{endpoint.path}"
+    accept = build_accepts(
+        path=endpoint.path,
+        price_atoms=endpoint.price_atoms,
+        description=endpoint.description,
+        free_daily=endpoint.free_daily,
+    )
     body: dict[str, Any] = {
         "x402Version": 1,
         "error": error,
-        "accepts": [
-            {
-                "scheme": "exact",
-                "network": NETWORK_BASE,
-                "maxAmountRequired": str(endpoint.price_atoms),
-                "resource": resource,
-                "description": endpoint.description,
-                "mimeType": "application/json",
-                "payTo": _pay_to(),
-                "asset": USDC_BASE,
-                "maxTimeoutSeconds": 300,
-                "extra": {
-                    "name": "USD Coin",
-                    "version": "2",
-                    "decimals": 6,
-                    "nonce": nonce,
-                    "facilitator": os.getenv("X402_EXACT_FACILITATOR", "coffer"),
-                },
-            }
-        ],
+        "accepts": [accept],
         "freeTier": {
             "callsPerDay": endpoint.free_daily,
             "exhausted": True,
