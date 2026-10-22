@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import hashlib
 import os
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import db
 import httpx
