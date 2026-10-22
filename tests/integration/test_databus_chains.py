@@ -11,6 +11,7 @@ Target: 35+ tests.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -1106,7 +1107,7 @@ class TestL1CacheBehavior:
         assert stale is False
 
         # Wait for fresh expiry but stay within stale window
-        time.sleep(1.1)
+        await asyncio.sleep(1.1)
         val, stale = await cache.get("swr_key")
         assert val == {"price": 99}
         assert stale is True  # SWR hit
@@ -1121,7 +1122,7 @@ class TestL1CacheBehavior:
 
         cache = L1Cache(stale_multiplier=1.0)  # same as TTL, no extra stale window
         await cache.set("expire", "data", ttl=1)
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
         value, is_stale = await cache.get("expire")
         assert value is None
 

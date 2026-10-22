@@ -287,7 +287,7 @@ async def ingest_github_sources() -> int:
                 result = _api_post(RAG_INGEST_PATH, doc)
                 if result:
                     total += 1
-                time.sleep(MIN_DELAY_SECONDS)
+                await asyncio.sleep(MIN_DELAY_SECONDS)
             logger.info(f"{source['name']}: {len(docs)} ingested")
         except Exception as e:
             logger.warning(f"{source['name']} failed: {e}")
@@ -329,7 +329,7 @@ async def ingest_news_to_rag() -> int:
             }
             _api_post(RAG_INGEST_PATH, doc)
             total += 1
-            time.sleep(MIN_DELAY_SECONDS)
+            await asyncio.sleep(MIN_DELAY_SECONDS)
         logger.info(f"News: {total} articles ingested")
         return total
     except Exception as e:
