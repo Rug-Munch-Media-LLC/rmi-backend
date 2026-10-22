@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import re
 
 from app.domains.chat.retrieval import Passage  # noqa: TC001 — used at runtime
