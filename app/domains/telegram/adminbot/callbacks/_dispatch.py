@@ -35,8 +35,28 @@ from app.domains.telegram.adminbot.callbacks import (
     _server,
     _term,
 )
+from app.domains.telegram.adminbot.callbacks._safe import SafeQuery
 from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
 from app.domains.telegram.adminbot.helpers import back_button, is_owner, is_private_chat
+
+#: Namespaces owned by group -1 handlers (ops console + control panel).
+#: A group -1 handler that edited the screen and then forgot
+#: ``ApplicationHandlerStop`` used to be overwritten here with
+#: "Unhandled action" — the dead-menu incident.  Reaching this catch-all with
+#: one of these prefixes therefore means "pre-dispatch did not claim it":
+#: stay silent (journal only), never paint over a screen that may be correct.
+PREDISPATCH_OWNED = (
+    "ctl_",
+    "srv:",
+    "docker:",
+    "svc:",
+    "backup:",
+    "alerts:",
+    "ai:",
+    "diag:",
+    "menu:",
+    "noop",
+)
 
 # Optional modules (fail-open, mirrors the original callbacks.py guards).
 try:
@@ -95,12 +115,13 @@ HANDLERS = (
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Route all inline keyboard callbacks to the appropriate action."""
-    query = update.callback_query
-    if query is None:
+    raw = update.callback_query
+    if raw is None:
         return
-    data = query.data
+    data = raw.data
     if data is None:
         return
+    query = SafeQuery(raw)
     await query.answer()
 
     # DM-only: callbacks from groups/channels are silently ignored.
@@ -132,10 +153,12 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             if await handler(data, query):
                 logger.info("cb handled data=%s user=%s", data, _user_id(update))
                 return
-        # NOTHING matched. Before 2026-09-16 this returned silently — the
-        # button press appeared dead to the owner ("menu non-functional").
-        # Surface it: visible reply + WARNING so dead callback_data is
-        # impossible to miss in the journal.
+        # NOTHING matched.  Data owned by a group -1 handler is never painted
+        # over here (see PREDISPATCH_OWNED); anything else is a real dead
+        # button and must be impossible to miss in the journal.
+        if data.startswith(PREDISPATCH_OWNED):
+            logger.warning("cb UNCLAIMED predispatch data=%s user=%s", data, _user_id(update))
+            return
         logger.warning("cb UNHANDLED data=%s user=%s", data, _user_id(update))
         with contextlib.suppress(httpx.HTTPError, OSError, TimeoutError):
             await query.edit_message_text(
@@ -146,7 +169,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Callback error: {e} (data={data})")
         with contextlib.suppress(httpx.HTTPError):
-            await query.edit_message_text(f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main"))
+            await query.edit_message_text(
+                f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main")
+            )
 
 
 def _user_id(update: Update) -> int | None:
