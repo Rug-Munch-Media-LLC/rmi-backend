@@ -15,12 +15,18 @@ A refusal is a dead exit FOR THE GEO-BLOCKED VENUES, not a broken proxy -
 the same exit answers OKX fine. So the failures are remembered here and the
 rotation converges on the exits that answer, instead of re-testing the same
 dead ones forever.
+
+One call, several exits: when only some exits sit in a country the venue
+accepts, a single-exit call reports the venue as offline on every poll that
+lands on a refused exit. :func:`fetch_geo_venue` therefore tries a bounded
+number of candidates per call, so ONE poll converges on an exit that
+answers, and the exits that refused are remembered for the next poll.
 """
 
 from __future__ import annotations
 
 import os
-from typing import Final
+from typing import Any, Final
 
 import httpx
 
@@ -32,13 +38,15 @@ log = get_logger(__name__)
 #: Binance 451 ("Service unavailable from a restricted location").
 VENUE_GEO_REFUSALS: Final[frozenset[int]] = frozenset({403, 451})
 
-#: Pool exits that failed for a geo-blocked venue. Two ways an exit fails
-#: here, and BOTH are properties of the exit rather than of the venue:
-#:   - HTTP 403/451: the exit's country is refused by the venue.
-#:   - a transport error: the exit is unreachable.
-#: Recording only the HTTP refusals re-tested the unreachable ones forever.
+#: How many pool exits one venue call may try before the venue is offline.
+POOL_TRIES: Final[int] = 8
+
+#: Timeout for a single venue request, in seconds.
+VENUE_TIMEOUT_S: Final[float] = 12.0
+
 _failed_proxies: set[str] = set()
 _pool_cache: list[str] = []
+_pool_source: str = ""
 _pool_index: int = 0
 
 
@@ -48,12 +56,18 @@ def proxy_pool() -> list[str]:
     Parsed by the shared rotator's parser, so the same comma/space/newline
     list format and the same credential handling apply. An empty pool means
     "direct".
+
+    The cache is keyed on the RAW env value, not just on being empty, so a
+    pool refreshed by webshare-sync.py replaces the stale list instead of
+    being ignored for the rest of the process' life.
     """
-    global _pool_cache
-    if not _pool_cache:
+    global _pool_cache, _pool_source
+    raw = os.getenv("WEBSHARE_PROXY_LIST", "")
+    if raw != _pool_source:
         from app.databus.proxy_rotator import parse_proxy_list
 
-        _pool_cache = parse_proxy_list(os.getenv("WEBSHARE_PROXY_LIST", ""))
+        _pool_cache = parse_proxy_list(raw)
+        _pool_source = raw
     return _pool_cache
 
 
@@ -109,13 +123,56 @@ def note_refusal(proxy: str | None, status_code: int) -> None:
     note_failure(proxy)
 
 
-def proxy_client(timeout: float = 12.0) -> tuple[httpx.AsyncClient, str | None]:
-    """A client for a geo-blocked venue, plus the proxy it was given.
+def pool_candidates(tries: int = POOL_TRIES) -> list[str | None]:
+    """Up to `tries` distinct pool exits to try, in pool order.
 
-    The proxy is returned (None when direct) so the caller can report a
-    refusal back here. The pool comes from the standard ``WEBSHARE_PROXY_LIST``
-    env; an empty list means "direct", so an unconfigured deployment behaves
-    exactly as before.
+    An empty pool means "direct", so the list holds a single None and the
+    caller makes one direct attempt.
     """
-    proxy = pick_proxy()
-    return httpx.AsyncClient(timeout=timeout, proxy=proxy), proxy
+    if not proxy_pool():
+        return [None]
+    out: list[str | None] = []
+    for _ in range(max(1, tries)):
+        proxy = pick_proxy()
+        if proxy is None or proxy in out:
+            break
+        out.append(proxy)
+    return out or [None]
+
+
+async def _get_with_proxy(
+    url: str,
+    params: dict[str, Any] | None,
+    proxy: str | None,
+) -> httpx.Response | None:
+    """One GET through one exit; None when the exit is unreachable."""
+    try:
+        async with httpx.AsyncClient(timeout=VENUE_TIMEOUT_S, proxy=proxy) as client:
+            return await client.get(url, params=params)
+    except Exception:
+        return None
+
+
+async def fetch_geo_venue(
+    url: str,
+    params: dict[str, Any] | None = None,
+    tries: int = POOL_TRIES,
+) -> tuple[httpx.Response | None, str | None]:
+    """GET a geo-blocked venue through the pool, trying exits until one answers.
+
+    Returns the first answer that is not a geo refusal, plus the exit that
+    produced it (None when the request went direct). A refusal and an
+    unreachable exit both move on to the next candidate; when every candidate
+    is spent the venue is reported as offline.
+    """
+    for proxy in pool_candidates(tries):
+        response = await _get_with_proxy(url, params, proxy)
+        if response is None:
+            note_failure(proxy)
+            continue
+        if response.status_code in VENUE_GEO_REFUSALS:
+            note_refusal(proxy, response.status_code)
+            log.warning("liqmap venue refused exit (status=%s)", response.status_code)
+            continue
+        return response, proxy
+    return None, None

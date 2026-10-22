@@ -9,8 +9,10 @@ loses the venue.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 Row = tuple[str, dict[str, Any]]
 
@@ -34,14 +36,24 @@ def collect_rows(
 
 
 def _bybit_row(row: Mapping[str, Any]) -> Row | None:
-    """Bybit v5 ticker row -> symbol + OI/funding/mark."""
+    """Bybit v5 ticker row -> symbol + OI/funding/mark.
+
+    The v5 ticker names the contract count ``openInterest`` and also ships
+    ``openInterestValue`` (the same number in USD). It never uses
+    ``open_interest`` - the old key matched nothing, so every Bybit row
+    carried OI 0 and the venue looked empty even when it answered.
+    """
     sym = str(row.get("symbol") or "").replace("USDT", "").replace("USDC", "")
     if not sym:
         return None
+    mark = float(row.get("markPrice") or 0)
+    oi_usd = float(row.get("openInterest") or 0) * mark
+    if not oi_usd:
+        oi_usd = float(row.get("openInterestValue") or 0)
     return sym, {
-        "oi_usd": float(row.get("open_interest") or 0) * float(row.get("markPrice") or 0),
+        "oi_usd": oi_usd,
         "funding": float(row.get("fundingRate") or 0),
-        "mark": float(row.get("markPrice") or 0),
+        "mark": mark,
     }
 
 

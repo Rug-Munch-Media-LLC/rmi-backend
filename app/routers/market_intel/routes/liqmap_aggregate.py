@@ -8,8 +8,10 @@ in its own module and the route stays a thin orchestrator.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 Assets = dict[str, dict[str, Any]]
 Rows = list[dict[str, Any]]
@@ -85,11 +87,7 @@ def _row_for(sym: str, row: Mapping[str, Any], marks: list[float]) -> dict[str, 
     mark = sum(marks) / len(marks)
     long10 = mark * (1 - 1 / 10)
     short10 = mark * (1 + 1 / 10)
-    fundings = [
-        venue["funding"]
-        for venue in row["venues"].values()
-        if isinstance(venue.get("funding"), (int, float))
-    ]
+    fundings = [venue["funding"] for venue in row["venues"].values() if isinstance(venue.get("funding"), (int, float))]
     return {
         "asset": sym,
         "total_oi_usd": round(row["total_oi_usd"]),
