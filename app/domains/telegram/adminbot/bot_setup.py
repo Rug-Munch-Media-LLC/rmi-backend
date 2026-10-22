@@ -21,6 +21,7 @@ from telegram.ext import (
 from app.domains.telegram import access_guard
 from app.domains.telegram.adminbot.alerts_feed import start_alerts_feed
 from app.domains.telegram.adminbot.bot_handlers import publish_command_menu
+from app.domains.telegram.adminbot.cmd_audit import mirror_inbound, register as register_cmd_audit
 from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID, OWNER_IDS
 from app.domains.telegram.adminbot.redis_listener import start_redis_listener
 
@@ -92,10 +93,12 @@ async def _log_update(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Update-level observability (group -2: runs BEFORE every gate).
 
     Every incoming update leaves a journal trace (`journalctl -t rmiadminbot`)
-    so a "bot did nothing" report can always be answered with evidence:
-    did the update arrive? who sent it? what did it contain? which gate
-    consumed it? Never raises; never logs message BODIES (only the command
-    entity when present) so chat content stays out of the journal.
+    and every command also lands in the durable audit log
+    (`/var/log/rmiadminbot/commands.jsonl`, rotated weekly, 4 kept) so a "bot
+    did nothing" report is always answerable: did the update arrive, who sent
+    it, which command, and did a handler ever run. Never raises; never logs
+    message BODIES (only the command token) so chat content stays out of the
+    journal.
     """
     try:
         user = getattr(update, "effective_user", None)
@@ -104,14 +107,21 @@ async def _log_update(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         msg = getattr(update, "message", None)
         who = user.id if user is not None else "?"
         where = chat.type if chat is not None else "?"
+        # Commands are operator actions: always emit, even if INFO is filtered.
+        level = logging.INFO if logger.isEnabledFor(logging.INFO) else logging.WARNING
         if cb is not None:
-            logger.info("update cb data=%s user=%s chat=%s", cb.data, who, where)
+            logger.log(level, "update cb data=%s user=%s chat=%s", cb.data, who, where)
         elif msg is not None:
             text = getattr(msg, "text", None) or ""
-            command = text.split()[0][:32] if text.startswith("/") else f"<text:{len(text)}>"
-            logger.info("update msg %s user=%s chat=%s", command, who, where)
+            if text.startswith("/"):
+                command = text.split()[0][1:].split("@", 1)[0][:32]
+                args = max(len(text.split()) - 1, 0)
+                logger.log(level, "update cmd /%s args=%d user=%s chat=%s", command, args, who, where)
+                mirror_inbound(user, command, args)
+            else:
+                logger.log(level, "update msg <text:%d> user=%s chat=%s", len(text), who, where)
         else:
-            logger.info("update other type=%s user=%s chat=%s", getattr(update, "update_id", "?"), who, where)
+            logger.log(level, "update other id=%s user=%s chat=%s", getattr(update, "update_id", "?"), who, where)
     except Exception:  # observability must never break update processing
         logger.debug("update logging failed", exc_info=True)
 
@@ -119,6 +129,11 @@ async def _log_update(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Start the Redis listener inside the application's event loop."""
     await publish_command_menu(app)
+    # Command audit + /diag: wrap every handler once, after registration.
+    try:
+        register_cmd_audit(app)
+    except Exception as exc:  # observability is additive, never fatal
+        logger.warning("command audit not installed: %s", exc)
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():

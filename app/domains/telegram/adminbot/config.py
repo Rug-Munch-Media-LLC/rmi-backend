@@ -141,5 +141,6 @@ CANONICAL_COMMANDS: tuple[tuple[str, str], ...] = (
     ("ask", "Run the selected engine"),
     ("oc", "Confirmed tooled OpenCode run"),
     ("term", "Enter terminal mode"),
+    ("diag", "Diagnose every command"),
     ("selftest", "Run bot self-test"),
 )
