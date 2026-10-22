@@ -15,6 +15,7 @@ import httpx
 import pytest
 import respx
 
+from app.routers.market_intel.routes import liqmap_venues
 from app.routers.market_intel.routes.liqmap_proxy import (
     fetch_geo_venue,
     pool_candidates,
@@ -47,6 +48,7 @@ def direct_pool() -> Iterator[None]:
     """Run the test with an empty proxy pool, so requests leave directly."""
     previous = os.environ.get("WEBSHARE_PROXY_LIST")
     os.environ["WEBSHARE_PROXY_LIST"] = ""
+    liqmap_venues._snapshots.clear()
     yield
     if previous is None:
         os.environ.pop("WEBSHARE_PROXY_LIST", None)
@@ -122,3 +124,14 @@ async def test_binance_snapshot_reads_the_list(direct_pool: None) -> None:
     )
     rows = await _binance_liquidation_snapshot()
     assert rows["BTC"]["mark"] == 100.5
+
+
+@respx.mock
+async def test_bybit_snapshot_is_cached_between_calls(direct_pool: None) -> None:
+    """The proxied venues are the only ones that cost webshare bandwidth,
+    so a second request inside the TTL must not hit the network again."""
+    route = respx.get(BYBIT_URL).mock(return_value=httpx.Response(200, json={"result": {"list": [BYBIT_TICKER]}}))
+    first = await _bybit_liquidation_snapshot()
+    second = await _bybit_liquidation_snapshot()
+    assert first == second
+    assert route.call_count == 1
