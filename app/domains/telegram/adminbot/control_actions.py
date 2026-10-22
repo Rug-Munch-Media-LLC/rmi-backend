@@ -52,16 +52,18 @@ def _audit(action: str, detail: str, user_id: int) -> None:
         from app.domains.telegram.adminbot import admin_audit
 
         admin_audit.log_action(action, detail, user_id)
-    except Exception:  # audit is best-effort; never block the action
+    except Exception:  # noqa: S110 — audit is best-effort; never block the action
         pass
 
 
 def run_unit_action(action: str, kind: str, name: str, user_id: int) -> dict[str, Any]:
-    """Execute start/stop/restart on a docker container or systemd unit."""
+    """Execute start/stop/restart/disable on a docker container or systemd unit."""
     if not valid_unit(name):
         return {"ok": False, "output": "", "error": f"invalid unit '{name}'", "duration": 0.0}
-    if action not in ("start", "stop", "restart"):
+    if action not in ("start", "stop", "restart", "disable"):
         return {"ok": False, "output": "", "error": f"invalid action '{action}'", "duration": 0.0}
+    if action == "disable" and kind != "systemd":
+        return {"ok": False, "output": "", "error": "disable applies to systemd units, not containers", "duration": 0.0}
     _audit(f"unit.{action}", f"{kind}:{name}", user_id)
     if kind == "docker":
         return _run_subprocess(["docker", action, name], timeout=90)
