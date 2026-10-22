@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from app.core.logging import get_logger
 from app.databus import tg_channel_registry as registry
+from app.databus.tg_news.verified_channels import PREVIEW_OFF, ROLES, VERIFIED
 
 logger = get_logger("tg_news")
 
@@ -33,14 +34,15 @@ SEED_CHANNELS: tuple[SeedChannel, ...] = (
 )
 
 _KINDS = {seed.username.lower(): seed.kind_hint for seed in SEED_CHANNELS}
+_KINDS.update(ROLES)
 
 
 def channel_list(explicit: list[str] | None = None) -> list[SeedChannel]:
     """Explicit handles, else seeds + enabled registry news channels (deduped)."""
     if explicit:
         return [SeedChannel(name.lstrip("@"), _KINDS.get(name.lstrip("@").lower(), "unknown")) for name in explicit]
-    result = list(SEED_CHANNELS)
-    seen = {seed.username.lower() for seed in SEED_CHANNELS}
+    result = list(SEED_CHANNELS) + [SeedChannel(channel.username, channel.role) for channel in VERIFIED]
+    seen = {seed.username.lower() for seed in result}
     try:
         extra = [c for c in registry.enabled_channels() if str(c.get("kind")) == "news"]
     except Exception as exc:  # registry is optional; seeds alone are enough
@@ -48,7 +50,7 @@ def channel_list(explicit: list[str] | None = None) -> list[SeedChannel]:
         return result
     for entry in extra:
         handle = str(entry.get("username", "")).lstrip("@")
-        if handle and handle.lower() not in seen:
+        if handle and handle.lower() not in seen and handle.lower() not in PREVIEW_OFF:
             result.append(SeedChannel(handle, "unknown"))
             seen.add(handle.lower())
     return result

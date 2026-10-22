@@ -93,6 +93,8 @@ async def ingest_channel(
             "subscribers": (meta.subscribers if meta else None) or prior.get("subscribers"),
             "description": (meta.description if meta else None) or prior.get("description"),
             "profile": profile,
+            "kind": profile["kind"],
+            "trust_weight": profile["trust_weight"],
             "last_run": datetime.now(UTC).isoformat(),
             "last_run_fetched": len(collected),
             "last_run_new": len(fresh),
@@ -111,4 +113,6 @@ async def ingest_channel(
         "last_id": max(newest, last_id or 0),
         "subscribers": meta.subscribers if meta else prior.get("subscribers"),
         "profile": profile,
+        "kind": profile["kind"],
+        "trust_weight": profile["trust_weight"],
     }

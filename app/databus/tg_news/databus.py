@@ -38,6 +38,19 @@ def _tail(path: Path, limit: int) -> list[dict[str, Any]]:
     return list(rows)
 
 
+def _weights(directory: Path) -> dict[str, float]:
+    """Per-channel trust weight from stored state (neutral 0.5 when absent)."""
+    weights: dict[str, float] = {}
+    for path in directory.glob("*.state.json") if directory.exists() else []:
+        try:
+            weight = json.loads(path.read_text(encoding="utf-8")).get("trust_weight")
+        except (OSError, ValueError):
+            continue
+        if isinstance(weight, (int, float)):
+            weights[path.name.replace(".state.json", "").lower()] = float(weight)
+    return weights
+
+
 def _headline(text: str) -> str:
     for line in (text or "").splitlines():
         cleaned = line.strip()
@@ -65,6 +78,7 @@ def telegram_news_articles(
     now = datetime.now(UTC)
     articles: list[dict[str, Any]] = []
     seen_hashes: set[str] = set()
+    weights = _weights(directory)
     for path in sorted(directory.glob("*.jsonl")) if directory.exists() else []:
         for post in _tail(path, limit):
             if not _age_ok(post, max_age_hours, now):
@@ -93,6 +107,11 @@ def telegram_news_articles(
                     "kind_weight": post.get("kind_weight"),
                     "trust_score": post.get("trust_score"),
                     "trust_band": post.get("trust_band"),
+                    "source_weight": weights.get(channel.lower(), 0.5),
+                    "rank_score": round(
+                        float(post.get("trust_score") or 0) * weights.get(channel.lower(), 0.5),
+                        2,
+                    ),
                 }
             )
     articles.sort(key=lambda item: item.get("published_at", ""), reverse=True)
