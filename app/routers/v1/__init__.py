@@ -90,6 +90,13 @@ from app.routers.v1.alerts import router as alerts_v1_router  # noqa: E402 — m
 
 v1_router.include_router(alerts_v1_router)
 
+# Scan-result alert ingestion — POST /api/v1/alerts/scan-result
+from app.routers.v1.alerts_ingest import (  # noqa: E402 — module docstring precedes import block
+    router as alerts_ingest_router,
+)
+
+v1_router.include_router(alerts_ingest_router)
+
 # Full routers re-exported at v1 prefix (same handlers, new path)
 # Scam School: root-level routes at /scam-school/* become /api/v1/scam-school/*
 from app.routers.scam_school import router as scam_school_router  # noqa: E402 — module docstring precedes import block
@@ -138,6 +145,14 @@ v1_router.include_router(launches_v1_router)
 from app.routers.v1.market import router as market_v1_router  # noqa: E402 — module docstring precedes import block
 
 v1_router.include_router(market_v1_router)
+
+# Premium features — per-token watches, the diff cycle, the versioned scan
+# export, and the webhook contract. Paths are declared without a version prefix
+# inside the domain router, so they land at /api/v1/watch, /api/v1/scan/{token}.json
+# and /api/v1/webhook/contract.
+from app.domains.premium.router import router as premium_v1_router  # noqa: E402 — module docstring precedes import block
+
+v1_router.include_router(premium_v1_router)
 
 log.info("v1_router_initialized domains=%d", len(v1_router.routes))
 
