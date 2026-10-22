@@ -18,6 +18,7 @@ from fastapi import Query
 # call time keeps those patches effective.
 import app.routers.news as _pkg
 from app.core.errors import AppError
+from app.domains.news.feed_source import is_ranked_result, load_ranked_result
 from app.routers.news import _helpers as _h
 from app.routers.news._helpers import (
     _COMMENTS,
@@ -47,20 +48,37 @@ async def get_news_feed(
 ) -> Any:
     """Full aggregated news feed from all sources.
 
-    Fast path: reads the Redis-backed aggregate that the background
-    refresher maintains every ~5 min — instant, zero upstream calls.
-    Cold-cache fallback: inline legacy fetch time-boxed to 12s.
-    Empty results are never memoized (a failed fetch must not poison
-    the cache for the TTL window).
+    Fast path: the ranked DB lane (``feed_source`` — one indexed read of
+    ``news_items`` + deterministic ranking), memoized for 3 min. The memo is
+    only trusted when every row carries a ``score``; ``/headlines`` writes the
+    unranked Redis aggregate into that same memo. Fallbacks: Redis aggregate,
+    then an inline legacy fetch time-boxed to 12s. Empty results are never
+    memoized (a failed fetch must not poison the cache for the TTL window).
     """
     result: dict[str, Any] | None = None
 
     if not refresh:
-        # ── 1) In-process memo (3 min TTL) ──
-        if _h._NEWS_CACHE and _h._CACHE_TS and (datetime.now(UTC) - _h._CACHE_TS) < _h._CACHE_TTL:
+        # ── 1) In-process memo (3 min TTL) — ranked envelopes only ──
+        # /headlines writes the unranked Redis aggregate into this same memo, so
+        # a memo hit alone is not enough: an unscored envelope falls through.
+        if (
+            _h._NEWS_CACHE
+            and _h._CACHE_TS
+            and (datetime.now(UTC) - _h._CACHE_TS) < _h._CACHE_TTL
+            and is_ranked_result(_h._NEWS_CACHE)
+        ):
             result = _h._NEWS_CACHE
-        else:
-            # ── 2) Redis aggregate — instant read of the background refresh ──
+        # ── 2) Ranked DB lane — writes the scored envelope into the memo ──
+        if result is None:
+            try:
+                result = await load_ranked_result(limit=200, category=category)
+                if result is not None:
+                    _h._NEWS_CACHE = result
+                    _h._CACHE_TS = datetime.now(UTC)
+            except Exception as e:
+                logger.warning(f"Ranked feed lane failed: {e}")
+        # ── 3) Redis aggregate — instant read of the background refresh ──
+        if result is None:
             try:
                 from app.databus.news_provider import get_aggregated_news
 
@@ -82,7 +100,7 @@ async def get_news_feed(
                 logger.warning(f"Redis aggregate read failed: {e}")
 
     if result is None:
-        # ── 3) Cold cache / forced refresh — inline legacy fetch, time-boxed ──
+        # ── 4) Cold cache / forced refresh — inline legacy fetch, time-boxed ──
         try:
             from app.domains.news.news_service import get_news_service
 

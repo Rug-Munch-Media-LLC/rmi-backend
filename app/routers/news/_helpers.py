@@ -62,6 +62,10 @@ class NewsArticle(BaseModel):
     # RAG-generated commentary (rag-feed only): 1-2 sentences, cryptorugmuncher
     # voice, cached by news_id so a story is never re-commented.
     commentary: str | None = None
+    # Deterministic rank (app.domains.news.ranking) — explained, never opaque.
+    score: float | None = None
+    score_components: dict[str, float] = Field(default_factory=dict)
+    also_covered_by: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class NewsResponse(BaseModel):

@@ -119,6 +119,16 @@ def _feed_result(articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
+def is_ranked_result(result: dict[str, Any] | None) -> bool:
+    """True when every article in the envelope carries a rank score.
+
+    ``/headlines`` writes the unranked Redis aggregate into the same in-process
+    memo that ``/feed`` reads, so a memo hit is not proof of a ranked envelope.
+    """
+    articles = (result or {}).get("articles") or []
+    return bool(articles) and all(a.get("score") is not None for a in articles)
+
+
 async def load_ranked_result(
     *,
     limit: int = 200,
