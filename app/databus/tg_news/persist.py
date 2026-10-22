@@ -1,14 +1,11 @@
 """Run the Telegram sweep's JSONL into ``news_items`` and the ``news_v2_8b`` lane.
 
-One wiring point, idempotent by construction:
+One wiring point, idempotent by construction: the insert is ``ON CONFLICT DO
+NOTHING`` on ``tg:<channel>:<message_id>`` and an existing post is *adopted*
+(weights filled, no duplicate row); only rows whose ``rag_embedding_id IS NULL``
+are sent, so a second run adds zero rows and zero documents.
 
-* insert is ``ON CONFLICT DO NOTHING`` on ``telegram:<channel>:<message_id>``, so
-  a second run adds zero rows;
-* only rows whose ``rag_embedding_id IS NULL`` are sent, so a second run sends
-  zero documents (Qdrant would upsert the same point id anyway).
-
-Run: ``python -m app.databus.tg_news.persist`` (needs NF_PG_* and
-``RMI_RAG_API_KEY`` from the environment).
+Run: ``python -m app.databus.tg_news.persist`` (NF_PG_* + ``RMI_RAG_API_KEY``).
 """
 
 from __future__ import annotations
@@ -34,14 +31,11 @@ logger = get_logger("tg_news.persist")
 RAG_INGEST = os.getenv("TG_RAG_INGEST", "http://127.0.0.1:8012/api/v1/ingest")
 BATCH = 10
 
-_INSERT = """
-INSERT INTO news_items (
-  news_id, url, title, summary, body_markdown, source, published_at, ingested_at,
-  source_tier, source_trust, source_weight, content_hash, body_source, truncated,
-  category, source_type
-) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-ON CONFLICT DO NOTHING
-"""
+_INSERT = """INSERT INTO news_items (news_id, url, title, summary, body_markdown, source,
+  published_at, ingested_at, source_tier, source_trust, source_weight, content_hash,
+  body_source, truncated, category, source_type)
+VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING
+RETURNING news_id"""
 
 
 def _connect() -> Any:
@@ -67,14 +61,30 @@ def _posts(path: Any) -> list[dict[str, Any]]:
     return out
 
 
-def _insert(rows: Sequence[tuple[Any, ...]]) -> list[str]:
-    """Insert rows; returns every news_id in the batch (new or already present)."""
+_ADOPT = """UPDATE news_items SET source_type = 'telegram', source_trust = %s,
+  source_weight = %s, body_source = COALESCE(NULLIF(body_source, ''), %s)
+ WHERE content_hash = %s AND (source_type IS NULL OR source_weight IS NULL)"""
+
+
+def _insert(rows: Sequence[tuple[Any, ...]]) -> tuple[list[str], int]:
+    """Insert rows, adopting a pre-existing row for the same post.
+
+    ``news_id`` is ``tg:<channel>:<message_id>`` and ``content_hash`` is unique,
+    so a post written by an earlier lane is *adopted* (weights filled in) rather
+    than duplicated. Returns (news_ids in the batch, adopted count).
+    """
+    adopted = new = 0
     with _connect() as conn:
         with conn.cursor() as cur:
             for row in rows:
                 cur.execute(_INSERT, row)
+                if cur.fetchone() is not None:
+                    new += 1
+                else:
+                    cur.execute(_ADOPT, (row[9], row[10], row[12], row[11]))
+                    adopted += cur.rowcount
         conn.commit()
-    return [str(row[0]) for row in rows]
+    return [str(row[0]) for row in rows], new, adopted
 
 
 def _pending(news_ids: Sequence[str]) -> list[dict[str, Any]]:
@@ -82,25 +92,24 @@ def _pending(news_ids: Sequence[str]) -> list[dict[str, Any]]:
     if not news_ids:
         return []
     docs = []
-    with _connect() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT news_id, url, title, body_markdown, source, source_trust, published_at
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT news_id, url, title, body_markdown, source, source_trust, published_at
                    FROM news_items WHERE news_id = ANY(%s) AND rag_embedding_id IS NULL""",
-                (list(news_ids),),
-            )
-            for news_id, url, title, body, source, trust, published in cur.fetchall():
-                docs.append(
-                    bridge.document(
-                        news_id,
-                        url,
-                        title,
-                        body or "",
-                        str(source).replace("Telegram @", ""),
-                        float(trust),
-                        published.isoformat(),
-                    )
+            (list(news_ids),),
+        )
+        for news_id, url, title, body, source, trust, published in cur.fetchall():
+            docs.append(
+                bridge.document(
+                    news_id,
+                    url,
+                    title,
+                    body or "",
+                    str(source).replace("Telegram @", ""),
+                    float(trust),
+                    published.isoformat(),
                 )
+            )
     return docs
 
 
@@ -114,9 +123,7 @@ def _send(docs: list[dict[str, Any]], key: str) -> tuple[list[dict[str, Any]], l
     for index in range(0, len(docs), BATCH):
         chunk = docs[index : index + BATCH]
         try:
-            resp = httpx.post(
-                RAG_INGEST, json={"documents": chunk}, headers={"X-API-Key": key}, timeout=120.0
-            )
+            resp = httpx.post(RAG_INGEST, json={"documents": chunk}, headers={"X-API-Key": key}, timeout=120.0)
             if int(resp.json().get("ingested") or 0):
                 sent.extend(chunk)
             else:
@@ -148,7 +155,7 @@ def run(root: str | None = None, *, limit: int = 4000) -> dict[str, Any]:
     directory = news_dir(root)
     now = datetime.now(UTC)
     key = os.getenv("RMI_RAG_API_KEY", "")
-    inserted, per_channel, news_ids = 0, {}, []
+    inserted, adopted, per_channel, news_ids = 0, 0, {}, []
     for path in sorted(directory.glob("*.jsonl")) if directory.exists() else []:
         handle = path.stem
         if handle.lower() in IMPOSTOR:
@@ -157,19 +164,20 @@ def run(root: str | None = None, *, limit: int = 4000) -> dict[str, Any]:
         rows = bridge.rows(_posts(path)[-limit:], handle, now)
         if not rows:
             continue
-        fresh = _insert(rows)
+        fresh, added, filled = _insert(rows)
+        inserted += added
+        adopted += filled
         news_ids.extend(fresh)
-        with _connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT count(*) FROM news_items WHERE news_id = ANY(%s)", (fresh,))
-                per_channel[handle] = int(cur.fetchone()[0])
-        inserted += len(rows)
+        with _connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM news_items WHERE news_id = ANY(%s)", (fresh,))
+            per_channel[handle] = int(cur.fetchone()[0])
     docs = _pending(news_ids)
     sent, errors = _send(docs, key)
     return {
         "ran_at": now.isoformat(),
         "channels": len(per_channel),
-        "rows_offered": inserted,
+        "rows_new": inserted,
+        "rows_adopted": adopted,
         "per_channel_total": per_channel,
         "rag_candidates": len(docs),
         "rag_ingested": len(sent),
@@ -180,7 +188,6 @@ def run(root: str | None = None, *, limit: int = 4000) -> dict[str, Any]:
 
 
 def main() -> int:
-    """CLI entry point: print the run summary as JSON."""
     print(json.dumps(run(), indent=1, ensure_ascii=False))
     return 0
 

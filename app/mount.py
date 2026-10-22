@@ -240,6 +240,10 @@ ROUTER_MODULES: Final[list[str]] = [
     # Must stay AFTER x402_bridge_health so the exact POST /bridge_health route wins
     # over this router's catch-all POST /{tool_id}.
     "app.domains.billing.x402.router",  # /api/v1/x402-tools/*  (77 routes, SENTINEL + tools)
+    # x402 exact-flow paid surface (intel + security) — mounted 2026-10-23.
+    # 3 paid resources with spec-shaped accepts[], facilitator verify+settle,
+    # replay protection, idempotency and a settled-call ledger.
+    "app.domains.billing.x402_exact.router",  # /api/v1/x402/{intel,security,scanner,paid}/*
     #
     # Admin panel router — processes, disk, network, system updates
     # NOTE: /api/v1/admin/* does NOT conflict with /api/v1/alerts/*

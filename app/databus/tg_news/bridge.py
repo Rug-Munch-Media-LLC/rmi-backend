@@ -13,9 +13,10 @@ Weights (what Rugbrain ranks on):
   so one bait-shaped post cannot ride a good channel to the top;
 * ``source_type``   — ``telegram``; ``body_source`` — ``tg:<handle>``.
 
-Determinism: ``news_id`` is ``telegram:<channel>:<message_id>`` and the RAG doc
-id is ``uuid5(URL, "tg:<channel>:<message_id>")``, so a re-run maps to the same
-row and the same Qdrant point.
+Determinism: ``news_id`` is ``tg:<channel>:<message_id>`` — the key the preview
+lane already used, so adopting an existing post updates it instead of creating a
+second row for one post — and the RAG doc id is ``uuid5(URL,
+"tg:<channel>:<message_id>")``, so a re-run maps to the same Qdrant point.
 """
 
 from __future__ import annotations
@@ -71,8 +72,10 @@ def doc_id(handle: str, message_id: int) -> str:
     return "news-tg:" + str(uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{handle.lower()}:{message_id}"))
 
 
-def rows(posts: Iterable[dict[str, Any]], handle: str, now: datetime) -> list[tuple[Any, ...]]:
-    """One insert tuple per post; skips rows older than ``MAX_AGE_DAYS``."""
+def rows(
+    posts: Iterable[dict[str, Any]], handle: str, now: datetime, *, max_age_days: int = MAX_AGE_DAYS
+) -> list[tuple[Any, ...]]:
+    """One insert tuple per post; skips rows older than ``max_age_days``."""
     trust = channel_weight(handle)
     out = []
     for post in posts:
@@ -81,14 +84,14 @@ def rows(posts: Iterable[dict[str, Any]], handle: str, now: datetime) -> list[tu
             published = datetime.fromisoformat(str(post.get("timestamp")).replace("Z", "+00:00"))
         except (TypeError, ValueError):
             continue
-        if message_id is None or now - published > timedelta(days=MAX_AGE_DAYS):
+        if message_id is None or now - published > timedelta(days=max_age_days):
             continue
         text = str(post.get("text") or "")
         url = post.get("url") or f"https://t.me/{handle}/{message_id}"
         score = float(post.get("trust_score") or 50) / 100.0
         out.append(
             (
-                f"telegram:{handle}:{message_id}",
+                f"tg:{handle}:{message_id}",
                 url,
                 (text.splitlines()[0].strip()[:140] if text.strip() else "(media post)"),
                 text[:400],
@@ -109,9 +112,7 @@ def rows(posts: Iterable[dict[str, Any]], handle: str, now: datetime) -> list[tu
     return out
 
 
-def document(
-    news_id: str, url: str, title: str, body: str, handle: str, trust: float, published: str
-) -> dict:
+def document(news_id: str, url: str, title: str, body: str, handle: str, trust: float, published: str) -> dict:
     """One RAG ingest document shaped like the X lane's payload."""
     message_id = news_id.rsplit(":", 1)[-1]
     doc = doc_id(handle, int(message_id)) if message_id.isdigit() else "news-tg:" + news_id

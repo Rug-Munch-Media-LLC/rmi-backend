@@ -45,13 +45,8 @@ def channel_list(explicit: list[str] | None = None) -> list[SeedChannel]:
     """Explicit handles, else seeds + measured channels + registry news channels."""
     if explicit:
         names = [name.lstrip("@") for name in explicit]
-        return [
-            SeedChannel(name, _KINDS.get(name.lower(), "unknown"), WEIGHTS.get(name.lower()))
-            for name in names
-        ]
-    result = list(SEED_CHANNELS) + [
-        SeedChannel(channel.username, channel.role, channel.weight) for channel in SWEPT
-    ]
+        return [SeedChannel(name, _KINDS.get(name.lower(), "unknown"), WEIGHTS.get(name.lower())) for name in names]
+    result = list(SEED_CHANNELS) + [SeedChannel(channel.username, channel.role, channel.weight) for channel in SWEPT]
     seen = {seed.username.lower() for seed in result}
     try:
         extra = [c for c in registry.enabled_channels() if str(c.get("kind")) == "news"]
@@ -61,12 +56,7 @@ def channel_list(explicit: list[str] | None = None) -> list[SeedChannel]:
     for entry in extra:
         handle = str(entry.get("username", "")).lstrip("@")
         lowered = handle.lower()
-        if (
-            handle
-            and lowered not in seen
-            and lowered not in PREVIEW_OFF
-            and lowered not in IMPOSTOR
-        ):
+        if handle and lowered not in seen and lowered not in PREVIEW_OFF and lowered not in IMPOSTOR:
             result.append(SeedChannel(handle, "unknown", WEIGHTS.get(lowered)))
             seen.add(lowered)
     return result

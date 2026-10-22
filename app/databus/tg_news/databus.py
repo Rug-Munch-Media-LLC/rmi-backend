@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.databus.tg_news.state import news_dir
+from app.databus.tg_news.verified_channels import IMPOSTOR
 
 logger = get_logger("tg_news")
 
@@ -80,6 +81,8 @@ def telegram_news_articles(
     seen_hashes: set[str] = set()
     weights = _weights(directory)
     for path in sorted(directory.glob("*.jsonl")) if directory.exists() else []:
+        if path.stem.lower() in IMPOSTOR:
+            continue  # squat/parked handle: never served as news
         for post in _tail(path, limit):
             if not _age_ok(post, max_age_hours, now):
                 continue

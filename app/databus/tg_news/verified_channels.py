@@ -26,6 +26,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.databus.tg_news.preview_off import (  # noqa: F401  (re-exported)
+    FALLBACK,
+    GAPS,
+    PREVIEW_OFF,
+    SECURITY_CLOSED,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class VerifiedChannel:
@@ -87,9 +94,7 @@ VERIFIED: tuple[VerifiedChannel, ...] = (
         0.85,
         "2026-10-20",
     ),
-    VerifiedChannel(
-        "binance_announcements", "primary", 3_290_000, 1.0, "exchange notices", None, None
-    ),
+    VerifiedChannel("binance_announcements", "primary", 3_290_000, 1.0, "exchange notices", None, None),
     VerifiedChannel("cointelegraph", "primary", 329_000, 1.0, "outlet, links articles", None, None),
     VerifiedChannel("whale_alert_io", "primary", 297_000, 1.0, "on-chain transfers", None, None),
     VerifiedChannel("bwenews", "primary", 72_300, 0.5, "market news", None, None),
@@ -102,12 +107,8 @@ VERIFIED: tuple[VerifiedChannel, ...] = (
     VerifiedChannel("newsbtc", "primary", 973, 1.0, "outlet", None, None),
     VerifiedChannel("laevitas", "primary", 678, 0.95, "derivatives research", None, None),
     VerifiedChannel("coinpedia", "primary", 367, 0.85, "outlet", None, None),
-    VerifiedChannel(
-        "watcherguru", "aggregator", 628_000, 0.0, "fast restatement, no links", 0.35, None
-    ),
-    VerifiedChannel(
-        "blockchainreporter", "aggregator", 54_200, 0.0, "no outbound links", 0.35, None
-    ),
+    VerifiedChannel("watcherguru", "aggregator", 628_000, 0.0, "fast restatement, no links", 0.35, None),
+    VerifiedChannel("blockchainreporter", "aggregator", 54_200, 0.0, "no outbound links", 0.35, None),
     VerifiedChannel("TreeNewsFeed", "aggregator", 34_800, 0.2, "headline screener", 0.35, None),
 )
 
@@ -165,8 +166,6 @@ IMPOSTOR: frozenset[str] = frozenset(
         "goplus_security",
     )
 )
-
-from app.databus.tg_news.preview_off import FALLBACK, GAPS, PREVIEW_OFF  # noqa: F401  (re-exported)
 
 #: Promotion-first channels: classified + weighted 0.0 but NEVER ingested as
 #: news (task rule: shill = monitored source only).

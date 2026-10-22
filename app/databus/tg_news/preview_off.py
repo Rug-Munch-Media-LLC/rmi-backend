@@ -122,26 +122,30 @@ FALLBACK: dict[str, tuple[str, ...]] = {
     "arkhamintelligence": ("x:arkham", "tg:arkhamintelligence"),
 }
 
+#: The closed handles that matter to the security/scam run: every one of these
+#: MUST be carried by a fallback lane or named in :data:`GAPS`. Outlets further
+#: up have no preview either, but they were never security intel and are only
+#: listed so the registry cannot re-add them as if they were open.
+SECURITY_CLOSED: frozenset[str] = frozenset(
+    name.lower()
+    for name in (
+        "SlowMist",
+        "PeckShieldAlert",
+        "CertiKAlert",
+        "ScamSniffer",
+        "BlockSecTeam",
+        "blocksec_alert",
+        "SEAL_911",
+        "SEAL_Org",
+        "MistTrack",
+        "misttrack_io",
+        "lookonchain",
+        "gmgnai",
+        "pump_sol_alert",
+        "pump_sol_alerts",
+    )
+)
+
 #: Closed AND uncovered (or covered only by an unverified X row). Reported, not
 #: hidden: the web lane cannot invent a source that does not publish.
-GAPS: frozenset[str] = frozenset(
-    name.lower() for name in ("pump_sol_alert", "pump_sol_alerts", "gmgnai", "seal_911")
-)
-
-#: Promotion-first channels: classified + weighted 0.0 but NEVER ingested as
-#: news (task rule: shill = monitored source only).
-MONITORED_ONLY: tuple[VerifiedChannel, ...] = (
-    VerifiedChannel("AirdropAlert", "shill", 2_760, 0.9, "airdrop promos, stale since 2025-04"),
-)
-
-ROLES = {channel.username.lower(): channel.role for channel in VERIFIED + STALE + MONITORED_ONLY}
-
-#: Explicit per-channel weight overrides (falls back to ``KIND_WEIGHTS[role]``).
-WEIGHTS = {
-    channel.username.lower(): channel.weight
-    for channel in VERIFIED + STALE
-    if channel.weight is not None
-}
-
-#: Everything a sweep must reach, live first then dormant.
-SWEPT = VERIFIED + STALE
+GAPS: frozenset[str] = frozenset(name.lower() for name in ("pump_sol_alert", "pump_sol_alerts", "gmgnai", "seal_911"))
