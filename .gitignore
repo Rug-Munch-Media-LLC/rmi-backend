@@ -170,3 +170,6 @@ app/data/
 mutants/
 .methodology-patterns
 .tia/
+
+# local serena MCP project state — never commit
+.serena/
