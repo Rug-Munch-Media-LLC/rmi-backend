@@ -15,6 +15,13 @@ from app.domains.alerts.models import PlatformAlert
 from app.domains.alerts.publisher import route_alerts
 
 
+@pytest.fixture(autouse=True)
+def _live_channels(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The gate is dry by default; these tests exercise the send path."""
+    for role in ("alerts", "news", "alpha", "main"):
+        monkeypatch.setenv(f"RMI_CHANNEL_DRY_RUN_{role.upper()}", "0")
+
+
 def _alert(
     *,
     severity: str = "high",

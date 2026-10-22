@@ -191,7 +191,10 @@ async def send_alert(
                 )
                 payload = resp.json()
                 if payload.get("ok"):
-                    results.append({"ok": True, "chat_id": target["chat_id"]})
+                    sent = payload.get("result") or {}
+                    results.append(
+                        {"ok": True, "chat_id": target["chat_id"], "message_id": sent.get("message_id")}
+                    )
                 else:
                     logger.warning(
                         "Telegram API error for %s: %s",

@@ -45,10 +45,11 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from app.core.channel_gate import is_live
 from app.core.channels_registry import CHANNEL_ROLES, resolve_channel_id
 from app.core.logging import get_logger
 from app.domains.alerts.models import PlatformAlert
-from app.domains.alerts.publisher import route_alerts
+from app.domains.alerts.publisher import CHANNEL_GATE_ROLE, route_alerts
 from app.domains.telegram.headless import get_headless_client
 
 if TYPE_CHECKING:
@@ -177,7 +178,7 @@ def channel_ids_from_env(
         if parsed is None:
             logger.warning(
                 "telegram_channel_not_configured",
-                channel=binding.logical,
+                chan=binding.logical,
                 env_var=_binding_env_display(binding),
             )
         ids[binding.logical] = parsed
@@ -297,9 +298,13 @@ async def publish_routed(route_plan: list[dict[str, Any]], client: Any | None = 
         channel = entry.get("channel", "?")
         chat_id = CHANNEL_IDS.get(channel)
         alerts = entry.get("alerts", [])
+        if not is_live(CHANNEL_GATE_ROLE.get(channel, channel)):
+            skipped += len(alerts)
+            logger.info("telegram_channel_dry", chan=channel)
+            continue
         if chat_id is None:
             skipped += len(alerts)
-            logger.warning("telegram_channel_skipped", channel=channel, reason="no_chat_id")
+            logger.warning("telegram_channel_skipped", chan=channel, reason="no_chat_id")
             continue
 
         for alert_dict in alerts:
@@ -311,14 +316,14 @@ async def publish_routed(route_plan: list[dict[str, Any]], client: Any | None = 
                 ok = await transport.send_message(chat_id, text, parse_mode="html")
             except Exception as exc:
                 errors.append(f"{channel}: {exc}")
-                logger.error("telegram_send_failed", channel=channel, err=str(exc))
+                logger.error("telegram_send_failed", chan=channel, err=str(exc))
                 continue
 
             if ok:
                 sent += 1
             else:
                 errors.append(f"{channel}: send_message returned False")
-                logger.warning("telegram_send_returned_false", channel=channel)
+                logger.warning("telegram_send_returned_false", chan=channel)
 
     return {"sent": sent, "skipped": skipped, "errors": errors}
 
@@ -337,7 +342,7 @@ async def publish_news_to_channel(articles: list[Mapping[str, Any]], client: Any
     """
     news_chat_id = CHANNEL_IDS.get("rmicryptonews")
     if news_chat_id is None:
-        logger.warning("telegram_news_channel_skipped", channel="rmicryptonews", reason="no_chat_id")
+        logger.warning("telegram_news_channel_skipped", chan="rmicryptonews", reason="no_chat_id")
         return {"sent": 0, "skipped": len(articles), "errors": []}
 
     transport = await _resolve_client(client)

@@ -64,6 +64,23 @@ DEFAULT_CHANNELS: dict[str, ChannelPolicy] = {
 }
 
 
+#: Scan findings have exactly ONE delivery surface: the public alerts channel
+#: (``alerts_channel`` → @rmialerts). A scan alert that also lands on alpha,
+#: news or main is a routing bug, so the scan path never uses DEFAULT_CHANNELS.
+SCAN_ALERT_CHANNELS: dict[str, ChannelPolicy] = {
+    "alerts_channel": ChannelPolicy(min_severity="high"),
+}
+
+#: Logical channel → channel-gate role (``RMI_CHANNEL_DRY_RUN_<ROLE>``).
+CHANNEL_GATE_ROLE: dict[str, str] = {
+    "alerts_channel": "alerts",
+    "rmialerts": "alerts",
+    "rmialpha": "alpha",
+    "rmicryptonews": "news",
+    "main_channel": "main",
+}
+
+
 def _noop_send(payload: dict[str, Any]) -> None:
     """Transport stub — real sends are injected by the caller."""
 
