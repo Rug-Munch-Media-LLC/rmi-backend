@@ -93,3 +93,21 @@ def test_holders_prefer_pct_then_percentage_and_cap_at_fifty() -> None:
 
     assert len(snapshot["holders"]["top"]) == 50
     assert snapshot["holders"]["top"][0] == {"wallet": "W0", "pct": 1.0}
+
+
+def test_zero_liquidity_without_a_pool_block_is_unknown_not_drained() -> None:
+    """A 0.0 from a scan with no pool block must not read as an empty pool."""
+    snapshot = snapshot_from_scan({"token": "T", "chain": "base", "liquidity_usd": 0.0})
+
+    assert snapshot["lp"]["liquidity_usd"] is None
+    assert snapshot["lp"]["unlocked"] is None
+
+
+def test_bundled_first_buyer_count_does_not_crash_the_snapshot() -> None:
+    """The EVM scanner emits a count where Solana emits a wallet list."""
+    snapshot = snapshot_from_scan(
+        {"token": "T", "chain": "base", "bundled_first_buyers": 25, "top_holders": [{"address": "h", "pct": 3.0}]}
+    )
+
+    assert snapshot["bundle_wallets"] == []
+    assert snapshot["holders"]["top"] == [{"wallet": "h", "pct": 3.0}]
