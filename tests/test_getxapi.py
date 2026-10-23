@@ -97,7 +97,43 @@ async def test_missing_key_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def _async_return(value: dict[str, Any]):
-    async def _call(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
-        return value
+    async def _call(*_args: Any, **_kwargs: Any) -> tuple[dict[str, Any] | None, str]:
+        return value, ""
 
     return _call
+
+
+def _async_fail(code: str):
+    async def _call(*_args: Any, **_kwargs: Any) -> tuple[dict[str, Any] | None, str]:
+        return None, code
+
+    return _call
+
+
+@pytest.mark.asyncio
+async def test_provider_payment_required_is_not_cached_as_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 402 (credits exhausted) must not be stored as "handle does not exist"."""
+    cache = FakeCache()
+    monkeypatch.setattr(getxapi, "resolve_key", lambda _name: "test-key")
+    monkeypatch.setattr(getxapi, "_get_json", _async_fail("http_402"))
+
+    assert await getxapi.fetch_profile("kol", cache=cache) is None  # type: ignore[arg-type]
+    assert await getxapi.fetch_user_tweets("kol", cache=cache) == []  # type: ignore[arg-type]
+    assert await cache.get("shill:getxapi:profile:kol") == (None, False)
+    assert await cache.get("shill:getxapi:tweets:kol") == (None, False)
+
+
+@pytest.mark.asyncio
+async def test_successful_but_empty_response_still_negative_caches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cache = FakeCache()
+    monkeypatch.setattr(getxapi, "resolve_key", lambda _name: "test-key")
+    monkeypatch.setattr(getxapi, "_get_json", _async_return({"data": None}))
+
+    assert await getxapi.fetch_profile("ghost", cache=cache) is None  # type: ignore[arg-type]
+    cached, _stale = await cache.get("shill:getxapi:profile:ghost")
+    assert cached["reason"] == "not_found"
+    assert cached["available"] is False

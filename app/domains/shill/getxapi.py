@@ -11,11 +11,10 @@ import hashlib
 import os
 from typing import Any, cast
 
-import httpx
-
 from app.core.logging import get_logger
 from app.databus.cache import CacheLayer, get_cache
 from app.databus.vault import resolve_key
+from app.domains.shill.getxapi_transport import request_json
 
 logger = get_logger("shill.getxapi")
 
@@ -23,7 +22,6 @@ GETXAPI_BASE_URL = os.getenv("GETXAPI_BASE_URL", "https://api.getxapi.com").rstr
 PROFILE_CACHE_TTL = 86400
 TWEET_CACHE_TTL = 900
 NEGATIVE_CACHE_TTL = 900
-REQUEST_TIMEOUT_S = 15.0
 
 
 def key_configured() -> bool:
@@ -95,26 +93,9 @@ def _tweet_from_data(handle: str, data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def _get_json(path: str, params: dict[str, Any], api_key: str) -> dict[str, Any] | None:
-    try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S) as client:
-            response = await client.get(
-                f"{GETXAPI_BASE_URL}{path}",
-                params=params,
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
-    except (httpx.HTTPError, httpx.TimeoutException, OSError) as exc:
-        logger.warning("getxapi_request_failed path=%s error=%s", path, str(exc)[:120])
-        return None
-    if response.status_code != 200:
-        logger.warning("getxapi_http_status path=%s status=%s", path, response.status_code)
-        return None
-    try:
-        payload: object = response.json()
-    except ValueError:
-        logger.warning("getxapi_invalid_json path=%s", path)
-        return None
-    return cast("dict[str, Any]", payload) if isinstance(payload, dict) else None
+async def _get_json(path: str, params: dict[str, Any], api_key: str) -> tuple[dict[str, Any] | None, str]:
+    """Read one resource through the transport classifier (payload, error)."""
+    return await request_json(f"{GETXAPI_BASE_URL}{path}", params, api_key)
 
 
 async def fetch_profile(handle: str, *, force: bool = False, cache: CacheLayer | None = None) -> dict[str, Any] | None:
@@ -132,7 +113,12 @@ async def fetch_profile(handle: str, *, force: bool = False, cache: CacheLayer |
         cached, _stale = await cache.get(key)
         if cached:
             return dict(cached)
-    payload = await _get_json("/twitter/user/info", {"userName": handle}, api_key)
+    payload, error = await _get_json("/twitter/user/info", {"userName": handle}, api_key)
+    if error:
+        # Provider failure (402/401/429/5xx/transport) is not a missing handle:
+        # caching it would hide a billing outage for NEGATIVE_CACHE_TTL.
+        logger.warning("getxapi_profile_degraded handle=%s reason=%s", handle, error)
+        return None
     data: object = payload.get("data") if payload else None
     if not isinstance(data, dict):
         await cache.set(key, _negative_result(handle, "not_found"), ttl=NEGATIVE_CACHE_TTL)
@@ -159,7 +145,10 @@ async def fetch_user_tweets(
         cached, _stale = await cache.get(key)
         if cached is not None:
             return list(cached)[: max(1, int(limit))]
-    payload = await _get_json("/twitter/user/tweets", {"userName": handle}, api_key)
+    payload, error = await _get_json("/twitter/user/tweets", {"userName": handle}, api_key)
+    if error:
+        logger.warning("getxapi_tweets_degraded handle=%s reason=%s", handle, error)
+        return []
     raw_tweets: object = payload.get("tweets") if payload else None
     if not isinstance(raw_tweets, list):
         raw_tweets = []
