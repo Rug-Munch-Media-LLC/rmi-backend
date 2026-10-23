@@ -57,7 +57,7 @@ async def get_active_alert_count() -> int:
         count = await r.zcard(ALERT_KEY)
         await r.close()
         return count
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
         logger.debug(f"Alert count error: {e}")
         return 0
 
@@ -106,7 +106,7 @@ async def push_alert(
         await r.publish("rmi:ws:alerts", json.dumps(alert))
         await r.close()
         logger.info(f"Alert pushed: {alert_type} | {title[:60]}")
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
         logger.error(f"Failed to push alert: {e}")
 
     return alert_id
@@ -152,7 +152,7 @@ async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict[st
                 logger.warning(f"get_recent_alerts failed: {e}")
 
         return alerts
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
         logger.error(f"get_recent_alerts error: {e}")
         return []
 
@@ -224,7 +224,7 @@ async def scan_solana_new_pairs(limit: int = 5) -> int:
                     pushed += 1
 
         return pushed
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
         logger.warning(f"Solana scan error: {e}")
         return pushed
 
@@ -268,7 +268,7 @@ async def scan_known_scams(limit: int = 3) -> int:
             pushed += 1
 
         return pushed
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
         logger.warning(f"Known scams scan error: {e}")
         return pushed
 

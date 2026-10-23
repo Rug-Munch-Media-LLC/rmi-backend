@@ -66,7 +66,7 @@ def _get_client() -> Any | None:
         )
         client.execute("SELECT 1")
         return client
-    except Exception as e:
+    except (ImportError, OSError, ConnectionError, TimeoutError) as e:
         log.warning("deployer_repo_clickhouse_unavailable err=%s", e)
         return None
 
@@ -82,7 +82,7 @@ async def ensure_schema() -> bool:
             if stmt and not stmt.startswith("--"):
                 await asyncio.to_thread(client.execute, stmt)
         return True
-    except Exception as e:
+    except (OSError, ConnectionError, TimeoutError) as e:
         log.warning("deployer_repo_schema_failed err=%s", e)
         return False
 
@@ -148,7 +148,7 @@ class DeployerRepo:
                 [row],
             )
             return True
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
             log.warning("deployer_repo_record_failed deployer=%s err=%s", addr[:10], e)
             return False
 
@@ -184,7 +184,7 @@ class DeployerRepo:
                 "LIMIT 200",
                 {"addr": (address or "").lower(), "chain": chain},
             )
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
             log.warning("deployer_repo_history_failed deployer=%s err=%s", (address or "")[:10], e)
             return empty
 
@@ -279,7 +279,7 @@ class DeployerRepo:
                 ],
             )
             return True
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
             log.warning("deployer_repo_outcome_update_failed err=%s", e)
             return False
 
@@ -308,7 +308,7 @@ class DeployerRepo:
                 "LIMIT %(limit)s",
                 {"chain": chain, "limit": limit},
             )
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
             log.warning("deployer_repo_repeat_query_failed err=%s", e)
             return []
         return [
@@ -370,7 +370,7 @@ class DeployerRepo:
                 "repeat_offenders": int(repeat_rows[0][0]) if repeat_rows else 0,
                 "available": True,
             }
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, RuntimeError) as e:
             log.warning("deployer_repo_stats_failed err=%s", e)
             return {
                 "total_deployers": 0,
