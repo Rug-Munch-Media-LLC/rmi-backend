@@ -17,6 +17,7 @@ from app.databus.news_provider.helpers import (
     CRYPTOPANIC_API_KEY,
     FEAR_GREED_URL,
     POLYMARKET_URL,
+    PROVIDER_FAIL_OPEN_ERRORS,
     hashlib_quick,
 )
 
@@ -58,8 +59,8 @@ async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dic
                 }
                 _cache_set(cache_key, result)
                 return result
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning(f"CoinGecko failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("coingecko_prices_failed error=%r coins=%r", e, coins)
     return None
 
 
@@ -94,8 +95,8 @@ async def get_trending_coins(**kw) -> dict[str, Any] | None:
                 }
                 _cache_set(cache_key, result)
                 return result
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning(f"Trending failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("coingecko_trending_failed error=%r", e)
     return None
 
 
@@ -139,15 +140,17 @@ async def get_fear_greed(**kw) -> dict[str, Any] | None:
                 }
                 _cache_set(cache_key, result)
                 return result
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning(f"Fear & Greed failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("fear_greed_failed error=%r", e)
     return None
 
 
 # ── 3. POLYMARKET - Prediction markets ─────────────────────────────
 
 
-async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> dict[str, Any] | None:
+async def get_prediction_markets(
+    limit: int = 5, tag: str = "crypto", **kw
+) -> dict[str, Any] | None:
     """Prediction market events from Polymarket. Free, no key."""
     cache_key = f"polymarket:{tag}:{limit}"
     cached = _cached(cache_key, 120)
@@ -179,8 +182,8 @@ async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> d
                 }
                 _cache_set(cache_key, result)
                 return result
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning(f"Polymarket failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("polymarket_failed error=%r tag=%r", e, tag)
     return None
 
 
@@ -206,7 +209,9 @@ async def get_market_brief(**kw) -> dict[str, Any] | None:
         for coin, data in prices.get("prices", {}).items():
             change = data.get("usd_24h_change", 0) or 0
             emoji = "🔴" if change < -3 else "🟠" if change < 0 else "🟢"
-            brief_parts.append(f"{emoji} {coin.title()}: ${data.get('usd', 0):,.0f} ({change:+.1f}%)")
+            brief_parts.append(
+                f"{emoji} {coin.title()}: ${data.get('usd', 0):,.0f} ({change:+.1f}%)"
+            )
 
     return {
         "brief": " | ".join(brief_parts),
@@ -245,7 +250,9 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
                     desc = item.get("description", "") or title
                     pub_str = item.get("updated_at", item.get("created_at", ""))
                     try:
-                        published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
+                        published = datetime.fromisoformat(
+                            pub_str.replace("Z", "+00:00")
+                        ).isoformat()
                     except (ValueError, TypeError):
                         published = datetime.now(UTC).isoformat()
                     articles.append(
@@ -262,8 +269,8 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
                             "tier": "market",
                         }
                     )
-    except Exception as e:
-        logger.warning(f"CoinGecko news API failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("coingecko_news_failed error=%r articles=%d", e, len(articles))
 
     # Try CryptoPanic (free tier)
     try:
@@ -280,16 +287,26 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
                     title = item.get("title", "")
                     url = item.get("url", "")
                     src = item.get("source", {})
-                    source_name = src.get("title", "CryptoPanic") if isinstance(src, dict) else "CryptoPanic"
+                    source_name = (
+                        src.get("title", "CryptoPanic") if isinstance(src, dict) else "CryptoPanic"
+                    )
                     pub_str = item.get("published_at", item.get("created_at", ""))
                     try:
-                        published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
+                        published = datetime.fromisoformat(
+                            pub_str.replace("Z", "+00:00")
+                        ).isoformat()
                     except (ValueError, TypeError):
                         published = datetime.now(UTC).isoformat()
                     votes = item.get("votes", {})
                     bull = votes.get("positive", 0) if isinstance(votes, dict) else 0
                     bear = votes.get("negative", 0) if isinstance(votes, dict) else 0
-                    sentiment = "bullish" if bull > bear * 2 else "bearish" if bear > bull * 2 else "neutral"
+                    sentiment = (
+                        "bullish"
+                        if bull > bear * 2
+                        else "bearish"
+                        if bear > bull * 2
+                        else "neutral"
+                    )
                     articles.append(
                         {
                             "id": f"cp-{hashlib_quick(title + url)}",
@@ -304,8 +321,8 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
                             "tier": "market",
                         }
                     )
-    except Exception as e:
-        logger.warning(f"CryptoPanic API failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("cryptopanic_failed error=%r articles=%d", e, len(articles))
 
     return articles
 
@@ -342,7 +359,9 @@ async def _fetch_rss_articles(
 
         def _acceptable(url: str) -> bool:
             lowered = url.lower()
-            return not any(marker in lowered for marker in ("/embed", "embed?", "&embed", "/widget", "/chart/"))
+            return not any(
+                marker in lowered for marker in ("/embed", "embed?", "&embed", "/widget", "/chart/")
+            )
 
         for media in getattr(entry, "media_content", None) or []:
             if isinstance(media, dict) and media.get("url"):
@@ -379,14 +398,16 @@ async def _fetch_rss_articles(
             async with httpx.AsyncClient(
                 timeout=timeout,
                 follow_redirects=True,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; RMI-NewsBot/4.0; +https://rugmunch.io)"},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; RMI-NewsBot/4.0; +https://rugmunch.io)"
+                },
             ) as c:
                 r = await c.get(url)
                 if r.status_code != 200:
                     return []
                 feed = feedparser.parse(r.text)
-        except (httpx.HTTPError, TimeoutError, OSError, Exception) as e:
-            logger.debug(f"RSS fetch error {source_name}: {e}")
+        except (httpx.HTTPError, TimeoutError, OSError) as e:
+            logger.debug("rss_fetch_failed source=%r error=%r", source_name, e)
             return []
 
         result = []
@@ -402,7 +423,10 @@ async def _fetch_rss_articles(
                 if pub_parsed and isinstance(pub_parsed, (tuple, list)) and len(pub_parsed) >= 6:
                     from datetime import timedelta
 
-                    pub_dt = datetime(*cast("tuple[int, int, int, int, int, int]", tuple(pub_parsed[:6])), tzinfo=UTC)
+                    pub_dt = datetime(
+                        *cast("tuple[int, int, int, int, int, int]", tuple(pub_parsed[:6])),
+                        tzinfo=UTC,
+                    )
                     if datetime.now(UTC) - pub_dt > timedelta(hours=72):
                         continue
                     published = pub_dt.isoformat()
@@ -428,8 +452,8 @@ async def _fetch_rss_articles(
                         "tier": "news",
                     }
                 )
-            except Exception:
-                logger.debug("RSS entry skipped source=%s title=%r", source_name, title[:80])
+            except (*PROVIDER_FAIL_OPEN_ERRORS, IndexError):
+                logger.debug("rss_entry_skipped source=%s title=%r", source_name, title)
                 continue
         if og_missing:
             try:
@@ -439,8 +463,10 @@ async def _fetch_rss_articles(
                 for i, img in zip(og_missing, og_imgs, strict=True):
                     if img:
                         result[i]["image_url"] = img
-            except Exception:
-                logger.debug("og_image_fallback_failed source=%s", source_name)
+            except PROVIDER_FAIL_OPEN_ERRORS:
+                logger.debug(
+                    "og_image_fallback_failed source=%s urls=%d", source_name, len(og_missing)
+                )
         if result:
             logger.debug(f"RSS {source_name}: {len(result)} articles")
         return result
@@ -499,7 +525,8 @@ async def refresh_news_cache() -> dict[str, Any]:
         seen_urls = {u for u, _ in TOP_50_FEEDS}
         merged_feeds = list(TOP_50_FEEDS) + [(u, n) for u, n in MASTER_FEEDS if u not in seen_urls]
         rss_registry = merged_feeds[:140]
-    except Exception:
+    except (*PROVIDER_FAIL_OPEN_ERRORS, ImportError):
+        logger.warning("master_feed_registry_unavailable - using curated top feeds")
         rss_registry = TOP_50_FEEDS
 
     # RSS feeds in background (with generous timeout per batch)
@@ -510,10 +537,10 @@ async def refresh_news_cache() -> dict[str, Any]:
         )
         logger.info(f"RSS news: {len(rss_articles)} articles from {len(rss_registry)} feeds")
     except TimeoutError:
-        logger.warning("RSS fetch timed out after 60s — using partial results")
+        logger.warning("rss_fetch_timeout after 60s - using partial results")
         rss_articles = []
-    except Exception as e:
-        logger.warning(f"RSS fetch failed: {e}")
+    except PROVIDER_FAIL_OPEN_ERRORS as e:
+        logger.warning("rss_fetch_failed error=%r", e)
         rss_articles = []
 
     # Telegram public-preview store: no network here (the scheduled job
@@ -522,8 +549,11 @@ async def refresh_news_cache() -> dict[str, Any]:
         from app.databus.tg_news.databus import telegram_news_articles
 
         tg_articles = telegram_news_articles(limit=40)
-    except Exception as e:  # fail-open: a missing/empty store never empties the feed
-        logger.warning(f"Telegram news store unavailable: {e}")
+    except (
+        *PROVIDER_FAIL_OPEN_ERRORS,
+        ImportError,
+    ) as e:  # fail-open: a missing/empty store never empties the feed
+        logger.warning("telegram_news_store_unavailable error=%r", e)
         tg_articles = []
 
     # Merge, dedupe, sort, and relevance-rank (fail-open passes)
