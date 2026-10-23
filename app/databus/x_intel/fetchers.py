@@ -16,6 +16,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.x_intel.x_proxy.client import x_http_client
 
 logger = get_logger("x_intel")
 
@@ -150,7 +151,7 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
             cookies = json.load(f)
 
         posts = []
-        async with httpx.AsyncClient(timeout=15, cookies=cookies) as c:
+        async with x_http_client(timeout=15, cookies=cookies) as c:
             for handle in handles[:5]:  # Limit to avoid rate limiting
                 r = await c.get(
                     f"https://x.com/{handle}",
@@ -163,12 +164,7 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
                     if match:
                         try:
                             data = json.loads(match.group(1))
-                            timeline = (
-                                data.get("props", {})
-                                .get("pageProps", {})
-                                .get("timeline", {})
-                                .get("entries", [])
-                            )
+                            timeline = data.get("props", {}).get("pageProps", {}).get("timeline", {}).get("entries", [])
                             for entry in timeline[:10]:
                                 tweet = entry.get("content", {}).get("tweet", {})
                                 if tweet:
@@ -192,16 +188,14 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
 async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[dict[str, Any]]:
     """Fallback: Web scrape X via DuckDuckGo search + embed extraction."""
     posts = []
-    async with httpx.AsyncClient(
+    async with x_http_client(
         timeout=15,
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     ) as client:
         for handle in handles[:10]:
             try:
                 search_q = f"site:x.com {handle}"
-                r = await client.get(
-                    f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}"
-                )
+                r = await client.get(f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}")
                 if r.status_code != 200:
                     continue
 
@@ -219,14 +213,10 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
                     try:
                         r2 = await client.get(url)
                         if r2.status_code == 200:
-                            desc_match = re.search(
-                                r'<meta property="og:description" content="(.*?)"', r2.text
-                            )
+                            desc_match = re.search(r'<meta property="og:description" content="(.*?)"', r2.text)
                             if desc_match:
                                 text = html.unescape(desc_match.group(1))
-                                text = re.sub(
-                                    rf"^{handle}:\s*", "", text, flags=re.IGNORECASE
-                                ).strip()
+                                text = re.sub(rf"^{handle}:\s*", "", text, flags=re.IGNORECASE).strip()
 
                                 posts.append(
                                     {
