@@ -14,15 +14,15 @@ Data sources:
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from app.services.ghost_content import GhostUnavailable, fetch_post_by_slug, fetch_published_posts
 
 logger = get_logger(__name__)
 
@@ -293,87 +293,35 @@ async def get_latest_intelligence() -> Any:
 # 2026-09-01: feed.rugmunch.io (separate static app) is retired — all
 # content surfaces live on rugmunch.io with the unified shell/nav.
 
-_GHOST_URL = os.getenv("GHOST_URL", "http://rmi-ghost:2368").rstrip("/")
-_GHOST_CONTENT_KEY = os.getenv("GHOST_CONTENT_API_KEY", "")
-
-
-def _ghost_post_summary(raw: dict[str, Any]) -> dict[str, Any]:
-    """Normalize a Ghost content-API post to the public feed shape."""
-    return {
-        "id": raw.get("id"),
-        "slug": raw.get("slug"),
-        "url": raw.get("url"),
-        "title": raw.get("title"),
-        "excerpt": raw.get("excerpt") or raw.get("custom_excerpt") or "",
-        "html": raw.get("html") or "",
-        "feature_image": raw.get("feature_image") or "",
-        "published_at": raw.get("published_at"),
-        "updated_at": raw.get("updated_at"),
-        "reading_time": raw.get("reading_time"),
-        "tags": [t.get("name") for t in (raw.get("tags") or []) if isinstance(t, dict) and t.get("name")],
-        "authors": [a.get("name") for a in (raw.get("authors") or []) if isinstance(a, dict) and a.get("name")],
-    }
-
 
 @router.get("/ghost/posts", summary="Published Ghost posts (blog/feed/newsletter)")
 async def ghost_feed_posts(
     limit: int = Query(20, ge=1, le=50),
     page: int = Query(1, ge=1),
-    tag: str = Query("", description="Filter by Ghost tag (e.g. newsletter, blog)"),
-) -> dict[str, Any]:
-    """Published Ghost posts, newest first — the CMS behind the site's
-    content surfaces. Read-only, public, no key leaves the server."""
-    if not _GHOST_CONTENT_KEY:
-        return {"posts": [], "meta": {"source": "ghost", "error": "content_key_not_configured"}}
-    params: dict[str, Any] = {
-        "limit": min(max(limit, 1), 50),
-        "page": page,
-        "formats": "html",
-        "key": _GHOST_CONTENT_KEY,
-    }
-    if page > 1:
-        params["page"] = page
-    filter_parts = ["status:published"]
-    if ghost_tag := (os.getenv("GHOST_FEED_TAG") or "").strip():
-        filter_parts.append(f"tag:{ghost_tag}")
-    params["filter"] = "+".join(filter_parts)
+    tag: str = Query("", description="Filter by Ghost tag slug (e.g. newsletter, blog)"),
+) -> Any:
+    """Published Ghost posts, newest first - the CMS behind the site's content
+    surfaces. Read-only and public; the Content API key stays server-side.
+    On failure returns 503 + a structured error naming the Ghost host, never
+    an empty 200 that looks like "no posts". See app/services/ghost_content.py.
+    """
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            resp = await client.get(f"{_GHOST_URL}/ghost/api/content/posts/", params=params)
-            if resp.status_code != 200:
-                return {"posts": [], "meta": {"source": "ghost", "status": resp.status_code}}
-            data = resp.json()
-    except Exception as exc:
-        logger.warning("ghost_feed_proxy_failed err=%s", str(exc)[:160])
-        return {"posts": [], "meta": {"source": "ghost", "error": str(exc)[:160]}}
-    posts = [_ghost_post_summary(p) for p in (data.get("posts") or []) if isinstance(p, dict)]
-    meta = data.get("meta", {}).get("pagination", {})
-    return {"posts": posts, "meta": {"source": "ghost", "pagination": meta}}
+        return await fetch_published_posts(limit=limit, page=page, tag=tag)
+    except GhostUnavailable as exc:
+        logger.warning("ghost_feed_degraded code=%s host=%s", exc.code, exc.host)
+        return JSONResponse(status_code=503, content=exc.payload())
 
 
 @router.get("/ghost/posts/{slug}", summary="One published Ghost post by slug")
-async def ghost_feed_post(slug: str) -> dict[str, Any]:
-    if not _GHOST_CONTENT_KEY:
-        raise HTTPException(status_code=503, detail="Ghost content key not configured")
+async def ghost_feed_post(slug: str) -> Any:
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            resp = await client.get(
-                f"{_GHOST_URL}/ghost/api/content/posts/slug/{slug}/",
-                params={"formats": "html", "key": _GHOST_CONTENT_KEY},
-            )
-            if resp.status_code == 404:
-                raise HTTPException(status_code=404, detail="post not found")
-            resp.raise_for_status()
-            data = resp.json()
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.warning("ghost_post_proxy_failed slug=%s err=%s", slug, str(exc)[:160])
-        raise HTTPException(status_code=502, detail="Ghost unavailable") from exc
-    posts = data.get("posts") or []
-    if not posts:
+        post = await fetch_post_by_slug(slug)
+    except GhostUnavailable as exc:
+        logger.warning("ghost_post_degraded slug=%s code=%s host=%s", slug, exc.code, exc.host)
+        return JSONResponse(status_code=503, content=exc.payload())
+    if post is None:
         raise HTTPException(status_code=404, detail="post not found")
-    return {"post": _ghost_post_summary(posts[0])}
+    return {"post": post}
 
 
 # ── Social reactions — Ghost post reactions (feed page) ─────────
