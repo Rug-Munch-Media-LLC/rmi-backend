@@ -19,6 +19,30 @@ from app.core.logging import get_logger
 
 logger = get_logger("x_intel")
 
+# Fail-open error set for X/Twitter fetching (xurl CLI, cookie scrape, web
+# scrape): transports (OSError covers builtin ConnectionError, socket and
+# file-IO failures; TimeoutError covers subprocess and asyncio timeouts;
+# httpx.HTTPError covers all httpx transport/request errors) plus
+# payload-shape errors from parsing JSON/HTML (ValueError incl.
+# json.JSONDecodeError, KeyError, TypeError, AttributeError). Sites backed
+# by the xurl CLI add subprocess.SubprocessError explicitly.
+X_FETCH_FAIL_OPEN_ERRORS: tuple[type[BaseException], ...] = (
+    OSError,
+    TimeoutError,
+    httpx.HTTPError,
+    ValueError,
+    KeyError,
+    TypeError,
+    AttributeError,
+)
+
+# xurl-backed block: subprocess.TimeoutExpired joins the shared set
+# (FileNotFoundError for a missing binary is already OSError).
+XURL_FETCH_FAIL_OPEN_ERRORS: tuple[type[BaseException], ...] = (
+    *X_FETCH_FAIL_OPEN_ERRORS,
+    subprocess.SubprocessError,
+)
+
 
 async def _xurl_search(query: str, count: int = 20) -> list[dict[str, Any]]:
     """Search X via xurl CLI (OAuth)."""
@@ -46,8 +70,8 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict[str, Any]]:
             except json.JSONDecodeError:
                 continue
         return posts
-    except Exception as e:
-        logger.debug(f"xurl search failed: {e}")
+    except XURL_FETCH_FAIL_OPEN_ERRORS as e:
+        logger.debug("xurl_search_failed error=%r query=%r", e, query)
         return []
 
 
@@ -105,8 +129,8 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict[str, An
             for p in posts
         ]
 
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.debug(f"xurl timeline failed for @{handle}: {e}")
+    except XURL_FETCH_FAIL_OPEN_ERRORS as e:
+        logger.debug("xurl_timeline_failed handle=%r error=%r", handle, e)
         return []
 
 
@@ -139,7 +163,12 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
                     if match:
                         try:
                             data = json.loads(match.group(1))
-                            timeline = data.get("props", {}).get("pageProps", {}).get("timeline", {}).get("entries", [])
+                            timeline = (
+                                data.get("props", {})
+                                .get("pageProps", {})
+                                .get("timeline", {})
+                                .get("entries", [])
+                            )
                             for entry in timeline[:10]:
                                 tweet = entry.get("content", {}).get("tweet", {})
                                 if tweet:
@@ -152,11 +181,11 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
                                             "url": f"https://x.com/{handle}/status/{tweet.get('id_str', '')}",
                                         }
                                     )
-                        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                            logger.warning(f"_cookie_scrape_x failed: {e}")
+                        except X_FETCH_FAIL_OPEN_ERRORS as e:
+                            logger.warning("x_next_data_parse_failed handle=%r error=%r", handle, e)
         return posts
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.debug(f"Cookie scrape failed: {e}")
+    except X_FETCH_FAIL_OPEN_ERRORS as e:
+        logger.debug("cookie_scrape_failed error=%r", e)
         return []
 
 
@@ -170,7 +199,9 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
         for handle in handles[:10]:
             try:
                 search_q = f"site:x.com {handle}"
-                r = await client.get(f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}")
+                r = await client.get(
+                    f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(search_q)}"
+                )
                 if r.status_code != 200:
                     continue
 
@@ -188,10 +219,14 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
                     try:
                         r2 = await client.get(url)
                         if r2.status_code == 200:
-                            desc_match = re.search(r'<meta property="og:description" content="(.*?)"', r2.text)
+                            desc_match = re.search(
+                                r'<meta property="og:description" content="(.*?)"', r2.text
+                            )
                             if desc_match:
                                 text = html.unescape(desc_match.group(1))
-                                text = re.sub(rf"^{handle}:\s*", "", text, flags=re.IGNORECASE).strip()
+                                text = re.sub(
+                                    rf"^{handle}:\s*", "", text, flags=re.IGNORECASE
+                                ).strip()
 
                                 posts.append(
                                     {
@@ -205,9 +240,9 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
                                         "id": url.split("/")[-1],
                                     }
                                 )
-                    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+                    except X_FETCH_FAIL_OPEN_ERRORS:
                         continue
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                logger.debug(f"Web scrape failed for @{handle}: {e}")
+            except X_FETCH_FAIL_OPEN_ERRORS as e:
+                logger.debug("web_scrape_failed handle=%r error=%r", handle, e)
 
     return posts

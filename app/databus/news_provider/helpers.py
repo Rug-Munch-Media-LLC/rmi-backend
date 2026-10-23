@@ -2,7 +2,28 @@
 
 from __future__ import annotations
 
+import httpx
+
 from app.databus.vault import resolve_key
+
+# Fail-open error set for provider fetches. Transports: OSError (covers the
+# builtin ConnectionError and low-level socket failures) and httpx.HTTPError
+# (covers all httpx transport/request errors, including TimeoutException).
+# Payload-shape errors from parsing provider JSON: ValueError (includes
+# json.JSONDecodeError), KeyError, TypeError, AttributeError.
+#
+# NOT in this set (intentionally surface, never fail-open): ImportError and
+# app-internal errors like RuntimeError. Sites that import lazily inside a
+# fail-open block add ImportError explicitly.
+PROVIDER_FAIL_OPEN_ERRORS: tuple[type[BaseException], ...] = (
+    OSError,
+    TimeoutError,
+    httpx.HTTPError,
+    ValueError,
+    KeyError,
+    TypeError,
+    AttributeError,
+)
 
 # ── Free API endpoints (no keys needed) ────────────────────────────
 

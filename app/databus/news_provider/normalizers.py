@@ -10,9 +10,22 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
+from app.databus.news_provider.helpers import PROVIDER_FAIL_OPEN_ERRORS
 
 logger = get_logger("news_provider")
+
+# Relevance/re-embed fail-open set: the shared provider set plus the two
+# failure modes unique to this pipeline — lazy imports (reranker module,
+# embed client) and the explicit RuntimeError raised when no Mistral
+# fallback key is resolvable.
+RELEVANCE_FAIL_OPEN_ERRORS: tuple[type[BaseException], ...] = (
+    *PROVIDER_FAIL_OPEN_ERRORS,
+    ImportError,
+    RuntimeError,
+)
 
 RELEVANCE_QUERY = (
     "major market-moving crypto news: regulation, hacks, ETFs, "
@@ -42,7 +55,9 @@ def dedupe_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if title in seen_titles:
             continue
         norm = _norm_title(title)[:120]
-        if norm and any(difflib.SequenceMatcher(None, norm, prev).ratio() > 0.88 for prev in seen_norms[-200:]):
+        if norm and any(
+            difflib.SequenceMatcher(None, norm, prev).ratio() > 0.88 for prev in seen_norms[-200:]
+        ):
             continue
         seen_titles.add(title)
         if norm:
@@ -70,7 +85,10 @@ async def relevance_rerank(articles: list[dict[str, Any]]) -> list[dict[str, Any
         ranked = await asyncio.wait_for(
             rerank_results(
                 RELEVANCE_QUERY,
-                documents=[f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in rerank_cands],
+                documents=[
+                    f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}"
+                    for a in rerank_cands
+                ],
                 top_n=len(rerank_cands),
                 tier="deep",
             ),
@@ -82,8 +100,8 @@ async def relevance_rerank(articles: list[dict[str, Any]]) -> list[dict[str, Any
             articles = rerank_cands + articles[len(rerank_cands) :]
             logger.info(f"Reranked {len(rerank_cands)} articles via qwen3-reranker-4b")
             rerank_done = True
-    except Exception as e:
-        logger.debug(f"4B rerank unavailable this cycle: {e}")
+    except RELEVANCE_FAIL_OPEN_ERRORS as e:
+        logger.debug("rerank_unavailable_this_cycle error=%r candidates=%d", e, len(rerank_cands))
 
     if not rerank_done:
         articles = await _embed_cosine_fallback(articles)
@@ -94,8 +112,6 @@ async def _embed_cosine_fallback(articles: list[dict[str, Any]]) -> list[dict[st
     """Embed-cosine relevance fallback (fail-open)."""
     try:
         import math
-
-        import httpx
 
         from app.databus.vault import resolve_key
 
@@ -120,8 +136,8 @@ async def _embed_cosine_fallback(articles: list[dict[str, Any]]) -> list[dict[st
                 embed_url = "http://127.0.0.1:8004/v1/embeddings"
                 q_vec = (await _embed_batch(client, embed_url, [RELEVANCE_QUERY]))[0]
                 d_vecs = await _embed_batch(client, embed_url, docs)
-            except Exception:
-                logger.debug("local embedder unavailable - trying API fallbacks")
+            except PROVIDER_FAIL_OPEN_ERRORS as e:
+                logger.debug("local_embedder_unavailable error=%r - trying API fallbacks", e)
             if q_vec is None or d_vecs is None:
                 _mkey = resolve_key("MISTRAL_API_KEY").strip()
                 if not _mkey:
@@ -133,7 +149,9 @@ async def _embed_cosine_fallback(articles: list[dict[str, Any]]) -> list[dict[st
                 )
                 q_resp.raise_for_status()
                 q_vec = q_resp.json()["data"][0]["embedding"]
-                d_resp = await client.post(_murl, json={"model": "mistral-embed", "input": docs}, headers=_mh)
+                d_resp = await client.post(
+                    _murl, json={"model": "mistral-embed", "input": docs}, headers=_mh
+                )
                 d_resp.raise_for_status()
                 d_vecs = [d["embedding"] for d in d_resp.json()["data"]]
 
@@ -151,6 +169,6 @@ async def _embed_cosine_fallback(articles: list[dict[str, Any]]) -> list[dict[st
         result = [candidates[i] for i in scored] + articles[len(candidates) :]
         logger.info(f"Relevance-ranked {len(candidates)} articles via embed cosine")
         return result
-    except Exception as e:
-        logger.debug(f"Relevance pass skipped: {e}")
+    except RELEVANCE_FAIL_OPEN_ERRORS as e:
+        logger.debug("relevance_pass_skipped error=%r articles=%d", e, len(articles))
         return articles

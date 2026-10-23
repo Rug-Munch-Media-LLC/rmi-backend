@@ -10,6 +10,8 @@ import httpx
 
 from app.core.logging import get_logger
 from app.databus.x_intel.fetchers import (
+    X_FETCH_FAIL_OPEN_ERRORS,
+    XURL_FETCH_FAIL_OPEN_ERRORS,
     _cookie_scrape_x,
     _web_scrape_x,
     _xurl_search,
@@ -26,7 +28,9 @@ async def _grok_summarize(posts: list[dict[str, Any]]) -> str:
         return ""
 
     try:
-        post_texts = "\n---\n".join(f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20])
+        post_texts = "\n---\n".join(
+            f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20]
+        )
 
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.post(
@@ -50,8 +54,8 @@ async def _grok_summarize(posts: list[dict[str, Any]]) -> str:
             )
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.debug(f"Groq summary failed: {e}")
+    except (OSError, httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as e:
+        logger.debug("groq_summary_failed error=%r posts=%d", e, len(posts))
 
     # Fallback: simple keyword extraction
     return _simple_rundown(posts)
@@ -66,7 +70,11 @@ def _simple_rundown(posts: list[dict[str, Any]]) -> str:
             if len(word) > 4 and word not in ("https", "that", "this", "with", "from", "have"):
                 words[word] += 1
 
-    top_words = [w for w, _ in words.most_common(20) if w not in ("about", "would", "could", "their", "there")]
+    top_words = [
+        w
+        for w, _ in words.most_common(20)
+        if w not in ("about", "would", "could", "their", "there")
+    ]
 
     return "Top themes: " + ", ".join(top_words[:8])
 
@@ -103,8 +111,8 @@ def score_ct_post(post: dict[str, Any], account: dict[str, Any]) -> float:
                 datetime.now(UTC) - datetime.fromisoformat(created.replace("Z", "+00:00"))
             ).total_seconds() / 3600
             score += max(0, 5 - age_hours * 0.5)  # 5 points now, 0 after 10 hours
-        except (ConnectionError, OSError, TimeoutError) as e:
-            logger.warning(f"score_ct_post failed: {e}")
+        except (ValueError, TypeError) as e:
+            logger.warning("score_ct_post bad created_at", error=str(e))
 
     # Content signals
     text = post.get("text", "")
@@ -145,7 +153,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
                 all_posts.extend(posts)
                 if not source_method or source_method == "none":
                     source_method = "xurl_oauth"
-    except Exception as e:
+    except XURL_FETCH_FAIL_OPEN_ERRORS as e:
         errors.append(f"xurl: {e}")
 
     # ── Method 2: Cookie scraping ──
@@ -155,7 +163,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
             if cookie_posts:
                 all_posts.extend(cookie_posts)
                 source_method = source_method or "cookie_scrape"
-        except Exception as e:
+        except X_FETCH_FAIL_OPEN_ERRORS as e:
             errors.append(f"cookies: {e}")
 
     # ── Method 3: Web scraping fallback (DuckDuckGo + embed) ──
@@ -165,7 +173,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
             if scrape_posts:
                 all_posts.extend(scrape_posts)
                 source_method = source_method or "web_scrape"
-        except Exception as e:
+        except X_FETCH_FAIL_OPEN_ERRORS as e:
             errors.append(f"web_scrape: {e}")
 
     # ── Method 4: xurl search (broad) ──
@@ -186,7 +194,13 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
                     ]
                 )
                 source_method = source_method or "xurl_search"
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            httpx.HTTPError,
+            httpx.TimeoutException,
+        ) as e:
             errors.append(f"search: {e}")
 
     if not all_posts:
@@ -230,8 +244,8 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
                         "time": datetime.now(UTC).isoformat(),
                     }
                 )
-        except Exception:  # noqa: S110 — intentional best-effort
-            pass
+        except (*X_FETCH_FAIL_OPEN_ERRORS, ImportError) as e:
+            logger.debug("market_fallback_unavailable", error=str(e))
 
         return {
             "rundown": fallback_stories,
@@ -266,7 +280,10 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
         canonical = canonical_handle(author)
         account = account_map.get(
             canonical,
-            account_map.get(author, {"handle": canonical, "name": canonical, "category": "unknown", "weight": 0.5}),
+            account_map.get(
+                author,
+                {"handle": canonical, "name": canonical, "category": "unknown", "weight": 0.5},
+            ),
         )
         post["account"] = account
         post["canonical_handle"] = canonical
@@ -282,7 +299,9 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
         cat = post["account"].get("category", "unknown")
         # Allow max 3 from same category, max 5 total from same handle
         same_cat = len([s for s in selected if s["account"].get("category") == cat])
-        same_handle = len([s for s in selected if s["account"].get("handle") == post["account"].get("handle")])
+        same_handle = len(
+            [s for s in selected if s["account"].get("handle") == post["account"].get("handle")]
+        )
 
         if same_cat < 3 and same_handle < 3:
             selected.append(post)
