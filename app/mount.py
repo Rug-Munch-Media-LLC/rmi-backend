@@ -283,6 +283,7 @@ ROUTER_MODULES: Final[list[str]] = [
     #
     # Postiz Premium — 30+ platform cross-posting — mounted 2026-07-26
     "app.domains.postiz",  # /api/v1/postiz/* (20 routes, 30+ platforms)
+    "app.domains.referral.router",  # /api/v1/referral/* (click, go redirect, stats)
     #
     # Scanner Webhooks — zero-dependency event-based webhook system — mounted 2026-07-30
     "app.domains.scanner.webhooks.router",  # /api/v1/scanner/webhooks/* (4 routes)
