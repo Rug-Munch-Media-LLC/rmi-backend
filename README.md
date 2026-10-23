@@ -1,14 +1,15 @@
 # RMI Backend — Rug Munch Intelligence
 
 > The intelligence engine behind [rugmunch.io](https://rugmunch.io): scan any
-> token or wallet across 16 chains (14 EVM + Solana + Tron), detect rugs before
+> token or wallet across 21 networks (20 EVM-family chains including Tron, plus
+> Solana), detect rugs before
 > they happen, and pay per call via x402.
 
 **Docs:** `/docs` (Swagger) | `/redoc` (ReDoc) | `/openapi.json`
 
 ## What It Is
 
-FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **16 chains (14 EVM + Solana + Tron)**.
+FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **21 networks (20 EVM-family chains including Tron, plus Solana)**.
 
 | Interface | Protocol | Description |
 |-----------|----------|-------------|
@@ -34,7 +35,7 @@ FastAPI monolith serving the RMI crypto intelligence platform — **token risk s
 
 ```bash
 # Clone
-git clone https://github.com/RugMunchMedia/rmi-backend.git
+git clone https://github.com/Rug-Munch-Media-LLC/rmi-backend.git
 cd rmi-backend
 
 # Local dev
