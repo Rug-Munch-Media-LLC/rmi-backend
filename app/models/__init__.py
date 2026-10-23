@@ -53,6 +53,7 @@ from app.models.live import (  # noqa: E402 — module docstring precedes import
     ViewerXPTransaction,
 )
 from app.models.payment import Payment  # noqa: E402 — module docstring precedes import block
+from app.models.poly_attribution import PolyAttributionEvent  # noqa: E402
 from app.models.portfolio import (  # noqa: E402 — module docstring precedes import block
     UserPortfolioEntry,
     UserWatchlistEntry,
@@ -82,6 +83,7 @@ __all__ = [
     "LiveBattle",
     "LiveEvent",
     "Payment",
+    "PolyAttributionEvent",
     "ScanResult",
     "Token",
     "User",
