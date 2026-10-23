@@ -49,6 +49,10 @@ from app.api.v1.public.scanner import router as scanner_router  # noqa: E402 —
 
 api_v1_router.append(scanner_router)
 
+from app.api.v1.public.trending import router as trending_router  # noqa: E402 — module docstring precedes import block
+
+api_v1_router.append(trending_router)
+
 # x402 moved to app.domains.x402 (T34 v2)
 # Old app/api/v1/x402/payments.py removed to avoid model conflicts
 
