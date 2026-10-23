@@ -203,8 +203,8 @@ class TokenLaunchDetector:
                                 "source": "geckoterminal",
                             }
                         )
-        except Exception:  # noqa: S110 — intentional best-effort
-            pass
+        except Exception as exc:
+            logger.debug("best_effort_failed err=%s", exc)
 
         return launches
 
@@ -312,8 +312,8 @@ class TokenLaunchDetector:
             if r:
                 members = await r.smembers(LAUNCH_STATE_KEY)
                 return {m.decode() if isinstance(m, bytes) else str(m) for m in members}
-        except Exception:  # noqa: S110 — optional dependency
-            pass
+        except Exception as exc:
+            logger.debug("optional_dep_failed err=%s", exc)
         return set()
 
     async def _mark_seen(self, addresses: list[str]) -> None:
@@ -327,8 +327,8 @@ class TokenLaunchDetector:
             if r:
                 await r.sadd(LAUNCH_STATE_KEY, *addresses)
                 await r.expire(LAUNCH_STATE_KEY, STATE_TTL)
-        except Exception:  # noqa: S110 — optional dependency
-            pass
+        except Exception as exc:
+            logger.debug("optional_dep_failed err=%s", exc)
 
     async def _store_launches(self, launches: list[dict[str, Any]]) -> None:
         """Store new launches in Redis for trending page."""
@@ -365,8 +365,8 @@ class TokenLaunchDetector:
                     except (json.JSONDecodeError, TypeError):
                         continue
                 return launches
-        except Exception:  # noqa: S110 — intentional best-effort
-            pass
+        except Exception as exc:
+            logger.debug("best_effort_failed err=%s", exc)
         return []
 
     async def enrich_launches(
@@ -399,8 +399,8 @@ class TokenLaunchDetector:
                     except (json.JSONDecodeError, TypeError):
                         continue
                 return alerts
-        except Exception:  # noqa: S110 — intentional best-effort
-            pass
+        except Exception as exc:
+            logger.debug("best_effort_failed err=%s", exc)
         return []
 
 
@@ -476,8 +476,8 @@ async def _security_check_honeypot(
     try:
         report = await detector.detect(address, chain, str(launch.get("pair_address") or ""))
         return bool(getattr(report, "is_honeypot", False))
-    except Exception:
-        logger.debug("honeypot_check_failed addr=%s", address)
+    except Exception as exc:
+        logger.debug("honeypot_check_failed addr=%s err=%s", address, exc)
         return None
     finally:
         with contextlib.suppress(Exception):
@@ -524,8 +524,8 @@ async def _security_check_lp_locked(
         if bool(getattr(report, "lp_burned", False)):
             return True
         return None
-    except Exception:
-        logger.debug("lp_lock_check_failed addr=%s", address)
+    except Exception as exc:
+        logger.debug("lp_lock_check_failed addr=%s err=%s", address, exc)
         return None
     finally:
         with contextlib.suppress(Exception):
@@ -571,8 +571,8 @@ async def _security_check_bundle(
         jito = int(getattr(report, "jito_bundles_detected", 0) or 0)
         risk = int(getattr(report, "risk_score", 0) or 0)
         return bool(bundled_pct >= _BUNDLE_SUSPECT_PCT or jito >= _BUNDLE_JITO_MIN or risk >= _BUNDLE_RISK_MIN)
-    except Exception:
-        logger.debug("bundle_check_failed addr=%s", address)
+    except Exception as exc:
+        logger.debug("bundle_check_failed addr=%s err=%s", address, exc)
         return None
     finally:
         with contextlib.suppress(Exception):
@@ -617,8 +617,8 @@ async def _enrich_one_launch(
             value = await check(launch, cache)
             if value is not None:
                 security[field] = value
-        except Exception:
-            logger.debug("security_check_failed field=%s addr=%s", field, launch.get("address", ""))
+        except Exception as exc:
+            logger.debug("security_check_failed field=%s addr=%s err=%s", field, launch.get("address", ""), exc)
     return security
 
 
@@ -656,8 +656,8 @@ async def enrich_launches_security(
         record = dict(launch)  # shallow copy — never mutate caller records
         try:
             record["security"] = await _enrich_one_launch(record, max_checks, idx, cache)
-        except Exception:
-            logger.debug("launch_enrich_failed addr=%s", record.get("address", ""))
+        except Exception as exc:
+            logger.debug("launch_enrich_failed addr=%s err=%s", record.get("address", ""), exc)
             record["security"] = {
                 "honeypot": False,
                 "mintable": False,

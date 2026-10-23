@@ -212,7 +212,8 @@ def _render(renderer: Any, result: Any) -> str | None:
         return None
     try:
         out = renderer(result)
-    except Exception:
+    except Exception as exc:
+        logger.debug("signal_render_failed err=%s", exc)
         return None
     return str(out) if out else None
 
@@ -256,7 +257,8 @@ async def enrich_scan(scan_result: dict[str, Any], address: str, chain: str) -> 
             ),
             timeout=_ENRICH_TIMEOUT_S,
         )
-    except Exception:  # hard budget exceeded — fail open, never block a scan
+    except Exception as exc:  # hard budget exceeded — fail open, never block a scan
+        logger.debug("enrich_scan_budget_failed err=%s", exc)
         return scan_result
 
     risk_signals: dict[str, Any] = {
@@ -302,12 +304,13 @@ async def enrich_scan(scan_result: dict[str, Any], address: str, chain: str) -> 
                 if risk_verdict_text is not None:
                     try:
                         verdict = risk_verdict_text(score)
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug("risk_verdict_failed err=%s", exc)
                         verdict = None
                     if verdict:
                         risk_signals["risk_verdict_text"] = str(verdict)
-        except Exception:  # noqa: S110  # best-effort scoring, never raises
-            pass
+        except Exception as exc:
+            logger.debug("best_effort_failed err=%s", exc)
 
     scan_result["risk_signals"] = risk_signals
     return scan_result
