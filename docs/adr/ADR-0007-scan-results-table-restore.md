@@ -55,9 +55,57 @@ including unrelated news/x402 DDL, against a populated schema) and a manual
 - Scanner persistence and the rug-learning sweep work again; the table starts
   empty and fills as scans land.
 - The remaining missing 0001-era tables (`users`, `payments`, `labels`,
-  `alert_subscriptions`) are **still absent** and are tracked as a separate
-  follow-up — each needs its own scope decision because code paths and data
-  volume differ.
+  `alert_subscriptions`) were **still absent** at the time of this decision and
+  were restored the same day by the follow-up below.
+
+## Consequences — follow-up: the remaining four tables (2026-10-23)
+
+`to_regclass` still returned NULL for `users`, `payments`, `labels` and
+`alert_subscriptions` after `c8f9e0a1b2c3`. The same stamp-past fault applies
+(one revision, `75c982fccbb8`, never ran), and the affected code paths are:
+
+| table | readers/writers |
+| --- | --- |
+| `users` | `app/services/live/xp_service.py`, `app/db_client/repositories.py` |
+| `payments` | `app/models/payment.py` consumers (x402 / billing) |
+| `labels` | `app/domains/labels/sources/*`, `app/domains/labels/federated.py` |
+| `alert_subscriptions` | `app/domains/alerts/service.py` |
+
+Decision: a second guarded forward revision **`d1e2f3a4b5c6`**
+(`down_revision = c8f9e0a1b2c3`) re-creates all four **only if absent**, with the
+columns, defaults, FKs and indexes of `0001_initial` / `75c982fccbb8` and
+`app/models/*`. `users` is created before `alert_subscriptions` because
+`alert_subscriptions.owner_id` references `users.id`. One revision (not four)
+because the tables share a single cause, no ordering conflict beyond that FK and
+no data dependency; a partial apply could leave the FK target absent.
+
+Verified on production (`rmi`, PostgreSQL 16):
+
+- `to_regclass` non-NULL for all four; public table count 91 -> 95;
+  `alembic current` = `d1e2f3a4b5c6`.
+- ORM parity against `Base.metadata`: 9/9, 9/9, 13/13, 9/9 columns, index names
+  and nullability identical, `uq_label` + `alert_subscriptions.owner_id -> users.id`
+  present.
+- ORM insert/select round-trip for one row per table inside a rolled-back
+  transaction succeeds; all four tables remain empty (no probe data).
+- 10-minute log watch over `rmi-backend` + `rmi-worker`: zero
+  `does not exist` / `schema_preflight_failed` / `UndefinedTable` lines.
+
+Operational notes:
+
+- Snapshot before the change: `/root/backups/db/pre-0001-missing-tables-*.sql`
+  (`pg_dump --schema-only`, 91 tables). Forward-only: `downgrade()` exists for
+  local use but is never run in production, and drops only these four tables.
+- The `backend-rmi-backend` image has **no synchronous Postgres driver**
+  (`psycopg`, `psycopg2`, `pg8000` all absent; only `asyncpg`), so `alembic` cannot
+  run inside it. The revision was applied with the repo virtualenv:
+  `ALEMBIC_DATABASE_URL=postgresql://rmi:<pw with % -> %%>@127.0.0.1:5432/rmi .venv/bin/alembic upgrade head`.
+  Adding `psycopg[binary]` to the image (or shipping a migration job) is the
+  durable fix.
+- `alembic upgrade` is still not part of the deploy path. Until it is, any
+  revision added after a stamp will be silently skipped — the guard-only
+  pattern in `c8f9e0a1b2c3` / `d1e2f3a4b5c6` keeps re-runs safe but does not
+  schedule them.
 - Operational note: `alembic` cannot currently read `ALEMBIC_DATABASE_URL`
   produced by the entrypoint when the password contains URL-escaped `%`
   (`configparser` interpolation error). Workaround used to apply this revision:
