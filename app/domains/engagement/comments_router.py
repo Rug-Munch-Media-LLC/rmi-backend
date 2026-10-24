@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -20,6 +20,7 @@ from app.domains.engagement.schemas import (
     CommentCreate,
     CommentListResponse,
     CommentOut,
+    CommentQuery,
     CommentUpdate,
     ReportRequest,
     ReportResponse,
@@ -93,22 +94,22 @@ async def create_comment(
 @router.get("/{article_id}/comments", response_model=CommentListResponse)
 async def list_comments(
     article_id: str,
-    limit: int = Query(20, ge=1, le=_PAGE_LIMIT_MAX),
-    offset: int = Query(0, ge=0),
-    sort: str = Query("oldest", pattern="^(oldest|newest)$"),
+    query: Annotated[CommentQuery, Query()],
     actor: Actor | None = Depends(get_optional_actor),
     store: EngagementStore = Depends(get_store),
 ) -> CommentListResponse:
     """One page of root comments, each with its replies attached."""
     await _require_article(store, article_id)
-    roots, total = await store.list_roots(article_id, limit=limit, offset=offset, newest_first=sort == "newest")
+    roots, total = await store.list_roots(
+        article_id, limit=query.limit, offset=query.offset, newest_first=query.sort == "newest"
+    )
     replies = await store.list_replies([root.id for root in roots])
     return CommentListResponse(
         items=build_thread(roots, replies, actor),
         total=total,
-        limit=limit,
-        offset=offset,
-        has_more=offset + len(roots) < total,
+        limit=query.limit,
+        offset=query.offset,
+        has_more=query.offset + len(roots) < total,
     )
 
 

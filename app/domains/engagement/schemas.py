@@ -16,6 +16,8 @@ from app.domains.news.routes.schemas import _COMMENT_BODY_MAX, _sanitize_comment
 
 CommentStatus = Literal["visible", "hidden", "removed"]
 
+_COMMENT_PAGE_MAX = 100
+
 
 def sanitize_body(raw: str) -> str:
     """Strip HTML/control chars, collapse whitespace, cap the length."""
@@ -95,6 +97,16 @@ class CommentOut(BaseModel):
     report_count: int = 0
     is_mine: bool = False
     replies: list[CommentOut] = Field(default_factory=list)
+
+
+class CommentQuery(BaseModel):
+    """Query parameters for one page of comments (a dependency, not five route args)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int = Field(20, ge=1, le=_COMMENT_PAGE_MAX)
+    offset: int = Field(0, ge=0)
+    sort: Literal["oldest", "newest"] = "oldest"
 
 
 class CommentListResponse(BaseModel):
