@@ -1,0 +1,84 @@
+{
+  "name": "chat-free",
+  "fail_closed_code": "free_pool_exhausted",
+  "providers": [
+    {
+      "id": "openrouter-main",
+      "model": "cohere/north-mini-code:free",
+      "base_url": "https://openrouter.ai/api/v1",
+      "secret_env": "OPENROUTER_API_KEY",
+      "daily_requests": 1000,
+      "rpm": 20,
+      "timeout": 90
+    },
+    {
+      "id": "openrouter-backup",
+      "model": "cohere/north-mini-code:free",
+      "base_url": "https://openrouter.ai/api/v1",
+      "secret_env": "OPENROUTER_BACKUP_API_KEY",
+      "secret_dotenv": "openrouter",
+      "daily_requests": 1000,
+      "rpm": 20,
+      "timeout": 90
+    },
+    {
+      "id": "kilo-direct",
+      "model": "cohere/north-mini-code:free",
+      "base_url": "https://api.kilocode.ai/api/gateway/v1",
+      "secret_env": "KILOCODE_API_KEY",
+      "daily_requests": 200,
+      "rpm": 20,
+      "timeout": 90,
+      "needs_proxy": true
+    },
+    {
+      "id": "groq-gpt-oss-120b",
+      "model": "openai/gpt-oss-120b",
+      "base_url": "https://api.groq.com/openai/v1",
+      "secret_env": "GROQ_API_KEY",
+      "daily_requests": 500,
+      "rpm": 30,
+      "timeout": 60
+    },
+    {
+      "id": "groq-qwen3.8-27b",
+      "model": "qwen/qwen3.8-27b",
+      "base_url": "https://api.groq.com/openai/v1",
+      "secret_env": "GROQ_API_KEY",
+      "daily_requests": 500,
+      "rpm": 30,
+      "timeout": 60
+    },
+    {
+      "id": "gemini-flash-lite",
+      "model": "gemini-flash-lite-latest",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "secret_env": "GEMINI_API_KEY",
+      "secret_dotenv": "gemini",
+      "kind": "gemini",
+      "daily_requests": 1000,
+      "rpm": 15,
+      "timeout": 120
+    },
+    {
+      "id": "nvidia-nemotron-ultra",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "secret_env": "NVIDIA_NIM_FREE_API_KEY",
+      "daily_requests": 250,
+      "rpm": 20,
+      "timeout": 90,
+      "needs_proxy": true
+    },
+    {
+      "id": "nvidia-gpt-oss-20b",
+      "model": "openai/gpt-oss-20b",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "secret_env": "NVIDIA_NIM_FREE_API_KEY",
+      "daily_requests": 250,
+      "rpm": 20,
+      "timeout": 90,
+      "needs_proxy": true
+    }
+  ]
+}
