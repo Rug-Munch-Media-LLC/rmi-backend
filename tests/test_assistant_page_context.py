@@ -68,17 +68,17 @@ def test_summarize_clusters_groups_and_ranks() -> None:
     assert summarize_clusters([], {}) == ([], None)
 
 
-async def test_rugcharts_null_plus_reason_without_pair(
+async def test_rugcharts_null_plus_reason_without_candles(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def _no_pair(*_args: Any, **_kwargs: Any) -> None:
+    async def _empty(**_kwargs: Any) -> None:
         return None
 
-    monkeypatch.setattr("app.api.v1.assistant.sources_rugcharts._resolve_pair", _no_pair)
+    monkeypatch.setattr("app.api.v1.assistant.sources_rugcharts.fetch_ohlcv", _empty)
     sections = await build_rugcharts(_params())
     assert sections["market"].data is None
-    assert sections["market"].reason == "pair_unresolved_for_token"
-    assert sections["technical"].reason == "pair_unresolved_for_token"
+    assert sections["market"].reason == "no_ohlcv_candles"
+    assert sections["technical"].reason == "no_candles"
 
 
 async def test_dispatch_status_variants(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,4 +1,8 @@
-"""Trades page context: recent fills, large trades, maker concentration."""
+"""Trades page context: recent fills, large trades, maker concentration.
+
+Fills come from Birdeye (the same lane live_trades uses) so the assistant API
+does not import a router module.
+"""
 
 from __future__ import annotations
 
@@ -33,6 +37,32 @@ def maker_concentration(trades: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
+def _shape(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "tx_hash": item.get("txHash", item.get("signature", "")),
+        "timestamp": item.get("blockUnixTime", item.get("timestamp", "")),
+        "side": "buy" if str(item.get("side", "")).lower() in ("buy", "b") else "sell",
+        "price_usd": float(item.get("priceUsd", item.get("price", 0)) or 0),
+        "amount_token": float(item.get("amount", item.get("tokenAmount", 0)) or 0),
+        "amount_usd": float(item.get("volumeUSD", item.get("valueUsd", 0)) or 0),
+        "maker": item.get("from", item.get("maker", item.get("wallet", ""))),
+        "source": "birdeye",
+    }
+
+
+async def _fetch_trades(token: str, limit: int) -> list[dict[str, Any]]:
+    """Fetch recent fills from Birdeye."""
+    from app.birdeye_client import BirdeyeClient
+
+    payload = await BirdeyeClient()._call(
+        "/defi/v2/token/trades", {"address": token, "limit": limit, "offset": 0}
+    )
+    if not isinstance(payload, dict):
+        return []
+    items = (payload.get("data") or {}).get("items") or []
+    return [_shape(item) for item in items if isinstance(item, dict)]
+
+
 def _compact(trade: dict[str, Any]) -> dict[str, Any]:
     return {
         "tx_hash": trade.get("tx_hash", ""),
@@ -50,12 +80,12 @@ def _sections(trades: list[dict[str, Any]]) -> dict[str, Section]:
     reason = None if trades else "no_trade_data"
     return {
         "recent_fills": Section(
-            source="live_trades._fetch_trades_from_sources",
+            source="birdeye./defi/v2/token/trades",
             data={"count": len(trades), "fills": [_compact(t) for t in trades[:10]]} if trades else None,
             reason=reason,
         ),
         "large_trades": Section(
-            source="live_trades._fetch_trades_from_sources",
+            source="birdeye./defi/v2/token/trades",
             data={
                 "threshold_usd": _LARGE_TRADE_USD,
                 "count": len(large),
@@ -74,15 +104,12 @@ def _sections(trades: list[dict[str, Any]]) -> dict[str, Section]:
 
 
 async def build_trades(params: PageParams) -> dict[str, Section]:
-    """Build trades sections from the canonical trade fetcher."""
-    from app.routers.live_trades import _detect_whale_trades, _fetch_trades_from_sources
-
+    """Build trades sections from Birdeye fills."""
     try:
         trades = await asyncio.wait_for(
-            _fetch_trades_from_sources(params.token, params.chain, params.limit),
-            timeout=_TIMEOUT,
+            _fetch_trades(params.token, params.limit), timeout=_TIMEOUT
         )
     except Exception as e:
         logger.warning("page_context_trades_failed: %s", e)
         trades = []
-    return _sections(_detect_whale_trades(trades or []))
+    return _sections(trades)
