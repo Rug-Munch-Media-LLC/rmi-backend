@@ -1,18 +1,16 @@
 """Human-readable renderers for rug-risk score results.
 
-Extracted from ``rug_risk_score.py`` (degodding split, 2026-08-14). Pure —
-takes a result dict, returns a string. ``_GROUP_OF`` is derived from the
-rule table so the signal→group mapping can never drift from ``_RULES``.
-Re-exported from the parent module (``risk_verdict_text`` /
-``risk_analysis_text`` are public API).
+Pure renderers: take a result dict, return a string. The signal→group map
+and the verdict bands are read from the resolved policy
+(:mod:`.risk_policy`), so the display can never drift from the scoring that
+actually ran, and this module carries no calibration of its own.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from ._rules import _RULES
-from ._weights import CRITICAL_MIN, HIGH_MIN, MEDIUM_MIN
+from .risk_policy import load_policy
 
 _VERDICT_EMOJI: dict[str, str] = {
     "critical": "🔴",
@@ -57,18 +55,11 @@ _FLAG_TEXT: dict[str, str] = {
 _GROUP_ORDER = ("CONTRACT", "SUPPLY", "LIQUIDITY", "TRADING", "DEPLOYER", "SOCIAL", "MOMENTUM", "MITIGATION")
 
 #: signal -> group (derived from the rule table + the KOL mitigation).
-_GROUP_OF: dict[str, str] = {rule[0]: rule[3] for rule in _RULES}
-_GROUP_OF["kol_verified"] = "MITIGATION"
+_GROUP_OF: dict[str, str] = dict(load_policy().groups)
 
 
 def _verdict_for(score: int) -> str:
-    if score >= CRITICAL_MIN:
-        return "critical"
-    if score >= HIGH_MIN:
-        return "high"
-    if score >= MEDIUM_MIN:
-        return "medium"
-    return "low"
+    return load_policy().verdict_for(score)
 
 
 def risk_verdict_text(result: dict[str, Any]) -> str:

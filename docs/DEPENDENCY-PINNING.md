@@ -15,9 +15,9 @@ There is exactly **one** authoritative pin.
 
 | What | Where | Value |
 |---|---|---|
-| Authoritative pin (committed) | `pyproject.toml` — `rugmunch-scanner @ git+…` | `2c694e32fea2ff63a83cd3341d7d85c88744a3be` |
+| Authoritative pin (committed) | `pyproject.toml` — `rugmunch-scanner @ git+…` | `70be4090a44153c79c39b26ee3ae31b607381b97` |
 | Build-time override | `Dockerfile.multistage` — `ARG RUGMUNCH_SCANNER_REF` | *empty* (means: use the committed SHA) |
-| Resolved record (not authoritative for Docker) | `uv.lock` | `…rugmunch-scanner.git#2c694e3cfe62…` |
+| Resolved record (not authoritative for Docker) | `uv.lock` | `…rugmunch-scanner.git#70be4090a441…` |
 
 > **Why a commit SHA and not a tag?** A tag is a *mutable* pointer: anyone can
 > run `git tag -f v0.2.0 <other-sha>` and every subsequent build installs
