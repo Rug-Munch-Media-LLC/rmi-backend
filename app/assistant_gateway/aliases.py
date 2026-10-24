@@ -8,8 +8,12 @@ reaches the model.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Final
+
+#: Free-pool lane by default; operators can pin a paid lane explicitly.
+DEFAULT_MODEL: Final = os.getenv("ASSISTANT_MODEL_DEFAULT", "chat-free")
 
 
 class UnknownAlias(ValueError):
@@ -26,7 +30,7 @@ class AliasSpec:
     tools: tuple[str, ...]
     context_fields: tuple[str, ...]
     requires_citations: bool = False
-    model: str = "deepseek-v4-flash"
+    model: str = DEFAULT_MODEL
 
 
 _GUARDRAILS: Final[str] = """\

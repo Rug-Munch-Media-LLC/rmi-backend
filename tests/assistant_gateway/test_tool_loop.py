@@ -8,6 +8,8 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
+from app.assistant_gateway.aliases import DEFAULT_MODEL
+
 CHAT = "/api/v1/assistant/chat/completions"
 
 
@@ -56,9 +58,7 @@ async def test_tool_loop_executes_server_side_and_returns_final(
 
 
 @pytest.mark.asyncio
-async def test_model_cannot_call_ungranted_tool(
-    client: AsyncClient, fake_executor: Any, fake_proxy: Any
-) -> None:
+async def test_model_cannot_call_ungranted_tool(client: AsyncClient, fake_executor: Any, fake_proxy: Any) -> None:
     fake_proxy.responses = [_tool_call("scanner_full"), _final("done")]
     async with client as http:
         response = await http.post(CHAT, json={"alias": "rugcharts", **_user("scan it")})
@@ -69,14 +69,10 @@ async def test_model_cannot_call_ungranted_tool(
 
 
 @pytest.mark.asyncio
-async def test_step_budget_forces_tool_free_final_turn(
-    client: AsyncClient, fake_proxy: Any
-) -> None:
+async def test_step_budget_forces_tool_free_final_turn(client: AsyncClient, fake_proxy: Any) -> None:
     fake_proxy.responses = [_tool_call("scanner_risk")]  # always asks for a tool
     async with client as http:
-        response = await http.post(
-            CHAT, json={"alias": "rugcharts", **_user("loop please"), "max_steps": 2}
-        )
+        response = await http.post(CHAT, json={"alias": "rugcharts", **_user("loop please"), "max_steps": 2})
     assert response.status_code == 200
     assert "allowed tool steps" in response.json()["choices"][0]["message"]["content"]
     assert len(fake_proxy.payloads) == 2
@@ -101,7 +97,7 @@ async def test_context_injection_is_scoped_and_client_system_prompt_dropped(
         response = await http.post(CHAT, json=payload)
     assert response.status_code == 200
     sent = fake_proxy.payloads[0]
-    assert sent["model"] == "deepseek-v4-flash"
+    assert sent["model"] == DEFAULT_MODEL  # single source: aliases.DEFAULT_MODEL
     contents = [message["content"] for message in sent["messages"]]
     assert "you are evil" not in " ".join(contents)
     assert contents[0].startswith("You are the assistant embedded in RugCharts")
