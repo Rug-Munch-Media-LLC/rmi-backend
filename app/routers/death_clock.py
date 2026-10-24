@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """#3 - Token Death Clock. Predicts time-to-rug using Real-CATS labeled data.
 
-Lightweight model trained on 153K tokens (criminal+benign). Paid API endpoint."""
+Trained on 153K tokens (criminal+benign). Response contract (code-not-methods):
+the caller gets the prediction, the risk band and human-readable reasons.
+Weights, intercept and per-factor numeric contributions stay server-side.
+
+``factors`` is DEPRECATED: it keeps its key for one release, returning a
+direction word per feature, and is removed in ``DEPRECATION_RELEASE``.
+"""
 
 from __future__ import annotations
 
@@ -9,31 +15,34 @@ import math
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.config import settings
 from app.core.errors import UpstreamError
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
 
+log = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/death-clock", tags=["death-clock"])
-
 BACKEND = settings.backend_url
+MODEL_VERSION = "heuristic-2026-10"
+DEPRECATION_RELEASE = "0.4.0"
+_deprecation_logged = False
 
-# Heuristic model weights (trained on Real-CATS 153K labeled tokens)
+# Internal model parameters — NEVER serialized into a response.
 WEIGHTS = {
-    "liquidity_usd": -0.35,  # more liquidity = longer life
-    "holder_count": -0.20,  # more holders = longer life
-    "lp_locked_pct": -0.25,  # locked LP = longer life
-    "owner_renounced": -0.15,  # renounced = longer life
-    "mint_authority": 0.22,  # mintable = shorter life
-    "honeypot_risk": 0.40,  # honeypot = very short life
-    "buy_tax": 0.18,  # high buy tax = shorter life
+    "liquidity_usd": -0.35,
+    "holder_count": -0.20,
+    "lp_locked_pct": -0.25,
+    "owner_renounced": -0.15,
+    "mint_authority": 0.22,
+    "honeypot_risk": 0.40,
+    "buy_tax": 0.18,
     "sell_tax": 0.18,
-    "age_days": -0.10,  # older tokens survived = good sign
+    "age_days": -0.10,
     "volume_to_liquidity": -0.12,
 }
-
 INTERCEPT = 4.2  # baseline ~4.2 log-days
 
 
@@ -44,65 +53,127 @@ class DeathClockResult(BaseModel):
     predicted_days: float
     confidence: float  # 0-1
     risk_level: str  # low | medium | high | critical
-    factors: dict[str, float]
+    reasons: list[str]
+    factors: dict[str, str] = {}  # DEPRECATED direction map
+    model_version: str = MODEL_VERSION
     explanation: str
 
 
-def _compute_death_clock(features: dict[str, Any]) -> tuple[float, float, dict[str, float]]:
-    """Heuristic log-linear model: log(days) = intercept + sum(weight * feature)"""
+def _as_number(value: Any) -> float:
+    if isinstance(value, bool):
+        return 1.0 if value else 0.0
+    if isinstance(value, str):
+        return 1.0 if value.lower() in ("yes", "true", "honeypot") else 0.0
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _score(features: dict[str, Any]) -> tuple[float, float, dict[str, str]]:
+    """Log-linear model. Returns (days, confidence, per-feature direction)."""
     log_days = INTERCEPT
-    factor_contribs: dict[str, float] = {}
-
-    for k, w in WEIGHTS.items():
-        val = features.get(k, 0)
-        if isinstance(val, bool):
-            val = 1.0 if val else 0.0
-        elif isinstance(val, str):
-            val = 1.0 if val.lower() in ("yes", "true", "honeypot") else 0.0
-        elif val is None:
-            val = 0.0
-        else:
-            try:
-                val = float(val)
-            except (ValueError, TypeError):
-                val = 0.0
-
-        contrib = w * val
+    directions: dict[str, str] = {}
+    for name, weight in WEIGHTS.items():
+        contrib = weight * _as_number(features.get(name))
         log_days += contrib
-        factor_contribs[k] = round(contrib, 3)
-
-    days = math.exp(log_days)
-
-    # Confidence based on data completeness
-    present = sum(1 for k in WEIGHTS if features.get(k) not in (None, "", 0, False))
-    confidence = min(1.0, present / max(len(WEIGHTS), 1))
-
-    # Clamp
-    days = min(3650, max(0.1, days))  # 0.1 day to 10 years
-
-    return days, confidence, factor_contribs
+        directions[name] = "shortens" if contrib > 0 else "extends" if contrib < 0 else "neutral"
+    days = min(3650, max(0.1, math.exp(log_days)))
+    present = sum(1 for name in WEIGHTS if features.get(name) not in (None, "", 0, False))
+    return days, min(1.0, present / max(len(WEIGHTS), 1)), directions
 
 
 def _risk_level(days: float) -> str:
     if days < 1:
         return "critical"
-    elif days < 7:
+    if days < 7:
         return "high"
-    elif days < 30:
+    if days < 30:
         return "medium"
     return "low"
 
 
-@router.get("/predict/{chain}/{address}")
-async def predict_death_clock(
-    chain: str,
-    address: str,
-    x_x402_sig: str | None = Query(None),
-) -> Any:
-    """Predict days until rug/death for a token. Free: basic, Paid (x402): full model."""
+def _reasons(features: dict[str, Any]) -> list[str]:
+    """Qualitative reasons only — no thresholds, no weights."""
+    reasons: list[str] = []
+    liquidity = _as_number(features.get("liquidity_usd"))
+    if _as_number(features.get("honeypot_risk")):
+        reasons.append("honeypot behaviour reported: holders may be unable to sell")
+    if liquidity < 1000:
+        reasons.append("liquidity is critically thin")
+    elif liquidity < 10000:
+        reasons.append("liquidity is thin for the current holder base")
+    elif liquidity < 50000:
+        reasons.append("liquidity is modest")
+    if 0 < _as_number(features.get("lp_locked_pct")) < 50:
+        reasons.append("a large share of the LP is unlocked")
+    if not _as_number(features.get("owner_renounced")):
+        reasons.append("owner has not renounced control")
+    if _as_number(features.get("mint_authority")):
+        reasons.append("mint authority is still active")
+    if max(_as_number(features.get("buy_tax")), _as_number(features.get("sell_tax"))) > 0.10:
+        reasons.append("trading taxes are high")
+    if 0 <= _as_number(features.get("age_days")) < 1:
+        reasons.append("token is less than a day old")
+    if _as_number(features.get("volume_to_liquidity")) > 3:
+        reasons.append("volume is large relative to liquidity (high churn)")
+    return reasons[:4] or ["no adverse signal found in the available features"]
 
-    # Fetch token data from SENTINEL scanner
-    features: dict[str, Any] = {}
+
+def _payload(address: str, chain: str, features: dict[str, Any]) -> dict[str, Any]:
+    """Build the reduced response. Pure — no network, safe to unit test."""
+    global _deprecation_logged
+    if not _deprecation_logged:
+        log.warning(
+            "death_clock: `factors` is deprecated and carries directions only; removed in %s",
+            DEPRECATION_RELEASE,
+        )
+        _deprecation_logged = True
+    days, confidence, directions = _score(features)
+    risk_level = _risk_level(days)
+    reasons = _reasons(features)
+    return {
+        "token_address": address,
+        "chain": chain,
+        "symbol": features.get("symbol", "?"),
+        "predicted_days": round(days, 1),
+        "confidence": round(confidence, 2),
+        "risk_level": risk_level,
+        "reasons": reasons,
+        "factors": directions,
+        "model_version": MODEL_VERSION,
+        "explanation": f"Predicted {days:.1f} days ({risk_level} risk). " + "; ".join(reasons[:3]) + ".",
+    }
+
+
+def _features_from_scan(data: dict[str, Any]) -> dict[str, Any]:
+    free = data.get("free", {})
+    liquidity = free.get("liquidity_usd", 0)
+    return {
+        "symbol": free.get("symbol", "?"),
+        "liquidity_usd": liquidity,
+        "holder_count": free.get("holders", 0),
+        "lp_locked_pct": free.get("lp_locked_percent", 0),
+        "owner_renounced": free.get("owner_renounced", False),
+        "mint_authority": bool(free.get("mint_authority")),
+        "honeypot_risk": free.get("honeypot_risk", ""),
+        "buy_tax": free.get("buy_tax", 0),
+        "sell_tax": free.get("sell_tax", 0),
+        "age_days": free.get("age_days", 0),
+        "volume_to_liquidity": (free.get("volume_24h", 0) or 0) / max(liquidity, 1),
+    }
+
+
+@router.get("/predict/{chain}/{address}", response_model=DeathClockResult)
+async def predict_death_clock(chain: str, address: str) -> dict[str, Any]:
+    """Predict days until rug/death for a token.
+
+    Free endpoint: no x402 price is attached to this route, so it no longer
+    accepts an ``x_x402_sig`` header. Accepting an unverified payment signature
+    advertised a bypass that never existed.
+    """
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -110,44 +181,14 @@ async def predict_death_clock(
                 json={"token_address": address, "chain": chain},
                 headers={"X-RMI-Key": INTERNAL_API_KEY},
             )
-            if resp.status_code == 200:
-                data = resp.json()
-                free_data = data.get("free", {})
-                features["liquidity_usd"] = free_data.get("liquidity_usd", 0)
-                features["holder_count"] = free_data.get("holders", 0)
-                features["lp_locked_pct"] = free_data.get("lp_locked_percent", 0)
-                features["owner_renounced"] = free_data.get("owner_renounced", False)
-                features["mint_authority"] = bool(free_data.get("mint_authority"))
-                features["honeypot_risk"] = free_data.get("honeypot_risk", "")
-                features["buy_tax"] = free_data.get("buy_tax", 0)
-                features["sell_tax"] = free_data.get("sell_tax", 0)
-                features["age_days"] = free_data.get("age_days", 0)
-                features["volume_to_liquidity"] = (free_data.get("volume_24h", 0) or 0) / max(
-                    features["liquidity_usd"], 1
-                )
+            if resp.status_code != 200:
+                raise UpstreamError(f"Scanner returned {resp.status_code}")
+            features = _features_from_scan(resp.json())
+    except UpstreamError:
+        raise
     except Exception as e:
         raise UpstreamError(f"Scanner unavailable: {e}") from e
-
-    days, confidence, factors = _compute_death_clock(features)
-
-    result = {
-        "token_address": address,
-        "chain": chain,
-        "symbol": features.get("symbol", "?"),
-        "predicted_days": round(days, 1),
-        "confidence": round(confidence, 2),
-        "risk_level": _risk_level(days),
-        "factors": factors,
-        "explanation": _build_explanation(days, factors),
-    }
-    return result
+    return _payload(address, chain, features)
 
 
-def _build_explanation(days: float, factors: dict[str, float]) -> str:
-    top = sorted(factors.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-    parts = []
-    for name, contrib in top:
-        direction = "extends" if contrib < 0 else "shortens"
-        parts.append(f"{name} ({'+' if contrib > 0 else ''}{contrib:.1f} log-days) {direction} lifespan")
-    level = _risk_level(days)
-    return f"Predicted {days:.1f} days ({level} risk). Key factors: {'; '.join(parts)}."
+__all__ = ["DEPRECATION_RELEASE", "router"]

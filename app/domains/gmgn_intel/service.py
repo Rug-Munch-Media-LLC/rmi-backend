@@ -15,7 +15,7 @@ from app.domains.gmgn_intel.client import GMGNIntelClient
 from app.domains.gmgn_intel.coerce import canonical_chain, gap, gmgn_chain, now_iso
 from app.domains.gmgn_intel.detail import normalize_rank_row, normalize_token_info
 from app.domains.gmgn_intel.lifecycle import STAGES, build_lifecycle
-from app.domains.gmgn_intel.scoring import WEIGHTS, WEIGHTS_VERSION, score_token
+from app.domains.gmgn_intel.scoring import WEIGHTS_VERSION, public_breakdown, score_token
 from app.domains.gmgn_intel.security import normalize_security
 from app.domains.gmgn_intel.wallet import build_wallet_profile
 
@@ -88,7 +88,7 @@ class GMGNIntelService:
             scored = score_token(token)
             token["score"] = scored["score"]
             token["score_grade"] = scored["grade"]
-            token["score_breakdown"] = scored
+            token["score_breakdown"] = public_breakdown(scored)
             if token.get("address"):
                 tokens.append(token)
         tokens.sort(key=lambda item: item.get("score") or 0.0, reverse=True)
@@ -118,7 +118,7 @@ class GMGNIntelService:
         scored = score_token(token, security)
         token["score"] = scored["score"]
         token["score_grade"] = scored["grade"]
-        token["score_breakdown"] = scored
+        token["score_breakdown"] = public_breakdown(scored)
         if info is None:
             token["missing"].append(gap("token_info", "upstream returned no data (rate limit or outage)"))
         if include_smart_money:
@@ -144,8 +144,11 @@ class GMGNIntelService:
         """Static contract for consumers: stages, weights, endpoints."""
         return {
             "stages": list(STAGES),
-            "weights": WEIGHTS,
-            "weights_version": WEIGHTS_VERSION,
+            "scoring": {
+                "model": "multi-signal band",
+                "version": WEIGHTS_VERSION,
+                "outputs": ["score", "score_grade", "score_breakdown (bands)"],
+            },
             "endpoints": [
                 "POST /v1/trenches",
                 "GET /v1/market/rank",

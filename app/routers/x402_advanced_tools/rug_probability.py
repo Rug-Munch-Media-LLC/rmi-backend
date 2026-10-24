@@ -23,12 +23,58 @@ from app.config import settings
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.core.x402_cache import get_cached, set_cached
-from app.routers.x402_advanced_tools.confidence import compute_confidence
 
 # Runtime import: FastAPI resolves this body model at OpenAPI schema generation time.
 from app.routers.x402_advanced_tools.models import AddressRequest
 
 logger = get_logger("x402.rug_probability")
+
+MODEL_VERSION = "rug-probability-2026-10"
+DEPRECATION_RELEASE = "0.4.0"
+_deprecation_logged = False
+
+
+def _log_deprecation() -> None:
+    """Warn once that `signals[].weight` is gone and `signals` follows in 0.4.0."""
+    global _deprecation_logged
+    if not _deprecation_logged:
+        logger.warning(
+            "rug_probability: per-signal weights removed; `signals` is deprecated and disappears in %s (use `reasons`)",
+            DEPRECATION_RELEASE,
+        )
+        _deprecation_logged = True
+
+
+def _envelope(
+    address: str,
+    chain: str,
+    probability: int,
+    tier: str,
+    recommendation: str,
+    signals: list[dict[str, Any]],
+    started: float,
+) -> dict[str, Any]:
+    """Serialized paid response: score + band + reason strings, no rubric."""
+    _log_deprecation()
+    return {
+        "tool": "Rug Probability Score",
+        "version": "2.0",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "address": address,
+        "chain": chain,
+        "rug_probability": probability,
+        "tier": tier,
+        "recommendation": recommendation,
+        "reasons": [item["detail"] for item in signals],
+        # DEPRECATED: kept for one release; entries carry a coarse `band` and no
+        # numeric weight. Removed in DEPRECATION_RELEASE.
+        "signals": signals,
+        "signal_count": len(signals),
+        "method": "banded_signal_sum",
+        "model_version": MODEL_VERSION,
+        "performance_ms": round((time.time() - started) * 1000, 1),
+        "guarantee": "Data delivered or auto-refund via x402 receipt",
+    }
 
 
 async def rug_probability(req: AddressRequest) -> Any:
@@ -44,7 +90,6 @@ async def rug_probability(req: AddressRequest) -> Any:
 
         probability = 0
         signals = []
-        sources = []
 
         # ── Signal 1: Honeypot Check ──
         try:
@@ -63,11 +108,10 @@ async def rug_probability(req: AddressRequest) -> Any:
                         signals.append(
                             {
                                 "signal": "honeypot_detected",
-                                "weight": 40,
+                                "band": "extreme",
                                 "detail": data.get("reason", "Cannot sell - confirmed honeypot"),
                             }
                         )
-                    sources.append("honeypot_check")
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"Honeypot check failed: {e}")
 
@@ -80,7 +124,6 @@ async def rug_probability(req: AddressRequest) -> Any:
                         data = await resp.json()
                         pairs = data.get("pairs", [])
                         if pairs:
-                            sources.append("dexscreener")
                             p = pairs[0]
                             liq = p.get("liquidity", {}).get("usd", 0) or 0
                             vol = p.get("volume", {}).get("h24", 0) or 0
@@ -92,39 +135,41 @@ async def rug_probability(req: AddressRequest) -> Any:
                                 signals.append(
                                     {
                                         "signal": "critical_low_liquidity",
-                                        "weight": 25,
+                                        "band": "extreme",
                                         "detail": f"Liquidity ${liq:,.0f}",
                                     }
                                 )
                             elif liq < 10000:
                                 probability += 15
                                 signals.append(
-                                    {"signal": "low_liquidity", "weight": 15, "detail": f"Liquidity ${liq:,.0f}"}
+                                    {"signal": "low_liquidity", "band": "high", "detail": f"Liquidity ${liq:,.0f}"}
                                 )
                             elif liq < 50000:
                                 probability += 5
                                 signals.append(
-                                    {"signal": "moderate_liquidity", "weight": 5, "detail": f"Liquidity ${liq:,.0f}"}
+                                    {"signal": "moderate_liquidity", "band": "low", "detail": f"Liquidity ${liq:,.0f}"}
                                 )
 
                             if 0 < age_h < 1:
                                 probability += 20
                                 signals.append(
-                                    {"signal": "brand_new", "weight": 20, "detail": f"Only {age_h:.1f}h old"}
+                                    {"signal": "brand_new", "band": "high", "detail": f"Only {age_h:.1f}h old"}
                                 )
                             elif 0 < age_h < 6:
                                 probability += 12
-                                signals.append({"signal": "very_new", "weight": 12, "detail": f"Only {age_h:.1f}h old"})
+                                signals.append(
+                                    {"signal": "very_new", "band": "moderate", "detail": f"Only {age_h:.1f}h old"}
+                                )
                             elif 0 < age_h < 24:
                                 probability += 5
-                                signals.append({"signal": "new_token", "weight": 5, "detail": f"{age_h:.0f}h old"})
+                                signals.append({"signal": "new_token", "band": "low", "detail": f"{age_h:.0f}h old"})
 
                             if liq > 0 and vol > liq * 3:
                                 probability += 10
                                 signals.append(
                                     {
                                         "signal": "pump_dump_pattern",
-                                        "weight": 10,
+                                        "band": "moderate",
                                         "detail": f"Volume {vol / liq:.0f}x liquidity",
                                     }
                                 )
@@ -133,30 +178,19 @@ async def rug_probability(req: AddressRequest) -> Any:
                             if pc < -50:
                                 probability += 15
                                 signals.append(
-                                    {"signal": "price_crashing", "weight": 15, "detail": f"Down {pc:.0f}% in 24h"}
+                                    {"signal": "price_crashing", "band": "high", "detail": f"Down {pc:.0f}% in 24h"}
                                 )
                             elif pc < -20:
                                 probability += 8
                                 signals.append(
-                                    {"signal": "price_declining", "weight": 8, "detail": f"Down {pc:.0f}% in 24h"}
+                                    {
+                                        "signal": "price_declining",
+                                        "band": "moderate",
+                                        "detail": f"Down {pc:.0f}% in 24h",
+                                    }
                                 )
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"DexScreener failed: {e}")
-
-        # ── Signal 3: Holder Concentration ──
-        try:
-            async with aiohttp.ClientSession() as session:
-                chain_map = {"solana": "solana", "base": "base", "ethereum": "eth", "bsc": "bsc"}
-                geo_chain = chain_map.get(chain, chain)
-                url = f"https://api.geckoterminal.com/api/v2/networks/{geo_chain}/tokens/{addr}"
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        attrs = data.get("data", {}).get("attributes", {})
-                        if attrs:
-                            sources.append("geckoterminal")
-        except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
-            logger.debug(f"GeckoTerminal failed: {e}")
 
         # ── Signal 4: Deployer History ──
         try:
@@ -164,7 +198,6 @@ async def rug_probability(req: AddressRequest) -> Any:
 
             result = asyncio.run(detect_scam_patterns({"address": addr, "chain": chain}, 0.4))
             if result and result.get("risk_score", 0) > 0:
-                sources.append("scam_detector")
                 risk = result.get("risk_score", 0)
                 probability += min(risk, 30)
                 patterns = result.get("patterns", [])
@@ -172,7 +205,7 @@ async def rug_probability(req: AddressRequest) -> Any:
                     signals.append(
                         {
                             "signal": "scam_pattern_match",
-                            "weight": min(risk, 30),
+                            "band": "high",
                             "detail": f"Matches: {', '.join(patterns[:3])}",
                         }
                     )
@@ -190,13 +223,11 @@ async def rug_probability(req: AddressRequest) -> Any:
                     if resp.status == 200:
                         data = await resp.json()
                         posts = data.get("results", [])
-                        if posts:
-                            sources.append("cryptopanic")
-                            if len(posts) > 20:
-                                probability += 5
-                                signals.append(
-                                    {"signal": "social_spike", "weight": 5, "detail": f"{len(posts)} social mentions"}
-                                )
+                        if posts and len(posts) > 20:
+                            probability += 5
+                            signals.append(
+                                {"signal": "social_spike", "band": "low", "detail": f"{len(posts)} social mentions"}
+                            )
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"CryptoPanic failed: {e}")
 
@@ -218,22 +249,7 @@ async def rug_probability(req: AddressRequest) -> Any:
             tier = "MINIMAL_RISK"
             recommendation = "Low rug probability - relatively safe"
 
-        result = {
-            "tool": "Rug Probability Score",
-            "version": "1.0",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "address": addr,
-            "chain": chain,
-            "rug_probability": probability,
-            "tier": tier,
-            "recommendation": recommendation,
-            "signals": signals,
-            "signal_count": len(signals),
-            "sources_used": sources,
-            "_confidence": compute_confidence({"sources_used": sources}),
-            "performance_ms": round((time.time() - t0) * 1000, 1),
-            "guarantee": "Data delivered or auto-refund via x402 receipt",
-        }
+        result = _envelope(addr, chain, probability, tier, recommendation, signals, t0)
 
         set_cached("rug_probability", {"address": addr, "chain": chain}, result)
         return result

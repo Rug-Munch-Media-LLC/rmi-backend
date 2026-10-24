@@ -1,14 +1,25 @@
-name: Publish to PyPI
+name: Publish public package to PyPI
+
+# MANUAL DISPATCH ONLY. This used to run on `release: published` and pushed the
+# whole backend (including app/domains/scanner) to PyPI. The artifact is now
+# staged from packaging/public-modules.txt and verified before publishing; the
+# job refuses to publish anything outside that allowlist.
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type PUBLISH to publish the allowlisted package'
+        required: true
+        type: string
 
 permissions:
+  contents: read
   id-token: write
 
 jobs:
   publish:
+    if: github.event.inputs.confirm == 'PUBLISH'
     runs-on: ubuntu-latest
     environment: pypi
     steps:
@@ -21,10 +32,20 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: pip install hatch
+        run: pip install build hatchling
 
-      - name: Build package
-        run: hatch build
+      - name: Stage allowlisted modules
+        run: python3 scripts/stage_public_package.py "$RUNNER_TEMP/public-pkg"
+
+      - name: Build
+        run: python3 -m build --sdist --wheel --outdir "$RUNNER_TEMP/public-pkg/dist" "$RUNNER_TEMP/public-pkg"
+
+      - name: Verify artifact contains no private modules
+        run: |
+          python3 scripts/verify_public_package.py "$RUNNER_TEMP"/public-pkg/dist/*.whl \
+            "$RUNNER_TEMP"/public-pkg/dist/*.tar.gz
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ runner.temp }}/public-pkg/dist

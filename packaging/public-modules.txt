@@ -1,0 +1,10 @@
+# Modules allowed into the public PyPI artifact — one repo-relative path per line.
+#
+# ANYTHING NOT LISTED HERE IS NOT PUBLISHED. The backend is an application, not a
+# library: scoring engines, scanners, routers and databus providers stay private.
+# `scripts/stage_public_package.py` fails when a listed file is missing, and
+# `scripts/verify_public_package.py` fails when anything else reaches the artifact.
+app/__init__.py
+app/core/__init__.py
+app/core/errors.py
+app/core/problem_details.py

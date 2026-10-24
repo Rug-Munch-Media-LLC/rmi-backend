@@ -427,11 +427,16 @@ class TestDeathClockModel:
             predicted_days=0.0,
             risk_level="LOW",
             confidence=0.0,
+            reasons=[],
             factors={},
             explanation="",
         )
         assert result.predicted_days == 0.0
         assert result.confidence == 0.0
+        assert result.factors == {}, "no features scored means no directions, not a bench of zeros"
+        dumped = result.model_dump()
+        assert "weights" not in dumped
+        assert "intercept" not in dumped
 
     def test_death_clock_high_confidence(self):
         from app.routers.death_clock import DeathClockResult
@@ -443,11 +448,15 @@ class TestDeathClockModel:
             predicted_days=365.0,
             risk_level="CRITICAL",
             confidence=0.99,
-            factors={"liquidity": -0.9, "holders": -0.8},
+            reasons=["honeypot behaviour reported: holders may be unable to sell"],
+            factors={"liquidity_usd": "shortens", "holder_count": "extends"},
             explanation="Multiple high-risk factors detected",
         )
         assert result.confidence == 0.99
-        assert result.factors["liquidity"] == -0.9
+        # Directions only: the sign of a contribution is allowed out, its size is not.
+        assert result.factors["liquidity_usd"] == "shortens"
+        assert result.factors["holder_count"] == "extends"
+        assert set(result.factors.values()) <= {"shortens", "extends", "neutral"}
         assert result.risk_level == "CRITICAL"
 
 

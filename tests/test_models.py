@@ -428,13 +428,19 @@ class TestDeathClockModel:
             predicted_days=30.0,
             risk_level="HIGH",
             confidence=0.85,
-            factors={"low_liquidity": -0.5, "age_days": 0.3},
+            reasons=["liquidity is thin for the current holder base"],
+            factors={"liquidity_usd": "shortens", "age_days": "neutral"},
             explanation="Test explanation",
         )
         assert result.token_address == "0xabc"
         assert result.risk_level == "HIGH"
         assert result.confidence == 0.85
-        assert result.factors["low_liquidity"] == -0.5
+        # Contract: `factors` is a feature -> direction map, never a contribution.
+        assert result.factors["liquidity_usd"] == "shortens"
+        assert set(result.factors.values()) <= {"shortens", "extends", "neutral"}
+        dumped = result.model_dump()
+        assert "weights" not in dumped
+        assert "intercept" not in dumped
 
 
 class TestTokenCVModel:

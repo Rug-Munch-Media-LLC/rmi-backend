@@ -136,6 +136,36 @@ def score_token(token: dict[str, Any], security: dict[str, Any] | None = None) -
     }
 
 
+def _band(points: float) -> str:
+    """Coarse direction for one component — replaces its weight and points."""
+    if points >= 20:
+        return "strong_positive"
+    if points >= 5:
+        return "positive"
+    if points > -5:
+        return "neutral"
+    if points > -20:
+        return "negative"
+    return "strong_negative"
+
+
+def public_breakdown(scored: dict[str, Any]) -> dict[str, Any]:
+    """Project a score breakdown for API responses: bands, never weights.
+
+    `score_token` keeps the full per-component math for our own ranking and
+    tests; every serialized payload goes through this projection instead.
+    """
+    return {
+        "score": scored["score"],
+        "grade": scored["grade"],
+        "blocked": scored["blocked"],
+        "penalties": scored["penalties"],
+        "components": [{"name": item["name"], "band": _band(item["points"])} for item in scored["components"]],
+        "missing": scored["missing"],
+        "model_version": WEIGHTS_VERSION,
+    }
+
+
 def _grade(score: float) -> str:
     """Letter grade buckets used by the feed/API consumers."""
     for threshold, letter in ((80, "A"), (65, "B"), (50, "C"), (35, "D")):

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from app.core.auth import require_internal_key
 from app.core.logging import get_logger
 from app.domains.gmgn_intel import get_gmgn_intel_service
 
@@ -18,9 +19,13 @@ log = get_logger(__name__)
 router = APIRouter()
 
 
-@router.get("/descriptor")
+@router.get("/descriptor", dependencies=[Depends(require_internal_key)])
 async def descriptor() -> dict[str, Any]:
-    """Stages, score weights and endpoints this layer uses (contract)."""
+    """Stages, scoring contract and endpoints this layer uses (internal only).
+
+    Internal-key gated: the contract describes our ranking, so it is not a
+    public product surface. The weight table it used to return is gone.
+    """
     return get_gmgn_intel_service().descriptor()
 
 

@@ -198,8 +198,21 @@ async def rugcharts_volume_analysis(
     labeled = classify_trades(trades)
     breakdown = volume_breakdown(labeled)
 
-    # Predictive bias — transparent fusion of independent evidence sources.
-    # Every factor names its evidence; no fabricated price targets.
+    return envelope(
+        success=True,
+        data={
+            "chain": chain,
+            "token_address": token_address,
+            **breakdown,
+            "predictive_bias": _predictive_bias(breakdown),
+        },
+        source="lite_chain_indexer (ClickHouse dex_events)",
+        confidence=0.8 if breakdown["confidence"] == "high" else 0.5,
+    )
+
+
+def _predictive_bias(breakdown: dict[str, Any]) -> dict[str, Any]:
+    """Banded bias from trade-flow evidence: reasons, never numeric impacts."""
     factors: list[dict[str, Any]] = []
     bias_score = 0
     if breakdown["bot_volume_pct"] is not None:
@@ -208,48 +221,45 @@ async def rugcharts_volume_analysis(
             factors.append(
                 {
                     "factor": "bot_dominance",
-                    "impact": -25,
+                    "band": "strong_bearish",
                     "evidence": f"{breakdown['bot_volume_pct']}% of sampled volume is bot-labeled",
                 }
             )
         elif breakdown["bot_volume_pct"] >= 15:
             bias_score -= 10
             factors.append(
-                {"factor": "bot_elevated", "impact": -10, "evidence": f"{breakdown['bot_volume_pct']}% bot volume"}
+                {"factor": "bot_elevated", "band": "bearish", "evidence": f"{breakdown['bot_volume_pct']}% bot volume"}
             )
         else:
             bias_score += 5
             factors.append(
-                {"factor": "organic_flow", "impact": 5, "evidence": f"bot share only {breakdown['bot_volume_pct']}%"}
+                {
+                    "factor": "organic_flow",
+                    "band": "mild_bullish",
+                    "evidence": f"bot share only {breakdown['bot_volume_pct']}%",
+                }
             )
     if breakdown["buy_pressure"] is not None:
         bp = breakdown["buy_pressure"]
         if bp >= 0.65:
             bias_score += 15
-            factors.append({"factor": "buy_pressure", "impact": 15, "evidence": f"{bp:.0%} buy-side volume"})
+            factors.append({"factor": "buy_pressure", "band": "bullish", "evidence": f"{bp:.0%} buy-side volume"})
         elif bp <= 0.35:
             bias_score -= 15
-            factors.append({"factor": "sell_pressure", "impact": -15, "evidence": f"only {bp:.0%} buy-side"})
+            factors.append({"factor": "sell_pressure", "band": "bearish", "evidence": f"only {bp:.0%} buy-side"})
 
     bias = "BEARISH" if bias_score <= -20 else "BULLISH" if bias_score >= 20 else "NEUTRAL"
-
-    return envelope(
-        success=True,
-        data={
-            "chain": chain,
-            "token_address": token_address,
-            **breakdown,
-            "predictive_bias": {
-                "bias": bias,
-                "score": max(-100, min(100, bias_score)),
-                "factors": factors,
-                "method": "transparent_rule_fusion",
-                "disclaimer": "Heuristic bias from trade-flow evidence — not financial advice.",
-            },
-        },
-        source="lite_chain_indexer (ClickHouse dex_events)",
-        confidence=0.8 if breakdown["confidence"] == "high" else 0.5,
-    )
+    return {
+        "bias": bias,
+        "score": max(-100, min(100, bias_score)),
+        "reasons": [item["evidence"] for item in factors],
+        # DEPRECATED: entries keep `factor` + `evidence` and carry a coarse
+        # `band` instead of a numeric `impact`. Removed in 0.4.0.
+        "factors": factors,
+        "method": "banded_rule_fusion",
+        "model_version": "bias-band-2026-10",
+        "disclaimer": "Heuristic bias from trade-flow evidence — not financial advice.",
+    }
 
 
 # ── Volume breakdown: bot / wash / MEV / organic (DexScreener-killer) ────

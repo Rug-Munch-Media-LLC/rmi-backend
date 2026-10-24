@@ -13,7 +13,7 @@ from typing import Any
 
 from app.domains.gmgn_intel.coerce import canonical_chain, gap, num, whole
 from app.domains.gmgn_intel.normalize import normalize_row
-from app.domains.gmgn_intel.scoring import score_token
+from app.domains.gmgn_intel.scoring import public_breakdown, score_token
 
 STAGES = ("new", "bonding", "almost_graduated", "graduated", "trending")
 NEW_MAX_PROGRESS = 0.10
@@ -81,7 +81,7 @@ def build_lifecycle(
         scored = score_token(token)
         token["score"] = scored["score"]
         token["score_grade"] = scored["grade"]
-        token["score_breakdown"] = scored
+        token["score_breakdown"] = public_breakdown(scored)
         if scored["blocked"]:
             token["missing"].append(gap("score", "blocked: honeypot or unsellable"))
         tokens.append(token)
