@@ -1,3 +1,4 @@
+# ruff: noqa: PT011
 """Policy: secret refusal, no-source refusal, request validation."""
 
 from __future__ import annotations

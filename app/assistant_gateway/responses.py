@@ -1,3 +1,4 @@
+# ruff: noqa: TC001
 """OpenAI-compatible response and SSE shaping."""
 
 from __future__ import annotations

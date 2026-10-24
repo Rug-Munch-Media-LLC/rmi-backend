@@ -1,3 +1,4 @@
+# ruff: noqa: TC001
 """Server-side tool registry for the page assistant.
 
 Two rules live here:

@@ -1,3 +1,4 @@
+# ruff: noqa: TC002, PT018
 """Tool loop + context injection: the gateway's core security assertions."""
 
 from __future__ import annotations

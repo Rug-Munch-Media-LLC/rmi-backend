@@ -1,3 +1,4 @@
+# ruff: noqa: TC001
 """FastAPI surface for the page assistant gateway.
 
 Two paths, one handler:

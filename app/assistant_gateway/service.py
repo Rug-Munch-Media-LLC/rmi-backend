@@ -1,3 +1,4 @@
+# ruff: noqa: TC001, TC003
 """Orchestration: policy → rate limit → refusal → retrieval → answer.
 
 Streaming and non-streaming share :meth:`prepare`, so a refused or unsourced
