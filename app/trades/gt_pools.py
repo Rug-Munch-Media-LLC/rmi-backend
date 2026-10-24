@@ -9,8 +9,11 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from app.core.logging import get_logger
 from app.trades.http import get_json
 from app.trades.schema import canon_chain
+
+logger = get_logger(__name__)
 
 GT_BASE = "https://api.geckoterminal.com/api/v2"
 
@@ -42,7 +45,8 @@ async def resolve_pool(chain: str, token: str) -> PoolRef | None:
                 best["attributes"].get("reserve_in_usd") or 0
             ):
                 best = row
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.debug("gt_pool_reserve_unreadable", pool=str(row.get("id")), error=type(exc).__name__)
             continue
 
     attrs = best.get("attributes") or {}
@@ -58,7 +62,8 @@ async def resolve_pool(chain: str, token: str) -> PoolRef | None:
 def _rel_addr(rels: dict, key: str) -> str:
     try:
         return (rels[key]["data"]["id"] or "").split("_", 1)[1]
-    except (KeyError, IndexError, TypeError):
+    except (KeyError, IndexError, TypeError) as exc:
+        logger.debug("gt_pool_relationship_missing", key=key, error=type(exc).__name__)
         return ""
 
 

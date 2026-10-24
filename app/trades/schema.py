@@ -10,6 +10,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.core.logging import get_logger
+from app.trades.numeric import as_number
+
+logger = get_logger(__name__)
+
 # Chains we serve. GeckoTerminal network ids (note: eth, not ethereum).
 SUPPORTED_CHAINS = frozenset({"solana", "eth", "base", "bsc", "arbitrum", "polygon", "optimism", "avalanche"})
 
@@ -78,10 +83,10 @@ def normalize_geckoterminal_trade(
     kind = (a.get("kind") or "").lower()
     if wants_base or not base_token:
         side = kind
-        amount_token = _f(a.get("from_token_amount")) if from_tok == token_l else _f(a.get("to_token_amount"))
+        amount_token = as_number(a.get("from_token_amount")) if from_tok == token_l else as_number(a.get("to_token_amount"))
     else:
         side = "buy" if kind == "sell" else "sell"
-        amount_token = _f(a.get("to_token_amount")) if from_tok != token_l else _f(a.get("from_token_amount"))
+        amount_token = as_number(a.get("to_token_amount")) if from_tok != token_l else as_number(a.get("from_token_amount"))
     if side not in ("buy", "sell"):
         return None
 
@@ -93,8 +98,8 @@ def normalize_geckoterminal_trade(
         tx=tx,
         side=side,
         amount_token=amount_token,
-        amount_usd=_f(a.get("volume_in_usd")),
-        price_usd=_f(a.get("price_from_in_usd")) if from_tok == token_l else _f(a.get("price_to_in_usd")),
+        amount_usd=as_number(a.get("volume_in_usd")),
+        price_usd=as_number(a.get("price_from_in_usd")) if from_tok == token_l else as_number(a.get("price_to_in_usd")),
         wallet=wallet,
         maker=wallet,
         timestamp=ts,
@@ -104,17 +109,11 @@ def normalize_geckoterminal_trade(
     )
 
 
-def _f(value: Any) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
-
-
 def _iso_to_ms(ts: str) -> int:
     from datetime import datetime
 
     try:
         return int(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() * 1000)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        logger.debug("trade_timestamp_unparsable", error=type(exc).__name__)
         return 0

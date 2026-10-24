@@ -1,9 +1,5 @@
 """Source orchestration: one call, per-chain fallback, real trades only.
 
-Order is per chain because the sources are per chain:
-  * solana        -> geckoterminal -> solanatracker -> birdeye -> gmgn
-  * eth/base/...  -> geckoterminal -> birdeye -> gmgn
-
 DexScreener is deliberately absent: it publishes no public trades endpoint. Its
 ``/token-pairs/v1`` and ``/latest/dex/tokens`` responses carry 24h AGGREGATES
 (volume, buy/sell counts) and a single price — deriving trades from those is
@@ -12,41 +8,26 @@ fabrication, which this service must never do.
 A source that errors, is unkeyed, or returns no rows is skipped. If every
 source yields nothing the caller gets an empty list plus the list of sources
 that were tried — never a synthetic trade.
+
+Wiring is injected as one ``TradeDeps`` value (source registry + cache store),
+so callers and tests substitute behaviour without patching module attributes.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.logging import get_logger
-from app.trades import cache
-from app.trades.birdeye import fetch_birdeye_trades
-from app.trades.gmgn import fetch_gmgn_trades
-from app.trades.gt_pools import resolve_pool
-from app.trades.gt_trades import dedupe, fetch_pool_trades, mark_whales, serialize
+from app.trades.contracts import TradeDeps, TradeResult
+from app.trades.gt_trades import dedupe, mark_whales, serialize
 from app.trades.schema import Trade, canon_chain
-from app.trades.solanatracker import fetch_solanatracker_trades
+from app.trades.sources import SourceMap
+
+__all__ = ["TradeDeps", "TradeResult", "get_token_trades"]
 
 logger = get_logger(__name__)
 
 WHALE_USD = 10_000.0
-
-
-@dataclass
-class TradeResult:
-    trades: list[Trade] = field(default_factory=list)
-    source: str = "none"
-    cached: bool = False
-    tried: list[str] = field(default_factory=list)
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "trades": serialize(self.trades),
-            "source": self.source,
-            "cached": self.cached,
-            "sources_tried": self.tried,
-        }
 
 
 async def get_token_trades(
@@ -55,6 +36,7 @@ async def get_token_trades(
     token: str,
     limit: int = 100,
     min_usd: float = 0.0,
+    deps: TradeDeps | None = None,
 ) -> TradeResult:
     """Recent real trades for a token, cached, deduped and whale-flagged."""
     network = canon_chain(chain)
@@ -62,20 +44,20 @@ async def get_token_trades(
     if not token:
         return TradeResult()
 
-    hit = await cache.read(network, token)
+    deps = deps if deps is not None else TradeDeps.default()
+    hit = await deps.store.read(network, token)
     if hit is not None:
-        trades = _from_cache(hit, min_usd, limit)
         return TradeResult(
-            trades=trades,
+            trades=_from_cache(hit, min_usd, limit),
             source=str(hit.get("source") or "cache"),
             cached=True,
             tried=list(hit.get("sources_tried") or []),
         )
 
-    result = await _fetch_chain(network, token, limit)
+    result = await _fetch_chain(network, token, limit, deps.sources)
     result.trades = mark_whales(result.trades, WHALE_USD)
     if result.trades:
-        await cache.write(
+        await deps.store.write(
             network,
             token,
             {
@@ -92,17 +74,14 @@ async def get_token_trades(
     )
 
 
-async def _fetch_chain(network: str, token: str, limit: int) -> TradeResult:
+async def _fetch_chain(network: str, token: str, limit: int, sources: SourceMap) -> TradeResult:
     out = TradeResult()
-    if network not in _FALLBACKS:
+    if network not in sources:
         out.tried = ["unsupported_chain"]
         return out
 
-    for label, func_name in _FALLBACKS[network]:
+    for label, fetch in sources[network]:
         out.tried.append(label)
-        # Resolve through module globals so a swapped source is always honoured
-        # (a captured function object would pin the import-time binding).
-        fetch = globals()[func_name]
         try:
             rows = await fetch(network, token, limit)
         except Exception as exc:  # a broken source must not break the tape
@@ -114,45 +93,6 @@ async def _fetch_chain(network: str, token: str, limit: int) -> TradeResult:
             return out
     out.source = "none"
     return out
-
-
-async def _gt(network: str, token: str, limit: int) -> list[Trade]:
-    ref = await resolve_pool(network, token)
-    if ref is None:
-        return []
-    return await fetch_pool_trades(
-        chain=network,
-        pool=ref.pool,
-        token=token,
-        base_token=ref.base_token,
-        limit=limit,
-    )
-
-
-async def _st(network: str, token: str, limit: int) -> list[Trade]:
-    return await fetch_solanatracker_trades(chain=network, token=token, limit=limit)
-
-
-async def _be(network: str, token: str, limit: int) -> list[Trade]:
-    return await fetch_birdeye_trades(chain=network, token=token, limit=limit)
-
-
-async def _gm(network: str, token: str, limit: int) -> list[Trade]:
-    return await fetch_gmgn_trades(chain=network, token=token, limit=limit)
-
-
-_FALLBACKS: dict[str, list[tuple[str, str]]] = {
-    "solana": [
-        ("geckoterminal", "_gt"),
-        ("solanatracker", "_st"),
-        ("birdeye", "_be"),
-        ("gmgn", "_gm"),
-    ],
-    **{
-        net: [("geckoterminal", "_gt"), ("birdeye", "_be"), ("gmgn", "_gm")]
-        for net in ("eth", "base", "bsc", "arbitrum", "polygon", "optimism", "avalanche")
-    },
-}
 
 
 def _from_cache(payload: dict[str, Any], min_usd: float, limit: int) -> list[Trade]:
