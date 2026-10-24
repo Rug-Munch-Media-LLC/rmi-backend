@@ -22,6 +22,7 @@ from app.config import settings
 from app.core.errors import UpstreamError
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
+from app.routers.death_clock_reasons import as_number, reasons_for
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/death-clock", tags=["death-clock"])
@@ -59,25 +60,12 @@ class DeathClockResult(BaseModel):
     explanation: str
 
 
-def _as_number(value: Any) -> float:
-    if isinstance(value, bool):
-        return 1.0 if value else 0.0
-    if isinstance(value, str):
-        return 1.0 if value.lower() in ("yes", "true", "honeypot") else 0.0
-    if value is None:
-        return 0.0
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return 0.0
-
-
 def _score(features: dict[str, Any]) -> tuple[float, float, dict[str, str]]:
     """Log-linear model. Returns (days, confidence, per-feature direction)."""
     log_days = INTERCEPT
     directions: dict[str, str] = {}
     for name, weight in WEIGHTS.items():
-        contrib = weight * _as_number(features.get(name))
+        contrib = weight * as_number(features.get(name))
         log_days += contrib
         directions[name] = "shortens" if contrib > 0 else "extends" if contrib < 0 else "neutral"
     days = min(3650, max(0.1, math.exp(log_days)))
@@ -95,41 +83,6 @@ def _risk_level(days: float) -> str:
     return "low"
 
 
-def _liquidity_reason(liquidity: float) -> str | None:
-    """Grade liquidity into one band word - no thresholds on the wire."""
-    if liquidity < 1000:
-        return "liquidity is critically thin"
-    if liquidity < 10000:
-        return "liquidity is thin for the current holder base"
-    if liquidity < 50000:
-        return "liquidity is modest"
-    return None
-
-
-def _reasons(features: dict[str, Any]) -> list[str]:
-    """Qualitative reasons only — no thresholds, no weights."""
-    reasons: list[str] = []
-    liquidity = _as_number(features.get("liquidity_usd"))
-    if _as_number(features.get("honeypot_risk")):
-        reasons.append("honeypot behaviour reported: holders may be unable to sell")
-    liquidity_reason = _liquidity_reason(liquidity)
-    if liquidity_reason:
-        reasons.append(liquidity_reason)
-    if 0 < _as_number(features.get("lp_locked_pct")) < 50:
-        reasons.append("a large share of the LP is unlocked")
-    if not _as_number(features.get("owner_renounced")):
-        reasons.append("owner has not renounced control")
-    if _as_number(features.get("mint_authority")):
-        reasons.append("mint authority is still active")
-    if max(_as_number(features.get("buy_tax")), _as_number(features.get("sell_tax"))) > 0.10:
-        reasons.append("trading taxes are high")
-    if 0 <= _as_number(features.get("age_days")) < 1:
-        reasons.append("token is less than a day old")
-    if _as_number(features.get("volume_to_liquidity")) > 3:
-        reasons.append("volume is large relative to liquidity (high churn)")
-    return reasons[:4] or ["no adverse signal found in the available features"]
-
-
 def _payload(address: str, chain: str, features: dict[str, Any]) -> dict[str, Any]:
     """Build the reduced response. Pure — no network, safe to unit test."""
     global _deprecation_logged
@@ -141,7 +94,7 @@ def _payload(address: str, chain: str, features: dict[str, Any]) -> dict[str, An
         _deprecation_logged = True
     days, confidence, directions = _score(features)
     risk_level = _risk_level(days)
-    reasons = _reasons(features)
+    reasons = reasons_for(features)
     return {
         "token_address": address,
         "chain": chain,
