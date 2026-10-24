@@ -66,6 +66,10 @@ secret-rotation*
 *.json
 # Fleet gate ratchet baselines — version-controlled (see standards/fleet/gates)
 !scripts/*-baseline.json
+# Methodology gate DATA — must be version-controlled: the checker fails CLOSED
+# when its pattern data is missing, so an ignored copy would block every build.
+!scripts/methodology-patterns.json
+!scripts/methodology-policy.json
 *.onnx
 *.parquet
 *.pkl

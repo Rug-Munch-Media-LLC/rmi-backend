@@ -1,0 +1,27 @@
+# "Code, not methods" — BLOCKING gate for a PUBLIC repo.
+#
+# Pre-commit is bypassable (`--no-verify`), so this workflow is the real gate:
+# it runs on every push and pull request and cannot be skipped from the client.
+# Public/private is decided by scripts/methodology-policy.json, so the same
+# workflow can be copied to private repos without gating internal work.
+#
+# Ratchet: scripts/methodology-baseline.json may only shrink. Raising it needs
+# --reason <file>, recorded in the baseline. See standards/METHODOLOGY-PROTECTION.md.
+name: Methodology gate
+on:
+  push:
+    branches: [main, wip/*]
+  pull_request:
+    branches: [main]
+jobs:
+  methodology-gate:
+    name: Code, not methods
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Published-method scan (weights, thresholds, signals, prompts)
+        run: python3 scripts/check-methodology.py --repo .
+      - name: Gate self-test (a planted weight table must block)
+        run: bash scripts/methodology-gate-selftest.sh

@@ -1,0 +1,23 @@
+{
+	"rules": {
+		"prompt-judgement": 12,
+		"magic-threshold": 143,
+		"weight-map": 15,
+		"signal-list": 59,
+		"packaged-constants": 2
+	},
+	"total": 231,
+	"reasons": [
+		{
+			"date": "2026-10-24",
+			"rules": {
+				"prompt-judgement": [0, 12],
+				"magic-threshold": [0, 143],
+				"weight-map": [0, 15],
+				"signal-list": [0, 59],
+				"packaged-constants": [0, 2]
+			},
+			"reason": "Initial baseline for the \"code, not methods\" gate (2026-10-24). The 231 findings are pre-existing scoring code in this public repo: 143 thresholds, 59 signal lists, 15 weight tables, 12 judgement prompts, 2 packaged constant imports. They are recorded so the ratchet blocks GROWTH while the debt is moved behind a seam or the repo is reclassified. Nothing new may be added without an explicit reason."
+		}
+	]
+}
