@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable  # noqa: TC003
 from typing import Any
 
 from app.core.logging import get_logger

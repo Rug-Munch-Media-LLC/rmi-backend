@@ -13,7 +13,7 @@ from typing import Any, Protocol
 
 from app.trades import cache
 from app.trades.gt_trades import serialize
-from app.trades.schema import Trade
+from app.trades.schema import Trade  # noqa: TC001
 from app.trades.sources import SourceMap, default_sources
 
 

@@ -13,9 +13,9 @@ from typing import Any
 import pytest
 
 from app.trades import service
-from app.trades.service import TradeDeps
 from app.trades.gt_trades import dedupe, mark_whales
 from app.trades.schema import SUPPORTED_CHAINS, Trade, canon_chain, normalize_geckoterminal_trade
+from app.trades.service import TradeDeps
 from app.trades.sources import SourceFn, SourceMap, default_sources
 
 

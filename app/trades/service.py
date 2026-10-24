@@ -21,7 +21,7 @@ from app.core.logging import get_logger
 from app.trades.contracts import TradeDeps, TradeResult
 from app.trades.gt_trades import dedupe, mark_whales, serialize
 from app.trades.schema import Trade, canon_chain
-from app.trades.sources import SourceMap
+from app.trades.sources import SourceMap  # noqa: TC001
 
 __all__ = ["TradeDeps", "TradeResult", "get_token_trades"]
 
