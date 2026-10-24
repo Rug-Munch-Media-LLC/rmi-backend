@@ -140,6 +140,13 @@ from app.routers.v1.launches import router as launches_v1_router  # noqa: E402 �
 
 v1_router.include_router(launches_v1_router)
 
+# Paid boost inventory — POST /api/v1/boosts, GET /api/v1/boosts/boosted,
+# POST /api/v1/boosts/expire (internal). Placements render in the `boosted`
+# surface only; trending rank stays unpaid.
+from app.routers.v1.boosts import router as boosts_v1_router  # noqa: E402 — module docstring precedes import block
+
+v1_router.include_router(boosts_v1_router)
+
 # Self-served market endpoints — holders / trending / new-pairs / whale feed
 # (own lite-chain-indexer ClickHouse first, external providers as fail-open fallback)
 from app.routers.v1.market import router as market_v1_router  # noqa: E402 — module docstring precedes import block

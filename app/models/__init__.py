@@ -34,6 +34,7 @@ from app.models.analytics import (  # noqa: E402 — module docstring precedes i
     EngagementEvent,
     ViewEvent,
 )
+from app.models.boost import BoostEvent, BoostPurchase  # noqa: E402 — paid boost inventory
 from app.models.kol import KOLWallet  # noqa: E402 — module docstring precedes import block
 from app.models.kv_migration import (  # noqa: E402 — module docstring precedes import block
     Bookmark,
@@ -70,6 +71,8 @@ __all__ = [
     "Base",
     "BattleGift",
     "Bookmark",
+    "BoostEvent",
+    "BoostPurchase",
     "Challenge",
     "ChatMessage",
     "ContentPost",
