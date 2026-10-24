@@ -18,6 +18,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.assistant_gateway.aliases import ALIASES
+from app.assistant_gateway.free_pool import PoolState, load_pool
+from app.assistant_gateway.free_pool.select import FreePoolExhausted, pick_model
 from app.assistant_gateway.models import ChatCompletionRequest
 from app.assistant_gateway.policy import PolicyViolation
 from app.assistant_gateway.proxy import UpstreamError
@@ -28,6 +30,12 @@ from app.assistant_gateway.service import AssistantService
 router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 openai_router = APIRouter(prefix="/v1", tags=["assistant"])
 EXTRA_ROUTERS = [openai_router]
+
+
+@lru_cache(maxsize=1)
+def get_pool_state() -> PoolState:
+    """Process-wide free-pool state (breakers + quota counters)."""
+    return PoolState(load_pool())
 
 
 @lru_cache(maxsize=1)
@@ -94,6 +102,24 @@ async def list_aliases() -> dict[str, Any]:
     }
 
 
+async def pool_health() -> dict[str, Any]:
+    """Free-pool health: per-lane breaker, quota use, and the lane held now."""
+    spec = load_pool()
+    state = get_pool_state()
+    try:
+        chosen = pick_model(spec, state)
+        selected: dict[str, Any] | None = {"provider": chosen.id, "model": chosen.model}
+    except FreePoolExhausted as exc:
+        selected = None
+        error = exc.as_error()
+    return {
+        "pool": spec.name,
+        "selected": selected,
+        "error": None if selected else error,
+        "providers": state.snapshot(),
+    }
+
+
 async def health() -> dict[str, str]:
     """Liveness for the gateway itself (no upstream call)."""
     return {"status": "ok", "service": "assistant-gateway"}
@@ -102,5 +128,6 @@ async def health() -> dict[str, str]:
 router.add_api_route("/chat/completions", chat_completions, methods=["POST"])
 router.add_api_route("/aliases", list_aliases, methods=["GET"])
 router.add_api_route("/health", health, methods=["GET"])
+router.add_api_route("/pool/health", pool_health, methods=["GET"])
 openai_router.add_api_route("/chat/completions", chat_completions, methods=["POST"])
 openai_router.add_api_route("/models", models_body, methods=["GET"])

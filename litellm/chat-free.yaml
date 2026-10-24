@@ -1,0 +1,127 @@
+# chat-free — LiteLLM model group for the free chat pool.
+#
+# Merge this block into the proxy's `model_list` (canonical fleet config repo ->
+# deployed proxy config). Order here is documentation only — LiteLLM shuffles
+# within a group, so the real ordered failover is enforced app-side by
+# app/assistant_gateway/free_pool (breaker + quota + ordered pick) and reported at
+# GET /api/v1/assistant/pool/health.
+#
+# HARD RULES (operator, 2026-10-24):
+#   * external request/token-quota APIs only
+#   * no local llama.cpp (:8085/:8086/:8009/:20201), no HF shim (:20199)
+#   * no time-capped lanes (Kilo Code / Cline 40-min-per-day plans)
+#   * no paid model, no paid fallback — exhausted means free_pool_exhausted
+#
+# Verified 2026-10-24 from Talos (see docs/free-chat-pool.md for evidence rows).
+
+model_list:
+  # 1. OpenRouter — account 1 (primary). 200, 0.58s, cost 0.
+  - model_name: chat-free
+    litellm_params:
+      model: openrouter/cohere/north-mini-code:free
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 20
+      timeout: 90
+      extra_headers:
+        HTTP-Referer: https://rugmunch.io
+        X-Title: rugmunch-chat-free
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+      supports_function_calling: true
+
+  # 2. OpenRouter — account 2 (backup). 200, 0.97s, cost 0.
+  - model_name: chat-free
+    litellm_params:
+      model: openrouter/cohere/north-mini-code:free
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_BACKUP_API_KEY
+      rpm: 20
+      timeout: 90
+      extra_headers:
+        HTTP-Referer: https://rugmunch.io
+        X-Title: rugmunch-chat-free
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # 3. Kilo direct gateway (NOT the dead 127.0.0.1:18091-18093 proxies).
+  #    Requires the proxy egress; host-direct times out.
+  - model_name: chat-free
+    litellm_params:
+      model: openai/cohere/north-mini-code:free
+      api_base: https://api.kilocode.ai/api/gateway/v1
+      api_key: os.environ/KILOCODE_API_KEY
+      rpm: 20
+      timeout: 90
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # 4. Groq — measured headers: 1000 req/day, 8000 tokens/min. Needs a browser UA.
+  - model_name: chat-free
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 30
+      timeout: 60
+      extra_headers:
+        User-Agent: Mozilla/5.0 rugmunch-fleet/1.0
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # 5. Groq — second free model, same key/limits.
+  - model_name: chat-free
+    litellm_params:
+      model: groq/qwen/qwen3.8-27b
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 30
+      timeout: 60
+      extra_headers:
+        User-Agent: Mozilla/5.0 rugmunch-fleet/1.0
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # 6. Google AI Studio free — flash-lite answers in ~4.5s with real content.
+  - model_name: chat-free
+    litellm_params:
+      model: gemini/gemini-flash-lite-latest
+      api_key: os.environ/GEMINI_API_KEY
+      rpm: 15
+      timeout: 120
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+  # 7-8. NVIDIA NIM free credits (reachable only through the proxy egress).
+  - model_name: chat-free
+    litellm_params:
+      model: openai/nvidia/nemotron-3-ultra-550b-a55b
+      api_base: https://integrate.api.nvidia.com/v1
+      api_key: os.environ/NVIDIA_NIM_FREE_API_KEY
+      rpm: 20
+      timeout: 90
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+  - model_name: chat-free
+    litellm_params:
+      model: openai/openai/gpt-oss-20b
+      api_base: https://integrate.api.nvidia.com/v1
+      api_key: os.environ/NVIDIA_NIM_FREE_API_KEY
+      rpm: 20
+      timeout: 90
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+router_settings:
+  routing_strategy: simple-shuffle
+  allowed_fails: 1
+  num_retries: 2
+  cooldown_time: 60
+  # NOTE: deliberately NO fallbacks entry for chat-free. The group is the end of
+  # the line; exhaustion must surface as free_pool_exhausted, never a paid lane.
