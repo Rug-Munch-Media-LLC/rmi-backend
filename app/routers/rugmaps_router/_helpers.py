@@ -318,11 +318,18 @@ def _flags_to_red_flags(risk_flags: list[str]) -> list[dict[str, Any]]:
 
 
 async def _run_token_risk_scan(token: str, chain: str) -> dict[str, Any]:
-    """Run the SENTINEL token scan (free tier) and shape it for the panels."""
+    """Run the SENTINEL token scan (free tier) and shape it for the panels.
+
+    Cluster/bundle enrichment (``clusters`` block) runs CONCURRENTLY with the
+    scan and can never block or fail it: ``fetch_bundle_block`` never raises and
+    reports its own ``null_reasons`` when evidence is unavailable.
+    """
     import asyncio
 
     from app.domains.scanner.service import scan_token as sentinel_scan
+    from app.routers.rugmaps_router.bundle_block_fetch import fetch_bundle_block
 
+    cluster_task = asyncio.ensure_future(fetch_bundle_block(token, chain))
     try:
         result = await asyncio.wait_for(
             sentinel_scan(token_address=token, chain=chain, tiers=["free"]),
@@ -340,6 +347,7 @@ async def _run_token_risk_scan(token: str, chain: str) -> dict[str, Any]:
             "confidence": 0,
             "status": "scan_failed",
             "error": str(e)[:200],
+            "clusters": await cluster_task,
         }
 
     safety = int(getattr(result, "safety_score", 50) or 50)
@@ -368,6 +376,7 @@ async def _run_token_risk_scan(token: str, chain: str) -> dict[str, Any]:
         ],
         "scanned_at": getattr(result, "scanned_at", None),
         "status": "completed",
+        "clusters": await cluster_task,
     }
 
 
