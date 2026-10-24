@@ -71,8 +71,7 @@ class TestOhlcvSourceHonesty:
     def test_clickhouse_source_reported_when_ch_serves(self, client: TestClient, monkeypatch) -> None:
         from app.routers.rugcharts.routes import ohlcv as routes
 
-        monkeypatch.setattr(routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=_candles(4)))
-        monkeypatch.setattr(routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=[]))
+        monkeypatch.setattr(routes, "fetch_ohlcv", AsyncMock(return_value=(_candles(4), {"source": "clickhouse"})))
         monkeypatch.setattr(routes, "_fetch_pair_info", AsyncMock(return_value={}))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/base/0xabc?timeframe=1h")
@@ -83,8 +82,7 @@ class TestOhlcvSourceHonesty:
     def test_gecko_source_reported_on_fallback(self, client: TestClient, monkeypatch) -> None:
         from app.routers.rugcharts.routes import ohlcv as routes
 
-        monkeypatch.setattr(routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
-        monkeypatch.setattr(routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=_candles(3)))
+        monkeypatch.setattr(routes, "fetch_ohlcv", AsyncMock(return_value=(_candles(3), {"source": "geckoterminal"})))
         monkeypatch.setattr(routes, "_fetch_pair_info", AsyncMock(return_value={}))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/eth/0xdef?timeframe=15m")
@@ -97,8 +95,9 @@ class TestOhlcvSourceHonesty:
     def test_none_source_when_everything_fails(self, client: TestClient, monkeypatch) -> None:
         from app.routers.rugcharts.routes import ohlcv as routes
 
-        monkeypatch.setattr(routes, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
-        monkeypatch.setattr(routes, "_fetch_ohlcv_gecko", AsyncMock(return_value=[]))
+        monkeypatch.setattr(
+            routes, "fetch_ohlcv", AsyncMock(return_value=([], {"source": None, "reason": "not_found"}))
+        )
         monkeypatch.setattr(routes, "_fetch_pair_info", AsyncMock(return_value={}))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/base/0xdead?timeframe=1h")
@@ -106,6 +105,8 @@ class TestOhlcvSourceHonesty:
         assert data["source"] == "none"
         assert data["fallback_used"] is True
         assert data["candles"] == []
+        # Null is never bare: the ladder names why every source failed.
+        assert data["ohlcv_meta"]["reason"] == "not_found"
 
 
 # ── Holder ladder: own indexer first ─────────────────────────────────────

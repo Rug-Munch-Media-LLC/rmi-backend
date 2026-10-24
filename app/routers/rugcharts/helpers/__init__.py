@@ -45,6 +45,12 @@ from .ohlcv import (
     _fetch_single_pair as _fetch_single_pair,
     _timeframe_to_ch_params as _timeframe_to_ch_params,
 )
+from .ohlcv_fallback import (
+    fetch_ohlcv as fetch_ohlcv,
+)
+from .ohlcv_schema import (
+    normalize_candles as normalize_candles,
+)
 from .signals import (
     _fetch_recent_trades_clickhouse as _fetch_recent_trades_clickhouse,
     _fetch_whale_trades_clickhouse as _fetch_whale_trades_clickhouse,

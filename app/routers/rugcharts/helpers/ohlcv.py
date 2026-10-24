@@ -18,6 +18,8 @@ from .common import (
     _ch_query,
     logger,
 )
+from .ohlcv_schema import normalize_candles
+from .ohlcv_source_http import fetch_json
 
 
 async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list[dict[str, Any]], bool]:
@@ -145,10 +147,10 @@ async def _fetch_single_pair(client: httpx.AsyncClient, chain: str, addr: str) -
     return addr, metrics
 
 
-async def _fetch_ohlcv_gecko(
+async def _fetch_ohlcv_gecko_reason(
     pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100
-) -> list[dict[str, Any]]:
-    """Fetch OHLCV candles from GeckoTerminal."""
+) -> tuple[list[dict[str, Any]], str | None]:
+    """GeckoTerminal pool candles plus WHY it was empty (429 is not "no data")."""
     network = GECKO_NETWORKS.get(chain, chain)
     tf_unit, tf_aggregate = GECKO_TIMEFRAMES.get(timeframe, ("hour", 1))
 
@@ -159,38 +161,25 @@ async def _fetch_ohlcv_gecko(
     cache_key = f"rugcharts:ohlcv:{chain}:{pair_address}:{timeframe}:{limit}"
     cached = await _cache_get_json(cache_key)
     if cached:
-        return cached
+        return cached, None
 
-    candles: list[dict[str, Any]] = []
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pair_address}/ohlcv/{tf_unit}"
-            params: dict[str, Any] = {"aggregate": tf_aggregate, "limit": min(limit, 1000), "currency": "usd"}
-            r = await client.get(url, params=params)
-            if r.status_code == 200:
-                ohlcv_list = r.json().get("data", {}).get("attributes", {}).get("ohlcv_list", [])
-                for c in reversed(ohlcv_list):  # chronological order
-                    if len(c) >= 6:
-                        candles.append(
-                            {
-                                "time": int(c[0]),
-                                "open": float(c[1]),
-                                "high": float(c[2]),
-                                "low": float(c[3]),
-                                "close": float(c[4]),
-                                "volume": float(c[5]),
-                            }
-                        )
-    except httpx.TimeoutException:
-        logger.warning(f"GeckoTerminal OHLCV timed out after 15s for {pair_address}")
-    except httpx.HTTPStatusError as e:
-        logger.warning(f"GeckoTerminal OHLCV HTTP {e.response.status_code} for {pair_address}")
-    except Exception as e:
-        logger.warning(f"GeckoTerminal OHLCV failed for {pair_address}: {str(e)[:120]}")
-
+    payload, reason = await fetch_json(
+        f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pair_address}/ohlcv/{tf_unit}",
+        {"aggregate": tf_aggregate, "limit": min(limit, 1000), "currency": "usd"},
+        timeout=15.0,
+    )
+    ohlcv_list = (payload or {}).get("data", {}).get("attributes", {}).get("ohlcv_list", [])
+    candles = normalize_candles(ohlcv_list)
     if candles:
         await _cache_set_json(cache_key, candles, OHLCV_TTL)
+    return candles, reason
 
+
+async def _fetch_ohlcv_gecko(
+    pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100
+) -> list[dict[str, Any]]:
+    """Fetch OHLCV candles from GeckoTerminal (list-only compatibility wrapper)."""
+    candles, _reason = await _fetch_ohlcv_gecko_reason(pair_address, chain, timeframe, limit)
     return candles
 
 
@@ -301,10 +290,14 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pair_address}")
             if r.status_code == 200:
-                data = r.json().get("data", {}).get("attributes", {})
+                body = r.json().get("data", {}) or {}
+                data = body.get("attributes", {}) or {}
+                base_rel = ((body.get("relationships", {}) or {}).get("base_token", {}) or {}).get("data", {}) or {}
                 info = {
                     "name": data.get("name", ""),
                     "address": data.get("address", ""),
+                    # Base token, so asset-scoped sources (Binance/CoinGecko) can apply.
+                    "base_token_address": str(base_rel.get("id", "")).split("_", 1)[-1],
                     "symbol": (data.get("name", "") or "").split("/")[0].strip(),
                     "base_token_price_usd": float(data.get("base_token_price_usd", 0) or 0),
                     "quote_token_price_usd": float(data.get("quote_token_price_usd", 0) or 0),

@@ -13,9 +13,8 @@ from app.services.ta_indicators import compute_ta_snapshot
 
 from ..helpers import (
     _compute_volume_authenticity,
-    _fetch_ohlcv_clickhouse,
-    _fetch_ohlcv_gecko,
     _fetch_pair_info,
+    fetch_ohlcv,
 )
 
 logger = get_logger("rugcharts_router")
@@ -32,17 +31,15 @@ async def rugcharts_ohlcv(
 ) -> Any:
     """Get OHLCV candle data for a specific pair.
 
-    Tries the chain-indexer ClickHouse materialized view first (freshest
-    on-chain data, own-data), falls back to GeckoTerminal when unavailable
-    or for sub-hourly timeframes. The response's ``source`` field reports
-    which backend actually served the candles.
+    Resolved by the free first-party ladder (see ``ohlcv_fallback``):
+    chain-indexer ClickHouse MV, then GeckoTerminal, Binance klines,
+    CoinGecko demo OHLC, and finally a DexScreener price snapshot.
+    ``source`` names the winner; ``ohlcv_meta`` records every attempt and
+    the reason each empty source failed (never a bare null).
     """
     now = datetime.datetime.now(datetime.UTC)
-    candles = await _fetch_ohlcv_clickhouse(pair_address, chain, timeframe, limit)
-    candle_source = "clickhouse"
-    if not candles:
-        candles = await _fetch_ohlcv_gecko(pair_address, chain, timeframe, limit)
-        candle_source = "geckoterminal" if candles else "none"
+    candles, ohlcv_meta = await fetch_ohlcv(pair_address, chain, timeframe, limit)
+    candle_source = ohlcv_meta.get("source") or "none"
     pair_info = await _fetch_pair_info(pair_address, chain)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
 
@@ -104,6 +101,8 @@ async def rugcharts_ohlcv(
             "chain": chain,
             # Honest provenance — which backend actually served these candles.
             "source": candle_source,
+            # Full ladder provenance: what was tried, what failed, and why.
+            "ohlcv_meta": ohlcv_meta,
             # Back-compat flag (kept for existing consumers).
             "fallback_used": not bool(candles),
         },
@@ -205,9 +204,7 @@ async def rugcharts_ai_ta(
     confidence score and human-readable reasoning. Honest labeling: this
     is rule-based analysis, not an LLM — the response says so.
     """
-    candles = await _fetch_ohlcv_gecko(address, chain, timeframe, 100)
-    if not candles:
-        candles = await _fetch_ohlcv_clickhouse(address, chain, timeframe, 100)
+    candles = (await fetch_ohlcv(address, chain, timeframe, 100))[0]
     snapshot = compute_ta_snapshot(candles)
     if not snapshot.get("available"):
         return envelope(

@@ -125,9 +125,8 @@ class TestRugchartsOhlcv:
         import app.routers.rugcharts as rc
 
         fake_candles = _candles(10)
-        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=fake_candles))
-        gecko = AsyncMock(return_value=[])
-        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_gecko", gecko)
+        ladder = AsyncMock(return_value=(fake_candles, {"source": "clickhouse", "scope": "pool", "rows": 10}))
+        monkeypatch.setattr(rc.routes.ohlcv, "fetch_ohlcv", ladder)
         monkeypatch.setattr(rc.routes.ohlcv, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/solana/0xabc?timeframe=1h&limit=10")
@@ -143,22 +142,21 @@ class TestRugchartsOhlcv:
         assert data["timeframe"] == "1h"
         assert data["chain"] == "solana"
         assert data["summary"]["candle_count"] == 10
-        # ClickHouse path only — GeckoTerminal must stay untouched.
-        gecko.assert_not_awaited()
+        # One ladder call decides the source; the route never picks it itself.
+        ladder.assert_awaited_once()
 
     def test_ohlcv_fallback_to_gecko(self, client: TestClient, monkeypatch) -> None:
         """Empty ClickHouse result → GeckoTerminal fallback is called and
         its candles are returned verbatim."""
         import app.routers.rugcharts as rc
 
-        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_clickhouse", AsyncMock(return_value=[]))
-        gecko = AsyncMock(return_value=_candles(5))
-        monkeypatch.setattr(rc.routes.ohlcv, "_fetch_ohlcv_gecko", gecko)
+        ladder = AsyncMock(return_value=(_candles(5), {"source": "geckoterminal", "scope": "pool", "rows": 5}))
+        monkeypatch.setattr(rc.routes.ohlcv, "fetch_ohlcv", ladder)
         monkeypatch.setattr(rc.routes.ohlcv, "_fetch_pair_info", AsyncMock(return_value=_pair_info()))
 
         resp = client.get("/api/v1/rugcharts/ohlcv/ethereum/0xdef?timeframe=1h&limit=5")
         assert resp.status_code == 200, resp.text
-        gecko.assert_awaited_once()
+        ladder.assert_awaited_once()
         data = resp.json()["data"]
         assert len(data["candles"]) == 5
         assert data["candles"][0]["time"] == 1_700_000_000
