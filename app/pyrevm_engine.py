@@ -365,53 +365,52 @@ class _ProbeOutcome:
     reason: str | None = None
 
 
-@dataclass(frozen=True)
-class _TokenProbe:
-    """Probe context (EVM handle + token storage slot), carried as one value.
+def _transfer_probe(
+    evm: EVM,
+    token_address: str,
+    slot_idx: int,
+    caller: str,
+    recipient: str,
+    amount: int,
+) -> _ProbeOutcome:
+    """Execute token.transfer(recipient, amount) as `caller` and read the result.
 
-    Every storage-level probe needs the same three arguments; grouping them
-    keeps the probe helpers small and makes the shared context explicit.
+    The caller's balance must be seeded beforehand. The recipient's received
+    amount is read from storage, which sees the uncommitted journal state.
     """
-
-    evm: EVM
-    token_address: str
-    slot_idx: int
-
-    def seed(self, balances: dict[str, int]) -> None:
-        """Write token balances straight into storage for the next probe."""
-        _seed_balances(self.evm, self.token_address, self.slot_idx, balances)
-
-    def transfer(self, caller: str, recipient: str, amount: int) -> _ProbeOutcome:
-        """Execute token.transfer(recipient, amount) as `caller` and read the result.
-
-        The caller's balance must be seeded beforehand. The recipient's received
-        amount is read from storage, which sees the uncommitted journal state.
-        """
-        checkpoint: JournalCheckpoint = self.evm.snapshot()
-        try:
-            self.evm.message_call(
-                caller=caller,
-                to=self.token_address,
-                calldata=_transfer_calldata(recipient, amount),
-            )
-            received = _read_balance(self.evm, self.token_address, self.slot_idx, recipient)
-            return _ProbeOutcome(success=True, received=received)
-        except RuntimeError as exc:
-            return _ProbeOutcome(success=False, reason=_parse_execution_error(exc))
-        finally:
-            self.evm.revert(checkpoint)
+    checkpoint: JournalCheckpoint = evm.snapshot()
+    try:
+        evm.message_call(
+            caller=caller,
+            to=token_address,
+            calldata=_transfer_calldata(recipient, amount),
+        )
+        received = _read_balance(evm, token_address, slot_idx, recipient)
+        return _ProbeOutcome(success=True, received=received)
+    except RuntimeError as exc:
+        return _ProbeOutcome(success=False, reason=_parse_execution_error(exc))
+    finally:
+        evm.revert(checkpoint)
 
 
-def _probe_all_transfers_revert(probe: _TokenProbe, seller: str, amount: int) -> bool:
+def _probe_all_transfers_revert(
+    evm: EVM,
+    token_address: str,
+    slot_idx: int,
+    seller: str,
+    amount: int,
+) -> bool:
     """True when even a tiny transfer reverts — paused/blacklist-everything."""
     tiny = max(1, amount // 1000)
-    probe.seed({seller: tiny})
-    outcome = probe.transfer(seller, ONE_ADDRESS, tiny)
+    _seed_balances(evm, token_address, slot_idx, {seller: tiny})
+    outcome = _transfer_probe(evm, token_address, slot_idx, seller, ONE_ADDRESS, tiny)
     return not outcome.success
 
 
 def _probe_blacklist(
-    probe: _TokenProbe,
+    evm: EVM,
+    token_address: str,
+    slot_idx: int,
     seller: str,
     amount: int,
     probe_addresses: Sequence[str],
@@ -422,28 +421,30 @@ def _probe_blacklist(
     they are reported separately from the 'random recipient' blacklist signal.
     """
     blacklisted: list[str] = []
-    for probe_address in probe_addresses:
-        probe.seed({seller: amount})
-        outcome = probe.transfer(seller, probe_address, amount)
+    for probe in probe_addresses:
+        _seed_balances(evm, token_address, slot_idx, {seller: amount})
+        outcome = _transfer_probe(evm, token_address, slot_idx, seller, probe, amount)
         if outcome.success:
             continue
-        if probe_address in (ZERO_ADDRESS, DEAD_ADDRESS):
-            logger.debug("pyrevm_burn_destination_restricted: %s", probe_address)
+        if probe in (ZERO_ADDRESS, DEAD_ADDRESS):
+            logger.debug("pyrevm_burn_destination_restricted: %s", probe)
         else:
-            blacklisted.append(probe_address)
+            blacklisted.append(probe)
     return bool(blacklisted), blacklisted
 
 
 def _probe_anti_whale(
-    probe: _TokenProbe,
+    evm: EVM,
+    token_address: str,
+    slot_idx: int,
     seller: str,
     recipient: str,
     amount: int,
 ) -> tuple[bool, str | None]:
     """True if amount x 100 reverts while the normal amount succeeds."""
     big = amount * ANTI_WHALE_MULTIPLIER
-    probe.seed({seller: big})
-    outcome = probe.transfer(seller, recipient, big)
+    _seed_balances(evm, token_address, slot_idx, {seller: big})
+    outcome = _transfer_probe(evm, token_address, slot_idx, seller, recipient, big)
     return (not outcome.success), outcome.reason
 
 
@@ -496,14 +497,13 @@ def _simulate_with_evm(
     if pair_address is None:
         warnings.append("No Uniswap V2 pair resolved — buy/sell-vs-pair probes skipped.")
 
-    probe = _TokenProbe(evm, token_address, slot_idx)
-    probe.seed({seller: amount, recipient: 0})
+    _seed_balances(evm, token_address, slot_idx, {seller: amount, recipient: 0})
 
     # 1) normal sell transfer
-    normal = probe.transfer(seller, recipient, amount)
+    normal = _transfer_probe(evm, token_address, slot_idx, seller, recipient, amount)
     if not normal.success:
         reason = normal.reason or "unknown"
-        tiny_reverts = _probe_all_transfers_revert(probe, seller, amount)
+        tiny_reverts = _probe_all_transfers_revert(evm, token_address, slot_idx, seller, amount)
         if tiny_reverts:
             warnings.append(
                 "ALL transfer() calls revert (even tiny amounts) — token is likely "
@@ -535,8 +535,8 @@ def _simulate_with_evm(
     can_buy = False
     sell_to_pair_reverted = False
     if pair_address is not None:
-        probe.seed({seller: amount})
-        sell = probe.transfer(seller, pair_address, amount)
+        _seed_balances(evm, token_address, slot_idx, {seller: amount})
+        sell = _transfer_probe(evm, token_address, slot_idx, seller, pair_address, amount)
         if sell.success and sell.received is not None:
             sell_tax_pct = (1.0 - sell.received / amount) * 100.0
         else:
@@ -547,8 +547,8 @@ def _simulate_with_evm(
             )
 
         pre_seller = _read_balance(evm, token_address, slot_idx, seller)
-        probe.seed({pair_address: amount})
-        buy = probe.transfer(pair_address, seller, amount)
+        _seed_balances(evm, token_address, slot_idx, {pair_address: amount})
+        buy = _transfer_probe(evm, token_address, slot_idx, pair_address, seller, amount)
         if buy.success and buy.received is not None:
             delta = buy.received - pre_seller
             if delta > 0:
@@ -563,7 +563,7 @@ def _simulate_with_evm(
             )
 
     # 3) anti-whale probe
-    anti_whale_hit, anti_whale_reason = _probe_anti_whale(probe, seller, recipient, amount)
+    anti_whale_hit, anti_whale_reason = _probe_anti_whale(evm, token_address, slot_idx, seller, recipient, amount)
     if anti_whale_hit:
         warnings.append(
             f"Transfer of {amount * ANTI_WHALE_MULTIPLIER} units reverts while the "
@@ -573,7 +573,9 @@ def _simulate_with_evm(
 
     # 4) blacklist probe (fresh random recipient)
     blacklist_hit, _blacklisted = _probe_blacklist(
-        probe,
+        evm,
+        token_address,
+        slot_idx,
         seller,
         amount,
         (ONE_ADDRESS, ZERO_ADDRESS, DEAD_ADDRESS),
