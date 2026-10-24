@@ -95,103 +95,79 @@ async def get_market_launches(
 
 @router.get("/trending")
 async def get_market_trending(
-    request: Request,
     limit: int = Query(8, ge=1, le=50),
+    chain: str = Query("", description="Chain to score (default: ethereum)"),
+    hours: int = Query(24, ge=1, le=168),
 ) -> dict[str, Any]:
-    """Trending tokens — our own merged list from CoinGecko + DexScreener.
+    """Trending tokens — transparent multi-factor on-chain score, per chain.
 
-    DexScreener token-boosts (top) = what is actually getting attention and
-    volume on DEXes right now (chain + real token address). CoinGecko
-    /search/trending = CEX-level social/volume momentum. Both are live,
-    cached 60-120s. Items are ranked: DEX boosts first (real traded volume),
-    then CoinGecko coins.
+    Primary: ``app.services.trending`` — volume/liquidity, tx count, holder
+    growth, price momentum, age, RugBrain social sentiment and source
+    agreement, minus manipulation penalties (wash trading, single-wallet
+    volume, fresh-wallet bundles, suspicious boosts). Boosted tokens are
+    *excluded from rank* and returned only in ``boosted``. Unknown chains
+    return an empty list with ``score: null`` and a ``reason``.
+
+    Fallback (no measured on-chain candidates): CoinGecko CEX momentum —
+    informational, ``score: null`` (no on-chain address).
     """
-    now = _now()
+    from app.services.trending.service import trending_scored
+
+    scored = await trending_scored(chain=chain, limit=limit, hours=hours)
+    if scored["data"]:
+        return {
+            "items": scored["data"],
+            "total": scored["count"],
+            "updated_at": scored["updated_at"],
+            "boosted": scored["boosted"],
+            "chain": scored["chain"],
+            "score_formula": scored["score_formula"],
+            "reason": None,
+        }
+    unsupported = (scored.get("reason") or "").startswith("unsupported_chain")
+    items = [] if unsupported else await _cex_trending(limit)
+    return {
+        "items": items,
+        "total": len(items),
+        "updated_at": _now(),
+        "boosted": scored["boosted"],
+        "chain": scored.get("chain"),
+        "score": None,
+        "score_components": None,
+        "score_formula": scored["score_formula"],
+        "supported_chains": scored.get("supported_chains"),
+        "reason": scored.get("reason"),
+    }
+
+
+async def _cex_trending(limit: int) -> list[dict[str, Any]]:
+    """CoinGecko CEX momentum — no on-chain address, therefore no score."""
     items: list[dict[str, Any]] = []
-    seen: set[str] = set()
-
-    # ── DexScreener token-boosts (top) — real DEX attention ─────────────
-    boosts = await _ds("/token-boosts/top/v1", ttl=60)
-    if boosts and isinstance(boosts, list):
-        for b in boosts[:limit]:
-            addr = b.get("tokenAddress", "")
-            chain = b.get("chainId", "solana")
-            if not addr or addr in seen:
-                continue
-            seen.add(addr)
-            name = (b.get("description") or "").strip()[:24] or addr[:8]
-            symbol = b.get("symbol") or addr[:6].upper()
-            price = 0.0
-            mcap = 0.0
-            vol = 0.0
-            change = 0.0
-            # Enrich with real pair data (price/volume/change)
-            pairs = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
-            if pairs and isinstance(pairs, dict) and pairs.get("pairs"):
-                p = pairs["pairs"][0]
-                bt = p.get("baseToken", {})
-                name = bt.get("name", name)
-                symbol = bt.get("symbol", symbol).upper()
-                price = _safe_float(p.get("priceUsd"))
-                mcap = _safe_float(p.get("fdv"))
-                vol = _safe_float((p.get("volume") or {}).get("h24"))
-                change = _safe_float((p.get("priceChange") or {}).get("h24"))
-            items.append(
-                {
-                    "rank": len(items) + 1,
-                    "symbol": symbol,
-                    "name": name,
-                    "address": addr,
-                    "token_address": addr,
-                    "chain": chain,
-                    "price": price,
-                    "change_24h": change,
-                    "volume_24h": vol,
-                    "market_cap": mcap,
-                    "source": "dexscreener",
-                }
-            )
-
-    # ── CoinGecko /search/trending — CEX-level momentum ─────────────────
     data = await _cg("/search/trending", ttl=120)
-    if data and "coins" in data:
-        for item in data["coins"][:limit]:
-            coin = item.get("item", {})
-            cid = coin.get("id", "")
-            if cid in seen:
-                continue
-            seen.add(cid)
-            cdata = coin.get("data") or {}
-            # price_change_percentage_24h is a per-currency dict → take usd
-            chg_raw = cdata.get("price_change_percentage_24h")
-            change = 0.0
-            if isinstance(chg_raw, dict):
-                change = _safe_float(chg_raw.get("usd"))
-            elif chg_raw is not None:
-                change = _safe_float(chg_raw)
-            # total_volume / market_cap come as '$3,513,341' strings
-            vol = _parse_money(cdata.get("total_volume"))
-            mcap = _parse_money(cdata.get("market_cap"))
-            items.append(
-                {
-                    "rank": coin.get("market_cap_rank", 0),
-                    "symbol": (coin.get("symbol") or "").upper(),
-                    "name": coin.get("name", ""),
-                    # CoinGecko trending has no on-chain address — only the
-                    # coin ID. Leave address empty so the bot never presents
-                    # a coin ID as a scanable token address.
-                    "address": "",
-                    "token_address": "",
-                    "chain": "multi",
-                    "price": _safe_float(cdata.get("price")),
-                    "change_24h": change,
-                    "volume_24h": vol,
-                    "market_cap": mcap,
-                    "source": "coingecko",
-                }
-            )
-
-    return {"items": items[:limit], "total": len(items), "updated_at": now}
+    if not data or "coins" not in data:
+        return items
+    for entry in data["coins"][:limit]:
+        coin = entry.get("item", {})
+        cdata = coin.get("data") or {}
+        chg_raw = cdata.get("price_change_percentage_24h")
+        change = _safe_float(chg_raw.get("usd")) if isinstance(chg_raw, dict) else _safe_float(chg_raw)
+        items.append(
+            {
+                "rank": None,
+                "score": None,
+                "symbol": (coin.get("symbol") or "").upper(),
+                "name": coin.get("name", ""),
+                "address": "",
+                "token_address": "",
+                "chain": "multi",
+                "price": _safe_float(cdata.get("price")),
+                "change_24h": change,
+                "volume_24h": _parse_money(cdata.get("total_volume")),
+                "market_cap": _parse_money(cdata.get("market_cap")),
+                "source": "coingecko",
+            }
+        )
+    return items
 
 
 @router.get("/whales")
