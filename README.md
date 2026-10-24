@@ -1,155 +1,109 @@
-# RMI Backend — Rug Munch Intelligence
+# rmi-backend
 
-> The intelligence engine behind [rugmunch.io](https://rugmunch.io): scan any
-> token or wallet across 21 networks (20 EVM-family chains including Tron, plus
-> Solana), detect rugs before
-> they happen, and pay per call via x402.
+The FastAPI service behind rugmunch.io: it turns a token or wallet address into a
+risk verdict, a label set and the evidence rows behind them, and serves the same
+data to the web app, the Telegram bot and MCP clients.
 
-**Docs:** `/docs` (Swagger) | `/redoc` (ReDoc) | `/openapi.json`
+**Status:** production · **Licence:** Rug Munch Intelligence Source Available 1.0 — see [LICENSE](LICENSE), this is not an open-source licence.
 
-## What It Is
+Canonical: https://git.rugmunch.io/RugMunchMedia/rmi-backend
 
-FastAPI monolith serving the RMI crypto intelligence platform — **token risk scanning, wallet forensics, market data, Telegram bot, MCP agent tools, and x402-gated premium endpoints** across **21 networks (20 EVM-family chains including Tron, plus Solana)**.
+## Quickstart
 
-| Interface | Protocol | Description |
-|-----------|----------|-------------|
-| HTTP API | REST + WebSocket | Public and authenticated endpoints |
-| Telegram Bot | Polling/Webhook | Bot commands and alerts |
-| MCP Tools | JSON-RPC / SSE | Agent tool interfaces |
-| DataBus | Unified data layer | Multi-provider data aggregation |
-
-## Feature Flags
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Token Security Scanning | ✅ Production | Multi-module risk analysis |
-| Wallet Forensics | ✅ Production | Address labeling and risk scoring |
-| Market Data Pipeline | ✅ Production | Live prices, OHLCV, social |
-| AI Reports | ✅ Production | LLM-powered investigation |
-| x402 Monetization | ✅ Production | Pay-per-call crypto payments |
-| Alert WebSockets | ✅ Production | Real-time threat alerts |
-| RAG Search | ✅ Production | Vector + BM25 hybrid |
-| DeFi Detection | ✅ Production | MEV, flash loans, oracle |
-
-## Quick Start
+Python 3.11+. Postgres and Redis are needed for anything past a bare boot.
 
 ```bash
-# Clone
-git clone https://github.com/Rug-Munch-Media-LLC/rmi-backend.git
+git clone https://git.rugmunch.io/RugMunchMedia/rmi-backend.git
 cd rmi-backend
-
-# Local dev
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env          # then set DATABASE_URL, REDIS_URL, JWT_SECRET
 uvicorn app.main:app --reload --port 8000
-
-# Run quality gate
-make quality
-
-# Run tests
-make test          # unit tests
-make test-all      # all tests
 ```
 
-## Architecture (5-minute overview)
+`make dev` is the same server with the project's own flags. Swagger sits at
+`http://localhost:8000/docs`.
 
-```
-[Traffic] → Gateway → Application
-  ├── Databases: Postgres · ClickHouse · Redis · Neo4j · Qdrant · DuckDB
-  ├── Background: Task queue · Workflow engine · Scheduler
-  ├── AI: Local LLM · Model router · Tracing
-  └── External: 30+ blockchain and data provider APIs
-```
+`pip install -r requirements.txt` is the supported install. Do **not** use
+`pip install -e .`: `pyproject.toml` pins the scanner engine to a commit SHA in a
+private Forgejo repository, so that path needs credentials for `git.rugmunch.io`
+and will fail for anyone outside the org.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for full details.
+Compose is the deployment path, not a zero-config demo — it refuses to start
+without secrets:
 
-## API Documentation
-
-| Resource | Location |
-|----------|----------|
-| Swagger UI | `/docs` (when running) |
-| ReDoc | `/redoc` (when running) |
-| OpenAPI Spec | `/openapi.json` (when running) |
-| API Reference | [`docs/API.md`](docs/API.md) |
-| x402 API Reference | [`docs/x402_API_REFERENCE.md`](docs/x402_API_REFERENCE.md) |
-| MCP User Guide | [`docs/MCP-USER-GUIDE.md`](docs/MCP-USER-GUIDE.md) |
-| Tools Reference | [`docs/TOOLS-REFERENCE.md`](docs/TOOLS-REFERENCE.md) |
-
-## Key Design Decisions
-
-| Decision | Rationale | ADR |
-|----------|-----------|-----|
-| Monolith over microservices | Team size, iteration speed, DB complexity | ADR-002 |
-| DataBus as single data layer | Consistent access, monitoring, caching | ADR-001 |
-| x402 payment-gated access | Crypto-native monetization | ADR-005 |
-| Multi-source fusion risk scoring | Higher accuracy through ensembling | ADR-004 |
-| Redis hot + Postgres cold | Performance vs cost optimization | ADR-003 |
-
-## Project Map
-
-```
-app/
-├── core/            # Cross-cutting: config, middleware, auth, logging
-├── domains/         # Domain modules (DDD): auth, scanner, token, wallet, etc.
-├── databus/         # Multi-provider data layer
-├── routers/         # Legacy route modules (migrating to domains/)
-├── middleware/      # Custom middleware: cost tracking, validation
-├── models/          # SQLAlchemy ORM models
-├── mcp/             # MCP tool definitions
-├── scanners/        # Token risk scan modules
-├── security/        # AI guardrails
-├── services/        # Business logic services
-├── detectors/       # DeFi attack detectors
-├── factory.py       # FastAPI app factory
-├── mount.py         # Route mounting
-├── config.py        # Pydantic settings
-└── main.py          # Entry point
+```bash
+export DATABASE_PASSWORD=... JWT_SECRET=... REDIS_PASSWORD=...
+docker compose up -d
 ```
 
-## Related Repositories
+## What it does
 
-| Repo | Purpose | Status |
-|------|---------|--------|
-| `rmi-frontend` | React 19 + Vite customer dashboard | Active development |
-| `rmi-mcp-x402` | x402 payment-gated MCP server | Active development |
-| `rugbrain` | Canonical RAG engine (scam/entity/security intel) | Live |
-| `rmi-rag` | Legacy RAG pipeline — **archived**, superseded by `rugbrain` | Archived |
-| `rmi-contracts` | Smart contracts for x402 | Audited |
-| `fleet-infra` | Infrastructure as code | Production |
-| `rmi-local-services` | Local dev environment | Active |
-| `walletpress` | Wallet management | Production |
+- **Risk verdicts.** `POST` scan endpoints under `/api/v1` return a score, the
+  category breakdown, explicit flags, and the evidence that produced each flag.
+- **Wallet and contract forensics.** `/api/v1/address-profiler`,
+  `/api/v1/contract-analyzer` and `/api/v1/community-forensics` resolve
+  counterparties, deployer history and cluster membership.
+- **One data layer.** `app/databus/` fans a request out to a long list of
+  third-party providers and self-hosted nodes with per-provider rate limits and
+  caching, so a scan is one call from the router's point of view.
+- **Agents as clients.** `app/api/v1/mcp/router.py` exposes the same data as MCP
+  tools, and `/api/v1/chat` answers from it, so an agent is a client of the API
+  rather than a second implementation.
+- **Bot endpoints.** `/api/v1/bot` is the route group the Telegram bot calls; the
+  bot itself is a separate process in its own repository.
 
-## Deployment
+## How it is put together
 
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full guide.
+```
+uvicorn app.main:app
+  └── app/factory.py:create_app()      app assembly, lifespan, middleware
+        ├── app/routers/               ~/api/v1/* route modules
+        ├── app/databus/               provider fan-out, cache, rate limits
+        ├── app/agents/                tool + agent plumbing
+        └── app/adapters/              storage and chain clients
+```
 
-For self-hosting, build the Docker image and run with Docker Compose.
-Refer to `docker-compose.yml` for service configuration. All secrets
-should be provided via environment variables or Docker secrets.
+`app/main.py` is a thin shim so `uvicorn app.main:app` stays the one launch path.
 
-## Open-Core Model
+## Configuration
 
-This repo follows the open-core model. The publicly visible scanner modules,
-API patterns, and database schemas are open source. The core admin backend,
-advanced scoring algorithms and production infrastructure remain private.
+Everything is environment-driven; `.env.example` is the full list. The ones that
+change behaviour:
 
-See [OPEN-CORE.md](OPEN-CORE.md) for details.
+| Variable | Purpose |
+|---|---|
+| `ENVIRONMENT` | `development` / `production` switches strictness |
+| `DATABASE_URL`, `ALEMBIC_DATABASE_URL` | Postgres, and the same URL for migrations |
+| `REDIS_URL`, `REDIS_CACHE_URL` | queue/cache; separate logical DBs recommended |
+| `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT` | analytics and label lookups |
+| `JWT_SECRET`, `JWT_EXPIRE_MINUTES` | auth tokens |
+| `CORS_ORIGINS` | comma-separated allowlist, no wildcard in production |
+| `RATE_LIMIT_PER_MINUTE` | default per-key limit |
+| `EMBEDDER_URL` | embedding lane used by retrieval routes |
+| `OPENROUTER_API_KEY`, `LITELLM_API_BASE` | optional LLM lanes for AI routes |
+| `PORT` | uvicorn port, default 8000 |
 
-## Security
+## Known limits
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practices.
+- The scanner engine is a private dependency. The API layer is readable; the
+  scoring logic is not, and the vendored copy is pinned by SHA for that reason.
+- Startup needs Postgres and Redis. There is no in-memory test mode that gives
+  you a working `/docs` page with real data.
+- `make test` covers units and needs no external services; `make test-all` needs
+  the full stack.
 
-## Observability
+## Development
 
-- **Metrics:** Prometheus endpoint at `/metrics`
-- **Traces:** OpenTelemetry
-- **Logs:** Structured JSON via structlog
-- **Alerts:** Configurable alerting
+```bash
+make install     # dependencies
+make lint        # ruff
+make typecheck   # mypy
+make test        # pytest with coverage
+make quality     # lint + typecheck + security + test
+```
 
-## License
+## Licence
 
-Source Available — Rug Munch Media LLC. See [LICENSE](LICENSE).
-
-## FAQ
-
-See [docs/FAQ.md](docs/FAQ.md) for frequently asked questions.
+Rug Munch Intelligence Source Available License 1.0. Read [LICENSE](LICENSE)
+before you plan to use this in anything you distribute.
