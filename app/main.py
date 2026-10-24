@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from app.factory import create_app
 from app.routers.deep_scan import deep_scan_router
+from app.routers.gmgn_intel import router as gmgn_intel_router
 from app.routers.osint import osint_router
 
 # Initialize distributed tracing (non-blocking — silently disabled if no OTLP endpoint)
@@ -35,6 +36,9 @@ app = create_app()
 # this registration never breaks app boot (503 until app.osint.engine lands).
 app.include_router(osint_router, prefix="/api/osint", tags=["osint"])
 app.include_router(deep_scan_router, prefix="/api/scan", tags=["scan"])
+
+# GMGN intelligence layer — our normalization + our score (not GMGN rank order).
+app.include_router(gmgn_intel_router, prefix="/api/v1/gmgn-intel", tags=["gmgn-intel"])
 
 # Scalar docs UI (modern) at /scalar, alongside the default /docs Swagger UI.
 # Optional dependency — guarded so the app boots even when scalar-fastapi
