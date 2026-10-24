@@ -214,25 +214,35 @@ async def readiness() -> JSONResponse:
 )
 async def health() -> HealthResponse:
     started = time.monotonic()
+    # Every probe is timed inside _check_store, so the timeout budget and the
+    # reported latency belong to the store that spent them. Do not wrap these
+    # in a second wait_for: an outer timeout that expires first mislabels the
+    # whole request's wall clock as the store's latency (it read 5078 ms on
+    # eight stores at once, then reported them healthy).
     store_checks = {
-        "redis": asyncio.wait_for(_check_store("redis", _check_redis()), timeout=5.0),
-        "postgres": asyncio.wait_for(_check_store("postgres", _check_postgres()), timeout=5.0),
-        "neo4j": asyncio.wait_for(_check_store("neo4j", _check_neo4j()), timeout=5.0),
-        "qdrant": asyncio.wait_for(_check_store("qdrant", _check_qdrant()), timeout=5.0),
-        "clickhouse": asyncio.wait_for(_check_store("clickhouse", _check_clickhouse()), timeout=5.0),
-        "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
-        "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
-        "degenfeed": asyncio.wait_for(_check_store("degenfeed", _check_degenfeed()), timeout=5.0),
-        "phoenix": asyncio.wait_for(_check_store("phoenix", _check_phoenix()), timeout=5.0),
+        "redis": _check_store("redis", _check_redis()),
+        "postgres": _check_store("postgres", _check_postgres()),
+        "neo4j": _check_store("neo4j", _check_neo4j()),
+        "qdrant": _check_store("qdrant", _check_qdrant()),
+        "clickhouse": _check_store("clickhouse", _check_clickhouse()),
+        "minio": _check_store("minio", _check_minio()),
+        "eth_rpc": _check_store("eth_rpc", _check_reth()),
+        "degenfeed": _check_store("degenfeed", _check_degenfeed()),
+        "phoenix": _check_store("phoenix", _check_phoenix()),
         "rag_pipeline": asyncio.wait_for(_check_rag_pipeline(), timeout=5.0),
     }
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
     stores = {}
     for (name, _), ref in zip(store_checks.items(), results, strict=False):
         if isinstance(ref, BaseException):
-            ref = {"healthy": False, "error": str(ref)[:200]}
-        if "latency_ms" not in ref:
-            ref["latency_ms"] = int((time.monotonic() - started) * 1000)
+            # Escaped _check_store entirely: it really did consume this much
+            # of the request, and it is not a healthy dependency.
+            ref = {
+                "healthy": False,
+                "error": str(ref)[:200] or type(ref).__name__,
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "latency_state": "unhealthy",
+            }
         stores[name] = ref
 
     # RAG pipeline stats are observability, not a liveness gate — pull out of
@@ -265,6 +275,10 @@ async def health() -> HealthResponse:
     ]
     any_non_critical_down = not all(_non_critical_stores) if _non_critical_stores else False
     status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
+    # Latency is a health fact, not a footnote: a dependency answering in
+    # seconds must not leave the aggregate reading "healthy".
+    if status == "healthy" and any(s.get("latency_state") == "degraded" for s in stores.values()):
+        status = "degraded"
 
     # Include degradation info in response
     degradation = _get_degradation_section()
