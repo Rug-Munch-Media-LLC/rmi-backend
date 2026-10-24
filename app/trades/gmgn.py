@@ -16,6 +16,7 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.trades.http import get_json
+from app.trades.numeric import as_number, epoch_ms
 from app.trades.schema import Trade, canon_chain
 
 logger = get_logger(__name__)
@@ -57,30 +58,16 @@ async def fetch_gmgn_trades(*, chain: str, token: str, limit: int = 100) -> list
                 token=token,
                 tx=tx,
                 side=event,
-                amount_token=_num(t.get("amount")),
-                amount_usd=_num(t.get("total")),
-                price_usd=_num(t.get("price")),
+                amount_token=as_number(t.get("amount")),
+                amount_usd=as_number(t.get("total")),
+                price_usd=as_number(t.get("price")),
                 wallet=t.get("maker") or "",
                 maker=t.get("maker") or "",
                 timestamp=str(t.get("timestamp") or ""),
-                timestamp_ms=_ms(t.get("timestamp")),
+                timestamp_ms=epoch_ms(t.get("timestamp")),
                 pool="",
                 source="gmgn",
             )
         )
     return trades[:limit]
 
-
-def _num(v: Any) -> float:
-    try:
-        return float(v)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _ms(v: Any) -> int:
-    try:
-        n = int(float(v))
-    except (TypeError, ValueError):
-        return 0
-    return n * 1000 if n < 10_000_000_000 else n

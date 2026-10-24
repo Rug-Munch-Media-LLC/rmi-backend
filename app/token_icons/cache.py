@@ -2,14 +2,21 @@
 
 Positive entries live 7 days, negative entries 6 hours so a token without an
 icon is not re-probed on every request. Redis is optional: any failure
-degrades to L1-only for 60s instead of raising into the caller.
+degrades to L1-only for 60s instead of raising into the caller — and every
+degradation is logged once per operation, so a dead Redis is visible in logs
+rather than silently slowing every icon lookup.
 """
 
 from __future__ import annotations
 
 import json
 import time
+from collections.abc import Awaitable, Callable  # noqa: TC003
 from typing import Any
+
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 POSITIVE_TTL = 7 * 24 * 3600
 NEGATIVE_TTL = 6 * 3600
@@ -26,8 +33,18 @@ def _neg_key(chain: str, token: str) -> str:
     return f"tokenicon:neg:v1:{str(chain).strip().lower()}:{token}"
 
 
+def _decode(raw: Any) -> dict[str, Any] | None:
+    """Parse a cached payload; junk is a miss, not an exception."""
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        logger.warning("icon_cache_payload_undecodable", error=type(exc).__name__)
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 class IconCache:
-    """L1 dict + Redis L2. All Redis errors are swallowed (fail-open)."""
+    """L1 dict + Redis L2. All Redis errors are logged and swallowed (fail-open)."""
 
     def __init__(self) -> None:
         self._l1: dict[str, tuple[float, dict[str, Any]]] = {}
@@ -50,32 +67,37 @@ class IconCache:
         self._l1[_key(chain, token)] = (time.monotonic() + _L1_TTL, payload)
 
     def _client(self) -> Any | None:
+        """Redis client, or None while the backoff window is open."""
         if time.monotonic() < self._redis_down_until:
             return None
         try:
             from app.core.redis import get_redis_async  # local import: keeps tests light
-        except Exception:  # settings unavailable — L1 only
+        except ImportError as exc:
+            logger.warning("icon_cache_redis_unavailable", op="import", error=type(exc).__name__)
             self._redis_down_until = time.monotonic() + _REDIS_RETRY_AFTER
             return None
         return get_redis_async()
+
+    async def _run(self, op: str, call: Callable[[Any], Awaitable[Any]]) -> Any | None:
+        """Run one Redis op through the single degradation path (None = L1 only)."""
+        client = self._client()
+        if client is None:
+            return None
+        try:
+            return await call(client)
+        except Exception as exc:  # Redis is optional: degrade, never raise
+            logger.warning("icon_cache_redis_unavailable", op=op, error=type(exc).__name__)
+            self._redis_down_until = time.monotonic() + _REDIS_RETRY_AFTER
+            return None
 
     async def get(self, chain: str, token: str) -> dict[str, Any] | None:
         """Return a cached positive entry (L1 first, then Redis)."""
         hit = self.peek(chain, token)
         if hit is not None:
             return {**hit, "cached": True}
-        client = self._client()
-        if client is None:
-            return None
-        try:
-            raw = await client.get(_key(chain, token))
-            if not raw:
-                return None
-            payload = json.loads(raw)
-        except Exception:
-            self._redis_down_until = time.monotonic() + _REDIS_RETRY_AFTER
-            return None
-        if not isinstance(payload, dict) or not payload.get("icon_url"):
+        raw = await self._run("get", lambda c: c.get(_key(chain, token)))
+        payload = _decode(raw) if raw else None
+        if not payload or not payload.get("icon_url"):
             return None
         self._remember(chain, token, payload)
         return {**payload, "cached": True}
@@ -83,34 +105,20 @@ class IconCache:
     async def put(self, chain: str, token: str, payload: dict[str, Any]) -> None:
         """Store a validated entry in both tiers (Redis failure is non-fatal)."""
         self._remember(chain, token, payload)
-        client = self._client()
-        if client is None:
-            return
-        try:
-            await client.set(_key(chain, token), json.dumps(payload), ex=POSITIVE_TTL)
-        except Exception:
-            self._redis_down_until = time.monotonic() + _REDIS_RETRY_AFTER
+        body = json.dumps(payload)
+        await self._run("set", lambda c: c.set(_key(chain, token), body, ex=POSITIVE_TTL))
 
     async def is_missing(self, chain: str, token: str) -> bool:
         """True while a negative-cache entry is still valid."""
-        client = self._client()
-        if client is None:
-            return False
-        try:
-            return bool(await client.exists(_neg_key(chain, token)))
-        except Exception:
-            self._redis_down_until = time.monotonic() + _REDIS_RETRY_AFTER
-            return False
+        found = await self._run("exists", lambda c: c.exists(_neg_key(chain, token)))
+        return bool(found)
 
     async def mark_missing(self, chain: str, token: str) -> None:
         """Negative-cache a token so upstreams are not re-probed for 6h."""
-        client = self._client()
-        if client is None:
-            return
-        try:
-            await client.set(_neg_key(chain, token), "1", ex=NEGATIVE_TTL)
-        except Exception:
-            self._redis_down_until = time.monotonic() + _REDIS_RETRY_AFTER
+        await self._run(
+            "set_negative",
+            lambda c: c.set(_neg_key(chain, token), "1", ex=NEGATIVE_TTL),
+        )
 
 
 _CACHE = IconCache()
