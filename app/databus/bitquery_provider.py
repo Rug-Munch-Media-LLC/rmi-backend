@@ -6,9 +6,6 @@ Bitquery provides deep blockchain data across 40+ chains via GraphQL.
 This provider integrates with DataBus for intelligent caching and
 rate-limited access.
 
-Status: API key valid, account needs active billing period.
-When billing is activated (free tier or paid), all queries work.
-
 Data types supported:
   - token_price: DEX trade prices across chains
   - holder_data: Token holder distribution and whale tracking
@@ -58,6 +55,7 @@ CACHE_TTL_BALANCE = 600  # 10 min
 
 # Rate limits (free tier)
 FREE_CREDITS_PER_MONTH = 100_000
+_BILLING_COOLDOWN_S = 3600
 MAX_RPS = 1.0
 
 
@@ -79,6 +77,7 @@ class BitqueryProvider:
         self._oauth_token: str | None = None
         self._credits_used = 0
         self._monthly_reset = time.time()
+        self._billing_blocked_until = 0.0
         self._loaded = False
 
     async def _load_creds(self) -> None:
@@ -137,7 +136,11 @@ class BitqueryProvider:
         """
         await self._load_creds()
 
+        if time.time() < self._billing_blocked_until:
+            return {"error": "No active billing period", "code": 402}
         if not self._check_billing():
+            if time.time() < getattr(self, "_billing_blocked_until", 0.0):
+                return {"error": "No active billing period", "code": 402}
             logger.warning("Bitquery monthly credit limit reached")
             return {"error": "Monthly credit limit reached", "code": 429}
 
@@ -165,12 +168,9 @@ class BitqueryProvider:
             self._credits_used += 1
 
             if resp.status_code == 402:
-                logger.error("Bitquery: No active billing period. Activate at bitquery.io")
-                return {
-                    "error": "No active billing period",
-                    "code": 402,
-                    "fix": "Log into bitquery.io and activate a plan (even free tier)",
-                }
+                self._billing_blocked_until = time.time() + _BILLING_COOLDOWN_S
+                logger.error("Bitquery: no active billing period — pausing calls")
+                return {"error": "No active billing period", "code": 402}
 
             if resp.status_code == 401:
                 logger.error("Bitquery: Invalid API key or OAuth token")
