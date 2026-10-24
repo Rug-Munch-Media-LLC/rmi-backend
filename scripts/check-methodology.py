@@ -24,11 +24,12 @@ import argparse
 import json
 import os
 import sys
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from methodology_fleet import gate_fleet
+from methodology_fleet import FleetGate, gate_fleet
 from methodology_patterns import counts_of, load_patterns, scan_repo
 from methodology_policy import classification, find_policy, sync_policy
 
@@ -67,23 +68,27 @@ def report(findings: list[dict], counts: dict[str, int], baseline: dict[str, int
     return 1
 
 
-def gate_repo(
-    root: Path,
-    policy: dict,
-    patterns: dict,
-    baseline_path: Path,
-    update: bool,
-    reason: str | None,
-) -> int:
+@dataclass(frozen=True)
+class RepoGate:
+    """The inputs one repo pass needs, bundled so the call takes three args."""
+
+    root: Path
+    policy: dict
+    patterns: dict
+    baseline_path: Path
+
+
+def gate_repo(gate: RepoGate, update: bool, reason: str | None) -> int:
     """Gate one repo: public check, scan, ratchet compare or deliberate update."""
-    public, _private = classification(policy)
-    name = root.name
+    public, _private = classification(gate.policy)
+    name = gate.root.name
     if name not in public:
         print(f"methodology-gate [{name}]: not in public_oss — skipped (private work is not gated)")
         return 0
-    findings = scan_repo(root, patterns)
+    findings = scan_repo(gate.root, gate.patterns)
     counts = counts_of(findings)
-    base = json.loads(baseline_path.read_text()) if baseline_path.is_file() else {"rules": {}, "total": 0}
+    bl = gate.baseline_path
+    base = json.loads(bl.read_text()) if bl.is_file() else {"rules": {}, "total": 0}
     old = base.get("rules", {})
     if not update:
         return report(findings, counts, old, name)
@@ -101,9 +106,9 @@ def gate_repo(
         }
     )
     base.update({"rules": counts, "total": sum(counts.values())})
-    baseline_path.parent.mkdir(parents=True, exist_ok=True)
-    baseline_path.write_text(json.dumps(base, indent=1) + "\n")
-    print(f"baseline updated: {baseline_path} (total {base['total']})")
+    bl.parent.mkdir(parents=True, exist_ok=True)
+    bl.write_text(json.dumps(base, indent=1) + "\n")
+    print(f"baseline updated: {bl} (total {base['total']})")
     return 0
 
 
@@ -137,9 +142,10 @@ def main() -> int:
         )
         return 2
     if args.fleet:
-        return gate_fleet(root, policy, patterns, Path(args.repos_root), args.update_baseline, reason)
+        fleet = FleetGate(root, policy, patterns, Path(args.repos_root))
+        return gate_fleet(fleet, args.update_baseline, reason)
     baseline = Path(args.baseline) if args.baseline else root / "scripts/methodology-baseline.json"
-    return gate_repo(root, policy, patterns, baseline, args.update_baseline, reason)
+    return gate_repo(RepoGate(root, policy, patterns, baseline), args.update_baseline, reason)
 
 
 if __name__ == "__main__":

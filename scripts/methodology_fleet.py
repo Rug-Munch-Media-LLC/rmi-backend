@@ -9,6 +9,7 @@ is recorded in the baseline (same discipline as the antipattern ratchet).
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -18,19 +19,18 @@ from methodology_policy import classification
 FLEET_BASELINE = Path("scripts/methodology-fleet-baseline.json")
 
 
-def gate_fleet(
-    root: Path,
-    policy: dict,
-    patterns: dict,
-    repos_root: Path,
-    update: bool,
-    reason: str | None,
-) -> int:
-    """Scan every public repo and ratchet the per-repo totals."""
-    public, _ = classification(policy)
-    path = root / FLEET_BASELINE
-    base = json.loads(path.read_text()) if path.is_file() else {"repos": {}}
-    old = base.get("repos", {})
+@dataclass(frozen=True)
+class FleetGate:
+    """The inputs every fleet pass needs, bundled so no call takes six args."""
+
+    root: Path
+    policy: dict
+    patterns: dict
+    repos_root: Path
+
+
+def _scan_public(repos_root: Path, public: set[str], patterns: dict, old: dict) -> tuple[dict, bool]:
+    """Scan every checked-out public repo; return per-repo totals and any growth."""
     current: dict[str, dict] = {}
     failed = False
     for repo in sorted(public):
@@ -39,28 +39,42 @@ def gate_fleet(
             print(f"  skip {repo} (not checked out)")
             continue
         counts = counts_of(scan_repo(rroot, patterns))
-        current[repo] = {"total": sum(counts.values()), "rules": counts}
+        total = sum(counts.values())
+        current[repo] = {"total": total, "rules": counts}
         prev = old.get(repo, {}).get("total", 0)
-        delta = current[repo]["total"] - prev
+        delta = total - prev
         failed = failed or delta > 0
-        print(f"  {'!!' if delta > 0 else '  '} {repo:<22} {current[repo]['total']:>4} (baseline {prev}, {delta:+d})")
+        print(f"  {'!!' if delta > 0 else '  '} {repo:<22} {total:>4} (baseline {prev}, {delta:+d})")
+    return current, failed
+
+
+def _rewrite_base(path: Path, base: dict, current: dict, old: dict, reason: str | None) -> int:
+    """Persist the new fleet baseline, refusing growth without a reason file."""
+    grown = {
+        r: (old.get(r, {}).get("total", 0), v["total"])
+        for r, v in current.items()
+        if v["total"] > old.get(r, {}).get("total", 0)
+    }
+    if grown and not reason:
+        print("REFUSING to raise the fleet baseline without --reason <file>:")
+        for r, (before, after) in grown.items():
+            print(f"  {r}: {before} -> {after}")
+        return 1
+    base["repos"] = current
+    base.setdefault("reasons", []).append({"date": date.today().isoformat(), "reason": reason or "baseline lowered"})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(base, indent=1) + "\n")
+    print(f"fleet baseline updated: {path}")
+    return 0
+
+
+def gate_fleet(gate: FleetGate, update: bool, reason: str | None) -> int:
+    """Scan every public repo and ratchet the per-repo totals."""
+    public, _ = classification(gate.policy)
+    path = gate.root / FLEET_BASELINE
+    base = json.loads(path.read_text()) if path.is_file() else {"repos": {}}
+    old = base.get("repos", {})
+    current, failed = _scan_public(gate.repos_root, public, gate.patterns, old)
     if update:
-        grown = {
-            r: (old.get(r, {}).get("total", 0), v["total"])
-            for r, v in current.items()
-            if v["total"] > old.get(r, {}).get("total", 0)
-        }
-        if grown and not reason:
-            print("REFUSING to raise the fleet baseline without --reason <file>:")
-            for r, (o, n) in grown.items():
-                print(f"  {r}: {o} -> {n}")
-            return 1
-        base["repos"] = current
-        base.setdefault("reasons", []).append(
-            {"date": date.today().isoformat(), "reason": reason or "baseline lowered"}
-        )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(base, indent=1) + "\n")
-        print(f"fleet baseline updated: {path}")
-        return 0
+        return _rewrite_base(path, base, current, old, reason)
     return 1 if failed else 0
