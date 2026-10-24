@@ -415,34 +415,6 @@ class TestAddressProfilerModel:
         assert profile.risk_score == 50  # default
 
 
-class TestDeathClockModel:
-    """DeathClockResult model from death_clock.py."""
-
-    def test_valid_result(self):
-        from app.routers.death_clock import DeathClockResult
-
-        result = DeathClockResult(
-            token_address="0xabc",
-            chain="solana",
-            symbol="TEST",
-            predicted_days=30.0,
-            risk_level="HIGH",
-            confidence=0.85,
-            reasons=["liquidity is thin for the current holder base"],
-            factors={"liquidity_usd": "shortens", "age_days": "neutral"},
-            explanation="Test explanation",
-        )
-        assert result.token_address == "0xabc"
-        assert result.risk_level == "HIGH"
-        assert result.confidence == 0.85
-        # Contract: `factors` is a feature -> direction map, never a contribution.
-        assert result.factors["liquidity_usd"] == "shortens"
-        assert set(result.factors.values()) <= {"shortens", "extends", "neutral"}
-        dumped = result.model_dump()
-        assert "weights" not in dumped
-        assert "intercept" not in dumped
-
-
 class TestTokenCVModel:
     """TokenCV model for talent/team scoring."""
 

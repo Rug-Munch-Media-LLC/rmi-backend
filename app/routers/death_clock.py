@@ -95,18 +95,26 @@ def _risk_level(days: float) -> str:
     return "low"
 
 
+def _liquidity_reason(liquidity: float) -> str | None:
+    """Grade liquidity into one band word - no thresholds on the wire."""
+    if liquidity < 1000:
+        return "liquidity is critically thin"
+    if liquidity < 10000:
+        return "liquidity is thin for the current holder base"
+    if liquidity < 50000:
+        return "liquidity is modest"
+    return None
+
+
 def _reasons(features: dict[str, Any]) -> list[str]:
     """Qualitative reasons only — no thresholds, no weights."""
     reasons: list[str] = []
     liquidity = _as_number(features.get("liquidity_usd"))
     if _as_number(features.get("honeypot_risk")):
         reasons.append("honeypot behaviour reported: holders may be unable to sell")
-    if liquidity < 1000:
-        reasons.append("liquidity is critically thin")
-    elif liquidity < 10000:
-        reasons.append("liquidity is thin for the current holder base")
-    elif liquidity < 50000:
-        reasons.append("liquidity is modest")
+    liquidity_reason = _liquidity_reason(liquidity)
+    if liquidity_reason:
+        reasons.append(liquidity_reason)
     if 0 < _as_number(features.get("lp_locked_pct")) < 50:
         reasons.append("a large share of the LP is unlocked")
     if not _as_number(features.get("owner_renounced")):
