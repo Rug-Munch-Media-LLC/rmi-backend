@@ -51,7 +51,8 @@ def _normalize_published(value: Any) -> str:
     if isinstance(value, (int, float)):
         try:
             return datetime.fromtimestamp(float(value), tz=UTC).isoformat()
-        except (ValueError, OSError, OverflowError):
+        except (ValueError, OSError, OverflowError) as exc:
+            logger.debug("_normalize_published_failed", error=str(exc))
             return ""
     s = str(value).strip()
     if not s:
@@ -60,16 +61,19 @@ def _normalize_published(value: Any) -> str:
     if s.isdigit() and len(s) >= 9:
         try:
             return datetime.fromtimestamp(float(s), tz=UTC).isoformat()
-        except (ValueError, OSError, OverflowError):
+        except (ValueError, OSError, OverflowError) as exc:
+            logger.debug("_normalize_published_failed", error=str(exc))
             return ""
     s = s.replace("Z", "+00:00")
     try:
         dt = datetime.fromisoformat(s)
-    except ValueError:
+    except ValueError as exc:
         # RFC-2822 RSS dates ("Wed, 30 Jul 2026 10:00:00 GMT").
+        logger.debug("_normalize_published_failed", error=str(exc))
         try:
             parsed = email.utils.parsedate_to_datetime(s)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("_normalize_published_failed", error=str(exc))
             return ""
         dt = parsed
     if dt.tzinfo is None:
@@ -130,7 +134,8 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
         )
         try:
             published_dt = datetime.fromisoformat(published_iso) if published_iso else datetime.now(UTC)
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("index_databus_news_failed", error=str(exc))
             published_dt = datetime.now(UTC)
         sent_raw = article.get("sentiment")
         if isinstance(sent_raw, dict):
@@ -138,7 +143,8 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
         else:
             try:
                 sent_val = float(sent_raw or 0.0)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as exc:
+                logger.debug("index_databus_news_failed", error=str(exc))
                 sent_val = 0.0
         key = url or f"hash:{hashlib.sha256(title.encode()).hexdigest()[:12]}"
         cluster_items_list.append(
@@ -188,6 +194,7 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
             else:
                 errors.append(f"{doc['doc_id']}: ingest_failed")
         except Exception as e:  # pragma: no cover - defensive
+            logger.warning("index_databus_news_failed", error=str(e))
             errors.append(f"{doc['doc_id']}: {e!s}")
 
     return {
@@ -230,7 +237,8 @@ async def _latest_news_v2_timestamp() -> tuple[datetime | None, dict[str, Any] |
         )
         raw_entries = {str(k): str(v) for k, v in (r.hgetall("rag:ann:news_v2:docs") or {}).items()}
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+        logger.warning("_latest_news_v2_timestamp_failed", error=str(exc))
         raw_entries = {}
 
     if not raw_entries:
@@ -246,14 +254,16 @@ async def _latest_news_v2_timestamp() -> tuple[datetime | None, dict[str, Any] |
                 }
                 for doc_id, entry in (idx._meta or {}).items()
             }
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, ImportError):
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, ImportError) as exc:
+            logger.warning("_latest_news_v2_timestamp_failed", error=str(exc))
             raw_entries = {}
 
     for blob in raw_entries.values():
         try:
             entry = json.loads(blob) if isinstance(blob, str) else blob
             meta = entry.get("metadata", {}) or {}
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.debug("_latest_news_v2_timestamp_failed", error=str(exc))
             continue
         for key in ("published_at", "published", "date", "timestamp", "fetched_at", "indexed_at"):
             raw = meta.get(key)
@@ -264,7 +274,8 @@ async def _latest_news_v2_timestamp() -> tuple[datetime | None, dict[str, Any] |
                 continue
             try:
                 dt = datetime.fromisoformat(ts)
-            except ValueError:
+            except ValueError as exc:
+                logger.debug("_latest_news_v2_timestamp_failed", error=str(exc))
                 continue
             if latest is None or dt > latest:
                 latest = dt
@@ -300,7 +311,8 @@ async def check_news_staleness(**kw) -> dict[str, Any]:
                 continue
             try:
                 dt = datetime.fromisoformat(ts)
-            except ValueError:
+            except ValueError as exc:
+                logger.debug("check_news_staleness_failed", error=str(exc))
                 continue
             if live_ts is None or dt > live_ts:
                 live_ts = dt
@@ -315,6 +327,7 @@ async def check_news_staleness(**kw) -> dict[str, Any]:
             round((now - live_ts).total_seconds() / 3600.0, 2) if live_ts else None
         )
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, ImportError) as e:
+        logger.warning("check_news_staleness_failed", error=str(e))
         live_freshness = {"checked": False, "error": str(e)[:200], "source": _DATABUS_NEWS_SOURCE}
 
     if latest is None:
@@ -367,6 +380,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         logger.info(f"RAG indexed {news_count} databus news articles into news_v2")
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("nightly_rag_index_failed", error=str(e))
         indexed["errors"].append(f"news: {str(e)[:100]}")
 
     try:
@@ -399,6 +413,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         logger.info(f"RAG indexed {indexed['collections']['ct_rundown']} CT stories")
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("nightly_rag_index_failed", error=str(e))
         indexed["errors"].append(f"ct: {str(e)[:100]}")
 
     try:
@@ -422,6 +437,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         indexed["total_docs"] += indexed["collections"]["market_intel"]
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("nightly_rag_index_failed", error=str(e))
         indexed["errors"].append(f"market: {str(e)[:100]}")
 
     try:
@@ -443,6 +459,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         indexed["total_docs"] += indexed["collections"]["social_intel"]
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("nightly_rag_index_failed", error=str(e))
         indexed["errors"].append(f"social: {str(e)[:100]}")
 
     try:
@@ -458,6 +475,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         )
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, ImportError) as e:
+        logger.warning("nightly_rag_index_failed", error=str(e))
         indexed["errors"].append(f"social_sentiment: {str(e)[:100]}")
 
     indexed["completed_at"] = datetime.now(UTC).isoformat()
@@ -576,4 +594,5 @@ async def rag_health_check(**kw) -> dict[str, Any]:
         }
 
     except Exception as e:
+        logger.warning("rag_health_check_failed", error=str(e))
         return {"status": "error", "error": str(e)[:200], "source": "rag_health"}

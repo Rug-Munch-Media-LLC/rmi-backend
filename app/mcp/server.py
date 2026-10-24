@@ -35,6 +35,8 @@ from app.mcp._catalog import (  # noqa: E402 — imported after logger init; kep
     TOOL_VERSIONS,
 )
 
+logger = get_logger(__name__)
+
 
 # ── Tool implementations ──────────────────────────────────────────
 async def _require_api_key(arguments: dict[str, Any]) -> str | None:
@@ -67,7 +69,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
         try:
             c = Chain(arguments["chain"])
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("call_tool_failed", error=str(exc))
             return {"error": f"unknown chain: {arguments['chain']}"}
         result = await catalog.get_token_risk(c, arguments["address"])
         return {"result": result, "tier": "free_or_pro"}
@@ -77,7 +80,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
         try:
             c = Chain(arguments["chain"])
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("call_tool_failed", error=str(exc))
             return {"error": f"unknown chain: {arguments['chain']}"}
         w = await catalog.get_wallet(c, arguments["address"])
         if not w:
@@ -89,7 +93,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
         try:
             c = Chain(arguments["chain"])
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("call_tool_failed", error=str(exc))
             return {"error": f"unknown chain: {arguments['chain']}"}
         w = await catalog.get_wallet(c, arguments["address"])
         if not w:
@@ -151,6 +156,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 }
             }
         except Exception as e:
+            logger.warning("call_tool_failed", error=str(e))
             return {"error": f"news_query_fail: {e}"}
 
     if name == "generate_report":
@@ -175,6 +181,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 }
             }
         except Exception as e:
+            logger.warning("call_tool_failed", error=str(e))
             return {"error": f"report_fail: {e}"}
 
     if name == "query_catalog":
@@ -188,7 +195,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
         try:
             c = Chain(arguments["chain"])
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("call_tool_failed", error=str(exc))
             return {"error": f"unknown chain: {arguments['chain']}"}
         # Use token's rag_embedding_id to find similar via Qdrant
         token = await catalog.get_token(c, arguments["address"])
@@ -230,6 +238,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "engine": "duckdb",
             }
         except Exception as exc:
+            logger.warning("call_tool_failed", error=str(exc))
             return {"error": f"duckdb query failed: {exc}"}
 
     if name == "eth_labels_query":
@@ -251,6 +260,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             result = await query_eth_labels_db_mcp(sql, limit)
             return {"result": result}
         except Exception as e:
+            logger.warning("call_tool_failed", error=str(e))
             return {"error": f"eth_labels_query failed: {e!s}"}
 
     if name == "eth_labels_stats":
@@ -261,6 +271,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             result = await get_eth_labels_stats_mcp()
             return {"result": result}
         except Exception as e:
+            logger.warning("call_tool_failed", error=str(e))
             return {"error": f"eth_labels_stats failed: {e!s}"}
 
     if name == "parquet_query":
@@ -278,6 +289,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {"result": result}
         except Exception as e:
+            logger.warning("call_tool_failed", error=str(e))
             return {"error": f"parquet_query failed: {e!s}"}
 
     if name == "mcp_discover":
