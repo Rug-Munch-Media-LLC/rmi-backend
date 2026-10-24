@@ -99,6 +99,11 @@ from app.api.v1.ai.chart_analysis import (  # noqa: E402 — module docstring pr
 api_v1_router.append(ai_chart_router)
 
 
+from app.api.v1.assistant import assistant_router  # noqa: E402 — module docstring precedes import block
+
+api_v1_router.append(assistant_router)
+
+
 def build_v1_router() -> APIRouter:
     """Construct the v1 aggregator with all migrated routes mounted."""
     aggregated = APIRouter(prefix="/api/v1")
