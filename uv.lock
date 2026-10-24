@@ -7748,7 +7748,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.23.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16.0" },
-    { name = "rugmunch-scanner", git = "https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git?rev=2c694e32fea2ff63a83cd3341d7d85c88744a3be" },
+    { name = "rugmunch-scanner", git = "https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git?rev=70be4090e47eebe8ab5ad999a5959e532ffd96c6" },
     { name = "scalar-fastapi", specifier = "==1.8.2" },
     { name = "semgrep", marker = "extra == 'dev'", specifier = ">=1.176.0" },
     { name = "sentence-transformers", specifier = ">=3.0.0" },
@@ -8003,7 +8003,7 @@ wheels = [
 [[package]]
 name = "rugmunch-scanner"
 version = "0.2.0"
-source = { git = "https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git?rev=2c694e32fea2ff63a83cd3341d7d85c88744a3be#2c694e32fea2ff63a83cd3341d7d85c88744a3be" }
+source = { git = "https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git?rev=70be4090e47eebe8ab5ad999a5959e532ffd96c6#70be4090e47eebe8ab5ad999a5959e532ffd96c6" }
 dependencies = [
     { name = "httpx" },
     { name = "networkx" },
