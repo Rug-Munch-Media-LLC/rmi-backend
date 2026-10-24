@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from app.core.chain_names import normalize_chain as _normalize_chain
 from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
@@ -103,31 +104,8 @@ async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
 
 # ── Chain name normalizer ────────────────────────────────────────────────
 
-_CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum",
-    "eth": "ethereum",
-    "mainnet": "ethereum",
-    "bsc": "bsc",
-    "bnb": "bsc",
-    "binance": "bsc",
-    "polygon": "polygon",
-    "matic": "polygon",
-    "arbitrum": "arbitrum",
-    "arb": "arbitrum",
-    "optimism": "optimism",
-    "op": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-    "avax": "avalanche",
-    "fantom": "fantom",
-    "ftm": "fantom",
-    "gnosis": "gnosis",
-    "xdai": "gnosis",
-}
 
 
-def _normalize_chain(chain: str) -> str:
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
 # ═══════════════════════════════════════════════════════════════════════════

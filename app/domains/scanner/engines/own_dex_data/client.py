@@ -7,7 +7,11 @@ import os
 from pathlib import Path
 from typing import Any
 
+from app.core.chain_names import normalize_chain
 from app.domains.scanner.engines._logging import get_logger
+
+# Backwards-compatible alias: callers import _normalize_chain from here.
+_normalize_chain = normalize_chain
 
 logger = get_logger(__name__)
 
@@ -103,32 +107,8 @@ async def _run_sync(fn, *args, **kwargs):
 
 
 # ── Chain name normalization ──
-_CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum",
-    "eth": "ethereum",
-    "mainnet": "ethereum",
-    "bsc": "bsc",
-    "bnb": "bsc",
-    "binance": "bsc",
-    "polygon": "polygon",
-    "matic": "polygon",
-    "arbitrum": "arbitrum",
-    "arb": "arbitrum",
-    "optimism": "optimism",
-    "op": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-    "avax": "avalanche",
-    "fantom": "fantom",
-    "ftm": "fantom",
-    "gnosis": "gnosis",
-    "xdai": "gnosis",
-    "solana": "solana",
-}
 
 
-def _normalize_chain(chain: str) -> str:
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
 # ── Metrics ──
