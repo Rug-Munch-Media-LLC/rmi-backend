@@ -166,6 +166,12 @@ from app.domains.premium.router import router as premium_v1_router  # noqa: E402
 
 v1_router.include_router(premium_v1_router)
 
+# Article engagement — reactions, threaded comments, moderation, sentiment.
+# Same /api/v1/articles/{article_id}/... contract for every content surface.
+from app.domains.engagement.router import router as engagement_router  # noqa: E402 — module docstring precedes import block
+
+v1_router.include_router(engagement_router)
+
 log.info("v1_router_initialized domains=%d", len(v1_router.routes))
 
 # Export as `router` for mount.py auto-discovery
