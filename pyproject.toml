@@ -105,6 +105,10 @@ dependencies = [
     "temporalio>=1.0.0",
     "cachetools>=5.3.0",
     "clickhouse-driver>=0.2.0",
+    # clickhouse_connect client: imported at module level by
+    # app/db/labels_sync.py and app/domains/smart_money/sources.py
+    # (mounted router -> needed at app import time, not just at call time).
+    "clickhouse-connect>=0.7.0",
     "prometheus-client>=0.20.0",  # Metrics (prometheus endpoint + middleware)
 ]
 
