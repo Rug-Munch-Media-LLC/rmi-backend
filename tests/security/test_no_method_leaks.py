@@ -11,8 +11,8 @@ from typing import Any
 
 from app.domains.gmgn_intel.scoring import public_breakdown
 from app.routers import death_clock, gmgn_intel as gmgn_router
-from app.routers.rugcharts.routes.intel import _predictive_bias
-from app.routers.x402_advanced_tools.rug_probability import _envelope
+from app.routers.rugcharts.helpers.bias import predictive_bias
+from app.routers.x402_advanced_tools._envelope import EnvelopePayload, envelope, tier_for
 
 FEATURES: dict[str, Any] = {
     "symbol": "TEST",
@@ -78,7 +78,8 @@ def test_descriptor_exposes_no_weight_table() -> None:
 
 def test_rug_probability_envelope_has_no_rubric() -> None:
     signals = [{"signal": "honeypot_detected", "band": "extreme", "detail": "cannot sell"}]
-    payload = _envelope("0xabc", "base", 40, "HIGH_RISK", "Avoid", signals, 0.0)
+    tier, recommendation = tier_for(40)
+    payload = envelope(EnvelopePayload("0xabc", "base", 40, tier, recommendation, signals, 0.0))
     assert payload["reasons"] == ["cannot sell"]
     assert "sources_used" not in payload, "removed, not null"
     assert "_confidence" not in payload
@@ -89,7 +90,7 @@ def test_rug_probability_envelope_has_no_rubric() -> None:
 
 def test_intel_bias_has_no_numeric_impacts() -> None:
     breakdown = {"bot_volume_pct": 55.0, "buy_pressure": 0.7, "confidence": "high"}
-    bias = _predictive_bias(breakdown)
+    bias = predictive_bias(breakdown)
     assert bias["method"] == "banded_rule_fusion"
     assert bias["reasons"]
     assert all(isinstance(r, str) for r in bias["reasons"])

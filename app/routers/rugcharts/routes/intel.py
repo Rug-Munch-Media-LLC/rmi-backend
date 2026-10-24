@@ -19,6 +19,7 @@ from ..helpers import (
     _fetch_recent_trades_clickhouse,
     _fetch_whale_trades_clickhouse,
 )
+from ..helpers.bias import predictive_bias
 
 logger = get_logger("rugcharts_router")
 
@@ -140,7 +141,9 @@ async def rugcharts_whales(
     token_address: str,
     limit: int = Query(100, ge=1, le=500, description="Max whale trades to return"),
     min_usd: float = Query(
-        0.0, ge=0.0, description="Optional minimum USD notional filter (0 = any whale-flagged event)"
+        0.0,
+        ge=0.0,
+        description="Optional minimum USD notional filter (0 = any whale-flagged event)",
     ),
 ) -> Any:
     """Whale trade markers + wallet-behavior labels for a token.
@@ -204,62 +207,11 @@ async def rugcharts_volume_analysis(
             "chain": chain,
             "token_address": token_address,
             **breakdown,
-            "predictive_bias": _predictive_bias(breakdown),
+            "predictive_bias": predictive_bias(breakdown),
         },
         source="lite_chain_indexer (ClickHouse dex_events)",
         confidence=0.8 if breakdown["confidence"] == "high" else 0.5,
     )
-
-
-def _predictive_bias(breakdown: dict[str, Any]) -> dict[str, Any]:
-    """Banded bias from trade-flow evidence: reasons, never numeric impacts."""
-    factors: list[dict[str, Any]] = []
-    bias_score = 0
-    if breakdown["bot_volume_pct"] is not None:
-        if breakdown["bot_volume_pct"] >= 40:
-            bias_score -= 25
-            factors.append(
-                {
-                    "factor": "bot_dominance",
-                    "band": "strong_bearish",
-                    "evidence": f"{breakdown['bot_volume_pct']}% of sampled volume is bot-labeled",
-                }
-            )
-        elif breakdown["bot_volume_pct"] >= 15:
-            bias_score -= 10
-            factors.append(
-                {"factor": "bot_elevated", "band": "bearish", "evidence": f"{breakdown['bot_volume_pct']}% bot volume"}
-            )
-        else:
-            bias_score += 5
-            factors.append(
-                {
-                    "factor": "organic_flow",
-                    "band": "mild_bullish",
-                    "evidence": f"bot share only {breakdown['bot_volume_pct']}%",
-                }
-            )
-    if breakdown["buy_pressure"] is not None:
-        bp = breakdown["buy_pressure"]
-        if bp >= 0.65:
-            bias_score += 15
-            factors.append({"factor": "buy_pressure", "band": "bullish", "evidence": f"{bp:.0%} buy-side volume"})
-        elif bp <= 0.35:
-            bias_score -= 15
-            factors.append({"factor": "sell_pressure", "band": "bearish", "evidence": f"only {bp:.0%} buy-side"})
-
-    bias = "BEARISH" if bias_score <= -20 else "BULLISH" if bias_score >= 20 else "NEUTRAL"
-    return {
-        "bias": bias,
-        "score": max(-100, min(100, bias_score)),
-        "reasons": [item["evidence"] for item in factors],
-        # DEPRECATED: entries keep `factor` + `evidence` and carry a coarse
-        # `band` instead of a numeric `impact`. Removed in 0.4.0.
-        "factors": factors,
-        "method": "banded_rule_fusion",
-        "model_version": "bias-band-2026-10",
-        "disclaimer": "Heuristic bias from trade-flow evidence — not financial advice.",
-    }
 
 
 # ── Volume breakdown: bot / wash / MEV / organic (DexScreener-killer) ────
@@ -269,7 +221,13 @@ def _predictive_bias(breakdown: dict[str, Any]) -> dict[str, Any]:
 #   bundle -> wash     (coordinated same-second launch volume)
 #   sniper -> mev      (buy-then-flip inside the sniper window)
 #   whale / swap -> organic
-_VOLUME_LABEL_MAP = {"bot": "bot", "bundle": "wash", "sniper": "mev", "whale": "organic", "swap": "organic"}
+_VOLUME_LABEL_MAP = {
+    "bot": "bot",
+    "bundle": "wash",
+    "sniper": "mev",
+    "whale": "organic",
+    "swap": "organic",
+}
 
 
 @router.get("/volume-breakdown/{chain}/{address}")
