@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
+from app.token_icons.cache import peek_icon_url
+from app.token_icons.fallback import fallback_icon_url
 from app.trending.dex_rows import fetch_dex_rows
 from app.trending.entity_meta import fetch_entities
 from app.trending.parquet_source import fetch_parquet_rows
@@ -89,6 +91,7 @@ def _base_item(row: dict[str, Any]) -> dict[str, Any]:
         "sells": max(trades - buys, 0),
         "bonding_progress": None,
         "source": "dex_events",
+        "icon_url": fallback_icon_url(row["chain"], row["token"]),
         "last_event_at": last_ts if isinstance(last_ts, datetime) else None,
         "null_reasons": nulls,
         "age_hours": age_hours,
@@ -174,6 +177,9 @@ async def build_trending(chain: str, hours: int, limit: int) -> dict[str, Any]:
         _merge_parquet(items, extra)
 
     ordered = sorted(items.values(), key=lambda i: i["score"], reverse=True)[:limit]
+    for item in ordered:
+        # L1-only peek: a cached icon is free, a miss keeps the branded fallback.
+        item["icon_url"] = peek_icon_url(item["chain"], item["token"]) or item["icon_url"]
     for item in ordered:
         item.pop("age_hours", None)
     source = "clickhouse+parquet" if extra else "clickhouse"

@@ -33,6 +33,11 @@ class TrendingItem(BaseModel):
     bonding_progress: float | None = Field(None, ge=0, le=1)
     score: float = Field(..., ge=0, le=100)
     source: str = Field(..., min_length=1, max_length=40)
+    icon_url: str = Field(
+        "",
+        max_length=2048,
+        description="Validated https icon, or our branded fallback URL. Never empty.",
+    )
     last_event_at: datetime | None = None
     null_reasons: dict[str, str] = Field(default_factory=dict)
 
