@@ -22,6 +22,7 @@ from __future__ import annotations
 import time
 from typing import Any, cast
 
+from app.core.chain_names import normalize_chain as _normalize_chain
 from app.domains.scanner.engines._common import run_sync
 from app.domains.scanner.engines._logging import get_logger
 
@@ -43,37 +44,12 @@ PND_MIN_PAIR_SWAPS = 10  # ignore dust pairs
 FLASH_REPAY_TOLERANCE = 0.10  # |in - out|/max(in,out) <= 10% → repay
 
 # Supported chains (matches own_dex_data chain map + solana)
-_CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum",
-    "eth": "ethereum",
-    "mainnet": "ethereum",
-    "bsc": "bsc",
-    "bnb": "bsc",
-    "binance": "bsc",
-    "polygon": "polygon",
-    "matic": "polygon",
-    "arbitrum": "arbitrum",
-    "arb": "arbitrum",
-    "optimism": "optimism",
-    "op": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-    "avax": "avalanche",
-    "fantom": "fantom",
-    "ftm": "fantom",
-    "gnosis": "gnosis",
-    "xdai": "gnosis",
-    "solana": "solana",
-}
 
 # In-process per-detector result cache
 _RESULT_CACHE: dict[str, dict[str, Any]] = {}
 _RESULT_CACHE_MAX = 100
 
 
-def _normalize_chain(chain: str) -> str:
-    """Normalize a chain name to the format used in ClickHouse tables."""
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
 def _get_ch_client() -> Any | None:
