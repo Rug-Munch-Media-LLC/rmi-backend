@@ -12,6 +12,7 @@ All values are passed as ClickHouse query parameters; no value is ever
 interpolated into SQL text. ``wallet_profiles`` is deliberately not used: it
 holds 2 rows in production, so depending on it would fake coverage.
 """
+# ruff: noqa: S608 -- SQL is built from constants + bound parameters
 
 from __future__ import annotations
 
@@ -20,6 +21,8 @@ import os
 from typing import Any
 
 import clickhouse_connect
+
+from app.domains.smart_money.known_tokens import known_cte
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +43,9 @@ SENTINELS = (
     "0x000000000000000000000000000000000000dead",
 )
 
-_EVM_FLOWS = """
-WITH priced AS (
+_EVM_FLOWS = (
+    "WITH " + known_cte() + """,  # noqa: S608
+    priced AS (
     SELECT chain, token_address, max(price_usd) AS px,
            anyIf(symbol, symbol != '') AS symbol
     FROM wallet_memory.token_prices
@@ -49,27 +53,31 @@ WITH priced AS (
     GROUP BY chain, token_address
 ),
 meta AS (
-    SELECT chain, token_address, max(decimals) AS decimals
+    SELECT chain, token_address, max(decimals) AS decimals,
+           anyIf(symbol, symbol != '') AS symbol
     FROM wallet_memory.token_meta_ref
     GROUP BY chain, token_address
 ),
 flows AS (
     SELECT t.chain AS chain, t.to_address AS wallet, t.token_address AS token,
-           coalesce(p.symbol, '') AS symbol,
-           toFloat64(toUInt256OrZero(t.value)) / pow(10, coalesce(m.decimals, 18)) * p.px AS usd,
+           coalesce(nullIf(p.symbol, ''), nullIf(m.symbol, ''),
+                    nullIf(k.symbol, ''), '') AS symbol,
+           toFloat64(toUInt256OrZero(t.value)) / pow(10, coalesce(m.decimals, k.decimals, 18)) * p.px AS usd,
            1 AS dir, t.block_timestamp AS ts
     FROM wallet_memory.evm_transfers AS t
     INNER JOIN priced AS p ON p.chain = t.chain AND p.token_address = t.token_address
     LEFT JOIN meta AS m ON m.chain = t.chain AND m.token_address = t.token_address
+    LEFT JOIN known AS k ON k.chain = t.chain AND k.token_address = t.token_address
     WHERE t.block_timestamp >= now() - toIntervalHour({hours:UInt32})
       AND t.chain IN {chains:Array(String)}
     UNION ALL
     SELECT t.chain, t.from_address, t.token_address, coalesce(p.symbol, ''),
-           toFloat64(toUInt256OrZero(t.value)) / pow(10, coalesce(m.decimals, 18)) * p.px,
+           toFloat64(toUInt256OrZero(t.value)) / pow(10, coalesce(m.decimals, k.decimals, 18)) * p.px,
            -1, t.block_timestamp
     FROM wallet_memory.evm_transfers AS t
     INNER JOIN priced AS p ON p.chain = t.chain AND p.token_address = t.token_address
     LEFT JOIN meta AS m ON m.chain = t.chain AND m.token_address = t.token_address
+    LEFT JOIN known AS k ON k.chain = t.chain AND k.token_address = t.token_address
     WHERE t.block_timestamp >= now() - toIntervalHour({hours:UInt32})
       AND t.chain IN {chains:Array(String)}
 )
@@ -88,7 +96,8 @@ HAVING inflow_usd + outflow_usd >= {min_usd:Float64}
    AND inflow_usd + outflow_usd <= {max_usd:Float64}
 ORDER BY inflow_usd + outflow_usd DESC
 LIMIT {limit:UInt32}
-"""
+""")
+
 
 _SOLANA_FLOWS = """
 WITH priced AS (
@@ -122,20 +131,20 @@ LIMIT {limit:UInt32}
 _COLS = ("chain", "wallet", "token", "symbol", "inflow_usd", "outflow_usd", "last_ts")
 
 _WALLET_LABELS = """
-SELECT address, label_name FROM wallet_memory.wallet_labels
-WHERE address IN {wallets:Array(String)} AND label_name != ''
+SELECT lower(address) AS address, label_name FROM wallet_memory.wallet_labels
+WHERE lower(address) IN {wallets:Array(String)} AND label_name != ''
 GROUP BY address, label_name
 """
 
 _ENTITY_LABELS = """
-SELECT address, name FROM wallet_memory.entity_labels
-WHERE address IN {wallets:Array(String)} AND name != ''
+SELECT lower(address) AS address, name FROM wallet_memory.entity_labels
+WHERE lower(address) IN {wallets:Array(String)} AND name != ''
 GROUP BY address, name
 """
 
 _CLUSTERS = """
-SELECT address, entity_id FROM wallet_memory.wallet_entities
-WHERE address IN {wallets:Array(String)} AND entity_id != ''
+SELECT lower(wallet_address) AS address, entity_id FROM wallet_memory.wallet_entities
+WHERE lower(wallet_address) IN {wallets:Array(String)} AND entity_id != ''
 """
 
 _PRICES = """

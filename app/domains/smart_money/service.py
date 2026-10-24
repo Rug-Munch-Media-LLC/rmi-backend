@@ -112,6 +112,10 @@ def build_moves(
         if d["reason"]:
             reasons.append(d["reason"])
         reasons.append("label:" + (",".join(sorted(wallet_labels)[:3]) or "none_matched"))
+        if not row["symbol"]:
+            reasons.append("symbol:no_metadata_row")
+        if (chain, token) not in prices:
+            reasons.append("price:no_price_row")
         reasons.append("roi_30d:30d_aggregate_not_materialised")
         reasons.append(f"score={score}")
         reasons.append("scoring=" + SCORING_VERSION)
