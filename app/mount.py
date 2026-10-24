@@ -134,6 +134,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.api.v1.public.token",  # /api/v1/token/*
     "app.api.v1.rag.search",  # /api/v1/rag/v2/* (raw search/ingest)
     "app.routers.rag_v2",  # /api/v1/rag/v2/ask (agentic LangGraph RAG)
+    "app.assistant_gateway.router",  # /api/v1/assistant/* + /v1/chat/completions (page assistant)
     "app.api.v1.admin.alerts_webhook",  # /api/v1/admin/alerts/webhook
     "app.api.v1.admin.glitchtip_test",  # /api/v1/_test/* (T07)
     "app.api.v1.catalog",  # /api/v1/catalog/*
