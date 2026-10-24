@@ -141,7 +141,7 @@ def _own_data_launches(chain: str, limit: int, pump_only: bool) -> list[dict[str
 
 
 async def _dexscreener_new_pairs(chain: str, limit: int, pump_only: bool) -> list[dict[str, Any]]:
-    """DexScreener token-boosts + search fallback for new pairs."""
+    """DexScreener token-boosts + search fallback (external promo, not ours)."""
     items: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as c:
@@ -164,7 +164,7 @@ async def _dexscreener_new_pairs(chain: str, limit: int, pump_only: bool) -> lis
                             "holders": None,
                             "bundle_risk": None,
                             "is_pump_fun": None,
-                            "source": "dexscreener_boost",
+                            "source": "dexscreener_external_promo",
                         }
                     )
 
