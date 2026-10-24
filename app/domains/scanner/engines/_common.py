@@ -30,13 +30,13 @@ extracted instead and the sketch signature is intentionally not adopted.
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import UTC, datetime
 from typing import Any
 
 from redis.exceptions import RedisError
 
+from app.core.threads import run_in_thread
 from app.domains.scanner.engines._indexer_port import ch_client as _get_ch_client
 from app.domains.scanner.engines._logging import get_logger
 
@@ -60,7 +60,7 @@ async def run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
 
         rows = await run_sync(_query_wallet_transfers, wallet, chain, limit)
     """
-    return await asyncio.to_thread(fn, *args, **kwargs)
+    return await run_in_thread(fn, *args, **kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
