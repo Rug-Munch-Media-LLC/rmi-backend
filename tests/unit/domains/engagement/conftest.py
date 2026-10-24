@@ -46,7 +46,7 @@ def ban_policy() -> RecordingBanPolicy:
 def client(store: InMemoryEngagementStore, ban_policy: RecordingBanPolicy) -> TestClient:
     app = FastAPI()
     register_error_handlers(app)
-    app.include_router(router)
+    app.include_router(router, prefix="/api/v1")
 
     async def _override_actor(request: Request) -> Actor | None:
         """Identity seam: headers stand in for validated JWT claims."""

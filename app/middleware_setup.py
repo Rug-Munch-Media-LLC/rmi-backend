@@ -75,6 +75,7 @@ def register_middleware(app: FastAPI) -> None:
     # per-user/per-IP granularity covering all paths. slowapi registration kept
     # for reference (see _try_register_slowapi below) but NOT wired.
     # _try_register_slowapi(app)
+    _try_register_public_quota_middleware(app)
     _try_register_rate_limit_middleware(app)
     _try_register_slow_query_logging(app)
     _try_register_content_type_enforcement(app)
@@ -179,6 +180,17 @@ def _try_register_degradation_header(app: FastAPI) -> None:
         log.info("middleware_registered name=degradation_header")
     except Exception as exc:
         log.warning("middleware_skipped name=degradation_header err=%s", exc)
+
+
+def _try_register_public_quota_middleware(app: FastAPI) -> None:
+    """Public-API quota tiers (anonymous/free/paid) on /api/v1/public/* only."""
+    try:
+        from app.domains.public_api.quota import PublicQuotaMiddleware
+
+        app.add_middleware(PublicQuotaMiddleware)
+        log.info("middleware_registered name=public_quota_middleware")
+    except Exception as exc:
+        log.warning("middleware_skipped name=public_quota_middleware err=%s", exc)
 
 
 def _try_register_rate_limit_middleware(app: FastAPI) -> None:
