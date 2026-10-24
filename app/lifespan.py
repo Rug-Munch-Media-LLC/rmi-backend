@@ -66,6 +66,29 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("security_config_check_failed err=%s", exc)
 
+    # 0b. Scoring calibration — a production deployment must not serve
+    # illustrative scores. resolve_policy() records which provider answered;
+    # strict (prod) refuses to start on the example policy.
+    try:
+        from app.domains.scanner.risk_policy import require_calibrated_policy
+
+        resolution = require_calibrated_policy(strict=os.getenv("ENVIRONMENT") == "prod")
+        log.info(
+            "risk_policy_resolved name=%s source=%s illustrative=%s",
+            resolution.policy.name,
+            resolution.source,
+            resolution.illustrative,
+        )
+    except Exception as exc:
+        # PolicyUnavailable in prod is intentional: no app that would score on
+        # the example policy is allowed to come up quietly.
+        from app.domains.scanner.risk_policy import PolicyUnavailable
+
+        if isinstance(exc, PolicyUnavailable):
+            log.critical("risk_policy_fatal err=%s", exc)
+            raise
+        log.warning("risk_policy_check_failed err=%s", exc)
+
     # 1. Structured logging
     try:
         from app.core.logging import setup_logging

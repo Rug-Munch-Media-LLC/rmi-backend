@@ -216,9 +216,30 @@ def _provider_from_entry_point() -> Callable[[], Mapping[str, Any]] | None:
     return None
 
 
+@dataclass(frozen=True)
+class PolicyResolution:
+    """What ``load_policy`` resolved, and whether it is authoritative.
+
+    ``illustrative`` is True only for the built-in example policy — a
+    deployment that scores on it is misconfigured, not merely unconfigured.
+    """
+
+    policy: RulePolicy
+    source: str
+    illustrative: bool
+
+    def describe(self) -> dict[str, Any]:
+        """JSON-safe summary for /health and startup logs."""
+        return {
+            "name": self.policy.name,
+            "source": self.source,
+            "illustrative": self.illustrative,
+        }
+
+
 @lru_cache(maxsize=1)
-def load_policy() -> RulePolicy:
-    """Resolve the calibrated policy; fall back to the example, loudly."""
+def resolve_policy() -> PolicyResolution:
+    """Resolve the policy once, recording where it came from."""
     provider = _provider_from_env()
     source = ENV_VAR
     if provider is None:
@@ -232,17 +253,60 @@ def load_policy() -> RulePolicy:
             "or a public deployment is misconfigured.",
             ENV_VAR, ENTRY_POINT_GROUP, policy.name,
         )
-        return policy
+        return PolicyResolution(policy=policy, source="example", illustrative=True)
     spec = provider()
     if isinstance(spec, RulePolicy):
-        return spec
-    logger.info("risk_policy: loaded %r from %s", str(spec.get("name")), source)
-    return RulePolicy.from_spec(spec)
+        resolution = PolicyResolution(policy=spec, source=source, illustrative=False)
+    else:
+        logger.info("risk_policy: loaded %r from %s", str(spec.get("name")), source)
+        resolution = PolicyResolution(
+            policy=RulePolicy.from_spec(spec), source=source, illustrative=False
+        )
+    if resolution.policy.name == example_policy().name:
+        # A provider that hands back the example spec is still illustrative.
+        return PolicyResolution(policy=resolution.policy, source=source, illustrative=True)
+    return resolution
+
+
+def load_policy() -> RulePolicy:
+    """Resolve the calibrated policy; fall back to the example, loudly."""
+    return resolve_policy().policy
+
+
+def policy_report() -> dict[str, Any]:
+    """``{"name", "source", "illustrative"}`` for health/observability."""
+    return resolve_policy().describe()
+
+
+def require_calibrated_policy(*, strict: bool) -> PolicyResolution:
+    """Fail loudly when a strict deployment would score on the example.
+
+    Called at startup. ``strict`` (production) turns the silent-illustrative
+    failure mode into a refused start; non-strict only warns.
+    """
+    resolution = resolve_policy()
+    if not resolution.illustrative:
+        logger.info(
+            "risk_policy: calibrated %r from %s", resolution.policy.name, resolution.source
+        )
+        return resolution
+    if strict:
+        raise PolicyUnavailable(
+            "risk_policy: refusing to start — no calibrated provider "
+            f"({ENV_VAR} unset, no {ENTRY_POINT_GROUP!r} entry point); "
+            f"resolved {resolution.policy.name!r} from {resolution.source}. "
+            "Scores would be ILLUSTRATIVE."
+        )
+    logger.warning(
+        "risk_policy: scoring on the illustrative policy %r — not authoritative",
+        resolution.policy.name,
+    )
+    return resolution
 
 
 def reset_policy() -> None:
     """Drop the cached policy (tests and hot-reload)."""
-    load_policy.cache_clear()
+    resolve_policy.cache_clear()
 
 
 __all__ = [
@@ -252,7 +316,11 @@ __all__ = [
     "RiskPolicy",
     "RulePolicy",
     "example_policy",
+    "PolicyResolution",
     "load_policy",
+    "policy_report",
     "probe",
+    "require_calibrated_policy",
     "reset_policy",
+    "resolve_policy",
 ]

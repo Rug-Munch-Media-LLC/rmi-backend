@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
@@ -19,8 +19,12 @@ from app.domains.billing.x402_exact import ledger
 from app.domains.billing.x402_exact.catalog import all_endpoints
 from app.domains.billing.x402_exact.handlers import intel_scan, scanner_token, security_wallet
 
-if TYPE_CHECKING:
-    from app.domains.billing.x402_exact.models import ScanRequest, WalletRequest
+# Imported at runtime, not under TYPE_CHECKING: this module uses
+# ``from __future__ import annotations``, and FastAPI builds request-body
+# TypeAdapters from the endpoint annotations. A TYPE_CHECKING-only import
+# leaves ``ForwardRef(ScanRequest)`` unresolvable, which made
+# ``GET /openapi.json`` raise PydanticUserError.
+from app.domains.billing.x402_exact.models import ScanRequest, WalletRequest
 
 
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-paid"])

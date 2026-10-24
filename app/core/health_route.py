@@ -130,6 +130,10 @@ class HealthResponse(BaseModel):
     uptime_seconds: float
     stores: dict[str, dict[str, Any]]
     rag_pipeline: dict[str, Any] = {}
+    # Which scoring calibration answered: {"name", "source", "illustrative"}.
+    # A deployment scoring on the example policy is visible here, not inferred
+    # from a log line nobody reads.
+    risk_policy: dict[str, Any] = {}
 
     model_config = {"extra": "allow"}
     config_issues: list[dict[str, str]] = []
@@ -145,6 +149,16 @@ class ReadinessResponse(BaseModel):
 
 
 _START_TIME = time.monotonic()
+
+
+def _risk_policy_report() -> dict[str, Any]:
+    """Resolved scoring policy, degrading to a visible error (never silent)."""
+    try:
+        from app.domains.scanner.risk_policy import policy_report
+
+        return policy_report()
+    except Exception as exc:  # a broken provider is a health fact, not a crash
+        return {"name": None, "source": "error", "illustrative": True, "error": str(exc)[:200]}
 
 
 async def _check_rag_pipeline() -> dict[str, Any]:
@@ -262,5 +276,6 @@ async def health() -> HealthResponse:
         uptime_seconds=time.monotonic() - _START_TIME,
         stores=stores | degradation,
         rag_pipeline=rag_pipeline,
+        risk_policy=_risk_policy_report(),
         config_issues=config_issues,
     )

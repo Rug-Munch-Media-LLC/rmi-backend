@@ -7,7 +7,9 @@ without knowing which upstream answered.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from fastapi import Request
 
 from app.core.logging import get_logger
 from app.databus import databus
@@ -15,10 +17,14 @@ from app.domains.billing.x402_exact import idempotency
 from app.domains.billing.x402_exact.catalog import resolve
 from app.domains.billing.x402_exact.gate import require_paid
 
-if TYPE_CHECKING:
-    from fastapi import Request
-
-    from app.domains.billing.x402_exact.models import ScanRequest, WalletRequest
+# Imported at runtime, not under TYPE_CHECKING: this module uses
+# ``from __future__ import annotations``, so every annotation stays a string
+# until FastAPI/Pydantic resolves it against THIS module's globals. A
+# TYPE_CHECKING-only import leaves ``ForwardRef(ScanRequest)`` unresolvable as
+# soon as these handlers are registered as endpoints or introspected -- the
+# same class of bug that made ``GET /openapi.json`` return 500 from
+# ``x402_exact/router.py``.
+from app.domains.billing.x402_exact.models import ScanRequest, WalletRequest
 
 log = get_logger(__name__)
 
