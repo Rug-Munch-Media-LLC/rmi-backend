@@ -28,6 +28,7 @@ from app.core.health_env import (
     QDRANT_URL,
     _get_url,
 )
+from app.core.health_latency import classify_latency
 from app.core.logging import get_logger
 
 logger = get_logger("health_stores")
@@ -63,24 +64,37 @@ async def _get_http_client() -> httpx.AsyncClient:
 # ── Store check helpers ─────────────────────────────────────────
 
 
+STORE_TIMEOUT_S = 5.0
+
+
+def _probe_neo4j_value(driver: Any) -> Any:
+    """Blocking Neo4j probe. Runs in a worker thread, never on the event loop.
+
+    ``Driver.session()`` itself acquires a socket; doing it on the loop thread
+    froze every concurrent probe for the length of the Neo4j round trip (seen
+    at 8.4 s), which is what made redis and postgres look five seconds slow.
+    """
+    with driver.session() as session:
+        record = session.run("RETURN 1").single()
+    return None if record is None else record[0]
+
+
 async def _check_store(name: str, coro: Awaitable[dict[str, Any]]) -> dict[str, Any]:
-    """Run a health check and emit Prometheus metrics (if available)."""
+    """Run one probe and stamp ITS OWN latency, never the request's clock."""
     start = time.perf_counter()
     try:
-        result = await asyncio.wait_for(coro, timeout=5.0)
-        elapsed = time.perf_counter() - start
-        healthy = result.get("healthy", False)
-        if _HAS_METRICS:
-            HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
-            HEALTH_CHECK_STATUS.labels(store=name).set(1 if healthy else 0)
-        return result
-    except Exception as e:
-        logger.warning("_check_store_failed", error=str(e))
-        elapsed = time.perf_counter() - start
-        if _HAS_METRICS:
-            HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
-            HEALTH_CHECK_STATUS.labels(store=name).set(0)
-        return {"healthy": False, "error": str(e)[:200]}
+        result = await asyncio.wait_for(coro, timeout=STORE_TIMEOUT_S)
+    except Exception as e:  # asyncio.TimeoutError stringifies to ""
+        result = {
+            "healthy": False,
+            "error": str(e)[:200] or f"timeout after {STORE_TIMEOUT_S}s",
+        }
+    elapsed = time.perf_counter() - start
+    result = classify_latency(result, int(elapsed * 1000))
+    if _HAS_METRICS:
+        HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
+        HEALTH_CHECK_STATUS.labels(store=name).set(1 if result.get("healthy") else 0)
+    return result
 
 
 async def _check_redis() -> dict[str, Any]:
@@ -135,9 +149,8 @@ async def _check_neo4j() -> dict[str, Any]:
 
         if _driver is None:
             return {"healthy": False, "error": "Neo4j not configured (no NEO4J_PASSWORD set)"}
-        with _driver.session() as session:
-            val = await asyncio.wait_for(asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=5.0)
-        return {"healthy": val[0] == 1}
+        val = await asyncio.wait_for(asyncio.to_thread(_probe_neo4j_value, _driver), timeout=4.0)
+        return {"healthy": val == 1}
     except Exception as e:
         logger.warning("_check_neo4j_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}

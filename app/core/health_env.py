@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import os
 
+from app.core.health_dsn import postgres_dsn
+
 # ── Environment ──────────────────────────────────────────────────
 _ENV = os.getenv("ENVIRONMENT", "production").lower()
 _IS_DEV = _ENV in ("dev", "development", "local", "test")
@@ -55,8 +57,8 @@ RETH_URL = _get_url(
 # Fallback constants used by inline os.getenv() in the check functions.
 # These mirror the _get_url pattern so module-level validation can
 # inspect them without duplicating the URL logic.
-_DATABASE_URL_DOCKER = "postgresql://rmi:***@rmi-postgres:5432/rmi"
-_DATABASE_URL_DEV = "postgresql://rmi:***@127.0.0.1:5432/rmi"
+_DATABASE_URL_DOCKER = postgres_dsn("rmi-postgres")
+_DATABASE_URL_DEV = postgres_dsn("127.0.0.1")
 _NEO4J_URI_DOCKER = "bolt://rmi-neo4j:7687"
 _NEO4J_URI_DEV = "bolt://localhost:7687"
 _REDIS_URL_DOCKER = "redis://rmi-redis:6379/0"
