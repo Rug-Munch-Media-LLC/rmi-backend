@@ -27,6 +27,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from app.core.chain_names import normalize_chain as _normalize_chain
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.lite_chain_indexer")
@@ -151,32 +152,8 @@ async def _run_sync(fn, *args, **kwargs):
 
 # ── CHAIN MAP: normalize chain names to ClickHouse format ─────────────────
 
-_CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum",
-    "eth": "ethereum",
-    "mainnet": "ethereum",
-    "bsc": "bsc",
-    "bnb": "bsc",
-    "binance": "bsc",
-    "polygon": "polygon",
-    "matic": "polygon",
-    "arbitrum": "arbitrum",
-    "arb": "arbitrum",
-    "optimism": "optimism",
-    "op": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-    "avax": "avalanche",
-    "fantom": "fantom",
-    "ftm": "fantom",
-    "gnosis": "gnosis",
-    "xdai": "gnosis",
-}
 
 
-def _normalize_chain(chain: str) -> str:
-    """Normalize chain name to ClickHouse format. Returns '' if unknown."""
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
 # ═══════════════════════════════════════════════════════════════════════════

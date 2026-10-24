@@ -47,6 +47,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from app.core.chain_names import normalize_chain as _normalize_chain
+
 try:
     from clickhouse_driver.errors import Error as CHDriverError
 except ImportError:  # pragma: no cover
@@ -75,29 +77,8 @@ _SECURITY_CACHE_MAX = 200
 _ch_local = threading.local()
 
 # ── Chain normalization ───────────────────────────────────────────────────
-_CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum",
-    "eth": "ethereum",
-    "mainnet": "ethereum",
-    "bsc": "bsc",
-    "bnb": "bsc",
-    "binance": "bsc",
-    "polygon": "polygon",
-    "matic": "polygon",
-    "arbitrum": "arbitrum",
-    "arb": "arbitrum",
-    "optimism": "optimism",
-    "op": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-    "avax": "avalanche",
-    "fantom": "fantom",
-    "ftm": "fantom",
-}
 
 
-def _normalize_chain(chain: str) -> str:
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
 def _get_ch_client() -> Any | None:

@@ -36,6 +36,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from app.core.chain_names import normalize_chain as _normalize_chain
 from app.domains.scanner.engines._logging import get_logger
 
 logger = get_logger(__name__)
@@ -46,26 +47,6 @@ _PRICE_CACHE_TTL = 60  # seconds — prices change faster than DEX data
 _PRICE_CACHE_MAX = 200
 
 # ── Chain normalization ─────────────────────────────────────────────────
-_CHAIN_MAP: dict[str, str] = {
-    "ethereum": "ethereum",
-    "eth": "ethereum",
-    "mainnet": "ethereum",
-    "bsc": "bsc",
-    "bnb": "bsc",
-    "binance": "bsc",
-    "polygon": "polygon",
-    "matic": "polygon",
-    "arbitrum": "arbitrum",
-    "arb": "arbitrum",
-    "optimism": "optimism",
-    "op": "optimism",
-    "base": "base",
-    "avalanche": "avalanche",
-    "avax": "avalanche",
-    "fantom": "fantom",
-    "ftm": "fantom",
-    "solana": "solana",
-}
 
 # CoinGecko platform IDs for fallback
 _COINGECKO_CHAIN_MAP: dict[str, str] = {
@@ -93,8 +74,6 @@ _DEFILLAMA_CHAIN_MAP: dict[str, str] = {
 }
 
 
-def _normalize_chain(chain: str) -> str:
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
 
 
 # ═══════════════════════════════════════════════════════════════════════════
