@@ -34,8 +34,9 @@ logger = get_logger("health_stores")
 
 try:
     from app.core.metrics import HEALTH_CHECK_DURATION, HEALTH_CHECK_STATUS
-except (ImportError, ModuleNotFoundError):
+except (ImportError, ModuleNotFoundError) as exc:
     # prometheus_client may not be installed — health endpoints must still work
+    logger.debug("module_failed", error=str(exc))
     _HAS_METRICS = False
     HEALTH_CHECK_DURATION = None  # type: ignore[assignment]
     HEALTH_CHECK_STATUS = None  # type: ignore[assignment]
@@ -74,6 +75,7 @@ async def _check_store(name: str, coro: Awaitable[dict[str, Any]]) -> dict[str, 
             HEALTH_CHECK_STATUS.labels(store=name).set(1 if healthy else 0)
         return result
     except Exception as e:
+        logger.warning("_check_store_failed", error=str(e))
         elapsed = time.perf_counter() - start
         if _HAS_METRICS:
             HEALTH_CHECK_DURATION.labels(store=name).set(elapsed)
@@ -91,6 +93,7 @@ async def _check_redis() -> dict[str, Any]:
         await asyncio.wait_for(client.ping(), timeout=5.0)
         return {"healthy": True}
     except Exception as e:
+        logger.warning("_check_redis_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}
 
 
@@ -113,6 +116,7 @@ async def _check_postgres() -> dict[str, Any]:
         await conn.close()
         return {"healthy": True}
     except Exception as e:
+        logger.warning("_check_postgres_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}
 
 
@@ -120,7 +124,8 @@ async def _check_neo4j() -> dict[str, Any]:
     try:
         try:
             from app.core.neo4j_connection import _driver
-        except ImportError:
+        except ImportError as exc:
+            logger.debug("_check_neo4j_failed", error=str(exc))
             from neo4j import GraphDatabase
 
             uri = os.getenv("NEO4J_URI") or os.getenv("NEO4J_URL") or (_NEO4J_URI_DEV if _IS_DEV else _NEO4J_URI_DOCKER)
@@ -134,6 +139,7 @@ async def _check_neo4j() -> dict[str, Any]:
             val = await asyncio.wait_for(asyncio.to_thread(lambda: session.run("RETURN 1").single()), timeout=5.0)
         return {"healthy": val[0] == 1}
     except Exception as e:
+        logger.warning("_check_neo4j_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}
 
 
@@ -149,6 +155,7 @@ async def _check_qdrant() -> dict[str, Any]:
             "details": {"version": data.get("version", "unknown")},
         }
     except Exception as e:
+        logger.warning("_check_qdrant_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}
 
 
@@ -188,6 +195,7 @@ async def _check_clickhouse() -> dict[str, Any]:
             "details": {"rmi_db_exists": "rmi" in dbs, "databases": dbs},
         }
     except Exception as e:
+        logger.warning("_check_clickhouse_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}
 
 
@@ -205,6 +213,7 @@ async def _check_minio() -> dict[str, Any]:
         resp = await client.get(f"{MINIO_URL.rstrip(chr(47))}/minio/health/live")
         return {"healthy": resp.status_code == 200, "details": {"status_code": resp.status_code}}
     except Exception as e:
+        logger.warning("_check_minio_failed", error=str(e))
         return {"healthy": False, "status": "unavailable", "error": str(e)[:200]}
 
 
@@ -221,6 +230,7 @@ async def _check_reth() -> dict[str, Any]:
         block_num = int(block_hex, 16) if block_hex.startswith("0x") else 0
         return {"healthy": block_num > 0, "details": {"block_number": block_num}}
     except Exception as e:
+        logger.warning("_check_reth_failed", error=str(e))
         return {"healthy": False, "error": str(e)[:200]}
 
 
@@ -260,6 +270,7 @@ async def _check_degenfeed() -> dict[str, Any]:
                 "details": {"protocols": protocols, "status_code": resp.status_code},
             }
     except Exception as e:
+        logger.warning("_check_degenfeed_failed", error=str(e))
         return {
             "healthy": True,
             "status": "unavailable",
@@ -302,6 +313,7 @@ async def _check_phoenix() -> dict[str, Any]:
             "details": {"status_code": resp.status_code, "ui_url": base_url},
         }
     except Exception as e:
+        logger.warning("_check_phoenix_failed", error=str(e))
         return {
             "healthy": True,
             "status": "unavailable",
@@ -334,5 +346,6 @@ def _get_degradation_section() -> dict[str, Any]:
         from app.core.degradation import get_degradation_health
 
         return {"degradation": get_degradation_health()}
-    except (AttributeError, ImportError):
+    except (AttributeError, ImportError) as exc:
+        logger.debug("_get_degradation_section_failed", error=str(exc))
         return {}

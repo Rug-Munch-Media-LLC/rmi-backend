@@ -34,22 +34,23 @@ References
 
 from __future__ import annotations
 
-import logging
 import os
 import re
 from typing import Any, cast
 from urllib.parse import quote
 
+from app.core.logging import get_logger
 from app.osint import OsintFinding, OsintNotAvailable, OsintReport
+
+logger = get_logger(__name__)
 
 try:
     import httpx as _httpx
-except ImportError:  # pragma: no cover — httpx is a runtime dependency of the backend
+except ImportError as exc:  # pragma: no cover — httpx is a runtime dependency of the backend
+    logger.debug("module_failed", error=str(exc))
     _httpx = None  # type: ignore[assignment]
 
 httpx: Any = _httpx
-
-logger = logging.getLogger(__name__)
 
 # ─── Tunables ────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ def lookup_email(email: str, *, timeout: int = 60) -> OsintReport:
         return report
 
     per_source = max(5.0, min(float(timeout), 20.0))
-    logger.debug("email OSINT lookup for %s (per-source timeout %.1fs)", email, per_source)
+    logger.debug("email_osint_lookup", email=email, per_source_timeout=per_source)
 
     _hibp_breaches(email, report, per_source)
     _hibp_pastes(email, report, per_source)
@@ -161,9 +162,11 @@ def _hibp_breaches(email: str, report: OsintReport, timeout: float) -> None:
     try:
         payload = _get_json(url, headers=_hibp_headers(), timeout=timeout, params={"truncateResponse": "false"})
     except httpx.HTTPStatusError as exc:
+        logger.warning("_hibp_breaches_failed", error=str(exc))
         _record_http_error(report, "hibp", exc)
         return
     except httpx.RequestError as exc:
+        logger.warning("_hibp_breaches_failed", error=str(exc))
         report.errors.append(f"hibp: request failed: {exc}")
         return
 
@@ -177,9 +180,11 @@ def _hibp_pastes(email: str, report: OsintReport, timeout: float) -> None:
     try:
         payload = _get_json(url, headers=_hibp_headers(), timeout=timeout)
     except httpx.HTTPStatusError as exc:
+        logger.warning("_hibp_pastes_failed", error=str(exc))
         _record_http_error(report, "hibp", exc)
         return
     except httpx.RequestError as exc:
+        logger.warning("_hibp_pastes_failed", error=str(exc))
         report.errors.append(f"hibp: request failed: {exc}")
         return
 
@@ -207,9 +212,11 @@ def _emailrep(email: str, report: OsintReport, timeout: float) -> None:
     try:
         payload = _get_json(url, headers=_emailrep_headers(), timeout=timeout)
     except httpx.HTTPStatusError as exc:
+        logger.warning("_emailrep_failed", error=str(exc))
         _record_http_error(report, "emailrep", exc)
         return
     except httpx.RequestError as exc:
+        logger.warning("_emailrep_failed", error=str(exc))
         report.errors.append(f"emailrep: request failed: {exc}")
         return
 

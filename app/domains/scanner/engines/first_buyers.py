@@ -104,7 +104,8 @@ def _iso(ts: Any) -> str | None:
         if hasattr(ts, "tzinfo") and ts.tzinfo is None:
             return str(ts.replace(tzinfo=UTC).isoformat())
         return str(ts.isoformat())
-    except (ValueError, TypeError, AttributeError):
+    except (ValueError, TypeError, AttributeError) as exc:
+        logger.debug("_iso_failed", error=str(exc))
         return None
 
 
@@ -136,7 +137,7 @@ def _query_recent_transfer_count(token_address: str, chain: str) -> int | None:
         )
         return int(rows[0][0] or 0) if rows else 0
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("first_buyers_transfer_count_failed: %s", exc)
+        logger.debug("first_buyers_transfer_count_failed", error=str(exc))
         return None
 
 
@@ -162,7 +163,7 @@ def _query_token_launch_ts(token_address: str, chain: str) -> Any | None:
         )
         return rows[0][0] if rows and rows[0][0] is not None else None
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("first_buyers_launch_ts_failed: %s", exc)
+        logger.debug("first_buyers_launch_ts_failed", error=str(exc))
         return None
 
 
@@ -215,7 +216,7 @@ def _query_first_buyers_evm(token_address: str, chain: str, limit: int) -> list[
             },
         )
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("first_buyers_evm_query_failed: %s", exc)
+        logger.debug("first_buyers_evm_query_failed", error=str(exc))
         return None
 
 
@@ -249,7 +250,7 @@ def _query_first_buyers_solana(mint: str, limit: int) -> list[tuple[Any, ...]] |
             settings={"max_execution_time": _QUERY_TIMEOUT_S},
         )
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("first_buyers_solana_query_failed: %s", exc)
+        logger.debug("first_buyers_solana_query_failed", error=str(exc))
         return None
 
 
@@ -271,7 +272,7 @@ def _query_wallet_births_evm(buyers: tuple[str, ...], chain: str) -> dict[str, A
         )
         return {str(r[0]): r[1] for r in rows}
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("wallet_births_evm_failed: %s", exc)
+        logger.debug("wallet_births_evm_failed", error=str(exc))
         return {}
 
 
@@ -293,7 +294,7 @@ def _query_wallet_births_solana(buyers: tuple[str, ...]) -> dict[str, Any]:
         )
         return {str(r[0]): r[1] for r in rows}
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("wallet_births_solana_failed: %s", exc)
+        logger.debug("wallet_births_solana_failed", error=str(exc))
         return {}
 
 
@@ -325,7 +326,8 @@ def _parse_solana_balance_deltas(tx_data: dict[str, Any], mint: str) -> list[tup
     def _idx(bal: dict[str, Any]) -> int:
         try:
             return int(bal.get("accountIndex", -1))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("_idx_failed", error=str(exc))
             return -1
 
     pre_map = {_idx(b): b for b in pre_balances if b.get("mint") == mint}
@@ -342,7 +344,8 @@ def _parse_solana_balance_deltas(tx_data: dict[str, Any], mint: str) -> list[tup
         def _amount(bal: dict[str, Any]) -> int:
             try:
                 return int((bal.get("uiTokenAmount") or {}).get("amount") or 0)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as exc:
+                logger.debug("_amount_failed", error=str(exc))
                 return 0
 
         change = _amount(post) - _amount(pre)
@@ -357,7 +360,8 @@ def _ts_to_dt(epoch: float) -> Any:
         return None
     try:
         return datetime.fromtimestamp(epoch, tz=UTC)
-    except (OverflowError, OSError, ValueError, TypeError):
+    except (OverflowError, OSError, ValueError, TypeError) as exc:
+        logger.debug("_ts_to_dt_failed", error=str(exc))
         return None
 
 
@@ -386,7 +390,7 @@ async def _rpc_first_buyers_solana(mint: str, limit: int) -> list[tuple[Any, ...
             timeout=_QUERY_TIMEOUT_S,
         )
     except Exception as exc:  # fail-open by contract
-        logger.debug("first_buyers_solana_rpc_sigs_failed: %s", str(exc)[:120])
+        logger.debug("first_buyers_solana_rpc_sigs_failed", error=str(exc)[:120])
         return None
     if not isinstance(data, dict):
         return None
@@ -408,7 +412,7 @@ async def _rpc_first_buyers_solana(mint: str, limit: int) -> list[tuple[Any, ...
                 timeout=_QUERY_TIMEOUT_S,
             )
         except Exception as exc:  # fail-open per tx
-            logger.debug("first_buyers_solana_rpc_tx_failed: %s", str(exc)[:120])
+            logger.debug("first_buyers_solana_rpc_tx_failed", error=str(exc)[:120])
             continue
         if not isinstance(tx_data, dict) or not isinstance(tx_data.get("result"), dict):
             continue
@@ -416,7 +420,8 @@ async def _rpc_first_buyers_solana(mint: str, limit: int) -> list[tuple[Any, ...
         slot = int(sig_info.get("slot") or 0)
         try:
             ts = float(tx.get("blockTime") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("_rpc_first_buyers_solana_failed", error=str(exc))
             ts = 0.0
         for owner, change in _parse_solana_balance_deltas(tx, mint):
             if change <= 0:
@@ -458,7 +463,8 @@ def _bundle_flags(timestamps: list[Any]) -> set[int]:
     for idx, ts in enumerate(timestamps):
         try:
             epoch = ts.timestamp() if hasattr(ts, "timestamp") else float(ts)
-        except (TypeError, ValueError, OSError):
+        except (TypeError, ValueError, OSError) as exc:
+            logger.debug("_bundle_flags_failed", error=str(exc))
             continue
         buckets.setdefault(int(epoch // _BUNDLE_WINDOW_S), []).append(idx)
     flagged: set[int] = set()
@@ -482,7 +488,8 @@ def analyze_first_buyers_rows(rows: list[tuple[Any, ...]], births: dict[str, Any
         if birth is not None:
             try:
                 age = abs((ts - birth).total_seconds())
-            except (TypeError, AttributeError, ValueError):
+            except (TypeError, AttributeError, ValueError) as exc:
+                logger.debug("analyze_first_buyers_rows_failed", error=str(exc))
                 age = None
         buyers.append(
             {
@@ -508,7 +515,8 @@ def analyze_first_buyers_rows(rows: list[tuple[Any, ...]], births: dict[str, Any
         try:
             launch = min(known_ts)
             latencies = [(ts - launch).total_seconds() for ts in known_ts if hasattr(ts, "timestamp")]
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("analyze_first_buyers_rows_failed", error=str(exc))
             latencies = []
     return {
         "buyers": buyers,
@@ -562,7 +570,8 @@ async def get_first_buyers(address: str, chain: str, limit: int = FIRST_BUYERS_L
             if launch_ts is not None:
                 try:
                     is_new_token = (datetime.now(UTC) - launch_ts).total_seconds() < _NEW_TOKEN_MAX_AGE_S
-                except (TypeError, ValueError, AttributeError):
+                except (TypeError, ValueError, AttributeError) as exc:
+                    logger.debug("get_first_buyers_failed", error=str(exc))
                     is_new_token = False
             if not is_new_token:
                 note = f"token too large for first-buyers analysis (>{_LARGE_TOKEN_RECENT_TRANSFERS} recent transfers)"

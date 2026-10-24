@@ -91,7 +91,8 @@ class BlockchairClient:
         try:
             response = httpx.get(f"{BLOCKCHAIR_API}/bitcoin/stats", timeout=5)
             return response.status_code == 200
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
+            logger.warning("_check_availability_failed", error=str(exc))
             return False
 
     def _extract(self, data: Any, *keys: str) -> Any:
@@ -112,6 +113,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return self._extract(data, "data", "stats") or {}
         except _StaleResultAvailable as stale:
+            logger.warning("get_chain_stats_failed", error=str(stale))
             return stale.result.get("data", {}).get("stats", {})
         except CircuitBreakerOpenError:
             raise
@@ -128,6 +130,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return data["data"][address]
         except _StaleResultAvailable as stale:
+            logger.warning("get_address_info_failed", error=str(stale))
             return _extract_data(stale.result, address)
         except CircuitBreakerOpenError:
             raise
@@ -144,6 +147,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return data["data"][tx_hash]
         except _StaleResultAvailable as stale:
+            logger.warning("get_transaction_failed", error=str(stale))
             return _extract_data(stale.result, tx_hash)
         except CircuitBreakerOpenError:
             raise
@@ -160,6 +164,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return data.get("data", {})
         except _StaleResultAvailable as stale:
+            logger.warning("search_failed", error=str(stale))
             return _extract_data(stale.result, "data") or {}
         except CircuitBreakerOpenError:
             raise
@@ -176,6 +181,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return data.get("data", [])
         except _StaleResultAvailable as stale:
+            logger.warning("get_blocks_failed", error=str(stale))
             return stale.result.get("data", [])
         except CircuitBreakerOpenError:
             raise
@@ -192,6 +198,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return data.get("data", {})
         except _StaleResultAvailable as stale:
+            logger.warning("get_mempool_failed", error=str(stale))
             return stale.result.get("data", {})
         except CircuitBreakerOpenError:
             raise
@@ -208,6 +215,7 @@ class BlockchairClient:
             _blockchair_cb.set_stale_result(data)
             return data.get("data")
         except _StaleResultAvailable as stale:
+            logger.warning("get_block_failed", error=str(stale))
             return stale.result.get("data")
         except CircuitBreakerOpenError:
             raise
