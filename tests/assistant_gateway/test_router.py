@@ -1,3 +1,4 @@
+# ruff: noqa: TC001, TC002
 """Router behaviour: refusals, citations, streaming, rate limit, matrix."""
 
 from __future__ import annotations

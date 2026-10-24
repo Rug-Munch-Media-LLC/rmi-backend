@@ -1,3 +1,4 @@
+# ruff: noqa: TC001
 """Bounded server-side tool loop for the page assistant.
 
 The loop re-checks the alias grant on every model-issued call (the model is not

@@ -1,3 +1,4 @@
+# ruff: noqa: TC001
 """Prompt assembly — server-owned system prompt, data-only page context."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# ruff: noqa: TC003
 """LiteLLM (OpenAI-compatible) upstream client.
 
 This is the only module that knows the provider base URL. The browser never

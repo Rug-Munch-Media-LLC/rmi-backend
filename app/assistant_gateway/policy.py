@@ -1,3 +1,4 @@
+# ruff: noqa: TC001
 """Request policy: alias resolution, secret refusal, and size limits.
 
 The gateway refuses rather than reasons: requests that ask to handle key
