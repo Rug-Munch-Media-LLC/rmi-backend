@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
 from app.core.chain_names import normalize_chain
+from app.core.threads import run_in_thread
+from app.domains.scanner.engines._ch_registry import thread_client
 from app.domains.scanner.engines._logging import get_logger
 
 # Backwards-compatible alias: callers import _normalize_chain from here.
@@ -67,43 +70,18 @@ def _get_pools_for_token(pair_cache: dict[str, tuple[str, str]], token_address: 
 
 
 def _get_ch_client() -> Any | None:
-    """Lazy-init ClickHouse native client for wallet_memory database."""
+    """Return this thread's ClickHouse client (the sync driver is not thread-safe)."""
     global _ch_client
-    if _ch_client is not None:
-        return _ch_client
-
-    ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT") or "9000")
-    ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
-    ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
-    ch_db = "wallet_memory"
-
-    try:
-        from clickhouse_driver import Client as CHClient
-
-        _ch_client = CHClient(
-            host=ch_host,
-            port=ch_port,
-            user=ch_user,
-            password=ch_pass,
-            database=ch_db,
-            connect_timeout=3,
-            send_receive_timeout=15,
-        )
-        _ch_client.execute("SELECT 1")
-        logger.info("Own DEX data ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
-        return _ch_client
-    except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError) as e:
-        logger.warning("Own DEX data ClickHouse unavailable: %s", e)
-        _ch_client = None
-        return None
+    client = thread_client("own_dex_data")
+    if client is not None and threading.current_thread() is threading.main_thread():
+        _ch_client = client
+    return client
 
 
 async def _run_sync(fn, *args, **kwargs):
     """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    import asyncio
 
-    return await asyncio.to_thread(fn, *args, **kwargs)
+    return await run_in_thread(fn, *args, **kwargs)
 
 
 # ── Chain name normalization ──

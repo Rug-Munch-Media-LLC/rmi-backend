@@ -29,6 +29,7 @@ from typing import Any
 
 from app.core.chain_names import normalize_chain as _normalize_chain
 from app.core.logging import get_logger
+from app.core.threads import run_in_thread
 
 logger = get_logger("databus.providers.lite_chain_indexer")
 
@@ -145,9 +146,8 @@ def _get_ch_client() -> Any | None:
 
 async def _run_sync(fn, *args, **kwargs):
     """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    import asyncio
 
-    return await asyncio.to_thread(fn, *args, **kwargs)
+    return await run_in_thread(fn, *args, **kwargs)
 
 
 # ── CHAIN MAP: normalize chain names to ClickHouse format ─────────────────

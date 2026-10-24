@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import math
 import os
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -49,6 +50,7 @@ try:
 except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
+from app.domains.scanner.engines._ch_registry import thread_client
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
     get_cache_stats as _common_get_cache_stats,
@@ -85,36 +87,12 @@ _redis_client: Any = None
 
 
 def _get_ch_client() -> Any | None:
-    """Lazy-init ClickHouse native client for the wallet_memory database."""
+    """Return this thread's ClickHouse client (the sync driver is not thread-safe)."""
     global _ch_client
-    if _ch_client is not None:
-        return _ch_client
-
-    ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT") or "9000")
-    ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
-    ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
-    ch_db = "wallet_memory"
-
-    try:
-        from clickhouse_driver import Client as CHClient
-
-        _ch_client = CHClient(
-            host=ch_host,
-            port=ch_port,
-            user=ch_user,
-            password=ch_pass,
-            database=ch_db,
-            connect_timeout=3,
-            send_receive_timeout=15,
-        )
-        _ch_client.execute("SELECT 1")
-        logger.info("price_oracle ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
-        return _ch_client
-    except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError, CHDriverError) as exc:
-        logger.warning("price_oracle ClickHouse unavailable: %s", exc)
-        _ch_client = None
-        return None
+    client = thread_client("price_oracle")
+    if client is not None and threading.current_thread() is threading.main_thread():
+        _ch_client = client
+    return client
 
 
 async def ensure_token_meta_table() -> bool:

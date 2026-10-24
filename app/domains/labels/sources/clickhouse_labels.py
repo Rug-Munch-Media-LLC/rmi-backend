@@ -27,6 +27,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
+from app.core.threads import run_in_thread
 from app.domains.labels.models import Label, LabelSource
 
 log = get_logger(__name__)
@@ -235,6 +236,5 @@ def _category_to_type(category: str, subtype: str = "") -> str:
 
 async def asyncio_to_thread(fn, *args, **kwargs):
     """Run sync function in thread pool (avoids import at top level)."""
-    import asyncio
 
-    return await asyncio.to_thread(fn, *args, **kwargs)
+    return await run_in_thread(fn, *args, **kwargs)
