@@ -146,6 +146,11 @@ from app.routers.v1.market import router as market_v1_router  # noqa: E402 — m
 
 v1_router.include_router(market_v1_router)
 
+# Token icons — validated https resolution + self-hosted branded fallback PNG
+from app.token_icons.router import router as token_icons_router  # noqa: E402 — module docstring precedes import block
+
+v1_router.include_router(token_icons_router)
+
 # Premium features — per-token watches, the diff cycle, the versioned scan
 # export, and the webhook contract. Paths are declared without a version prefix
 # inside the domain router, so they land at /api/v1/watch, /api/v1/scan/{token}.json
