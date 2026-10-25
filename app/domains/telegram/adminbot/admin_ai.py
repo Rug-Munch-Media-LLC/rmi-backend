@@ -11,6 +11,7 @@ import logging
 import os
 import subprocess
 import time
+from importlib import import_module
 from typing import Any
 
 from app.domains.telegram.adminbot import owner_persona
@@ -194,19 +195,19 @@ async def chat(
     }
 
 
-def __getattr__(name: str):
-    """Lazy re-exports.
+def __getattr__(name: str) -> Any:
+    """Lazy re-exports onto ``admin_ai``.
 
-    ai_keyboard imports MODELS from this module, so importing model_keyboard at
-    module scope is circular. _cmd_ops calls admin_ai.model_keyboard() and
-    ai_gateway calls admin_ai.get_usage(); resolve both on first access.
+    Callers (tg handlers and their tests) address ``admin_ai.<fn>`` for
+    functions that live in ``ai_keyboard`` / ``ai_session`` (this module is
+    split at the 200-line structure gate). Both submodules import ``MODELS``
+    from here, so a module-scope import would be circular - resolve on first
+    access instead. One canonical implementation, no duplicated logic.
     """
-    if name == "model_keyboard":
-        from app.domains.telegram.adminbot.ai_keyboard import model_keyboard
-
-        return model_keyboard
-    if name == "get_usage":
-        from app.domains.telegram.adminbot.ai_session import get_usage
-
-        return get_usage
+    for submodule in ("ai_session", "ai_keyboard"):
+        module = import_module(f"{__package__}.{submodule}")
+        try:
+            return getattr(module, name)
+        except AttributeError:
+            continue
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

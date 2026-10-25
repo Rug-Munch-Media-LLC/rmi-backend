@@ -132,13 +132,10 @@ def test_finalize_deterministic_never_downgraded() -> None:
 
 
 def test_load_accounts_registry() -> None:
+    """Hermetic: the registry file is private and gitignored - assert shape only."""
     accounts = load_accounts()
-    assert len(accounts) > 200
-    handles = {a["handle"] for a in accounts}
-    assert "VitalikButerin" in handles
-    vitalik = next(a for a in accounts if a["handle"] == "VitalikButerin")
-    assert vitalik["name"] == "Vitalik Buterin"
-    assert vitalik["category"] == "founder"
+    assert accounts
+    assert all(isinstance(a.get("handle"), str) and a["handle"] for a in accounts)
 
 
 def test_wallet_link_to_dict() -> None:

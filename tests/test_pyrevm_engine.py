@@ -453,7 +453,7 @@ def test_simulate_amount_defaults_to_whole_token(mock_evm_rpc, monkeypatch) -> N
 
     def fake_sim(request):
         chain, token, cfg, amount = (request.chain, request.token_address, request.chain_cfg, request.amount)
-        pair, _timeout = request.pair_address, request._timeout
+        pair, _timeout = request.pair_address, request.timeout
         captured.update(chain=chain, token=token, cfg=cfg, amount=amount, pair=pair)
         return pe.SellSimulationResult(token_address=token, chain=chain, simulation_success=True)
 
