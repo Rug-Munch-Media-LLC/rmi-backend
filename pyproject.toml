@@ -67,7 +67,6 @@ dependencies = [
     "rapidocr-onnxruntime==1.4.4",  # OCR (app/ocr_utils.py)
     # Merged from requirements.txt (2026-09-05) — pyproject.toml is now the
     # single source of truth; requirements.txt is just `-e .`.
-    "uvicorn[standard]>=0.32.0",
     "rapidfuzz>=3.14.0",
     "python-telegram-bot[job-queue]>=21.0",
     "pillow>=10.0.0",
