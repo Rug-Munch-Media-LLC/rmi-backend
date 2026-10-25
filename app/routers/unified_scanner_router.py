@@ -14,12 +14,12 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, model_validator
 
+from app.config import settings
 from app.core.errors import AppError
 from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
-from app.features import get_token_scanner, get_wallet_scanner
-from app.config import settings
 from app.domains.scanner.read_side import fetch_read_side
+from app.features import get_token_scanner, get_wallet_scanner
 
 if TYPE_CHECKING:
     from app.domains.scanner.unified import UnifiedTokenScanner

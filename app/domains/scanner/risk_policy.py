@@ -312,11 +312,11 @@ def reset_policy() -> None:
 __all__ = [
     "ENTRY_POINT_GROUP",
     "ENV_VAR",
+    "PolicyResolution",
     "PolicyUnavailable",
     "RiskPolicy",
     "RulePolicy",
     "example_policy",
-    "PolicyResolution",
     "load_policy",
     "policy_report",
     "probe",

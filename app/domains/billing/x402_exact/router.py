@@ -26,7 +26,6 @@ from app.domains.billing.x402_exact.handlers import intel_scan, scanner_token, s
 # ``GET /openapi.json`` raise PydanticUserError.
 from app.domains.billing.x402_exact.models import ScanRequest, WalletRequest
 
-
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-paid"])
 
 

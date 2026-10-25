@@ -105,7 +105,7 @@ def _alerts_status() -> str:
     client = redis.from_url(url, socket_timeout=3)
     try:
         return "\n".join(f"{key}: {client.llen(key)}" for key in QUEUE_KEYS) or "(no queues)"
-    except Exception as exc:  # noqa: BLE001 - surface the failure to the owner
+    except Exception as exc:
         return f"redis unavailable: {type(exc).__name__}: {str(exc)[:150]}"
     finally:
         client.close()
@@ -195,6 +195,6 @@ async def run_leaf(section: str, action: str) -> LeafResult:
         value = await asyncio.wait_for(asyncio.to_thread(leaf), timeout=LEAF_TIMEOUT_S)
     except TimeoutError:
         return LeafResult(f"⏱️ Timed out after {LEAF_TIMEOUT_S:.0f}s.")
-    except Exception as exc:  # noqa: BLE001 - the owner sees it, the log keeps the trace
+    except Exception as exc:
         return LeafResult(f"❌ {type(exc).__name__}: {str(exc)[:200]}")
     return value if isinstance(value, LeafResult) else LeafResult(str(value))
