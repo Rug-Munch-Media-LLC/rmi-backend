@@ -44,7 +44,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.core import health_rag
+from app.core import health_rag, health_status
 from app.core.health_env import (
     _DATABASE_URL_DEV,
     _DATABASE_URL_DOCKER,
@@ -214,57 +214,42 @@ async def readiness() -> JSONResponse:
 )
 async def health() -> HealthResponse:
     started = time.monotonic()
+    # Every probe is timed inside _check_store, so the timeout budget and the
+    # reported latency belong to the store that spent them. Do not wrap these
+    # in a second wait_for: an outer timeout that expires first mislabels the
+    # whole request's wall clock as the store's latency (it read 5078 ms on
+    # eight stores at once, then reported them healthy).
     store_checks = {
-        "redis": asyncio.wait_for(_check_store("redis", _check_redis()), timeout=5.0),
-        "postgres": asyncio.wait_for(_check_store("postgres", _check_postgres()), timeout=5.0),
-        "neo4j": asyncio.wait_for(_check_store("neo4j", _check_neo4j()), timeout=5.0),
-        "qdrant": asyncio.wait_for(_check_store("qdrant", _check_qdrant()), timeout=5.0),
-        "clickhouse": asyncio.wait_for(_check_store("clickhouse", _check_clickhouse()), timeout=5.0),
-        "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
-        "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
-        "degenfeed": asyncio.wait_for(_check_store("degenfeed", _check_degenfeed()), timeout=5.0),
-        "phoenix": asyncio.wait_for(_check_store("phoenix", _check_phoenix()), timeout=5.0),
+        "redis": _check_store("redis", _check_redis()),
+        "postgres": _check_store("postgres", _check_postgres()),
+        "neo4j": _check_store("neo4j", _check_neo4j()),
+        "qdrant": _check_store("qdrant", _check_qdrant()),
+        "clickhouse": _check_store("clickhouse", _check_clickhouse()),
+        "minio": _check_store("minio", _check_minio()),
+        "eth_rpc": _check_store("eth_rpc", _check_reth()),
+        "degenfeed": _check_store("degenfeed", _check_degenfeed()),
+        "phoenix": _check_store("phoenix", _check_phoenix()),
         "rag_pipeline": asyncio.wait_for(_check_rag_pipeline(), timeout=5.0),
     }
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
     stores = {}
     for (name, _), ref in zip(store_checks.items(), results, strict=False):
         if isinstance(ref, BaseException):
-            ref = {"healthy": False, "error": str(ref)[:200]}
-        if "latency_ms" not in ref:
-            ref["latency_ms"] = int((time.monotonic() - started) * 1000)
+            # Escaped _check_store entirely: it really did consume this much
+            # of the request, and it is not a healthy dependency.
+            ref = {
+                "healthy": False,
+                "error": str(ref)[:200] or type(ref).__name__,
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "latency_state": "unhealthy",
+            }
         stores[name] = ref
 
-    # RAG pipeline stats are observability, not a liveness gate — pull out of
-    # the store checks so they don't influence critical/degraded status.
-    rag_pipeline = dict(stores.pop("rag_pipeline", {}))
-    rag_pipeline.pop("latency_ms", None)
-    # Embed-aware: a degraded pipeline (embedder unavailable, or consumers
-    # running with no ingestion) must NOT report healthy just because the
-    # consumers are alive.
-    if rag_pipeline.get("status") == "degraded":
-        rag_pipeline["healthy"] = False
-    else:
-        rag_pipeline.setdefault(
-            "healthy", bool(rag_pipeline.get("poller_running") or rag_pipeline.get("subscriber_running"))
-        )
-    rag_pipeline.setdefault("queue_depth", 0)
-    rag_pipeline.setdefault("ingested_count", 0)
-
-    # Sync health check results with degradation registry (Win #14)
-    _sync_degradation_from_health(stores)
-
-    # Critical = redis or postgres down. Non-critical stores can be degraded.
-    critical_up = stores["redis"].get("healthy") and stores["postgres"].get("healthy")
-    # Exclude stores that were intentionally skipped or are unavailable
-    # (e.g. DegenFeed when its service is not deployed in this stack).
-    _non_critical_stores = [
-        s.get("healthy", False)
-        for n, s in stores.items()
-        if n not in ("redis", "postgres") and s.get("status") not in ("skipped", "unavailable")
-    ]
-    any_non_critical_down = not all(_non_critical_stores) if _non_critical_stores else False
-    status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
+    # RAG stats are observability, not a liveness gate; the verdict rules live
+    # in health_status so this handler stays a thin assembler.
+    rag_pipeline = health_status.finalize_rag_pipeline(stores)
+    _sync_degradation_from_health(stores)  # Win #14
+    status = health_status.compute_status(stores)
 
     # Include degradation info in response
     degradation = _get_degradation_section()
