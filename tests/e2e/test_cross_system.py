@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from fastapi.testclient import TestClient
 
+from tests.support.fake_credentials import fake_credential
+
 # E2E requires a deployed API (TEST_BASE_URL or localhost:8000) + healthy async
 # fixtures — runs in CI/staging, not as a hermetic push gate.
 pytestmark = pytest.mark.integration
@@ -384,7 +386,7 @@ class TestPaymentFlowE2E:
     @pytest.mark.e2e
     def test_buy_credits_sandbox_mode(self, client):
         """When Stripe is not configured, buying credits works in sandbox mode."""
-        api_key = "test-api-key-e2e-12345"
+        api_key = fake_credential("api_key", "e2e-purchase")
         resp = client.post(
             f"/api/v1/credits/buy?api_key={api_key}&amount_usd=5000",
         )
@@ -397,7 +399,7 @@ class TestPaymentFlowE2E:
     @pytest.mark.e2e
     def test_check_balance_after_purchase(self, client):
         """After buying credits, balance endpoint reflects the purchase."""
-        api_key = "test-api-key-balance-check"
+        api_key = fake_credential("api_key", "e2e-balance")
 
         # Buy credits
         client.post(f"/api/v1/credits/buy?api_key={api_key}&amount_usd=2000")

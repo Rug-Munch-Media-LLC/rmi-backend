@@ -18,6 +18,7 @@ Privacy properties under test:
 from unittest.mock import patch
 
 from app.core.rate_limiter import _get_daily_salt, _hash_identifier
+from tests.support.fake_credentials import fake_credential
 
 
 class TestHashIdentifier:
@@ -54,7 +55,7 @@ class TestHashIdentifier:
         evm = "0x28C6c06298d514Db13C5dB4F81F6f9cA52330b44"
         solana = "5FHwkrd9jFZu7wpd4j5xsFK7AzVNbWqY9vZ7Hrx9fMXz"  # 44 chars
         uuid = "550e8400-e29b-41d4-a716-446655440000"
-        api_key = "rmi_test_FAKE_KEY_xxxxxxxxxxxxxxxxxxxxxxxx"
+        api_key = fake_credential("api_key", "pii")
 
         for pii in (evm, solana, uuid, api_key):
             h = _hash_identifier(pii)

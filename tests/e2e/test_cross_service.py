@@ -51,7 +51,7 @@ pytestmark = pytest.mark.integration
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Shared API key for all requests (matches RMI_AUTH_TOKEN set above)
-API_KEY = "test-rmi-auth-token-e2e-1234567890abc"
+API_KEY = os.environ["RMI_AUTH_TOKEN"]
 
 
 @pytest.fixture(scope="module")
