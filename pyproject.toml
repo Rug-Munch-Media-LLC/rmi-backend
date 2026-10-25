@@ -46,7 +46,7 @@ dependencies = [
     "qdrant-client>=1.18.0",  # Official Qdrant client (RugMaps Phase 0, RAG)
     "structlog>=24.4.0",
     "langfuse>=3.0.0",
-    "PyJWT>=2.10.0",
+    "PyJWT>=2.15.0",
     "python-multipart>=0.0.17",
     "duckdb>=0.10.0",
     "tiktoken>=0.7.0",  # RAG chunking token counting (falls back to heuristic if absent)
@@ -54,7 +54,7 @@ dependencies = [
     "langgraph>=1.0.0",  # Agentic RAG orchestration (app/rag/graph.py)
     "langchain>=1.0.0",
     "langchain-openai>=1.0.0",
-    "pydantic-ai-slim[openai]>=2.27.0",  # Pydantic AI agent framework (app/agents); openai extra required by OpenAIChatModel
+    "pydantic-ai-slim[openai]>=2.53.0",  # Pydantic AI agent framework (app/agents); openai extra required by OpenAIChatModel
     # Exact pins (dev: pip install -e .; Docker build uses requirements.txt)
     "scalar-fastapi==1.8.2",  # Scalar OpenAPI docs UI for FastAPI
     "pyrevm==0.3.7",  # EVM runtime for contract simulation
@@ -69,10 +69,10 @@ dependencies = [
     # single source of truth; requirements.txt is just `-e .`.
     "rapidfuzz>=3.14.0",
     "python-telegram-bot[job-queue]>=21.0",
-    "pillow>=10.0.0",
+    "pillow>=10.0.0",  # DEFERRED: CVE-2026-96636..112406 fix is pillow 13.0.0 (major; 12->13) — separate PR
     "supabase>=2.0.0",
-    "python-jose[cryptography]>=3.4.0",
-    "aiohttp>=3.14.3",  # transitive-vuln floor: PYSEC-2026-3545/3546/3547
+    "python-jose[cryptography]>=3.4.0",  # PYSEC-2026-4298 has NO fixed version (upstream unmaintained; ecdsa CVE-2024-23342 unfixable)
+    "aiohttp>=3.14.4",  # transitive-vuln floor: PYSEC-2026-3545/3546/3547
     "feedparser>=6.0.11",
     "websockets>=13.0",
     "gunicorn>=23.0.0",
@@ -135,7 +135,7 @@ otel = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.30.0",
     "arize-phoenix-otel>=0.4.0",  # Phoenix (Arize) RAG observability (app/rag/tracing.py)
     # transitive-vuln floor: PYSEC-2026-3545/3546/3547 fixed in 3.14.2/3.14.3
-    "aiohttp>=3.14.3",
+    "aiohttp>=3.14.4",
 ]
 
 
