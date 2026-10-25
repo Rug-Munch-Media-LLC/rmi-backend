@@ -135,8 +135,8 @@ async def intelligence_dashboard() -> dict[str, Any]:
             )
             if resp.status_code == 200:
                 mempool_fees = resp.json()
-    except Exception:  # noqa: S110 — best-effort rate limiting
-        pass
+    except Exception as sh_exc:
+        logger.warning("silent_failure_intelligence_dashboard", handler="intelligence_dashboard", error=str(sh_exc))
 
     return {
         "fear_greed": {"current": fng_current, "history": fng_history},

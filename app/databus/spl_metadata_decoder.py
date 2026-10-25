@@ -408,8 +408,10 @@ async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None
                     meta = await fetch_metaplex_metadata(mint, rpc_url)
                     if meta:
                         result["metadata"] = meta
-                except (ConnectionError, OSError, TimeoutError):
-                    pass  # Metadata is optional
+                except (ConnectionError, OSError, TimeoutError) as exc:
+                    logger.warning(
+                        "silent_failure_decode_spl_token_metadata", handler="decode_spl_token_metadata", error=str(exc)
+                    )
 
                 return result
 

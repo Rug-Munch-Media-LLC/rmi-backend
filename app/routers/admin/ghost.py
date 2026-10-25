@@ -160,8 +160,10 @@ async def ghost_analytics(request: Request, _=Depends(verify_admin)) -> dict[str
                                 pub_dt = datetime.fromisoformat(pub_at.replace("Z", "+00:00"))
                                 if pub_dt >= month_start:
                                     posts_this_month += 1
-                            except Exception:  # noqa: S110 — intentional best-effort
-                                pass
+                            except Exception as sh_exc:
+                                logger.warning(
+                                    "silent_failure_ghost_analytics", handler="ghost_analytics", error=str(sh_exc)
+                                )
         return {
             "total_posts": total_posts,
             "posts_this_month": posts_this_month,

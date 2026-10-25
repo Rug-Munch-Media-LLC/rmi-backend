@@ -398,8 +398,8 @@ def fetch_nitter(db_r=None) -> Any:
                         }
                     )
                 logger.info(f"  @{username}: {len([r for r in results if r['source'] == username])} tweets")
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                pass  # Try next instance
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+                logger.warning("silent_failure_fetch_nitter", handler="fetch_nitter", error=str(exc))
     return results
 
 

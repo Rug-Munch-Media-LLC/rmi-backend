@@ -39,8 +39,8 @@ def _get_redis_url() -> str:
         candidate = (_s.redis_url or "").strip()
         if candidate and "localhost" not in candidate and "127.0.0.1" not in candidate:
             url = candidate
-    except Exception:  # noqa: S110 — optional dependency
-        pass
+    except Exception as sh_exc:
+        logger.warning("silent_failure_get_redis_url", handler="_get_redis_url", error=str(sh_exc))
     if not url:
         url = os.getenv("REDIS_URL", "").strip()
     if not url:
@@ -71,8 +71,8 @@ def _get_redis_url() -> str:
                 url = url.replace("redis://", f"redis://:{pw}@")
                 # Normalize hostname for host-based processes
                 url = url.replace("@rmi-redis:", "@localhost:")
-        except Exception:  # noqa: S110 — gopass may not be installed
-            pass
+        except Exception as sh_exc:
+            logger.warning("silent_failure_get_redis_url", handler="_get_redis_url", error=str(sh_exc))
     return url
 
 

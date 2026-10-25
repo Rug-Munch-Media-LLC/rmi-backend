@@ -289,8 +289,10 @@ async def _enrich_with_embeddings(
                         # Store embedding for MMR similarity computation
                         # Use first 128 dims for speed (cosine sim is preserved in high dims)
                         results[idx]["_embedding"] = embedding[:128]
-                except (json.JSONDecodeError, Exception):  # noqa: S110 — intentional best-effort
-                    pass
+                except (json.JSONDecodeError, Exception) as sh_exc:
+                    logger.warning(
+                        "silent_failure_enrich_with_embeddings", handler="_enrich_with_embeddings", error=str(sh_exc)
+                    )
 
     except Exception as e:
         logger.debug(f"Embedding enrichment from Redis failed: {e}")
