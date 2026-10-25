@@ -15,6 +15,10 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 router = APIRouter(prefix="/scanner", tags=["scanner"])
 
 # ── In-memory scan storage (ephemeral — survives for status polling) ──
@@ -166,8 +170,9 @@ async def _run_token_scan(scan_id: str, chain: str, address: str, depth: str) ->
             "risk_tier": risk_tier,
             "factors": risk_flags,
         }
-    except ImportError:
+    except ImportError as exc:
         # Fallback: compute basic risk from on-chain data
+        logger.debug("_run_token_scan_failed", error=str(exc))
         try:
             from app.unified_scanner import scan_wallet as wallet_scan
 
@@ -191,6 +196,7 @@ async def _run_token_scan(scan_id: str, chain: str, address: str, depth: str) ->
                 "factors": result.get("risk_flags", result.get("flags", result.get("risk_factors", []))),
             }
         except Exception as e:
+            logger.warning("_run_token_scan_failed", error=str(e))
             _scan_results[scan_id] = {
                 "status": "failed",
                 "risk_score": 0,
@@ -198,6 +204,7 @@ async def _run_token_scan(scan_id: str, chain: str, address: str, depth: str) ->
                 "factors": [str(e)[:200]],
             }
     except Exception as e:
+        logger.warning("_run_token_scan_failed", error=str(e))
         _scan_results[scan_id] = {
             "status": "failed",
             "risk_score": 0,
@@ -234,7 +241,8 @@ async def scan_wallet_endpoint(request: WalletScanRequest) -> Any:
             token_holdings=result.get("top_tokens", result.get("token_holdings", [])),
             analysis=result,
         )
-    except ImportError:
+    except ImportError as exc:
+        logger.debug("scan_wallet_endpoint_failed", error=str(exc))
         return WalletScanResult(
             scan_id=scan_id,
             status="completed",
@@ -246,6 +254,7 @@ async def scan_wallet_endpoint(request: WalletScanRequest) -> Any:
             analysis={"note": "Full scanner not available — basic check only"},
         )
     except Exception as e:
+        logger.warning("scan_wallet_endpoint_failed", error=str(e))
         return WalletScanResult(
             scan_id=scan_id,
             status="failed",
@@ -292,9 +301,11 @@ async def get_scanner_metrics() -> dict[str, Any]:
         report = get_coverage_report()
         report["target_pct"] = OWN_DATA_PCT_TARGET
         return report
-    except ImportError:
+    except ImportError as exc:
+        logger.debug("get_scanner_metrics_failed", error=str(exc))
         return {"error": "Metrics module not available", "own_data_pct": 0}
     except Exception as exc:
+        logger.warning("get_scanner_metrics_failed", error=str(exc))
         return {"error": str(exc), "own_data_pct": 0}
 
 
@@ -339,9 +350,11 @@ async def get_scanner_sufficiency() -> dict[str, Any]:
             "capability": OWN_DATA_CAPABILITY,
             "questions": {k: OWN_DATA_CAPABILITY.get(k, False) for k in SCANNER_QUESTIONS},
         }
-    except ImportError:
+    except ImportError as exc:
+        logger.debug("get_scanner_sufficiency_failed", error=str(exc))
         return {"error": "Metrics module not available"}
     except Exception as exc:
+        logger.warning("get_scanner_sufficiency_failed", error=str(exc))
         return {"error": str(exc)}
 
 
@@ -409,4 +422,5 @@ async def _query_self_sufficiency() -> dict[str, Any]:
         return volume
 
     except Exception as exc:
+        logger.warning("_query_self_sufficiency_failed", error=str(exc))
         return {**volume, "error": str(exc)[:100]}

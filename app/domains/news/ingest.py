@@ -27,6 +27,7 @@ import httpx
 from pydantic import HttpUrl
 
 from app.catalog.models import NewsItem, utcnow
+from app.domains.news.freshness import resolve_published_at
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
 from app.domains.news.news_service.sources import RSS_FEEDS
@@ -151,11 +152,10 @@ async def ingest_all(
         for entry in r:
             counts["items"] += 1
             try:
-                pub_dt = utcnow()
-                if entry.get("published"):
-                    with contextlib.suppress(Exception):
-                        yr, mo, dy, hr, mi, se = entry["published"][:6]
-                        pub_dt = datetime(yr, mo, dy, hr, mi, se, tzinfo=UTC)
+                ingested_at = utcnow()
+                # Unknown timestamps stay unknown (freshness.resolve_published_at);
+                # stamping them with the ingest clock fabricates freshness.
+                pub_dt = resolve_published_at(entry)
                 text = f"{entry['title']} {entry['summary']}"
                 chains = _detect_chains(text)
                 tickers = _extract_tickers(text)
@@ -178,7 +178,7 @@ async def ingest_all(
                     body_markdown=None,
                     source=entry["source"],
                     published_at=pub_dt,
-                    ingested_at=utcnow(),
+                    ingested_at=ingested_at,
                     chains_mentioned=chains,
                     tokens_mentioned=tickers,
                     sentiment_score=rating.sentiment_score / 100.0,  # normalize to -1..1 column scale

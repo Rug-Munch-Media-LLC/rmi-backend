@@ -5,16 +5,16 @@ Methods operate on ``self`` state initialized by ``GMGNProvider.__init__``.
 
 from __future__ import annotations
 
-import logging
 import time
 import uuid
 from typing import Any
 
 import httpx
 
+from app.core.logging import get_logger
 from app.databus.vault import resolve_key
 
-logger = logging.getLogger(__name__)
+logger = get_logger("databus.gmgn_transport")
 
 
 def _normalize_chain(chain: str) -> str:
@@ -173,22 +173,21 @@ class TransportMixin:
     ) -> httpx.Response:
         """Proxy-first HTTP request with a single direct retry.
 
-        When a proxied client is configured it is tried first; on a proxy
-        failure (403/5xx/timeout — Cloudflare IP-block family) the proxy is
-        marked failed (cooldown) and the request is retried once against the
-        direct client. Transport errors propagate to callers, which already
-        guard each fetch with try/except.
+        On a proxy failure (403/429/5xx/timeout — Cloudflare IP-block family) the
+        proxy is marked failed (cooldown) and the request is retried once on the
+        direct client. Transport errors propagate to callers.
         """
         if self._proxy_client is not None:
             try:
                 proxy_resp = await self._proxy_client.request(method, url, headers=headers, params=params, json=json)
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                self._rotate_proxy()
-                return await self.client.request(method, url, headers=headers, params=params, json=json)
-            if proxy_resp.status_code in (403, 429) or proxy_resp.status_code >= 500:
-                self._rotate_proxy()
-                return await self.client.request(method, url, headers=headers, params=params, json=json)
-            return proxy_resp
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as exc:
+                logger.warning("gmgn_proxy_transport_failed", url=url, error=str(exc))
+                proxy_resp = None
+            if proxy_resp is not None and proxy_resp.status_code not in (403, 429) and proxy_resp.status_code < 500:
+                return proxy_resp
+            if proxy_resp is not None:
+                logger.warning("gmgn_proxy_bad_status", url=url, status=proxy_resp.status_code)
+            self._rotate_proxy()
         return await self.client.request(method, url, headers=headers, params=params, json=json)
 
     def _rotate_proxy(self) -> None:
@@ -207,10 +206,9 @@ class TransportMixin:
 def _f(value: Any) -> float:
     """Best-effort float coercion (strings from the API included)."""
     try:
-        if value is None:
-            return 0.0
-        return float(value)
-    except (TypeError, ValueError):
+        return float(value or 0)
+    except (TypeError, ValueError) as exc:
+        logger.debug("gmgn_float_coercion_failed", value=repr(value), error=str(exc))
         return 0.0
 
 
@@ -229,6 +227,7 @@ def _sum_top_pct(rows: list[dict[str, Any]], cap: int = 10) -> float | None:
             seen += 1
             if seen >= cap:
                 break
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("gmgn_holder_pct_coercion_failed", amount_percentage=repr(pct), error=str(exc))
             continue
     return total if seen else None

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.logging import get_logger
 from app.domains.scanner.engines.risk_cluster._constants import (
     _BOT_CV_THRESHOLD,
     _DEAD_ADDR,
@@ -20,6 +21,8 @@ from app.domains.scanner.engines.risk_cluster._constants import (
     _WASH_LOOKBACK_HOURS,
     _ZERO_ADDR,
 )
+
+logger = get_logger(__name__)
 
 
 def detect_sniper_bot_patterns(
@@ -66,15 +69,18 @@ def detect_sniper_bot_patterns(
             continue
         try:
             amt = float(amount) if amount is not None else 0.0
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_sniper_bot_patterns_failed", error=str(exc))
             amt = 0.0
         try:
             blk = int(block) if block is not None else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_sniper_bot_patterns_failed", error=str(exc))
             blk = None
         try:
             tip_f = float(tip) if tip is not None else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_sniper_bot_patterns_failed", error=str(exc))
             tip_f = None
         rows.append({"wallet": wallet, "amount": amt, "block": blk, "tx": tx, "tip": tip_f})
 
@@ -243,15 +249,18 @@ def detect_mev_bundles(
             continue
         try:
             blk = int(block) if block is not None else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_mev_bundles_failed", error=str(exc))
             blk = None
         try:
             amt = float(amount) if amount is not None else 0.0
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_mev_bundles_failed", error=str(exc))
             amt = 0.0
         try:
             tip_f = float(tip) if tip is not None else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_mev_bundles_failed", error=str(exc))
             tip_f = None
         rows.append({"block": blk, "tx": tx, "from": src, "to": dst, "amount": amt, "tip": tip_f})
 
@@ -395,11 +404,13 @@ def detect_wash_trading_clusters(
             continue
         try:
             amt = float(amount) if amount is not None else 0.0
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_wash_trading_clusters_failed", error=str(exc))
             amt = 0.0
         try:
             ts_f = float(ts) if ts is not None else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("detect_wash_trading_clusters_failed", error=str(exc))
             ts_f = None
         rows.append({"from": src, "to": dst, "amount": amt, "ts": ts_f, "dex": dex})
 

@@ -1,7 +1,7 @@
 {
 	"rules": {
 		"long-function": 564,
-		"bare-except": 1449,
+		"bare-except": 1419,
 		"god-file": 271,
 		"too-many-params": 248,
 		"fstring-logging": 1990,
@@ -12,5 +12,5 @@
 		"hardcoded-secret": 8,
 		"ts-ignore": 335
 	},
-	"total": 6239
+	"total": 6209
 }

@@ -448,14 +448,26 @@ def _probe_anti_whale(
     return (not outcome.success), outcome.reason
 
 
-def _simulate_with_evm(
-    chain: str,
-    token_address: str,
-    chain_cfg: ChainConfig,
-    amount: int,
-    pair_address: str | None,
-    timeout: float,
-) -> SellSimulationResult:
+@dataclass(frozen=True)
+class SimulationRequest:
+    """Immutable parameter object for one local EVM sell simulation."""
+
+    chain: str
+    token_address: str
+    chain_cfg: ChainConfig
+    amount: int
+    pair_address: str | None
+    timeout: float
+
+
+def _simulate_with_evm(request: SimulationRequest) -> SellSimulationResult:
+    """Run the sell round-trip for one :class:`SimulationRequest`."""
+    chain = request.chain
+    token_address = request.token_address
+    chain_cfg = request.chain_cfg
+    amount = request.amount
+    pair_address = request.pair_address
+    timeout = request.timeout
     token_code = _fetch_code(chain_cfg.rpc_urls, token_address, timeout)
     if not token_code:
         return SellSimulationResult(
@@ -690,7 +702,16 @@ def simulate_sell_round_trip(
         )
 
     try:
-        return _simulate_with_evm(chain, token_address, chain_cfg, amount, pair_address, timeout)
+        return _simulate_with_evm(
+            SimulationRequest(
+                chain=chain,
+                token_address=token_address,
+                chain_cfg=chain_cfg,
+                amount=amount,
+                pair_address=pair_address,
+                timeout=timeout,
+            )
+        )
     except Exception as exc:
         logger.exception("pyrevm_simulation_failed: %s", token_address)
         return SellSimulationResult(

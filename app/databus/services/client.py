@@ -198,7 +198,8 @@ class DataBus:
                             **item.get("kwargs", {}),
                         )
                 await asyncio.sleep(interval)
-            except asyncio.CancelledError:
+            except asyncio.CancelledError as exc:
+                logger.warning("_warm_loop_failed", error=str(exc))
                 break
             except (
                 ConnectionError,
@@ -324,6 +325,7 @@ class DataBus:
             httpx.HTTPError,
             httpx.TimeoutException,
         ) as e:
+            logger.warning("fetch_failed", error=str(e))
             self._provider_health.record_failure(data_type, str(e))
             self._dedup.fail(dedup_key, e)
             self._stats["errors"] += 1
@@ -465,8 +467,8 @@ class DataBus:
                             ConnectionError,
                             TimeoutError,
                             RuntimeError,
-                        ):
-                            pass
+                        ) as exc:
+                            logger.warning("_local_precheck_failed", error=str(exc))
 
                         return {
                             "data": {
@@ -486,8 +488,8 @@ class DataBus:
                     TimeoutError,
                     RuntimeError,
                     ImportError,
-                ):
-                    pass
+                ) as exc:
+                    logger.warning("_local_precheck_failed", error=str(exc))
 
                 # Layer 2: Redis hot cache — frequently-accessed labels
                 try:
@@ -522,8 +524,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ):
-                    pass
+                ) as exc:
+                    logger.warning("_local_precheck_failed", error=str(exc))
 
             # ── SCANNER: check SENTINEL token security cache ──
             if (
@@ -554,8 +556,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ):
-                    pass
+                ) as exc:
+                    logger.warning("_local_precheck_failed", error=str(exc))
 
             # ── RAG: semantic search our 17K+ scam docs ──
             if data_type in ("rag_search", "scanner", "wallet_labels") and (query or address):
@@ -589,8 +591,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ):
-                    pass
+                ) as exc:
+                    logger.warning("_local_precheck_failed", error=str(exc))
 
             # ── PRICE: check Redis price cache ──
             if data_type == "token_price" and address:
@@ -612,8 +614,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ):
-                    pass
+                ) as exc:
+                    logger.warning("_local_precheck_failed", error=str(exc))
 
         except (
             ConnectionError,
@@ -621,8 +623,8 @@ class DataBus:
             TimeoutError,
             httpx.HTTPError,
             httpx.TimeoutException,
-        ):
-            pass
+        ) as exc:
+            logger.warning("_local_precheck_failed", error=str(exc))
 
         return None
 

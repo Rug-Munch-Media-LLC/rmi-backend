@@ -101,6 +101,7 @@ class ProblemDetail(BaseModel):
         return JSONResponse(
             status_code=status_ or self.status,
             content=self.model_dump(exclude_none=True),
+            media_type="application/problem+json",
         )
 
     @classmethod

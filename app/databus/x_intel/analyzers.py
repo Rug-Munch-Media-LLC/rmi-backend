@@ -28,9 +28,7 @@ async def _grok_summarize(posts: list[dict[str, Any]]) -> str:
         return ""
 
     try:
-        post_texts = "\n---\n".join(
-            f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20]
-        )
+        post_texts = "\n---\n".join(f"@{p.get('author', '?')}: {p.get('text', '')[:200]}" for p in posts[:20])
 
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.post(
@@ -70,11 +68,7 @@ def _simple_rundown(posts: list[dict[str, Any]]) -> str:
             if len(word) > 4 and word not in ("https", "that", "this", "with", "from", "have"):
                 words[word] += 1
 
-    top_words = [
-        w
-        for w, _ in words.most_common(20)
-        if w not in ("about", "would", "could", "their", "there")
-    ]
+    top_words = [w for w, _ in words.most_common(20) if w not in ("about", "would", "could", "their", "there")]
 
     return "Top themes: " + ", ".join(top_words[:8])
 
@@ -299,9 +293,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
         cat = post["account"].get("category", "unknown")
         # Allow max 3 from same category, max 5 total from same handle
         same_cat = len([s for s in selected if s["account"].get("category") == cat])
-        same_handle = len(
-            [s for s in selected if s["account"].get("handle") == post["account"].get("handle")]
-        )
+        same_handle = len([s for s in selected if s["account"].get("handle") == post["account"].get("handle")])
 
         if same_cat < 3 and same_handle < 3:
             selected.append(post)

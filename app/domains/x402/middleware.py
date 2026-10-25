@@ -37,6 +37,8 @@ from fastapi import HTTPException, Request
 
 from app.core.logging import get_logger
 
+logger = get_logger(__name__)
+
 log = get_logger(__name__)
 
 # ── Pricing per v4.0 §T34 ───────────────────────────────────────────
@@ -159,8 +161,10 @@ try:
         ["tool", "tier"],
         registry=_X402_REGISTRY,
     )
-except (ConnectionError, OSError, TimeoutError):
+except (ConnectionError, OSError, TimeoutError) as exc:
     # Prometheus not available - use no-op counter stubs
+    logger.warning("module_failed", error=str(exc))
+
     class _Stub:
         def labels(self, **kw: Any) -> _Stub:
             return self
@@ -192,7 +196,8 @@ def get_tool_price_usd(tool: str) -> float:
         _ensure_tool_prices()
         fp = _FALLBACK_PRICES.get(tool, {})
         return fp.get("price_usd", 0.01)
-    except (ImportError, ConnectionError, OSError, TimeoutError, ValueError):
+    except (ImportError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
+        logger.warning("get_tool_price_usd_failed", error=str(exc))
         return p.get("pro_cents", 1) / 100.0
 
 
@@ -308,10 +313,11 @@ def create_invoice(tool: str, agent_id: str) -> dict[str, Any]:
     try:
         hmac_key = _get_hmac_key()
         invoice["signature"] = base64.b64encode(hmac.new(hmac_key, msg, hashlib.sha256).digest()).decode()
-    except RuntimeError:
+    except RuntimeError as exc:
         # No signing key configured (X402_HMAC_KEY / ADMIN_API_KEY absent).
         # Still return a usable 402 challenge — unsigned, but the invoice
         # carries the payment address, amount and instructions.
+        logger.warning("create_invoice_failed", error=str(exc))
         invoice["signature"] = ""
     return invoice
 
@@ -327,7 +333,8 @@ def verify_payment_header(x_payment: str, expected_amount_usd: float) -> tuple[s
         decoded = base64.b64decode(x_payment).decode()
         data = json.loads(decoded)
         return data.get("tx_hash", ""), data.get("signature", "")
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        logger.warning("verify_payment_header_failed", error=str(exc))
         return None
 
 
@@ -355,8 +362,10 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
         if result.get("verified", False):
             return True
     except ImportError as e:
+        logger.debug("verify_payment_on_chain_failed", error=str(e))
         get_logger("wp.x402").debug(f"verify_payment_on_chain failed: {e}")
     except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+        logger.warning("verify_payment_on_chain_failed", error=str(e))
         get_logger("wp.x402").error(f"verify_payment_on_chain error: {e}")
 
     # Local verification for Base USDC via public RPC
@@ -406,7 +415,8 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                         continue
                     try:
                         to_address = "0x" + topics[2][-40:].lower()
-                    except (IndexError, ValueError):
+                    except (IndexError, ValueError) as exc:
+                        logger.debug("verify_payment_on_chain_failed", error=str(exc))
                         continue
                     if to_address != pay_to_lower:
                         continue
@@ -419,7 +429,8 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                             actual_amount = int(log_data, 16)
                         else:
                             actual_amount = 0
-                    except (ValueError, TypeError):
+                    except (ValueError, TypeError) as exc:
+                        logger.debug("verify_payment_on_chain_failed", error=str(exc))
                         get_logger("wp.x402").warning(f"Could not decode Transfer data for {tx_hash[:16]}...")
                         continue
 
@@ -443,6 +454,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
             KeyError,
             TypeError,
         ) as e:
+            logger.warning("verify_payment_on_chain_failed", error=str(e))
             get_logger("wp.x402").error(f"Base tx verify failed: {e}")
             return False
 
@@ -490,7 +502,8 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                         continue
                     try:
                         pre_by_index[int(bal["accountIndex"])] = int((bal.get("uiTokenAmount") or {}).get("amount", 0))
-                    except (ValueError, TypeError, KeyError):
+                    except (ValueError, TypeError, KeyError) as exc:
+                        logger.debug("verify_payment_on_chain_failed", error=str(exc))
                         continue
 
                 for bal in meta.get("postTokenBalances", []) or []:
@@ -501,7 +514,8 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                     try:
                         post_amount = int((bal.get("uiTokenAmount") or {}).get("amount", 0))
                         account_index = int(bal["accountIndex"])
-                    except (ValueError, TypeError, KeyError):
+                    except (ValueError, TypeError, KeyError) as exc:
+                        logger.debug("verify_payment_on_chain_failed", error=str(exc))
                         continue
                     pre_amount = pre_by_index.get(account_index, 0)
                     received = post_amount - pre_amount
@@ -525,6 +539,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
             KeyError,
             TypeError,
         ) as e:
+            logger.warning("verify_payment_on_chain_failed", error=str(e))
             get_logger("wp.x402").error(f"Solana tx verify failed: {e}")
             return False
 

@@ -32,6 +32,8 @@ from app.domains.news.routes.schemas import (
     trend_score,
 )
 
+logger = get_logger(__name__)
+
 log = get_logger(__name__)
 
 router = APIRouter(tags=["news"])
@@ -164,6 +166,7 @@ async def list_news(
                     )
                 )
         except (KeyError, ValueError, TypeError) as e:
+            logger.debug("list_news_failed", error=str(e))
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"news_list_new_fail: {e}")
@@ -186,6 +189,7 @@ async def list_news(
             for r in rows:
                 items.append(_adapt_legacy_row(dict(r)))
         except (KeyError, ValueError, TypeError) as e:
+            logger.debug("list_news_failed", error=str(e))
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"news_list_legacy_fail: {e}")
@@ -278,11 +282,7 @@ async def trending_news(
                 f"{engagement_join}"
                 "WHERE n.published_at > $1 AND n.published_at <= now() "
                 "AND btrim(COALESCE(n.title, '')) <> '' "
-                + (
-                    ""
-                    if include_telegram
-                    else "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%') "
-                )
+                + ("" if include_telegram else "AND NOT (n.news_id LIKE 'tg:%' OR n.url LIKE '%t.me/%') ")
                 + "ORDER BY n.published_at DESC LIMIT 800",
                 cutoff,
             )
@@ -291,6 +291,7 @@ async def trending_news(
         for d in rank_items([dict(r) for r in rows], now):
             items.append(NewsItemOut(**news_item_payload(d)))
     except Exception as e:  # loud fallback — empty trending must never be silent
+        logger.warning("trending_news_failed", error=str(e))
         from app.core.logging import get_logger
 
         get_logger(__name__).warning("trending_new_fail: %s: %s", type(e).__name__, str(e)[:200])
@@ -317,11 +318,10 @@ async def trending_news(
                 except (ConnectionError, OSError, TimeoutError) as e:
                     log.warning(f"trending_news failed: {e}")
                 item = _adapt_legacy_row(d)
-                item.score = round(
-                    trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4
-                )
+                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
                 items.append(item)
         except (ValueError, KeyError, TypeError) as e:
+            logger.debug("trending_news_failed", error=str(e))
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"trending_legacy_fail: {e}")
@@ -339,7 +339,8 @@ async def trending_news(
                 published = a.get("published_at") or now_dt.isoformat()
                 try:
                     pub_dt = datetime.fromisoformat(str(published).replace("Z", "+00:00"))
-                except ValueError:
+                except ValueError as exc:
+                    logger.debug("trending_news_failed", error=str(exc))
                     pub_dt = now_dt
                 hours_old = max(0.0, (now_dt - pub_dt).total_seconds() / 3600)
                 item = NewsItemOut(
@@ -353,11 +354,10 @@ async def trending_news(
                     tokens_mentioned=list(a.get("tokens_mentioned") or []),
                     chains_mentioned=list(a.get("chains_mentioned") or []),
                 )
-                item.score = round(
-                    trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4
-                )
+                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
                 items.append(item)
         except Exception as e:  # fallback must never break the route
+            logger.warning("trending_news_failed", error=str(e))
             from app.core.logging import get_logger
 
             get_logger(__name__).warning("trending_redis_fallback_fail: %s", e)
@@ -375,7 +375,8 @@ async def trending_news(
                 published = a.get("published_at") or now_dt.isoformat()
                 try:
                     pub_dt = datetime.fromisoformat(str(published).replace("Z", "+00:00"))
-                except ValueError:
+                except ValueError as exc:
+                    logger.debug("trending_news_failed", error=str(exc))
                     pub_dt = now_dt
                 hours_old = max(0.0, (now_dt - pub_dt).total_seconds() / 3600)
                 item = NewsItemOut(
@@ -387,20 +388,17 @@ async def trending_news(
                     source=a.get("source") or "unknown",
                     published_at=pub_dt,
                 )
-                item.score = round(
-                    trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4
-                )
+                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
                 items.append(item)
         except Exception as e:  # fail-open
+            logger.warning("trending_news_failed", error=str(e))
             from app.core.logging import get_logger
 
             get_logger(__name__).warning("trending_qdrant_fallback_fail: %s", e)
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     if not include_telegram:
-        items = [
-            i for i in items if not (str(i.news_id).startswith("tg:") or "t.me/" in str(i.url))
-        ]
+        items = [i for i in items if not (str(i.news_id).startswith("tg:") or "t.me/" in str(i.url))]
     return NewsListResponse(items=items[:limit], total=len(items), offset=0)
 
 
@@ -538,13 +536,12 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
         llm = LLMRouter()
         analysis = await llm.analyze_news(ni)
         if analysis is None:
-            return NewsAnalysisResponse(
-                news_id=news_id, analysis=None, error="LLM router unavailable"
-            )
+            return NewsAnalysisResponse(news_id=news_id, analysis=None, error="LLM router unavailable")
         return NewsAnalysisResponse(news_id=news_id, analysis=analysis, model="deepseek-v3")
     except HTTPException:
         raise
     except (KeyError, ValueError, TypeError) as e:
+        logger.debug("analyze_news_failed", error=str(e))
         return NewsAnalysisResponse(news_id=news_id, analysis=None, error=str(e))
 
 

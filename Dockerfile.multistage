@@ -40,10 +40,25 @@ FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# --- Deterministic PyPI access (2026-10-24) ---------------------------
+# ROOT CAUSE of the failed free-chat image builds: a container on docker's
+# default bridge cannot complete a TLS read to pypi.org from this host
+# (measured 3/3 ReadTimeoutError after 90s), while the HOST network resolves
+# and downloads the same wheel in ~2s. Two independent fixes, both required:
+#   1. build on the host network -- `build.network: host` in the compose file
+#      and `--network host` in fleet-infra/scripts/deploy/deploy-backend.sh;
+#   2. an explicit pip timeout/retry budget for a slow or lossy mirror,
+#      applied through the PIP_* ENV in both stages below.
+# Do not "fix" a red build by pointing at a third-party index: the index is
+# not the failing hop, and an unpinned mirror is a supply-chain change.
 WORKDIR /build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_INPUT=1
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -103,7 +118,11 @@ FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_INPUT=1
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
