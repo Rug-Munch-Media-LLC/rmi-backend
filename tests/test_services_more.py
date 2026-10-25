@@ -30,7 +30,7 @@ import httpx
 class TestSupabaseServiceHealth:
     """Supabase service health check."""
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_health_healthy(self, mock_client):
         """check_health returns healthy when status is 200."""
         mock_resp = MagicMock(spec=httpx.Response)
@@ -45,7 +45,7 @@ class TestSupabaseServiceHealth:
         assert result["status"] == "healthy"
         assert result["tables"] == 18
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_health_degraded(self, mock_client):
         """check_health returns degraded when status is not 200."""
         mock_resp = MagicMock(spec=httpx.Response)
@@ -59,7 +59,7 @@ class TestSupabaseServiceHealth:
         result = await check_health()
         assert result["status"] == "degraded"
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_health_unreachable(self, mock_client):
         """check_health returns unreachable on connection error."""
         mock_instance = AsyncMock()
@@ -76,7 +76,7 @@ class TestSupabaseServiceHealth:
 class TestSupabaseServiceCRUD:
     """Supabase service CRUD operations with mocked HTTP."""
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_get_alerts_success(self, mock_client):
         """get_alerts returns list of alerts on success."""
         mock_alerts = [{"id": "1", "title": "Test Alert", "severity": "high"}]
@@ -93,7 +93,7 @@ class TestSupabaseServiceCRUD:
         assert len(result) == 1
         assert result[0]["title"] == "Test Alert"
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_get_alerts_empty(self, mock_client):
         """get_alerts returns empty list on non-200."""
         mock_resp = MagicMock(spec=httpx.Response)
@@ -107,7 +107,7 @@ class TestSupabaseServiceCRUD:
         result = await get_alerts()
         assert result == []
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_create_alert(self, mock_client):
         """create_alert posts correctly and returns created alert."""
         mock_created = [{"id": "new-1", "title": "Test", "severity": "medium"}]
@@ -128,7 +128,7 @@ class TestSupabaseServiceCRUD:
         )
         assert result is not None
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_get_wallets(self, mock_client):
         """get_wallets returns wallet list."""
         mock_wallets = [{"address": "0xabc", "chain": "ethereum", "risk_score": 25}]
@@ -149,7 +149,7 @@ class TestSupabaseServiceCRUD:
 class TestSupabaseServiceX402:
     """Supabase x402 payment persistence layer."""
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_record_payment(self, mock_client):
         """record_x402_payment_supabase posts payment."""
         mock_created = [{"id": 1, "tool": "token_scan", "amount_atoms": "1000"}]
@@ -171,7 +171,7 @@ class TestSupabaseServiceX402:
         )
         assert result is not None
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_get_x402_payments(self, mock_client):
         """get_x402_payments returns filtered payment list."""
         mock_payments = [{"tool": "token_scan", "amount_atoms": "500"}]
@@ -187,7 +187,7 @@ class TestSupabaseServiceX402:
         result = await get_x402_payments(tool="token_scan", limit=5)
         assert len(result) == 1
 
-    @patch("app.services.supabase_service.httpx.AsyncClient")
+    @patch("app.services.supabase_transport.httpx.AsyncClient")
     async def test_earnings_summary(self, mock_client):
         """get_x402_earnings_summary aggregates payments."""
         mock_rows = [
