@@ -54,18 +54,15 @@ async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
 
 
 async def _coingecko_price(**kwargs) -> dict[str, Any] | None:
-    """CoinGecko - free for low volume."""
-    token = kwargs.get("mint", "") or kwargs.get("token", "")
-    api_key = kwargs.get("api_key", "")
+    """CoinGecko - free for low volume. Contract-compliant (see _coingecko.py)."""
+    from app.databus.provider_implementations._coingecko import CoinGeckoPriceProvider
+
+    provider = CoinGeckoPriceProvider(api_key=kwargs.get("api_key", ""))
     try:
-        headers = {"x-cg-pro-api-key": api_key} if api_key else {}
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(f"https://api.coingecko.com/api/v3/simple/token_price/{token}", headers=headers)
-            if r.status_code == 200:
-                return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError, httpx.HTTPError):
+        return await provider.fetch(mint=kwargs.get("mint", ""), token=kwargs.get("token", ""))
+    except OSError:  # ProviderError subclasses OSError by design
         logger.warning("provider error")
-    return None
+        return None
 
 
 async def _moralis_price(**kwargs) -> dict[str, Any] | None:
