@@ -36,25 +36,9 @@ async def run_token_metrics(r: ScanResult, address: str, chain: str) -> None:
     from app.domains.scanner.engines.dex_paid import check_dex_paid
     from app.domains.scanner.engines.price_metrics import get_price_metrics
     from app.domains.scanner.engines.sniper_detect import detect_snipers
-    from app.domains.scanner.unified.sentinel_phase import extract_deployer_from_security
 
-    # ── Resolve deployer (best-effort, several sources) ──
-    deployer = extract_deployer_from_security(r.security)
-    if deployer is None and isinstance(r.sentinel, dict):
-        for bucket in ("free", "premium"):
-            mods = r.sentinel.get(bucket)
-            if not isinstance(mods, dict):
-                continue
-            ca = mods.get("contract_authority")
-            if isinstance(ca, dict):
-                deployer = extract_deployer_from_security(ca) or deployer
-
-    # ── Resolve launch block (bundle phase already computed it when it ran) ──
-    launch_block: int | None = None
-    ba = r.bundle_analysis if isinstance(r.bundle_analysis, dict) else {}
-    if isinstance(ba.get("deploy_block"), int) and ba["deploy_block"] > 0:
-        launch_block = ba["deploy_block"]
-
+    deployer = _resolve_deployer(r)
+    launch_block = _resolve_launch_block(r)
     results = await asyncio.gather(
         check_dev_sold(address, chain, deployer),
         check_dex_paid(address, chain),
@@ -72,11 +56,46 @@ async def run_token_metrics(r: ScanResult, address: str, chain: str) -> None:
             setattr(r, field, res)
             r.modules_run.append(module)
             r.enrichment_sources.append(f"{module}:own")
-        else:
-            note = str((res or {}).get("note") or (res or {}).get("error") or "no data")
-            _record_module_unavailable(r, module, chain, note)
+            return
+        note = str((res or {}).get("note") or (res or {}).get("error") or "no data")
+        _record_module_unavailable(r, module, chain, note)
 
     _attach("dev_sold", dev_sold, "dev_sold")
     _attach("dex_paid", dex_paid, "dex_paid")
     _attach("price_metrics", price_metrics, "price_metrics")
     _attach("sniper_count", snipers, "sniper_detect")
+
+
+def _deployer_from_sentinel(r: ScanResult) -> Any:
+    """Deployer from the SENTINEL contract-authority module, when present."""
+    from app.domains.scanner.unified.sentinel_phase import extract_deployer_from_security
+
+    deployer: Any = None
+    if isinstance(r.sentinel, dict):
+        for bucket in ("free", "premium"):
+            mods = r.sentinel.get(bucket)
+            if not isinstance(mods, dict):
+                continue
+            ca = mods.get("contract_authority")
+            if isinstance(ca, dict):
+                deployer = extract_deployer_from_security(ca) or deployer
+    return deployer
+
+
+def _resolve_deployer(r: ScanResult) -> Any:
+    """Security payload first, then the SENTINEL contract-authority module."""
+    from app.domains.scanner.unified.sentinel_phase import extract_deployer_from_security
+
+    deployer = extract_deployer_from_security(r.security)
+    if deployer is None:
+        return _deployer_from_sentinel(r)
+    return deployer
+
+
+def _resolve_launch_block(r: ScanResult) -> int | None:
+    """Launch block from the bundle-analysis phase when it already ran."""
+    ba = r.bundle_analysis if isinstance(r.bundle_analysis, dict) else {}
+    block = ba.get("deploy_block")
+    if isinstance(block, int) and block > 0:
+        return block
+    return None

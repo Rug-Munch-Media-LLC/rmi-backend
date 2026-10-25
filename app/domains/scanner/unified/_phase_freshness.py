@@ -30,6 +30,14 @@ async def gather_freshness(tasks: list[Any], max_concurrency: int = 3) -> dict[s
             return await task
 
     results = await asyncio.gather(*(_bounded(t) for t in tasks), return_exceptions=True)
+    analyzed = _collect_analyzed(results)
+    if not analyzed:
+        return {"result": "unavailable", "reason": "no freshness data", "analyzed": 0}
+    return _summarize_freshness(analyzed)
+
+
+def _collect_analyzed(results: list[Any]) -> list[dict[str, Any]]:
+    """Keep scanned wallets; a failed task is logged, never silently dropped."""
     analyzed: list[dict[str, Any]] = []
     for res in results:
         if isinstance(res, BaseException):
@@ -39,23 +47,26 @@ async def gather_freshness(tasks: list[Any], max_concurrency: int = 3) -> dict[s
             continue
         if isinstance(res, dict) and res.get("result") == "scanned":
             analyzed.append(res)
+    return analyzed
 
-    if not analyzed:
-        return {"result": "unavailable", "reason": "no freshness data", "analyzed": 0}
 
+def _count_class(classifications: list[str], label: str) -> int:
+    return sum(1 for c in classifications if c == label)
+
+
+def _summarize_freshness(analyzed: list[dict[str, Any]]) -> dict[str, Any]:
+    """Token-level summary of the per-wallet freshness results."""
     classifications = [r.get("classification", "ESTABLISHED") for r in analyzed]
-    suspicious = sum(1 for c in classifications if c == "FRESH_SUSPICIOUS")
-    clean = sum(1 for c in classifications if c == "FRESH_CLEAN")
-    established = sum(1 for c in classifications if c == "ESTABLISHED")
-    avg_score = sum(float(r.get("freshness_score", 0) or 0) for r in analyzed) / len(analyzed)
-
+    suspicious = _count_class(classifications, "FRESH_SUSPICIOUS")
+    total = len(analyzed)
+    avg_score = sum(float(r.get("freshness_score", 0) or 0) for r in analyzed) / total
     return {
         "result": "scanned",
-        "analyzed": len(analyzed),
+        "analyzed": total,
         "fresh_suspicious": suspicious,
-        "fresh_clean": clean,
-        "established": established,
-        "fresh_wallet_pct": round(suspicious / len(analyzed) * 100, 1) if analyzed else 0.0,
+        "fresh_clean": _count_class(classifications, "FRESH_CLEAN"),
+        "established": _count_class(classifications, "ESTABLISHED"),
+        "fresh_wallet_pct": round(suspicious / total * 100, 1),
         "avg_freshness_score": round(avg_score, 1),
         "wallets": [
             {

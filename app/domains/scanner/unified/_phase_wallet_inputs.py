@@ -77,22 +77,29 @@ async def probe_recent_transfers(r: ScanResult, address: str, chain: str) -> dic
         return None
 
 
+def _holders_from_top(top: Any) -> list[str]:
+    """Top-holders in either payload shape: [{"address": …}] or {address: pct}."""
+    if isinstance(top, list):
+        return [str(h.get("address", "")) for h in top if isinstance(h, dict) and h.get("address")]
+    if isinstance(top, dict):
+        # Some providers return {address: pct}
+        return [str(a) for a in top if a]
+    return []
+
+
+def _holders_from_alt(holder_data: dict[str, Any]) -> list[str]:
+    """Birdeye/GMGN-style ``holders`` list: [{"address": …}] or ["0x…"]."""
+    items = holder_data.get("holders")
+    if not isinstance(items, list):
+        return []
+    return [str(h.get("address", "")) if isinstance(h, dict) else str(h) for h in items if h]
+
+
 def holders_from_payload(holder_data: Any) -> list[str]:
     """Extract holder addresses from the many DataBus payload shapes."""
     if not isinstance(holder_data, dict):
         return []
-    top = holder_data.get("top_holders") or []
-    if isinstance(top, list):
-        holders = [str(h.get("address", "")) for h in top if isinstance(h, dict) and h.get("address")]
-    elif isinstance(top, dict):
-        # Some providers return {address: pct}
-        holders = [str(a) for a in top if a]
-    else:
-        holders = []
-    if not holders and isinstance(holder_data.get("holders"), list):
-        # Birdeye/GMGN-style payloads: [{"address": ...}, ...]
-        holders = [str(h.get("address", "")) if isinstance(h, dict) else str(h) for h in holder_data["holders"] if h]
-    return holders
+    return _holders_from_top(holder_data.get("top_holders") or []) or _holders_from_alt(holder_data)
 
 
 async def resolve_holders(r: ScanResult, address: str, chain: str) -> list[str]:

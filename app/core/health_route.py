@@ -44,7 +44,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.core import health_rag
+from app.core import health_rag, health_status
 from app.core.health_env import (
     _DATABASE_URL_DEV,
     _DATABASE_URL_DOCKER,
@@ -245,40 +245,11 @@ async def health() -> HealthResponse:
             }
         stores[name] = ref
 
-    # RAG pipeline stats are observability, not a liveness gate — pull out of
-    # the store checks so they don't influence critical/degraded status.
-    rag_pipeline = dict(stores.pop("rag_pipeline", {}))
-    rag_pipeline.pop("latency_ms", None)
-    # Embed-aware: a degraded pipeline (embedder unavailable, or consumers
-    # running with no ingestion) must NOT report healthy just because the
-    # consumers are alive.
-    if rag_pipeline.get("status") == "degraded":
-        rag_pipeline["healthy"] = False
-    else:
-        rag_pipeline.setdefault(
-            "healthy", bool(rag_pipeline.get("poller_running") or rag_pipeline.get("subscriber_running"))
-        )
-    rag_pipeline.setdefault("queue_depth", 0)
-    rag_pipeline.setdefault("ingested_count", 0)
-
-    # Sync health check results with degradation registry (Win #14)
-    _sync_degradation_from_health(stores)
-
-    # Critical = redis or postgres down. Non-critical stores can be degraded.
-    critical_up = stores["redis"].get("healthy") and stores["postgres"].get("healthy")
-    # Exclude stores that were intentionally skipped or are unavailable
-    # (e.g. DegenFeed when its service is not deployed in this stack).
-    _non_critical_stores = [
-        s.get("healthy", False)
-        for n, s in stores.items()
-        if n not in ("redis", "postgres") and s.get("status") not in ("skipped", "unavailable")
-    ]
-    any_non_critical_down = not all(_non_critical_stores) if _non_critical_stores else False
-    status = "unhealthy" if not critical_up else "degraded" if any_non_critical_down else "healthy"
-    # Latency is a health fact, not a footnote: a dependency answering in
-    # seconds must not leave the aggregate reading "healthy".
-    if status == "healthy" and any(s.get("latency_state") == "degraded" for s in stores.values()):
-        status = "degraded"
+    # RAG stats are observability, not a liveness gate; the verdict rules live
+    # in health_status so this handler stays a thin assembler.
+    rag_pipeline = health_status.finalize_rag_pipeline(stores)
+    _sync_degradation_from_health(stores)  # Win #14
+    status = health_status.compute_status(stores)
 
     # Include degradation info in response
     degradation = _get_degradation_section()
