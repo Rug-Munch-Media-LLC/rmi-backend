@@ -20,8 +20,11 @@ jobs:
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Published-method scan (weights, thresholds, signals, prompts)
-        run: python3 scripts/check-methodology.py --repo .
-      - name: Gate self-test (a planted weight table must block)
-        run: bash scripts/methodology-gate-selftest.sh
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+    - name: Published-method scan (weights, thresholds, signals, prompts)
+      run: python3 scripts/check-methodology.py --repo .
+    - name: Gate self-test (a planted weight table must block)
+      run: bash scripts/methodology-gate-selftest.sh
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
