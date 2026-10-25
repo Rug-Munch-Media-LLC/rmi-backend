@@ -640,7 +640,8 @@ class CloneScanner:
                 if isinstance(txs, list) and txs:
                     return txs[0].get("from", None)
             return None
-        except (ConnectionError, OSError, TimeoutError):
+        except (ConnectionError, OSError, TimeoutError) as sh_exc:
+            logger.warning("silent_failure_fetch_deployer", handler="fetch_deployer", error=str(sh_exc))
             return None
 
     async def _check_deployer_history(self, address: str, chain: str) -> dict[str, Any]:

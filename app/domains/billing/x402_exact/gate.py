@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import logging
 from typing import Any
 
 from fastapi import HTTPException, Request
@@ -28,6 +29,8 @@ from app.core.logging import get_logger
 from app.domains.billing.x402_exact import facilitator, idempotency, ledger, ratelimit, replay
 from app.domains.billing.x402_exact.catalog import NETWORK_BASE, USDC_BASE, PaidEndpoint, resolve
 from app.domains.billing.x402_exact.challenge import build_challenge
+
+logger = logging.getLogger(__name__)
 
 log = get_logger(__name__)
 
@@ -50,7 +53,8 @@ def _decode(header: str) -> dict[str, Any] | None:
     try:
         raw = base64.b64decode(header, validate=True)
         parsed = json.loads(raw)
-    except (binascii.Error, ValueError, TypeError):
+    except (binascii.Error, ValueError, TypeError) as sh_exc:
+        logger.warning("silent_failure_decode", handler="decode", error=str(sh_exc))
         return None
     return parsed if isinstance(parsed, dict) else None
 
@@ -72,7 +76,8 @@ def _validate_proof(endpoint: PaidEndpoint, proof: dict[str, Any]) -> tuple[str,
     tx_hash = str(proof.get("txHash") or proof.get("tx_hash") or "")
     try:
         amount_usd = float(proof.get("amountUsd") or proof.get("amount_usd") or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as sh_exc:
+        logger.warning("silent_failure_validate_proof", handler="validate_proof", error=str(sh_exc))
         return None
     if not payment_id or not tx_hash or amount_usd <= 0:
         return None

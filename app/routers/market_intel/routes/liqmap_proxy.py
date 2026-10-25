@@ -25,12 +25,15 @@ answers, and the exits that refused are remembered for the next poll.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Final
 
 import httpx
 
 from app.core.logging import get_logger
+
+logger = logging.getLogger(__name__)
 
 log = get_logger(__name__)
 
@@ -149,7 +152,8 @@ async def _get_with_proxy(
     try:
         async with httpx.AsyncClient(timeout=VENUE_TIMEOUT_S, proxy=proxy) as client:
             return await client.get(url, params=params)
-    except Exception:
+    except Exception as sh_exc:
+        logger.warning("silent_failure_get_with_proxy", handler="get_with_proxy", error=str(sh_exc))
         return None
 
 

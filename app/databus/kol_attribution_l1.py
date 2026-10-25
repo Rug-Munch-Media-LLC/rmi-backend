@@ -88,7 +88,8 @@ async def _rpc_call(
         payload = resp.json()
         result = payload.get("result")
         return result if isinstance(result, str) and result.startswith("0x") else None
-    except (httpx.HTTPError, ValueError, KeyError):
+    except (httpx.HTTPError, ValueError, KeyError) as sh_exc:
+        logger.warning("silent_failure_rpc_call", handler="rpc_call", error=str(sh_exc))
         return None
 
 

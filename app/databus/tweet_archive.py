@@ -453,7 +453,8 @@ def detect_identity_drift(
     try:
         prev = float(prev_followers or 0.0)
         cur = float(cur_followers or 0.0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as sh_exc:
+        logger.warning("silent_failure_detect_identity_drift", handler="detect_identity_drift", error=str(sh_exc))
         return None
     if prev <= 0:
         return None

@@ -204,7 +204,8 @@ async def read_stability(chain: str, address: str) -> dict[str, Any] | None:
             "level": level,
             "agree_pct": round(agreeing / len(levels) * 100),
         }
-    except (RedisError, TypeError, ValueError, ConnectionError, OSError):
+    except (RedisError, TypeError, ValueError, ConnectionError, OSError) as sh_exc:
+        logger.warning("silent_failure_read_stability", handler="read_stability", error=str(sh_exc))
         return None
 
 

@@ -73,7 +73,8 @@ async def check_developer_key(request: Any) -> dict[str, Any] | None:
         from app.routers.developer_tier import check_developer_key as _check
 
         return await _check(request)
-    except ImportError:
+    except ImportError as sh_exc:
+        logger.warning("silent_failure_check_developer_key", handler="check_developer_key", error=str(sh_exc))
         return None
     except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("check_developer_key_error", exc_info=True)
@@ -108,5 +109,6 @@ def check_burst_limit(client_id: str, tool_id: str) -> dict[str, Any] | None:
                 "retry_after": burst_window,
             }
         return None
-    except (ConnectionError, OSError, TimeoutError):
+    except (ConnectionError, OSError, TimeoutError) as sh_exc:
+        logger.warning("silent_failure_check_burst_limit", handler="check_burst_limit", error=str(sh_exc))
         return None

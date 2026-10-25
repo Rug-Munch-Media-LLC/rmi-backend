@@ -91,5 +91,6 @@ def get_secret_or_none(env_var: str, gopass_path: str | None = None) -> str | No
     """
     try:
         return get_secret(env_var, gopass_path)
-    except RuntimeError:
+    except RuntimeError as sh_exc:
+        logger.warning("silent_failure_get_secret_or_none", handler="get_secret_or_none", error=str(sh_exc))
         return None

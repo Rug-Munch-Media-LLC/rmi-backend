@@ -10,6 +10,7 @@ movements exceeding the configured threshold.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 
@@ -17,6 +18,8 @@ import httpx
 
 from app.domains.scanner.engines._logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType
+
+logger = logging.getLogger(__name__)
 
 log = get_logger(__name__)
 
@@ -103,7 +106,8 @@ class PriceChangeProvider:
             )
 
             return get_price_with_history
-        except (ImportError, AttributeError):
+        except (ImportError, AttributeError) as sh_exc:
+            logger.warning("silent_failure_get_price_oracle", handler="get_price_oracle", error=str(sh_exc))
             return None
 
     async def _get_price(self, oracle: Any, chain: str, token_address: str) -> dict[str, float] | None:
