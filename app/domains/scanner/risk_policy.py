@@ -50,6 +50,55 @@ logger = logging.getLogger(__name__)
 ENV_VAR = "RMI_RISK_POLICY"
 ENTRY_POINT_GROUP = "rmi.risk_policy"
 
+#: Every constant name re-published by :mod:`app.domains.scanner._weights`.
+#: A policy spec must supply all of them; the example supplies illustrative
+#: zeros so a checkout without the private provider still imports. Without
+#: this list the shim raised ``KeyError: 'HONEYPOT_WEIGHT'`` at collection.
+REQUIRED_CONSTANTS: tuple[str, ...] = (
+    "HONEYPOT_WEIGHT",
+    "KNOWN_SCAMMER_WEIGHT",
+    "RUG_HISTORY_WEIGHT",
+    "MINTABLE_WEIGHT",
+    "LP_REMOVED_WEIGHT",
+    "MINT_SUPPLY_RISK_WEIGHT",
+    "BAD_FUNDER_WEIGHT",
+    "BUNDLE_WEIGHT",
+    "REPEAT_DEPLOYER_WEIGHT",
+    "LP_UNLOCKED_WEIGHT",
+    "WASH_TRADING_WEIGHT",
+    "FREEZABLE_WEIGHT",
+    "COORDINATED_SHILL_WEIGHT",
+    "PROXY_UPGRADABLE_WEIGHT",
+    "SUPPLY_CONCENTRATED_WEIGHT",
+    "WHALE_EXIT_WEIGHT",
+    "KOL_PUMP_WEIGHT",
+    "OWNERSHIP_TRANSFERABLE_WEIGHT",
+    "SNIPER_CLUSTER_WEIGHT",
+    "LOW_LIQUIDITY_WEIGHT",
+    "VERY_YOUNG_WEIGHT",
+    "SMART_MONEY_EXIT_WEIGHT",
+    "BURN_DISABLED_WEIGHT",
+    "VOLUME_CONCENTRATED_WEIGHT",
+    "FRESH_WALLET_WEIGHT",
+    "RENOUNCED_WEIGHT",
+    "LP_BURNED_PCT_WEIGHT",
+    "SINGLE_POOL_WEIGHT",
+    "KOL_MITIGATION",
+    "CRITICAL_MIN",
+    "HIGH_MIN",
+    "MEDIUM_MIN",
+    "LP_UNLOCKED_PCT_MAX",
+    "VERY_YOUNG_SECONDS",
+    "LOW_LIQUIDITY_USD",
+    "SUPPLY_CONCENTRATED_PCT",
+    "LP_BURNED_PCT_MIN",
+    "SNIPER_CLUSTER_MIN",
+    "VOLUME_CONCENTRATED_PCT",
+    "REPEAT_DEPLOYER_MIN",
+    "FRESH_WALLET_SECONDS",
+    "SINGLE_POOL_MAX",
+)
+
 #: (key-paths, predicate) probe pair.
 RuleSource = tuple[tuple[tuple[str, ...], ...], Callable[[Any], bool]]
 #: (flag, weight, reason, group, sources) — the rule-table row shape.
@@ -137,7 +186,13 @@ class RulePolicy:
         if any(flag in flags for flag in self.hard_floor_flags):
             score = max(score, self.bands["critical"])
 
-        return {"score": score, "verdict": self.verdict_for(score), "flags": flags, "reasons": reasons, "analysis": analysis}
+        return {
+            "score": score,
+            "verdict": self.verdict_for(score),
+            "flags": flags,
+            "reasons": reasons,
+            "analysis": analysis,
+        }
 
     def verdict_for(self, score: int) -> str:
         if score >= self.bands["critical"]:
@@ -179,16 +234,33 @@ def example_policy() -> RulePolicy:
         {
             "name": "example-v0",
             "rules": (
-                ("honeypot", 50, "example: sell is blocked", "CONTRACT",
-                 ((("honeypot",),), lambda value: value is True)),
-                ("lp_removed", 30, "example: liquidity withdrawn", "LIQUIDITY",
-                 ((("lp_removed",),), lambda value: value is True)),
-                ("very_young", 20, "example: token is brand new", "MOMENTUM",
-                 ((("age_seconds",),), lambda value: isinstance(value, (int, float)) and value < 3600)),
+                (
+                    "honeypot",
+                    50,
+                    "example: sell is blocked",
+                    "CONTRACT",
+                    ((("honeypot",),), lambda value: value is True),
+                ),
+                (
+                    "lp_removed",
+                    30,
+                    "example: liquidity withdrawn",
+                    "LIQUIDITY",
+                    ((("lp_removed",),), lambda value: value is True),
+                ),
+                (
+                    "very_young",
+                    20,
+                    "example: token is brand new",
+                    "MOMENTUM",
+                    ((("age_seconds",),), lambda value: isinstance(value, (int, float)) and value < 3600),
+                ),
             ),
             "hard_floor_flags": ("honeypot",),
             "bands": {"critical": 70, "high": 45, "medium": 20},
-            "constants": {"EXAMPLE_POLICY": 1},
+            # Illustrative zeros: never a calibration. Names are fixed by
+            # REQUIRED_CONSTANTS so the example cannot drift from the shim.
+            "constants": {**dict.fromkeys(REQUIRED_CONSTANTS, 0), "EXAMPLE_POLICY": 1},
             "groups": {"honeypot": "CONTRACT", "lp_removed": "LIQUIDITY", "very_young": "MOMENTUM"},
         }
     )
@@ -251,7 +323,9 @@ def resolve_policy() -> PolicyResolution:
             "risk_policy: no calibrated provider (%s unset, no %r entry point). "
             "Using %s — scores are ILLUSTRATIVE. Install the private policy package "
             "or a public deployment is misconfigured.",
-            ENV_VAR, ENTRY_POINT_GROUP, policy.name,
+            ENV_VAR,
+            ENTRY_POINT_GROUP,
+            policy.name,
         )
         return PolicyResolution(policy=policy, source="example", illustrative=True)
     spec = provider()
@@ -259,9 +333,7 @@ def resolve_policy() -> PolicyResolution:
         resolution = PolicyResolution(policy=spec, source=source, illustrative=False)
     else:
         logger.info("risk_policy: loaded %r from %s", str(spec.get("name")), source)
-        resolution = PolicyResolution(
-            policy=RulePolicy.from_spec(spec), source=source, illustrative=False
-        )
+        resolution = PolicyResolution(policy=RulePolicy.from_spec(spec), source=source, illustrative=False)
     if resolution.policy.name == example_policy().name:
         # A provider that hands back the example spec is still illustrative.
         return PolicyResolution(policy=resolution.policy, source=source, illustrative=True)
@@ -286,9 +358,7 @@ def require_calibrated_policy(*, strict: bool) -> PolicyResolution:
     """
     resolution = resolve_policy()
     if not resolution.illustrative:
-        logger.info(
-            "risk_policy: calibrated %r from %s", resolution.policy.name, resolution.source
-        )
+        logger.info("risk_policy: calibrated %r from %s", resolution.policy.name, resolution.source)
         return resolution
     if strict:
         raise PolicyUnavailable(

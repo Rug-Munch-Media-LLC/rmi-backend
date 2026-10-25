@@ -16,6 +16,7 @@ from __future__ import annotations
 from .risk_policy import load_policy
 
 _policy = load_policy()
+#: The full name set is declared once, in ``risk_policy.REQUIRED_CONSTANTS``.
 _c = _policy.constants
 
 HONEYPOT_WEIGHT = _c["HONEYPOT_WEIGHT"]
