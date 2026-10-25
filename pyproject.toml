@@ -154,6 +154,7 @@ dev = [
     "pytest-testmon>=2.0.0",   # Test Impact Analysis (TIA) pilot - fallback
     "pytest-tia>=1.1.0",       # Test Impact Analysis (TIA) - preferred
     "pyyaml>=6.0",             # For YAML flaky registry
+    "aiosqlite>=0.20.0",       # async SQLite engine in boost/heatmap tests (test-only)
     "fakeredis>=2.26.0",       # tests/unit/test_kv_migration.py + x402 conftest
     "pre-commit>=4.6.0",
     # gitleaks is a Go binary installed via lefthook/system, not pip — excluded

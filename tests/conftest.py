@@ -30,7 +30,7 @@ if str(QUARANTINE_DIR) not in sys.path:
     sys.path.insert(0, str(QUARANTINE_DIR))
 
 # Import to register pytest hooks
-import pytest_quarantine  # type: ignore[import-not-found]  # noqa: F401
+import pytest_quarantine  # type: ignore[import-not-found]  # noqa: E402, F401
 
 # ── Auth env defaults (BEFORE any app import) ────────────────────────
 # get_settings() is @lru_cache(maxsize=1): the FIRST import in a worker
@@ -214,3 +214,7 @@ def chat_route_hermetic(tmp_path, monkeypatch):
     yield
 
     chat_mod._chat_cache.clear()
+
+
+# Hermetic fixtures live in their own module (200-line / one-function gate).
+pytest_plugins = ["tests._kol_fixtures"]
