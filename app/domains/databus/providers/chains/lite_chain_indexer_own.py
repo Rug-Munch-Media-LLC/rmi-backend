@@ -22,6 +22,7 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanner.modules._core import PREFER_OWN_DATA
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger("databus.providers.lite_chain_indexer_own")
 
@@ -67,7 +68,7 @@ async def _lite_chain_indexer_deployer_reputation(**kwargs: Any) -> dict[str, An
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("lite_chain_indexer_deployer_reputation failed: %s", exc)
+        record_silent_failure("databus", "deployer_reputation", exc, fallback="none")
         return None
 
 
@@ -106,7 +107,7 @@ async def _lite_chain_indexer_deployer_fingerprint(**kwargs: Any) -> dict[str, A
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("lite_chain_indexer_deployer_fingerprint failed: %s", exc)
+        record_silent_failure("databus", "deployer_fingerprint", exc, fallback="none")
         return None
 
 

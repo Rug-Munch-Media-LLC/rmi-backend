@@ -24,6 +24,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger(__name__)
 
@@ -450,8 +451,8 @@ async def _goplus_token_security(
             if cache is not None:
                 cache[address] = normalized
             return normalized
-    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
-        logger.debug("goplus_security_failed addr=%s", address)
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        record_silent_failure("databus", "goplus_security", exc, fallback="none")
     return None
 
 
@@ -477,7 +478,7 @@ async def _security_check_honeypot(
         report = await detector.detect(address, chain, str(launch.get("pair_address") or ""))
         return bool(getattr(report, "is_honeypot", False))
     except Exception as exc:
-        logger.debug("honeypot_check_failed addr=%s err=%s", address, exc)
+        record_silent_failure("databus", "honeypot_check", exc, fallback="none")
         return None
     finally:
         with contextlib.suppress(Exception):

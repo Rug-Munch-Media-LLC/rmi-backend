@@ -18,6 +18,7 @@ from app.domains.detectors.rug_imminence_predictor.models import (
     RIPResult,
     SignalCategory,
 )
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger(__name__)
 
@@ -591,8 +592,8 @@ class RugImminencePredictor:
                     pairs = data.get("pairs", [])
                     if pairs:
                         return data
-        except Exception:
-            logger.debug("dexscreener fetch failed", exc_info=True)
+        except Exception as exc:
+            record_silent_failure("scanner", "rug_imminence_dexscreener", exc, fallback="none")
         return None
 
     async def _resolve_deployer(self, address: str, chain: str) -> str | None:

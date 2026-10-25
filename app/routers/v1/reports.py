@@ -25,6 +25,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger(__name__)
 
@@ -98,13 +99,14 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
                 logger.debug("RiskScorer not available")
                 return {"error": "unavailable", "note": "Wallet risk service unavailable"}
             except Exception as e:
-                logger.debug(f"RiskScorer failed: {e}")
-                return {"error": "unavailable", "note": "Wallet risk service unavailable"}
+                record_silent_failure("api", "reports_risk_scorer", e, fallback="section_unavailable")
+                return {"error": "unavailable", "degraded": True, "fallback": "section_unavailable",
+                        "note": "Wallet risk service unavailable"}
 
         return {"error": "unavailable", "note": f"Risk not supported for {subject_type}"}
     except Exception as exc:
-        logger.debug("section_risk_fail: %s", exc)
-        return {"error": "unavailable"}
+        record_silent_failure("api", "reports_risk_section", exc, fallback="section_unavailable")
+        return {"error": "unavailable", "degraded": True, "fallback": "section_unavailable"}
 
 
 async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
@@ -142,11 +144,12 @@ async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
                 logger.debug("ChainFeeder not available for holders")
                 return {"error": "unavailable", "note": "No holder data available"}
             except Exception as e:
-                logger.debug(f"ChainFeeder holders failed: {e}")
-                return {"error": "unavailable", "note": "No holder data available"}
+                record_silent_failure("api", "reports_chainfeeder", e, fallback="section_unavailable")
+                return {"error": "unavailable", "degraded": True, "fallback": "section_unavailable",
+                        "note": "No holder data available"}
     except Exception as exc:
-        logger.debug("section_holders_fail: %s", exc)
-        return {"error": "unavailable"}
+        record_silent_failure("api", "reports_holders_section", exc, fallback="section_unavailable")
+        return {"error": "unavailable", "degraded": True, "fallback": "section_unavailable"}
 
 
 async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:

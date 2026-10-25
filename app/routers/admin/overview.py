@@ -26,6 +26,7 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends
 
 from app.core.logging import get_logger
+from app.observability.silent_failures import record_silent_failure
 from app.routers.admin import verify_admin
 
 logger = get_logger(__name__)
@@ -249,8 +250,8 @@ async def _bot_user_stats() -> dict[str, Any]:
                     by_tier[tier] = int(count)
                     if tier in _PREMIUM_TIERS:
                         premium += int(count)
-            except sqlite3.Error:
-                pass  # tier column may not exist in older schemas
+            except sqlite3.Error as exc:
+                record_silent_failure("api", "admin_tier_breakdown", exc, fallback="zero_tier")
             return {"bot_users": int(total), "premium_users": premium, "by_tier": by_tier}
         finally:
             conn.close()

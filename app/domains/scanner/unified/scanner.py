@@ -41,6 +41,7 @@ from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.persistence import read_stability
 from app.domains.scanner.unified.scoring import compute_score
 from app.domains.scanner.unified.sentinel_phase import run_sentinel_for_result
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger(__name__)
 
@@ -108,7 +109,8 @@ async def scan_status(chain: str, address: str) -> dict[str, Any] | None:
                 parsed = json.loads(raw)
                 if isinstance(parsed, dict):
                     return parsed
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as exc:
+                record_silent_failure("scanner", "scan_status_json", exc, fallback="none")
                 return None
 
         raw = await r.get(f"sentinelscan:{chain}:{address}")
@@ -117,9 +119,11 @@ async def scan_status(chain: str, address: str) -> dict[str, Any] | None:
                 parsed = json.loads(raw)
                 if isinstance(parsed, dict):
                     return {"state": "complete", "source": "result_cache", "result": parsed}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as exc:
+                record_silent_failure("scanner", "result_cache_json", exc, fallback="none")
                 return None
     except Exception as exc:
+        record_silent_failure("scanner", "scan_status_read", exc, fallback="none")
         logger.debug("scan_status_read_failed", chain=chain, address=address[:12], error=str(exc)[:80])
     return None
 

@@ -38,6 +38,7 @@ from app.catalog.models import (
 from app.config import resolve_service_url
 from app.core.logging import get_logger
 from app.integrations.rugbrain_client import rugbrain_search
+from app.observability.silent_failures import record_silent_failure
 
 log = get_logger(__name__)
 
@@ -248,7 +249,7 @@ class CatalogService:
                 if cached:
                     return Token.model_validate_json(cached)
             except Exception as e:
-                log.debug("token_cache_get_fail: %s", e)
+                record_silent_failure("catalog", "token_cache_get", e, fallback="cache_miss")
         if not self._health.postgres:
             return None
         try:
@@ -460,7 +461,7 @@ class CatalogService:
                 if r:
                     deployer_reputation = r["rep"]
             except Exception as e:
-                log.debug("risk_neo4j_fail: %s", e)
+                record_silent_failure("catalog", "risk_neo4j", e, fallback="default_reputation")
 
         token_score = token.risk_score if token and token.risk_score is not None else 50
         if deployer_reputation is not None:

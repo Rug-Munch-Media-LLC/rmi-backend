@@ -31,6 +31,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger("market-selfserved")
 
@@ -103,7 +104,7 @@ def _holders_evm(chain: str, address: str, limit: int) -> dict[str, Any] | None:
             {"chain": chain, "addr": address},
         )
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("holders holder_balances query failed: %s", exc)
+        record_silent_failure("api", "holders_clickhouse", exc, fallback="none")
         rows, count_rows = None, None
     if rows:
         holders = [{"address": r[0], "balance": float(r[1] or 0), "transfers": int(r[2] or 0)} for r in rows]
@@ -146,7 +147,7 @@ def _holders_evm(chain: str, address: str, limit: int) -> dict[str, Any] | None:
             {"chain": chain, "addr": address},
         )
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("holders evm query failed: %s", exc)
+        record_silent_failure("api", "holders_evm_query", exc, fallback="none")
         return None
     if not rows:
         return None
