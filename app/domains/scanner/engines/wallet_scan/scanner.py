@@ -540,8 +540,8 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         record_token_scan_coverage(data_sources, modules_run)
     except ImportError as e:
         logger.debug(f"scan_wallet failed: {e}")
-    except Exception:  # noqa: S110 — optional dependency
-        pass
+    except Exception as sh_exc:
+        logger.warning("silent_failure_scan_wallet", handler="scan_wallet", error=str(sh_exc))
 
     attempted_modules = [
         "helius_wallet",

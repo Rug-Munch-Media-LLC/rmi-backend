@@ -100,8 +100,8 @@ async def searxng_search(query: str, max_results: int = 5) -> list[dict[str, str
                         return parsed[:max_results]
                 except (TypeError, json.JSONDecodeError) as e:
                     logger.warning(f"searxng_search failed: {e}")
-    except Exception:  # noqa: S110 — cache is best-effort
-        pass
+    except Exception as sh_exc:
+        logger.warning("silent_failure_searxng_search", handler="searxng_search", error=str(sh_exc))
 
     try:
         async with httpx.AsyncClient(timeout=SEARXNG_TIMEOUT) as client:
@@ -128,6 +128,6 @@ async def searxng_search(query: str, max_results: int = 5) -> list[dict[str, str
             r = get_redis_async()
             if r is not None:
                 await r.setex(_cache_key(query), SEARXNG_CACHE_TTL, json.dumps(results))
-        except Exception:  # noqa: S110 — cache is best-effort
-            pass
+        except Exception as sh_exc:
+            logger.warning("silent_failure_searxng_search", handler="searxng_search", error=str(sh_exc))
     return results

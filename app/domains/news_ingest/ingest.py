@@ -375,8 +375,8 @@ def lightweight_importance(article: NewsArticle, now: datetime | None = None) ->
                 score += 0.1
             elif age_hours < 3:
                 score += 0.05
-        except (TypeError, ValueError, OverflowError):
-            pass  # freshness is a bonus, never fatal
+        except (TypeError, ValueError, OverflowError) as exc:
+            logger.warning("silent_failure_lightweight_importance", handler="lightweight_importance", error=str(exc))
 
     return round(min(1.0, max(0.0, score)), 4)
 

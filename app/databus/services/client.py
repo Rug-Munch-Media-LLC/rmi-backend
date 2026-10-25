@@ -198,8 +198,7 @@ class DataBus:
                             **item.get("kwargs", {}),
                         )
                 await asyncio.sleep(interval)
-            except asyncio.CancelledError as exc:
-                logger.warning("_warm_loop_failed", error=str(exc))
+            except asyncio.CancelledError:
                 break
             except (
                 ConnectionError,
@@ -325,7 +324,6 @@ class DataBus:
             httpx.HTTPError,
             httpx.TimeoutException,
         ) as e:
-            logger.warning("fetch_failed", error=str(e))
             self._provider_health.record_failure(data_type, str(e))
             self._dedup.fail(dedup_key, e)
             self._stats["errors"] += 1
@@ -467,8 +465,10 @@ class DataBus:
                             ConnectionError,
                             TimeoutError,
                             RuntimeError,
-                        ) as exc:
-                            logger.warning("_local_precheck_failed", error=str(exc))
+                        ) as _sh_exc:
+                            logger.warning(
+                                "silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc)
+                            )
 
                         return {
                             "data": {
@@ -488,8 +488,8 @@ class DataBus:
                     TimeoutError,
                     RuntimeError,
                     ImportError,
-                ) as exc:
-                    logger.warning("_local_precheck_failed", error=str(exc))
+                ) as _sh_exc:
+                    logger.warning("silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc))
 
                 # Layer 2: Redis hot cache — frequently-accessed labels
                 try:
@@ -524,8 +524,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ) as exc:
-                    logger.warning("_local_precheck_failed", error=str(exc))
+                ) as _sh_exc:
+                    logger.warning("silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc))
 
             # ── SCANNER: check SENTINEL token security cache ──
             if (
@@ -556,8 +556,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ) as exc:
-                    logger.warning("_local_precheck_failed", error=str(exc))
+                ) as _sh_exc:
+                    logger.warning("silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc))
 
             # ── RAG: semantic search our 17K+ scam docs ──
             if data_type in ("rag_search", "scanner", "wallet_labels") and (query or address):
@@ -591,8 +591,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ) as exc:
-                    logger.warning("_local_precheck_failed", error=str(exc))
+                ) as _sh_exc:
+                    logger.warning("silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc))
 
             # ── PRICE: check Redis price cache ──
             if data_type == "token_price" and address:
@@ -614,8 +614,8 @@ class DataBus:
                     TimeoutError,
                     httpx.HTTPError,
                     httpx.TimeoutException,
-                ) as exc:
-                    logger.warning("_local_precheck_failed", error=str(exc))
+                ) as _sh_exc:
+                    logger.warning("silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc))
 
         except (
             ConnectionError,
@@ -623,8 +623,8 @@ class DataBus:
             TimeoutError,
             httpx.HTTPError,
             httpx.TimeoutException,
-        ) as exc:
-            logger.warning("_local_precheck_failed", error=str(exc))
+        ) as _sh_exc:
+            logger.warning("silent_failure_local_precheck", handler="_local_precheck", error=str(_sh_exc))
 
         return None
 

@@ -207,8 +207,8 @@ async def classify_wallet(address: str, transactions: list[Any] | None = None) -
         neo_type = await query_wallet_type(addr_lower)
         if neo_type:
             return neo_type
-    except ImportError:
-        pass  # Neo4j client not installed
+    except ImportError as exc:
+        logger.warning("silent_failure_classify_wallet", handler="classify_wallet", error=str(exc))
     except Exception as exc:
         logger.debug("Neo4j classify_wallet failed for %s: %s", addr_lower[:12], exc)
 

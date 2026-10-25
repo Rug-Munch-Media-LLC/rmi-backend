@@ -557,8 +557,9 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
                 with contextlib.suppress(ImportError, Exception):
                     result = await enrich_response(tool_id, result, body, request)
                 return JSONResponse(content=result, status_code=200)
-        except (ImportError, Exception):  # noqa: S110 — optional dependency
-            pass
+        except (ImportError, Exception) as sh_exc:
+            logger.warning("silent_failure_tool_alias_dispatcher", handler="tool_alias_dispatcher", error=str(sh_exc))
+            raise
         raise HTTPException(
             status_code=404,
             detail=f"Tool '{tool_id}' not found. See /mcp/tools for available tools",

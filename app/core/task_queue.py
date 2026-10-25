@@ -62,8 +62,8 @@ async def process_tasks() -> None:
 
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
-    except (ConnectionError, OSError):
-        return
+    except (ConnectionError, OSError) as exc:
+        logger.warning("silent_failure_process_tasks", handler="process_tasks", error=str(exc))
 
     while True:
         try:
