@@ -55,9 +55,7 @@ def dedupe_articles(articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if title in seen_titles:
             continue
         norm = _norm_title(title)[:120]
-        if norm and any(
-            difflib.SequenceMatcher(None, norm, prev).ratio() > 0.88 for prev in seen_norms[-200:]
-        ):
+        if norm and any(difflib.SequenceMatcher(None, norm, prev).ratio() > 0.88 for prev in seen_norms[-200:]):
             continue
         seen_titles.add(title)
         if norm:
@@ -85,10 +83,7 @@ async def relevance_rerank(articles: list[dict[str, Any]]) -> list[dict[str, Any
         ranked = await asyncio.wait_for(
             rerank_results(
                 RELEVANCE_QUERY,
-                documents=[
-                    f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}"
-                    for a in rerank_cands
-                ],
+                documents=[f"{a.get('title', '')}. {str(a.get('description', ''))[:160]}" for a in rerank_cands],
                 top_n=len(rerank_cands),
                 tier="deep",
             ),
@@ -149,9 +144,7 @@ async def _embed_cosine_fallback(articles: list[dict[str, Any]]) -> list[dict[st
                 )
                 q_resp.raise_for_status()
                 q_vec = q_resp.json()["data"][0]["embedding"]
-                d_resp = await client.post(
-                    _murl, json={"model": "mistral-embed", "input": docs}, headers=_mh
-                )
+                d_resp = await client.post(_murl, json={"model": "mistral-embed", "input": docs}, headers=_mh)
                 d_resp.raise_for_status()
                 d_vecs = [d["embedding"] for d in d_resp.json()["data"]]
 

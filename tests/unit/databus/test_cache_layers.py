@@ -66,7 +66,8 @@ async def test_l2_happy_path_roundtrip(monkeypatch):
     out = await l2.get("price:eth")
     assert out == {"usd": 2500.0}
     assert "databus:price:eth" in store  # prefix applied
-    assert l2.hits == 1 and l2.misses == 0
+    assert l2.hits == 1
+    assert l2.misses == 0
 
 
 @pytest.mark.asyncio

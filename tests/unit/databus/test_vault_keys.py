@@ -58,7 +58,8 @@ def test_status_never_includes_value():
 def test_acquire_counts_and_returns_value():
     k = _key()
     assert k.acquire() == "secret-value-123"
-    assert k.calls_total == 1 and k.calls_this_month == 1
+    assert k.calls_total == 1
+    assert k.calls_this_month == 1
 
 
 def test_release_success_resets_429_streak():

@@ -30,6 +30,7 @@ from collections import OrderedDict, defaultdict
 from typing import TYPE_CHECKING, Any
 
 import httpx
+from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
 
@@ -150,8 +151,8 @@ class L2RedisCache:
             self._available = True
             logger.info("DataBus Cache: Redis connected")
             return True
-        except Exception as e:
-            logger.warning(f"DataBus Cache: Redis unavailable ({e}), L2 disabled")
+        except Exception as exc:
+            logger.warning("databus_cache_l2_unavailable", error=str(exc), host=REDIS_HOST)
             self._available = False
             return False
 
@@ -166,9 +167,10 @@ class L2RedisCache:
                 return json.loads(raw)
             self.misses += 1
             return None
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        except (RedisError, ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
             self._available = False
             self.misses += 1
+            logger.warning("databus_cache_l2_get_failed", key=key, error=str(exc))
             return None
 
     async def set(self, key: str, value: Any, ttl: int) -> None:
@@ -176,8 +178,9 @@ class L2RedisCache:
             return
         try:
             await self._redis.setex(f"{self._prefix}{key}", ttl, json.dumps(value, default=str))
-        except (ConnectionError, OSError, httpx.HTTPError, json.JSONDecodeError):
+        except (RedisError, ConnectionError, OSError, httpx.HTTPError, json.JSONDecodeError) as exc:
             self._available = False
+            logger.warning("databus_cache_l2_set_failed", key=key, ttl=ttl, error=str(exc))
 
     async def delete(self, key: str) -> None:
         if not self._available:
@@ -191,8 +194,8 @@ class L2RedisCache:
         try:
             async for key in self._redis.scan_iter(f"{self._prefix}*"):
                 await self._redis.delete(key)
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.warning(f"clear failed: {e}")
+        except (RedisError, ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            logger.warning("databus_cache_clear_failed", error=str(exc))
 
     def stats(self) -> dict[str, Any]:
         total = self.hits + self.misses
@@ -303,18 +306,16 @@ class CacheLayer:
     def _extract_data_type(self, key: str) -> str:
         """Extract data_type from cache key format 'source:data_type:hash'."""
         parts = key.split(":")
-        if len(parts) >= 2:
-            return parts[1]
-        return "default"
+        return parts[1] if len(parts) >= 2 else "default"
 
     async def get(self, key: str, data_type: str = "default") -> tuple[Any | None, bool]:
         """Get from cache with SWR. Returns (value, is_stale).
         If is_stale=True, caller should schedule background refresh.
         """
+        dtype = data_type or self._extract_data_type(key)
         # L1 (with SWR)
         val, is_stale = await self.l1.get(key)
         if val is not None:
-            dtype = data_type or self._extract_data_type(key)
             if is_stale:
                 self._type_stats[dtype]["stale_hits"] += 1
             else:
@@ -329,10 +330,8 @@ class CacheLayer:
         if val is not None:
             # Promote to L1 with shorter TTL (fresh only for now)
             await self.l1.set(key, val, 60)
-            dtype = data_type or self._extract_data_type(key)
             self._type_stats[dtype]["hits"] += 1
             return val, False
-        dtype = data_type or self._extract_data_type(key)
         self._type_stats[dtype]["misses"] += 1
         return None, False
 

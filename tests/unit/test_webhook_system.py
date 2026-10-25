@@ -547,7 +547,7 @@ class TestNewBlockProvider:
         assert isinstance(events, list)
 
     @pytest.mark.parametrize(
-        "hex_result,expected",
+        ("hex_result", "expected"),
         [
             ("0x10a4f2", 1090802),
             ("0x1", 1),
