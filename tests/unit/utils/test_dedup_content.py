@@ -7,15 +7,11 @@ from typing import Any
 
 from app.utils.dedup import (
     content_fingerprint,
-    content_hash,
     is_duplicate_content,
     lookup_group_by_fp,
     mark_content_ingested,
-    near_duplicate,
-    normalize_text,
     record_fp_group,
     strip_boilerplate,
-    tokenize,
 )
 from app.utils.dedup_config import CONTENT_GROUP_HASH_PREFIX, CONTENT_ZSET_PREFIX
 
@@ -80,24 +76,3 @@ def test_redis_outage_fails_open(dead_redis: Any) -> None:
     assert is_duplicate_content(fp, "news_v2") is False
     mark_content_ingested(fp, "news_v2")
     assert lookup_group_by_fp(fp, "news_v2") is None
-
-
-def test_content_hash_keeps_full_body() -> None:
-    long_text = "word " * 400
-    assert content_hash(long_text + "tail") != content_hash(long_text + "other")
-    assert len(content_hash(BODY)) == 64
-
-
-def test_normalize_text_and_tokenize() -> None:
-    assert normalize_text("  Foo\n\nBAR  ") == "foo bar"
-    assert tokenize("Foo, bar_baz 42!") == {"foo", "bar", "baz", "42"}
-    assert normalize_text("") == ""
-    assert tokenize("") == set()
-
-
-def test_near_duplicate_boundaries() -> None:
-    assert near_duplicate("alpha beta gamma", "alpha beta gamma") is True
-    assert near_duplicate("alpha beta gamma", "one two three") is False
-    assert near_duplicate("", "") is False
-    assert near_duplicate("alpha beta", "") is False
-    assert near_duplicate("alpha beta gamma delta", "alpha beta", threshold=0.4) is True

@@ -72,6 +72,24 @@ def _group_for_hit(hit: Any) -> str | None:
     return group_from_hit(hit) or lookup_group_by_url(str(hit.metadata.get("source_url", "")))
 
 
+def _title_hit(hits: list[Any]) -> Any | None:
+    """First hit at or above the title-similarity threshold, else None."""
+    for h in hits:
+        if float(h.score) >= TITLE_SIM_THRESHOLD:
+            return h
+    return None
+
+
+def _entity_hit(hits: list[Any], content: str, new_ts: Any) -> Any | None:
+    """First in-window hit whose entities overlap *content*, else None."""
+    for h in hits:
+        meta = h.metadata
+        cand_ts = parse_published_at(str(meta.get("published_at") or meta.get("date") or ""))
+        if within_window(new_ts, cand_ts) and is_duplicate_by_entities(content, str(h.text or "")):
+            return h
+    return None
+
+
 async def check_duplicates(
     url: str,
     title: str,
@@ -81,23 +99,20 @@ async def check_duplicates(
 ) -> DedupResult:
     """Run all four dedup levels in order; stop at the first duplicate.
 
-    Order: URL (cheap) → content fingerprint (cheap) → title (embed) →
-    entities (uses the same search hits for candidate articles).
-
-    Every level fails open: backend errors are logged at DEBUG and treated
-    as "not a duplicate", so ingestion is never blocked by dedup outages.
+    Every level fails open: backend errors are logged at DEBUG and treated as
+    "not a duplicate", so ingestion is never blocked by dedup outages. The
+    title search comes from :func:`active_title_search` (``bind_title_search``).
 
     Args:
         url: Canonical article URL.
         title: Article title.
         content: Article body (markdown/text).
         collection: RAG collection (default ``news_v2``).
-        published_at: ISO/RSS timestamp of the article; used for the Level 4
-            six-hour window check. Empty → window check skipped.
+        published_at: ISO/RSS timestamp; used for the Level 4 window check.
 
     Returns:
-        A ``DedupResult``. When ``is_duplicate`` is True the caller should
-        NOT ingest; ``group_id`` carries the existing story group.
+        A ``DedupResult``; on a duplicate the caller must NOT ingest and
+        ``group_id`` carries the existing story group.
     """
     # Level 1: URL
     if is_duplicate_url(url):
@@ -121,28 +136,24 @@ async def check_duplicates(
         hits = []
 
     # Level 2: title similarity
-    for h in hits:
-        if float(h.score) >= TITLE_SIM_THRESHOLD:
-            group = _group_for_hit(h)
-            log.debug("dedup_level=title url=%s score=%s group=%s", url, round(float(h.score), 4), group)
-            return DedupResult(
-                is_duplicate=True,
-                level="title",
-                group_id=group,
-                matched_doc_id=h.doc_id,
-                details={"score": float(h.score)},
-            )
+    title_hit = _title_hit(hits)
+    if title_hit is not None:
+        group = _group_for_hit(title_hit)
+        log.debug("dedup_level=title url=%s score=%s group=%s", url, round(float(title_hit.score), 4), group)
+        return DedupResult(
+            is_duplicate=True,
+            level="title",
+            group_id=group,
+            matched_doc_id=title_hit.doc_id,
+            details={"score": float(title_hit.score)},
+        )
 
     # Level 4: entity overlap against candidates within the time window
-    new_ts = parse_published_at(published_at)
-    for h in hits:
-        cand_ts = parse_published_at(str(h.metadata.get("published_at") or h.metadata.get("date") or ""))
-        if not within_window(new_ts, cand_ts):
-            continue
-        if is_duplicate_by_entities(content, str(h.text or "")):
-            group = _group_for_hit(h)
-            log.debug("dedup_level=entity url=%s matched=%s group=%s", url, h.doc_id, group)
-            return DedupResult(is_duplicate=True, level="entity", group_id=group, matched_doc_id=h.doc_id)
+    entity_hit = _entity_hit(hits, content, parse_published_at(published_at))
+    if entity_hit is not None:
+        group = _group_for_hit(entity_hit)
+        log.debug("dedup_level=entity url=%s matched=%s group=%s", url, entity_hit.doc_id, group)
+        return DedupResult(is_duplicate=True, level="entity", group_id=group, matched_doc_id=entity_hit.doc_id)
 
     # No duplicate found → fresh story (or a variation we can't prove).
     return DedupResult(is_duplicate=False, group_id=new_group_id(url), details={"fp": fp})
