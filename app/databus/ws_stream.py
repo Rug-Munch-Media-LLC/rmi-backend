@@ -65,7 +65,13 @@ class WSConnectionManager:
             try:
                 await ws.send_json(data)
                 self._total_messages += 1
-            except (ConnectionError, OSError, TimeoutError):
+            except (ConnectionError, OSError, TimeoutError) as exc:
+                logger.warning(
+                    "databus_ws_broadcast_failed",
+                    channel=channel,
+                    tier=tier,
+                    error=str(exc),
+                )
                 dead.append((ws, tier))
         for ws, tier in dead:
             self._connections[channel].discard((ws, tier))
@@ -125,6 +131,21 @@ async def databus_ws_broadcast(data_type: str, result: dict[str, Any]) -> None:
 # ── WebSocket Endpoint ───────────────────────────────────────────────
 
 
+def is_ping(raw: str) -> bool:
+    """True when a client frame is a keepalive ping.
+
+    Accepts the bare token ``ping`` and the JSON form ``{"type": "ping"}``.
+    Malformed JSON is not a ping — it must not kill the socket.
+    """
+    if raw.strip() == "ping":
+        return True
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and payload.get("type") == "ping"
+
+
 @router.websocket("/api/v1/databus/ws/{channel}")
 async def databus_websocket(ws: WebSocket, channel: str) -> None:
     """
@@ -174,18 +195,19 @@ async def databus_websocket(ws: WebSocket, channel: str) -> None:
             try:
                 data = await asyncio.wait_for(ws.receive_text(), timeout=60)
                 # Client can send {"type": "ping"} for keepalive
-                if data.strip() == "ping" or json.loads(data).get("type") == "ping":
+                if is_ping(data):
                     await ws.send_json({"type": "pong", "ts": int(time.time())})
             except TimeoutError:
                 # No message for 60s - send keepalive ping
                 try:
                     await ws.send_json({"type": "ping", "ts": int(time.time())})
-                except json.JSONDecodeError:
+                except (ConnectionError, OSError, RuntimeError) as exc:
+                    logger.warning("databus_ws_keepalive_failed", channel=channel, error=str(exc))
                     break
             except WebSocketDisconnect:
                 break
-    except WebSocketDisconnect as e:
-        logger.warning(f"databus_websocket failed: {e}")
+    except WebSocketDisconnect as exc:
+        logger.warning("databus_websocket_disconnected", channel=channel, error=str(exc))
     finally:
         ws_manager.disconnect(ws, channel)
 

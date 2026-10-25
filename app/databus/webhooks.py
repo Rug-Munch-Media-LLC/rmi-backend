@@ -20,6 +20,7 @@ from typing import Any
 
 import httpx
 import redis
+from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
 from app.databus.vault import resolve_key
@@ -201,7 +202,8 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
     try:
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
-    except (ConnectionError, OSError, TimeoutError):
+    except (ConnectionError, OSError, TimeoutError) as exc:
+        logger.warning("webhook_signature_check_failed", error=str(exc))
         return False
 
 
@@ -295,8 +297,9 @@ async def setup_webhook(service: str, webhook_url: str, events: list[str] | None
                     },
                 )
                 return resp.json() if resp.status_code == 200 else {"error": resp.text[:200]}
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            return {"error": str(e)}
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            logger.warning("webhook_register_failed", service=service, error=str(exc))
+            return {"error": str(exc)}
 
     elif service == "moralis":
         if not api_key:
@@ -317,8 +320,9 @@ async def setup_webhook(service: str, webhook_url: str, events: list[str] | None
                     },
                 )
                 return resp.json() if resp.status_code in (200, 201) else {"error": resp.text[:200]}
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            return {"error": str(e)}
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            logger.warning("webhook_register_failed", service=service, error=str(exc))
+            return {"error": str(exc)}
 
     return {
         "status": "manual_setup_required",
@@ -340,5 +344,6 @@ async def list_webhooks() -> dict[str, Any]:
                 webhooks.append(json.loads(data))
         r.close()
         return {"webhooks": webhooks, "total": len(webhooks)}
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+    except (RedisError, ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+        logger.warning("webhook_list_failed", error=str(exc))
         return {"webhooks": [], "total": 0}

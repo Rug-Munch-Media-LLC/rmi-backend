@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
 from app.databus.vault import resolve_key
@@ -222,8 +223,9 @@ async def cached_or_fetch(
             cached = await r.get(f"gmgn:{cache_key}")
             if cached:
                 return json.loads(cached)
-    except Exception:  # noqa: S110 — best-effort cache
-        pass
+    except (RedisError, OSError, ValueError, TypeError) as exc:
+        # Best-effort cache: a broken Redis must never fail the fetch.
+        logger.warning("gmgn_cache_read_failed", cache_key=cache_key, error=str(exc))
 
     # Fetch
     result = await fetcher(*args)
@@ -235,8 +237,8 @@ async def cached_or_fetch(
             r = get_redis_async()
             if r:
                 await r.setex(f"gmgn:{cache_key}", ttl, json.dumps(result))
-        except Exception:  # noqa: S110 — best-effort cache
-            pass
+        except (RedisError, OSError, ValueError, TypeError) as exc:
+            logger.warning("gmgn_cache_write_failed", cache_key=cache_key, ttl=ttl, error=str(exc))
 
     return result
 

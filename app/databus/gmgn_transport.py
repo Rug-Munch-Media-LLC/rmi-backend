@@ -5,16 +5,16 @@ Methods operate on ``self`` state initialized by ``GMGNProvider.__init__``.
 
 from __future__ import annotations
 
-import logging
 import time
 import uuid
 from typing import Any
 
 import httpx
 
+from app.core.logging import get_logger
 from app.databus.vault import resolve_key
 
-logger = logging.getLogger(__name__)
+logger = get_logger("databus.gmgn_transport")
 
 
 def _normalize_chain(chain: str) -> str:
@@ -182,10 +182,22 @@ class TransportMixin:
         if self._proxy_client is not None:
             try:
                 proxy_resp = await self._proxy_client.request(method, url, headers=headers, params=params, json=json)
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as exc:
+                logger.warning(
+                    "gmgn_proxy_transport_failed",
+                    method=method,
+                    url=url,
+                    error=str(exc),
+                )
                 self._rotate_proxy()
                 return await self.client.request(method, url, headers=headers, params=params, json=json)
             if proxy_resp.status_code in (403, 429) or proxy_resp.status_code >= 500:
+                logger.warning(
+                    "gmgn_proxy_bad_status",
+                    method=method,
+                    url=url,
+                    status_code=proxy_resp.status_code,
+                )
                 self._rotate_proxy()
                 return await self.client.request(method, url, headers=headers, params=params, json=json)
             return proxy_resp
@@ -210,7 +222,8 @@ def _f(value: Any) -> float:
         if value is None:
             return 0.0
         return float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        logger.debug("gmgn_float_coercion_failed", value=repr(value), error=str(exc))
         return 0.0
 
 
@@ -229,6 +242,7 @@ def _sum_top_pct(rows: list[dict[str, Any]], cap: int = 10) -> float | None:
             seen += 1
             if seen >= cap:
                 break
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.debug("gmgn_holder_pct_coercion_failed", amount_percentage=repr(pct), error=str(exc))
             continue
     return total if seen else None

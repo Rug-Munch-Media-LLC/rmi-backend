@@ -126,7 +126,8 @@ def _extract_host(url: str) -> str:
     """Host part of a proxy URL for safe logging (never credentials)."""
     try:
         host = urlsplit(url).hostname
-    except ValueError:
+    except ValueError as exc:
+        log.warning("proxy_url_unparsable", error=str(exc))
         host = None
     return host or url
 
