@@ -16,7 +16,7 @@ What it REPLACES (do NOT use these anymore):
   - app/caching_shield/unified_layer.py       → databus.fetch()
   - app/caching_shield/data_fallback.py       → databus.fetch()
   - app/caching_shield/api_registry.py        → databus.key_pool
-  - app/caching_shield/rate_limiter.py         → databus.rate_limiter
+  - app/core/rate_limiter.py         → app.core.rate_limiter (UnifiedRateLimiter)
   - app/arkham_connector.py                    → databus.providers.arkham
   - app/coingecko_connector.py                → databus.providers.coingecko
   - Direct .env reads for API keys            → databus.vault (encrypted in-memory)

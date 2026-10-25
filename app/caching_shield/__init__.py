@@ -71,7 +71,7 @@ from app.caching_shield.history_depth import (
 # AUDIT-2026-Q3 P0 (rate-limiter consolidation): RpcRateLimiter DISABLED.
 # UnifiedRateLimiter (app.core.rate_limiter) is the single active limiter and
 # provides acquire_provider() for backward compat. This deprecated per-provider
-# limiter is kept for reference only — see app/caching_shield/rate_limiter.py.
+# limiter is kept for reference only — see app/core/rate_limiter.py.
 # from app.caching_shield.rate_limiter import (
 #     PROVIDER_LIMITS,
 #     ProviderLimit,
