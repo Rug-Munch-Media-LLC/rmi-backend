@@ -20,6 +20,7 @@ from app.domains.scanner.modules._core import (
     _fetch_json,
     logger,
 )
+from app.observability.silent_failures import record_silent_failure
 
 
 async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -214,9 +215,9 @@ async def _try_own_deployer_reputation(
         await _redis_set_json(cache_key, own_rep, 3600)
         return _merge_own_reputation(result, own_rep, deployer_addr)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.debug("own_deployer_reputation_failed", error=str(e)[:80])
+        record_silent_failure("scanner", "own_deployer_reputation", e, fallback="false")
     except Exception as exc:
-        logger.debug("own_deployer_reputation_failed", error=str(exc)[:80])
+        record_silent_failure("scanner", "own_deployer_reputation", exc, fallback="false")
     return False
 
 

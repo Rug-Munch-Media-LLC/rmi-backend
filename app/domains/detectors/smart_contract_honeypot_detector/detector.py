@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+from app.observability.silent_failures import record_silent_failure
 
 from .constants import BENIGN_SELECTORS, EVM_CHAINS, HONEYPOT_THRESHOLDS, KNOWN_MALICIOUS_SELECTORS
 from .models import FindingSeverity, HoneypotAnalysisResult, HoneypotType, SecurityFinding, TokenInfo
@@ -88,7 +89,7 @@ class HoneypotDetector:
                 if pair_addr:
                     info.chain_data_sources.append(f"pair:{pair_addr}")
         except Exception as e:
-            logger.debug(f"DexScreener failed: {e}")
+            record_silent_failure("scanner", "honeypot_dexscreener", e, fallback="partial_result")
         explorer_url = chain_info.get("explorer", "")
         explorer_key = self._explorer_keys.get(chain, "")
         if explorer_url:
@@ -135,7 +136,7 @@ class HoneypotDetector:
                             )
                         )
         except Exception as e:
-            logger.debug(f"Fee analysis via DexScreener failed: {e}")
+            record_silent_failure("scanner", "honeypot_fee_analysis", e, fallback="partial_result")
         try:
             data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{address}"])
             if data and data.get("pairs"):

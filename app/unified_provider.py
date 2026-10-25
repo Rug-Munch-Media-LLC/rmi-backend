@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
+from app.observability.silent_failures import record_silent_failure
 
 logger = get_logger(__name__)
 
@@ -560,7 +561,8 @@ class UnifiedProvider:
             if smart_money and "error" not in smart_money:
                 result["smart_money"] = smart_money
             return result if result else None
-        except Exception:
+        except Exception as exc:
+            record_silent_failure("databus", "unified_solana_enrichment", exc, fallback="none")
             return None
 
     async def _fetch_birdeye_enrichment(self, mint: str) -> dict[str, Any] | None:
@@ -579,7 +581,8 @@ class UnifiedProvider:
                     "flags": security.get("flags", []),
                 },
             }
-        except Exception:
+        except Exception as exc:
+            record_silent_failure("databus", "unified_birdeye_enrichment", exc, fallback="none")
             return None
 
     async def _fetch_geckoterminal_ohlcv(
