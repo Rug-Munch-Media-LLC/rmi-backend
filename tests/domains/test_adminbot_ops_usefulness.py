@@ -47,11 +47,11 @@ class _Msg:
     def __init__(self, sent: list[dict[str, Any]]) -> None:
         self._sent = sent
 
-    async def reply_text(self, text: str = "", **kwargs: Any) -> "_Msg":
+    async def reply_text(self, text: str = "", **kwargs: Any) -> _Msg:
         self._sent.append({"text": str(text), "markup": kwargs.get("reply_markup")})
         return self
 
-    async def edit_text(self, text: str = "", **kwargs: Any) -> "_Msg":
+    async def edit_text(self, text: str = "", **kwargs: Any) -> _Msg:
         self._sent.append({"text": str(text), "markup": kwargs.get("reply_markup")})
         return self
 

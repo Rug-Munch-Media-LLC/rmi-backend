@@ -58,6 +58,7 @@ def _normalize_chain(chain: str) -> str:
 
     return norm(chain)
 
+from app.trending.engine import TrendingUnavailable, fetch_engine_trending
 
 _SOLANA_CHAINS = {"solana"}
 
@@ -400,43 +401,20 @@ def _activity_counts(tokens: list[str], hours: int) -> dict[str, int]:
 
 
 async def _trending_fallback(chain: str, limit: int) -> list[dict[str, Any]] | None:
-    """DexScreener recent-pairs fallback (free, no key) — trending proxy."""
-    import httpx
-
-    ch_chain = _normalize_chain(chain) if chain else "solana"
-    try:
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as c:
-            r = await c.get(f"https://api.dexscreener.com/token-pairs/v1/{ch_chain}/recent")
-            if r.status_code == 200:
-                data = r.json()
-                return data if isinstance(data, list) else data.get("pairs", [])[:limit]
-    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as exc:
-        logger.debug("dexscreener trending fallback failed: %s", exc)
+    """Removed: a local fallback ranking is forbidden (TRENDING-CONTRACT.md)."""
+    del chain, limit
     return None
-
 
 @router.get("/market/trending", summary="Trending tokens (own launches + activity, external fallback)")
 async def get_trending(
-    chain: str = Query(default="", description="Optional chain filter"),
-    limit: int = Query(default=50, ge=1, le=200),
-    hours: int = Query(default=_TRENDING_WINDOW_HOURS, ge=1, le=168),
+    chain: str = "solana",
+    limit: int = 20,
 ) -> dict[str, Any]:
-    """Trending tokens derived from our own indexed launches + transfer activity.
-
-    NOTE: in the FULL app this route is shadowed by the canonical
-    ``app/routers/market_intel/routes/market_data.py`` implementation
-    (mounted earlier — items/total/updated_at contract, see
-    tests/contract/test_api_contracts.py). This own-ClickHouse variant
-    serves when this router is mounted standalone (unit tests, embeds).
-    """
-    own = await asyncio.to_thread(_trending_own_safe, chain, limit, hours)
-    if own:
-        return {"data": own, "source": "own_clickhouse", "count": len(own)}
-    fallback = await _trending_fallback(chain, limit)
-    if fallback:
-        return {"data": fallback, "source": "dexscreener", "count": len(fallback)}
-    return {"data": [], "source": "none", "count": 0}
-
+    """Canonical trending -> ``rugbrain.trending_fusion``. No local ranking, no fallback."""
+    try:
+        return await fetch_engine_trending(chain, limit)
+    except TrendingUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.envelope()) from exc
 
 def _trending_own_safe(chain: str, limit: int, hours: int) -> list[dict[str, Any]] | None:
     try:

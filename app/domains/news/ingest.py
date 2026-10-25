@@ -16,10 +16,8 @@ Run as a cron: every 15 minutes.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import hashlib
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 import feedparser
@@ -27,9 +25,9 @@ import httpx
 from pydantic import HttpUrl
 
 from app.catalog.models import NewsItem, utcnow
-from app.domains.news.freshness import resolve_published_at
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
+from app.domains.news.freshness import resolve_published_at
 from app.domains.news.news_service.sources import RSS_FEEDS
 from app.domains.news.quality import score_body
 from app.domains.news.ratings import rate_article

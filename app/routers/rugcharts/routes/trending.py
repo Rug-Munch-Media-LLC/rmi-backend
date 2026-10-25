@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import datetime
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from app.core.data_fusion import envelope, fusion
 from app.core.logging import get_logger
 from app.services.ta_indicators import compute_ta_snapshot
 
@@ -16,7 +14,6 @@ from ..helpers import (
     _chain_freshness,
     _compute_rug_score,
     _compute_volume_authenticity,
-    _fetch_dexscreener_trending,
     _fetch_holder_stats,
     _fetch_ohlcv_clickhouse,
     _fetch_ohlcv_gecko,
@@ -30,44 +27,12 @@ router = APIRouter(tags=["rugcharts"])
 
 
 @router.get("/trending")
-async def rugcharts_trending(
-    chain: str = Query("solana", description="Blockchain to query"),
-    limit: int = Query(30, description="Max tokens to return"),
-) -> Any:
-    """Get trending tokens sorted by volume for RugCharts.
-
-    Data sources: DexScreener (boosted tokens + latest profiles).
-    Fused with DataFusion engine for multi-source confidence.
-    """
-    tokens, fallback_used = await _fetch_dexscreener_trending(chain, limit)
-
-    now = datetime.datetime.now(datetime.UTC)
-    for token in tokens[:limit]:
-        price_data = {
-            "source": "dexscreener",
-            "price_usd": token.get("price_usd", 0),
-            "freshness": now.isoformat(),
-            "confidence": 0.5 if token.get("volume_24h", 0) > 1000 else 0.3,
-        }
-        fused = await fusion.fuse_price_data(price_data)
-        token["fusion"] = {
-            "price_confidence": fused.get("confidence", 0),
-            "price_sources": fused.get("sources_used", 1),
-        }
-
-    return envelope(
-        success=True,
-        data={
-            "tokens": tokens[:limit],
-            "count": len(tokens),
-            "chain": chain,
-            "source": "dexscreener" if tokens else "none",
-            "fallback_used": fallback_used,
-        },
-        source="dexscreener",
-        confidence=0.5 if not fallback_used else 0.25,
-    )
-
+async def rugcharts_trending(chain: str = "solana", limit: int = 20) -> dict[str, Any]:
+    """Canonical trending -> ``rugbrain.trending_fusion``. No local ranking."""
+    try:
+        return await fetch_engine_trending(chain, limit)
+    except TrendingUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.envelope()) from exc
 
 @router.get("/health")
 async def rugcharts_health() -> dict[str, Any]:
