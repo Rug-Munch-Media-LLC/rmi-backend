@@ -22,6 +22,7 @@ from app.domains.premium.export import (
     sign_body,
     webhook_contract,
 )
+from tests.support.fake_credentials import fake_credential
 
 
 def _scan() -> dict[str, Any]:
@@ -93,7 +94,7 @@ def test_missing_scan_fields_stay_none() -> None:
 
 def test_signature_matches_a_reference_hmac_and_is_sha256_prefixed() -> None:
     body = encode(_payload())
-    secret = "subscriber-secret"
+    secret = fake_credential("secret", "premium-export")
 
     signature = sign_body(secret, body)
 

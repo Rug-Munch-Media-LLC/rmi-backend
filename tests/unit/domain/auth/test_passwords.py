@@ -5,6 +5,8 @@ Tests hash_password and verify_password functions that wrap bcrypt.
 
 from __future__ import annotations
 
+from tests.support.fake_credentials import fake_credential
+
 
 class TestHashPassword:
     """Tests for hash_password function."""
@@ -56,7 +58,7 @@ class TestVerifyPassword:
         """verify_password should return True for the correct password."""
         from app.domains.auth.passwords import hash_password, verify_password
 
-        password = "my_correct_password"
+        password = fake_credential("password", "auth-correct")
         hashed = hash_password(password)
 
         assert verify_password(password, hashed) is True
