@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from typing import Any
 
 from fastapi import Request  # noqa: TC002 — runtime request object
 
 from app.domains.billing.x402_exact.challenge import build_accepts
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_ATOMS = 50_000  # $0.05 fallback for tool ids without a price
 
@@ -32,8 +35,8 @@ def _atoms(context: dict[str, Any]) -> int:
     if raw is not None:
         try:
             return max(1, int(raw))
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as sh_exc:
+            logger.warning("silent_failure_atoms", handler="atoms", error=str(sh_exc))
     usd = context.get("price_usd", context.get("max_amount"))
     try:
         return max(1, round(float(usd) * 1_000_000))

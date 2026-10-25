@@ -7,12 +7,15 @@ function: :func:`parse_channel_page`.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 _VIEWS_RE = re.compile(r"([\d.,]+)\s*([KMB])?", re.IGNORECASE)
 _SCALE = {"": 1, "K": 1_000, "M": 1_000_000, "B": 1_000_000_000}
@@ -41,7 +44,8 @@ def parse_count(raw: str | None) -> int | None:
     suffix = (match.group(2) or "").upper()
     try:
         return round(float(match.group(1)) * _SCALE[suffix])
-    except ValueError:
+    except ValueError as sh_exc:
+        logger.warning("silent_failure_parse_count", handler="parse_count", error=str(sh_exc))
         return None
 
 

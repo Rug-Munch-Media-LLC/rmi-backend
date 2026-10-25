@@ -14,10 +14,13 @@ duplicates by the deterministic ``event_key`` (category + entity + source
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.domains.alerts.models import PlatformAlert, PlatformAlertSeverity
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -294,7 +297,8 @@ def normalize_alert(source: str, raw: dict[str, Any]) -> PlatformAlert | None:
         return None
     try:
         return branch(raw)
-    except (TypeError, ValueError, KeyError, AttributeError):
+    except (TypeError, ValueError, KeyError, AttributeError) as sh_exc:
+        logger.warning("silent_failure_normalize_alert", handler="normalize_alert", error=str(sh_exc))
         return None
 
 

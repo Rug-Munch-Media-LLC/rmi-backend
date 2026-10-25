@@ -115,7 +115,8 @@ async def get_redis_async() -> Any:
         from app.core.redis import get_redis_async as _get_async
 
         return _get_async()
-    except (AttributeError, ImportError):
+    except (AttributeError, ImportError) as sh_exc:
+        logger.warning("silent_failure_get_redis_async", handler="get_redis_async", error=str(sh_exc))
         return None
 
 

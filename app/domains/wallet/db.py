@@ -131,7 +131,8 @@ class WalletDBMixin:
         try:
             with open(self.KEYSTORE_PATH) as f:
                 keystore = json.load(f)
-        except (AttributeError, ImportError):
+        except (AttributeError, ImportError) as sh_exc:
+            logger.warning("silent_failure_get_mnemonic", handler="get_mnemonic", error=str(sh_exc))
             return None
 
         entry = keystore.get(wallet_id)

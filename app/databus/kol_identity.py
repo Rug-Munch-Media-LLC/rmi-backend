@@ -70,7 +70,8 @@ def _as_int(value: Any) -> int | None:
     if isinstance(value, str):
         try:
             return int(value.strip())
-        except ValueError:
+        except ValueError as sh_exc:
+            logger.warning("silent_failure_as_int", handler="as_int", error=str(sh_exc))
             return None
     return None
 

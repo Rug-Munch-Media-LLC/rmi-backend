@@ -7,11 +7,14 @@ abuse — a caller hammering the endpoint far above any human or bot cadence.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from datetime import UTC, datetime
 
 from app.core.logging import get_logger
+
+logger = logging.getLogger(__name__)
 
 log = get_logger(__name__)
 
@@ -30,7 +33,8 @@ def _redis():
             password=os.getenv("REDIS_PASSWORD") or None,
             decode_responses=True,
         )
-    except (ImportError, ValueError):
+    except (ImportError, ValueError) as sh_exc:
+        logger.warning("silent_failure_redis", handler="redis", error=str(sh_exc))
         return None
 
 
