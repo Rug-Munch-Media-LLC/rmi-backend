@@ -22,10 +22,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.caching_shield.history_depth import get_history_controller
-from app.caching_shield.rate_limiter import get_rate_limiter
 from app.caching_shield.rpc_cache import get_rpc_cache
 from app.caching_shield.ws_broadcaster import get_ws_manager
 from app.core.logging import get_logger
+from app.core.rate_limiter import get_rate_limiter
 
 logger = get_logger("caching_shield.router")
 router = APIRouter(prefix="/api/v1/cache", tags=["caching-shield"])
@@ -62,7 +62,7 @@ async def cache_health() -> dict[str, Any]:
         "timestamp": time.time(),
         "components": {
             "rpc_cache": cache_h,
-            "rate_limiter": {"configured_providers": list(limiter.get_all_limits().keys())},
+            "rate_limiter": await limiter.stats(),
             "ws_broadcaster": ws_s,
             "history_depth": hdc_s,
         },
@@ -99,25 +99,16 @@ async def cache_clear(request: Request) -> dict[str, Any]:
 
 @router.get("/rate-limits")
 async def rate_limits_status() -> dict[str, Any]:
-    """Get current token bucket states for all providers."""
+    """Current token-bucket states from the canonical unified limiter."""
     limiter = get_rate_limiter()
-    limits = limiter.get_all_limits()
-
-    result = {}
-    for provider, limit in limits.items():
-        # Get current bucket state
-        tokens, _last_refill, burst_used = await limiter.get_bucket_state(provider)
-        result[provider] = {
-            "tokens_per_sec": limit.tokens_per_sec,
-            "burst_size": limit.burst_size,
-            "current_tokens": round(tokens, 1),
-            "available_pct": round(tokens / limit.burst_size * 100, 1) if limit.burst_size else 0,
-            "burst_used": burst_used,
-        }
-
+    stats = await limiter.stats()
+    providers: dict[str, Any] = {}
+    for key, tokens in (stats.get("buckets") or {}).items():
+        providers[str(key).removeprefix("provider:") or str(key)] = {"available_tokens": tokens}
     return {
         "timestamp": time.time(),
-        "providers": result,
+        "redis_available": stats.get("redis_available", False),
+        "providers": providers,
     }
 
 
