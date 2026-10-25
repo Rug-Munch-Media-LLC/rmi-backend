@@ -148,9 +148,7 @@ async def get_fear_greed(**kw) -> dict[str, Any] | None:
 # ── 3. POLYMARKET - Prediction markets ─────────────────────────────
 
 
-async def get_prediction_markets(
-    limit: int = 5, tag: str = "crypto", **kw
-) -> dict[str, Any] | None:
+async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> dict[str, Any] | None:
     """Prediction market events from Polymarket. Free, no key."""
     cache_key = f"polymarket:{tag}:{limit}"
     cached = _cached(cache_key, 120)
@@ -209,9 +207,7 @@ async def get_market_brief(**kw) -> dict[str, Any] | None:
         for coin, data in prices.get("prices", {}).items():
             change = data.get("usd_24h_change", 0) or 0
             emoji = "🔴" if change < -3 else "🟠" if change < 0 else "🟢"
-            brief_parts.append(
-                f"{emoji} {coin.title()}: ${data.get('usd', 0):,.0f} ({change:+.1f}%)"
-            )
+            brief_parts.append(f"{emoji} {coin.title()}: ${data.get('usd', 0):,.0f} ({change:+.1f}%)")
 
     return {
         "brief": " | ".join(brief_parts),
@@ -250,9 +246,7 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
                     desc = item.get("description", "") or title
                     pub_str = item.get("updated_at", item.get("created_at", ""))
                     try:
-                        published = datetime.fromisoformat(
-                            pub_str.replace("Z", "+00:00")
-                        ).isoformat()
+                        published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
                     except (ValueError, TypeError):
                         published = datetime.now(UTC).isoformat()
                     articles.append(
@@ -287,26 +281,16 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
                     title = item.get("title", "")
                     url = item.get("url", "")
                     src = item.get("source", {})
-                    source_name = (
-                        src.get("title", "CryptoPanic") if isinstance(src, dict) else "CryptoPanic"
-                    )
+                    source_name = src.get("title", "CryptoPanic") if isinstance(src, dict) else "CryptoPanic"
                     pub_str = item.get("published_at", item.get("created_at", ""))
                     try:
-                        published = datetime.fromisoformat(
-                            pub_str.replace("Z", "+00:00")
-                        ).isoformat()
+                        published = datetime.fromisoformat(pub_str.replace("Z", "+00:00")).isoformat()
                     except (ValueError, TypeError):
                         published = datetime.now(UTC).isoformat()
                     votes = item.get("votes", {})
                     bull = votes.get("positive", 0) if isinstance(votes, dict) else 0
                     bear = votes.get("negative", 0) if isinstance(votes, dict) else 0
-                    sentiment = (
-                        "bullish"
-                        if bull > bear * 2
-                        else "bearish"
-                        if bear > bull * 2
-                        else "neutral"
-                    )
+                    sentiment = "bullish" if bull > bear * 2 else "bearish" if bear > bull * 2 else "neutral"
                     articles.append(
                         {
                             "id": f"cp-{hashlib_quick(title + url)}",
@@ -359,9 +343,7 @@ async def _fetch_rss_articles(
 
         def _acceptable(url: str) -> bool:
             lowered = url.lower()
-            return not any(
-                marker in lowered for marker in ("/embed", "embed?", "&embed", "/widget", "/chart/")
-            )
+            return not any(marker in lowered for marker in ("/embed", "embed?", "&embed", "/widget", "/chart/"))
 
         for media in getattr(entry, "media_content", None) or []:
             if isinstance(media, dict) and media.get("url"):
@@ -398,9 +380,7 @@ async def _fetch_rss_articles(
             async with httpx.AsyncClient(
                 timeout=timeout,
                 follow_redirects=True,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; RMI-NewsBot/4.0; +https://rugmunch.io)"
-                },
+                headers={"User-Agent": "Mozilla/5.0 (compatible; RMI-NewsBot/4.0; +https://rugmunch.io)"},
             ) as c:
                 r = await c.get(url)
                 if r.status_code != 200:
@@ -464,9 +444,7 @@ async def _fetch_rss_articles(
                     if img:
                         result[i]["image_url"] = img
             except PROVIDER_FAIL_OPEN_ERRORS:
-                logger.debug(
-                    "og_image_fallback_failed source=%s urls=%d", source_name, len(og_missing)
-                )
+                logger.debug("og_image_fallback_failed source=%s urls=%d", source_name, len(og_missing))
         if result:
             logger.debug(f"RSS {source_name}: {len(result)} articles")
         return result

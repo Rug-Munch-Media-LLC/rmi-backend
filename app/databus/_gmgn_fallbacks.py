@@ -207,12 +207,7 @@ def normalize_trades(trades: list[dict[str, Any]], source: str) -> list[dict[str
     return normalized
 
 
-async def cached_or_fetch(
-    cache_key: str,
-    ttl: int,
-    fetcher: Any,
-    *args: Any,
-) -> Any:
+async def cached_or_fetch(cache_key: str, ttl: int, fetcher: Any, *args: Any) -> Any:
     """Try Redis cache first, then fetch. Cache result on success."""
     # Try Redis
     try:
@@ -243,11 +238,6 @@ async def cached_or_fetch(
     return result
 
 
-async def cached_or_fetch_list(
-    cache_key: str,
-    ttl: int,
-    fetcher: Any,
-    *args: Any,
-) -> list[dict[str, Any]]:
+async def cached_or_fetch_list(cache_key: str, ttl: int, fetcher: Any, *args: Any) -> list[dict[str, Any]]:
     """Same as cached_or_fetch but for list returns."""
     return await cached_or_fetch(cache_key, ttl, fetcher, *args) or []

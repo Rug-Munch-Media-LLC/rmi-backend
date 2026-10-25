@@ -7,68 +7,44 @@ Auto-caches, indexes in RAG, and triggers premium scanner analysis.
 
 Architecture:
   Webhook → Validate → Cache(DataBus) → RAG Index → Premium Scanner → Alert Pipeline
+
+Companion modules (this file is the public façade):
+  webhook_config.py   — per-service config, Redis client, error surface
+  webhook_verify.py   — fail-closed HMAC + auth-header verification
+  webhook_dispatch.py — scan triggers + risk assessment
+  webhook_register.py — outbound subscription setup / listing
 """
 
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import os
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
-import redis
-from redis.exceptions import RedisError
+from app.databus.webhook_config import (
+    _WEBHOOK_ERRORS,
+    REDIS_HOST,
+    REDIS_PASSWORD,
+    REDIS_PORT,
+    WEBHOOK_CONFIGS,
+    _redis,
+    logger,
+)
+from app.databus.webhook_dispatch import _assess_webhook_risk, _get_scan_triggers
+from app.databus.webhook_register import list_webhooks, setup_webhook
+from app.databus.webhook_verify import _verify_auth_header, _verify_signature
 
-from app.core.logging import get_logger
-from app.databus.vault import resolve_key
-
-logger = get_logger("webhooks")
-
-REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-
-# Webhook configurations per service
-WEBHOOK_CONFIGS: dict[str, dict[str, Any]] = {
-    "arkham": {
-        "secret_env": "ARKHAM_WEBHOOK_SECRET",
-        "verify_header": "X-Arkham-Signature",
-        "events": ["entity_updated", "transaction_detected", "label_added"],
-        "cache_ttl": 3600,
-    },
-    "helius": {
-        "secret_env": "HELIUS_WEBHOOK_SECRET",
-        "verify_header": "x-helius-signature",
-        "auth_env": "HELIUS_WEBHOOK_SECRET",  # Helius sends authHeader as Bearer token — verify it
-        "events": ["transaction", "nft_event", "token_transfer", "account_update"],
-        "cache_ttl": 600,
-    },
-    "moralis": {
-        "secret_env": "MORALIS_WEBHOOK_SECRET",
-        "verify_header": "x-signature",
-        "events": ["txs", "logs", "nft_transfers", "erc20_transfers"],
-        "cache_ttl": 900,
-    },
-    "alchemy": {
-        "secret_env": "ALCHEMY_WEBHOOK_SECRET",
-        "verify_header": "X-Alchemy-Signature",
-        "events": ["address_activity", "nft_activity", "tx_status"],
-        "cache_ttl": 600,
-    },
-}
-
-
-def _redis() -> Any:
-    return redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        password=REDIS_PASSWORD,
-        decode_responses=True,
-        socket_connect_timeout=2,
-    )
+__all__ = [
+    "REDIS_HOST",
+    "REDIS_PASSWORD",
+    "REDIS_PORT",
+    "WEBHOOK_CONFIGS",
+    "handle_webhook",
+    "list_webhooks",
+    "setup_webhook",
+]
 
 
 async def handle_webhook(
@@ -96,15 +72,8 @@ async def handle_webhook(
 
     # ── 1b. Validate auth header (e.g., Helius sends authHeader as Bearer token) ──
     auth_env = config.get("auth_env", "")
-    if auth_env:
-        expected_token = os.getenv(auth_env, "")
-        if expected_token:
-            # Starlette lowercases header keys in dict(request.headers)
-            auth_header = headers.get("authorization") or headers.get("Authorization", "")
-            # Support both "Bearer <token>" and raw token formats
-            token = auth_header.removeprefix("Bearer ").strip()
-            if token != expected_token:
-                return {"error": "Invalid auth token", "status": "rejected"}
+    if auth_env and not _verify_auth_header(headers, auth_env):
+        return {"error": "Invalid auth token", "status": "rejected"}
 
     # ── 2. Deduplicate (prevent replay) ──
     event_id = (
@@ -119,8 +88,8 @@ async def handle_webhook(
             return {"status": "duplicate", "event_id": event_id}
         r.setex(f"webhook:dedup:{service}:{event_id}", 3600, "1")
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.error(f"handle_webhook failed: {e}")
+    except _WEBHOOK_ERRORS as exc:
+        logger.warning("webhook_dedup_failed", service=service, error=str(exc))
 
     # ── 3. Store in DataBus cache ──
     event_type = payload.get("type") or payload.get("event") or "unknown"
@@ -141,8 +110,8 @@ async def handle_webhook(
             ),
         )
         r.close()
-    except json.JSONDecodeError as e:
-        logger.error(f"handle_webhook failed: {e}")
+    except json.JSONDecodeError as exc:
+        logger.warning("webhook_cache_store_failed", service=service, error=str(exc))
 
     # ── 4. Index in RAG for intelligence ──
     # DEPRECATED (v3): the legacy RAG permanence endpoint
@@ -174,8 +143,8 @@ async def handle_webhook(
                 "title": routed.get("importance", 0.0),
                 "description": routing,
             }
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.error(f"handle_webhook failed: {e}")
+    except _WEBHOOK_ERRORS as exc:
+        logger.warning("webhook_alert_route_failed", service=service, error=str(exc))
     except Exception:
         logger.debug("webhook_alert_router_unavailable", service=service, exc_info=True)
 
@@ -189,161 +158,3 @@ async def handle_webhook(
         "scan_triggers": scan_triggers,
         "cached": True,
     }
-
-
-def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
-    """HMAC signature verification (fail-closed).
-
-    Returns False when the secret or signature is missing so callers reject
-    unverifiable webhooks instead of accepting them.
-    """
-    if not secret or not signature:
-        return False
-    try:
-        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(expected, signature)
-    except (ConnectionError, OSError, TimeoutError) as exc:
-        logger.warning("webhook_signature_check_failed", error=str(exc))
-        return False
-
-
-def _get_scan_triggers(service: str, event_type: str, payload: dict[str, Any]) -> list[str]:
-    """Determine which premium scans to trigger based on webhook event."""
-    triggers = []
-    payload.get("address") or payload.get("tokenAddress") or payload.get("wallet", "")
-
-    if service == "arkham":
-        if event_type in ("entity_updated", "label_added"):
-            triggers.append("cluster_map")
-            triggers.append("bundle_scan")
-        if event_type == "transaction_detected":
-            triggers.append("mev_sandwich")
-            triggers.append("copy_trading")
-
-    elif service == "helius":
-        if event_type == "transaction":
-            triggers.append("sniper_detect")
-            triggers.append("mev_sandwich")
-            triggers.append("wash_trading")
-        if event_type == "token_transfer":
-            triggers.append("fresh_wallets")
-            triggers.append("insider_signals")
-        if event_type == "nft_event":
-            triggers.append("bot_farm")
-
-    elif service == "moralis":
-        if event_type in ("txs", "erc20_transfers"):
-            triggers.append("copy_trading")
-            triggers.append("bundle_scan")
-        if event_type == "nft_transfers":
-            triggers.append("bot_farm")
-
-    elif service == "alchemy":
-        if event_type == "address_activity":
-            triggers.append("cluster_map")
-            triggers.append("sniper_detect")
-
-    return triggers
-
-
-def _assess_webhook_risk(service: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """Quick risk assessment from webhook data."""
-    value_usd = float(payload.get("valueUsd") or payload.get("value", 0))
-
-    if value_usd > 100000:
-        return {
-            "level": "HIGH",
-            "title": f"Large transfer: ${value_usd:,.0f}",
-            "description": f"{service} detected a large transaction of ${value_usd:,.0f}",
-        }
-
-    if event_type in ("entity_updated", "label_added") and payload.get("label", "").lower() in (
-        "scam",
-        "fraud",
-        "hack",
-        "phishing",
-    ):
-        return {
-            "level": "CRITICAL",
-            "title": "Scam entity flagged",
-            "description": f"{service} flagged {payload.get('address', '?')} as {payload.get('label', 'scam')}",
-        }
-
-    return {"level": "LOW", "title": "Routine event", "description": f"{service} {event_type}"}
-
-
-async def setup_webhook(service: str, webhook_url: str, events: list[str] | None = None, **kw) -> dict[str, Any]:
-    """Programmatically set up a webhook subscription with a service.
-
-    For services that support API-based webhook registration (Helius, Moralis),
-    this auto-configures the webhook URL and event filters.
-    """
-    api_key = kw.get("api_key", "")
-
-    if service == "helius":
-        if not api_key:
-            api_key = resolve_key("HELIUS_API_KEY")
-        if not api_key:
-            return {"error": "HELIUS_API_KEY required"}
-        try:
-            async with httpx.AsyncClient(timeout=15) as c:
-                resp = await c.post(
-                    f"https://mainnet.helius-rpc.com/v0/webhooks?api-key={api_key}",
-                    json={
-                        "webhookURL": webhook_url,
-                        "transactionTypes": events or ["ANY"],
-                        "accountAddresses": kw.get("addresses", []),
-                        "webhookType": "enhanced",
-                    },
-                )
-                return resp.json() if resp.status_code == 200 else {"error": resp.text[:200]}
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-            logger.warning("webhook_register_failed", service=service, error=str(exc))
-            return {"error": str(exc)}
-
-    elif service == "moralis":
-        if not api_key:
-            api_key = resolve_key("MORALIS_API_KEY")
-        if not api_key:
-            return {"error": "MORALIS_API_KEY required"}
-        try:
-            async with httpx.AsyncClient(timeout=15) as c:
-                resp = await c.post(
-                    "https://authapi.moralis.io/streams/evm",
-                    headers={"X-API-Key": api_key, "Content-Type": "application/json"},
-                    json={
-                        "webhookUrl": webhook_url,
-                        "description": f"RMI DataBus webhook for {service}",
-                        "tag": "rmi-databus",
-                        "chains": kw.get("chains", ["eth", "bsc", "polygon"]),
-                        "includeNativeTxs": True,
-                    },
-                )
-                return resp.json() if resp.status_code in (200, 201) else {"error": resp.text[:200]}
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-            logger.warning("webhook_register_failed", service=service, error=str(exc))
-            return {"error": str(exc)}
-
-    return {
-        "status": "manual_setup_required",
-        "service": service,
-        "webhook_url": webhook_url,
-        "instructions": f"Configure webhook at {service} dashboard to point to {webhook_url}",
-    }
-
-
-async def list_webhooks() -> dict[str, Any]:
-    """List all configured webhook subscriptions."""
-    try:
-        r = _redis()
-        keys = r.keys("webhook:*:*")
-        webhooks = []
-        for key in keys[:50]:
-            data = r.get(key)
-            if data:
-                webhooks.append(json.loads(data))
-        r.close()
-        return {"webhooks": webhooks, "total": len(webhooks)}
-    except (RedisError, ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-        logger.warning("webhook_list_failed", error=str(exc))
-        return {"webhooks": [], "total": 0}
