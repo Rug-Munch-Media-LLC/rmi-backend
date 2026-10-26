@@ -1,0 +1,35 @@
+name: nightly-mutation
+on:
+  schedule: [{cron: "0 3 * * *"}]
+  workflow_dispatch:
+jobs:
+  mutation:
+    runs-on: docker
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: fetch the mutation gate from the standards repo
+        env:
+          GATE_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          url="${GITHUB_SERVER_URL:-${{ github.server_url }}}/RugMunchMedia/standards.git"
+          git -c http.extraheader="Authorization: token ${GATE_TOKEN}" \
+            clone --depth 1 --filter=blob:none --sparse "${url}" /tmp/gate-src
+          git -C /tmp/gate-src sparse-checkout set scripts
+      - name: per-module mutation ratchet
+        # first run per module records BASELINE-SET and never blocks;
+        # only a score below the committed baseline exits 1 (BLOCK).
+        run: |
+          set -euo pipefail
+          python3 /tmp/gate-src/scripts/mutation-gate.py --repo . --full \
+            --timeout 3600 --baseline .mutation-baseline.json \
+            --report mutation-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: |
+            mutation-report.json
+            .mutation-baseline.json
