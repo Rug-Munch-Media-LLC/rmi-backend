@@ -6,7 +6,7 @@ name: Renovate
 
 on:
   schedule:
-    - cron: '0 3 * * 1'  # Monday 3AM UTC
+  - cron: '0 3 * * 1'    # Monday 3AM UTC
   workflow_dispatch:
 
 jobs:
@@ -14,10 +14,13 @@ jobs:
     name: Renovate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: renovatebot/github-action@v46.2.0
-        with:
-          token: ${{ secrets.RENOVATE_TOKEN }}
-          configurationFile: renovate.json
-        env:
-          LOG_LEVEL: debug
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+    - uses: renovatebot/github-action@v46.2.0
+      with:
+        token: ${{ secrets.RENOVATE_TOKEN }}
+        configurationFile: renovate.json
+      env:
+        LOG_LEVEL: debug
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
