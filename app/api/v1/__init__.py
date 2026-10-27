@@ -53,6 +53,10 @@ from app.api.v1.public.trending import router as trending_router  # noqa: E402 â
 
 api_v1_router.append(trending_router)
 
+from app.api.v1.public.trending_per_chain import router as trending_per_chain_router  # noqa: E402 â€” module docstring precedes import block
+
+api_v1_router.append(trending_per_chain_router)
+
 # x402 moved to app.domains.x402 (T34 v2)
 # Old app/api/v1/x402/payments.py removed to avoid model conflicts
 
