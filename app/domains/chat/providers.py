@@ -2,8 +2,8 @@
 
 Order is deliberate: cleanest answer first, then proven-fast OpenRouter free lanes, then a direct
 NVIDIA route for the same model (different infrastructure, different quota),
-then Mistral's free-tier experiment plan, then the local llama.cpp extractor
-lane (frequently saturated, so short timeout + no retry). Retrieval-only is the
+then the local llama.cpp chat lane (:8009 ``chat`` alias, short timeout, no
+retry), then Mistral's free-tier experiment plan. Retrieval-only is the
 implicit final step handled by ``model_chain.complete``.
 
 Measured 2026-10-23 (live): nemotron-3-ultra answers in plain text (~3.4 s);
@@ -62,6 +62,14 @@ CHAIN: tuple[ProviderSpec, ...] = (
         key_env="OPENROUTER_API_KEY",
     ),
     ProviderSpec(
+        provider="local",
+        model="chat",
+        url=os.getenv("CHAT_LOCAL_URL", "http://172.18.0.1:8009/v1/chat/completions"),
+        key_env="",
+        timeout_s=10.0,
+        retry=False,
+    ),
+    ProviderSpec(
         provider="nvidia",
         model="nvidia/nemotron-3-ultra-550b-a55b",
         url="https://integrate.api.nvidia.com/v1/chat/completions",
@@ -78,14 +86,6 @@ CHAIN: tuple[ProviderSpec, ...] = (
         model="open-mistral-nemo",
         url="https://api.mistral.ai/v1/chat/completions",
         key_env="MISTRAL_API_KEY",
-    ),
-    ProviderSpec(
-        provider="local",
-        model="local",
-        url="http://127.0.0.1:8015/v1/chat/completions",
-        key_env="",
-        timeout_s=6.0,
-        retry=False,
     ),
 )
 

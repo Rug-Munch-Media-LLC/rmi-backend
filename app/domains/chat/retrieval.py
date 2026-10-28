@@ -11,12 +11,13 @@ service treats that as "no grounded evidence" and moves to web search.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
+from app.domains.chat.cache import chat_cache
 
 log = get_logger(__name__)
 
@@ -40,7 +41,7 @@ class Passage:
     url: str | None
     library_id: str | None
     source: str
-    score: float
+    score: float | None  # None = unranked (reranker was unavailable)
 
 
 def collections() -> list[str]:
@@ -56,7 +57,7 @@ def _api_url() -> str:
     The deployed env carries a bare origin (``http://172.18.0.1:8012``); the
     route lives under ``/api/v1``. Without this both forms 404.
     """
-    base = os.getenv("RAG_API_URL", "http://127.0.0.1:8012/api/v1").rstrip("/")
+    base = os.getenv("RAG_API_URL", "http://rugbrain-api:8012/api/v1").rstrip("/")
     return base if base.endswith("/api/v1") else f"{base}/api/v1"
 
 
@@ -125,7 +126,7 @@ async def _search(query: str, limit: int) -> list[dict[str, Any]]:
         "rerank": False,
     }
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(12.0, connect=3.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(3.0, connect=2.0)) as client:
             resp = await client.post(
                 f"{_api_url()}/search/multi",
                 json=body,
@@ -152,7 +153,7 @@ async def _rerank(query: str, passages: list[Passage], top_k: int) -> list[Passa
         )
     except Exception as exc:
         log.warning("chat_rerank_failed err=%s", type(exc).__name__)
-        return _pre_rerank_order(passages, top_k)
+        return _unscored(passages, top_k)
     out: list[Passage] = []
     for item in ranked or []:
         idx = item.get("index")
@@ -169,19 +170,31 @@ async def _rerank(query: str, passages: list[Passage], top_k: int) -> list[Passa
                 score=float(item.get("relevance_score") or 0.0),
             )
         )
-    return out or _pre_rerank_order(passages, top_k)
+    return out or _unscored(passages, top_k)
 
 
-def _pre_rerank_order(passages: list[Passage], top_k: int) -> list[Passage]:
-    """Reranker down or empty -> keep embedded similarity order (fail-open)."""
-    bottom = float(os.getenv("CHAT_RERANK_FLOOR", "0.10"))
-    return [p for p in passages[:top_k] if p.score >= bottom]
+def _unscored(passages: list[Passage], top_k: int) -> list[Passage]:
+    """Reranker down -> keep retrieval order, score ``None`` (fail-open).
+
+    Cosine is a retrieval distance, not a relevance verdict.
+    """
+    log.info("rerank_skipped passages=%d", len(passages))
+    return [replace(p, score=None) for p in passages[:top_k]]
 
 
 async def retrieve(query: str, top_k: int = 6) -> list[Passage]:
-    """Return up to ``top_k`` reranked passages; ``[]`` when nothing is grounded."""
+    """Return up to ``top_k`` reranked passages; ``[]`` when nothing is grounded.
+
+    Redis-memoised on ``(query, collections)`` for 5 min (persona-independent).
+    """
+    key = chat_cache.retrieval_key(query, "|".join(collections()))
+    cached = await chat_cache.get_json(key)
+    if cached:
+        return [Passage(**row) for row in cached][:top_k]
     hits = await _search(query, _CANDIDATE_POOL)
     passages = _to_passages(hits)
     if not passages:
         return []
-    return await _rerank(query, passages[: min(len(passages), _CANDIDATE_POOL)], top_k)
+    ranked = await _rerank(query, passages[: min(len(passages), _CANDIDATE_POOL)], top_k)
+    await chat_cache.set_json(key, [asdict(p) for p in ranked], chat_cache.RETRIEVAL_TTL_S)
+    return ranked
