@@ -77,7 +77,12 @@ class TokenFullMixin(PricingMixin, DexSourcesMixin, EnrichmentMixin, ProviderBas
         return result
 
     async def _enrich_premium(self, result: dict[str, Any], mint: str, chain: str) -> None:
-        """GMGN (holders, smart money, trades) then Birdeye (holders, security)."""
+        """Phase 2: premium sources, best effort, never raise."""
+        await self._enrich_gmgn(result, mint, chain)
+        await self._enrich_birdeye(result, mint)
+
+    async def _enrich_gmgn(self, result: dict[str, Any], mint: str, chain: str) -> None:
+        """GMGN holders, smart money and trade counts."""
         try:
             gmgn_data = await self._fetch_gmgn_enrichment(mint, chain)
             if gmgn_data:
@@ -88,6 +93,8 @@ class TokenFullMixin(PricingMixin, DexSourcesMixin, EnrichmentMixin, ProviderBas
         except Exception as e:
             logger.warning("GMGN enrichment error: %s", e)
 
+    async def _enrich_birdeye(self, result: dict[str, Any], mint: str) -> None:
+        """Birdeye holder count and security block."""
         try:
             birdeye_data = await self._fetch_birdeye_enrichment(mint)
             if birdeye_data:
