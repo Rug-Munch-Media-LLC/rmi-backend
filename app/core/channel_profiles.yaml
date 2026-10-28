@@ -1,0 +1,192 @@
+# Channel profile registry — what each Telegram channel is FOR.
+#
+# Derived from what the channels say about themselves: every ``telegram_description``
+# below is the live ``getChat`` description string, quoted verbatim (discovery run
+# 2026-10-29 via @rugmunchbot; chat ids redacted to the last 4 digits, no secrets).
+# ``purpose`` is the operator-readable restatement; ``kinds`` is the ONLY routing
+# allowlist — an item kind not listed here is never posted to that channel
+# (default-deny, see ``app/core/channel_routing.py``).
+#
+# Roles match ``app/core/channels_registry.py`` one-for-one (tested).
+version: 1
+
+discovered_at: "2026-10-29"
+discovered_via: "@rugmunchbot (getChat / getChatMember / getChatMemberCount / getChatAdministrators)"
+
+channels:
+  news:
+    handle: "@rmicryptonews"
+    title: "RMI Crypto News 24/7"
+    id_last4: "1578"
+    type: channel
+    member_count: 8
+    bot_status: administrator
+    telegram_description: >-
+      Breaking crypto news from 200+ sources. Automated 24/7. No curation, no bias,
+      just the signal. Posts: Every 5 minutes.
+    purpose: >-
+      24/7 machine-fed breaking-news wire. Takes news items only — no scans, no whale
+      moves, no security escalations. Speed and volume are the product; commentary is not.
+    kinds: [news]
+    tone: "Headline + one-line summary + source link. Neutral wire voice, no hype, no opinion."
+    max_chars: 420
+    cadence: "continuous — roughly every 5 minutes when the wire is busy"
+    dedupe_scope: "global by content_hash, else sha256(title|link); cross-lane (news beats a repeat from main)"
+
+  alerts:
+    handle: "@rmialerts"
+    title: "RMI Security — Rug Alerts & Exploits"
+    id_last4: "2164"
+    type: channel
+    member_count: 7
+    bot_status: administrator
+    telegram_description: >-
+      Real-time security alerts. Hacks, exploits, rug pulls, and critical token warnings.
+      Don't mute this one. Posts: When shit goes down.
+    purpose: >-
+      Real-time SECURITY surface only: exploits, hacks, confirmed rug pulls, critical token
+      warnings. Never price moves, never whale flows, never a routine scan report.
+    kinds: [alerts]
+    tone: "Urgent and terse. Verdict + severity + one line of why + evidence link. No jokes."
+    max_chars: 600
+    cadence: "event-driven — only when something is actually happening"
+    dedupe_scope: "per (token, alert_type) for 1 hour; same exploit story once per day"
+
+  alpha:
+    handle: "@rmialpha"
+    title: "RMI Whale & Alpha Signals"
+    id_last4: "5055"
+    type: channel
+    member_count: 8
+    bot_status: administrator
+    telegram_description: >-
+      Whale wallet movements and smart money signals. Free during beta. See what the big
+      money is doing before it moves the market.
+    purpose: >-
+      Whale flows and smart-money signals from our own chain data: who moved what, how big,
+      which labelled wallet. Launches are reported here as smart-money entries, not as news.
+    kinds: [whales, alpha]
+    tone: "Signal first: wallet label, size, direction, chain. 'The big money did X', then evidence."
+    max_chars: 500
+    cadence: "scheduled sweeps (whale watcher + smart-money), plus event-driven for large moves"
+    dedupe_scope: "per (wallet, token) per 24h; one post per event signature"
+
+  scans:
+    handle: "@rmiscans"
+    title: "RMI Scanner - Suspicious Tokens"
+    id_last4: "6770"
+    type: channel
+    member_count: 7
+    bot_status: administrator
+    telegram_description: >-
+      The sketchiest tokens our scanner found today. Comedy + utility.
+      Learn what a rug looks like before you get rugged. Scan yours free: rugmunch.io/scanner
+    purpose: >-
+      The day's most notable scanner findings as teaching cards — verdict, risk score, chain.
+      Educational and a little funny; not an incident feed (that is @rmialerts).
+    kinds: [scans]
+    tone: "Witty but factual. One compact card per token: verdict + risk score + chain + link."
+    max_chars: 450
+    cadence: "~10 per day, the ones worth talking about"
+    dedupe_scope: "per token address per 24h"
+
+  main:
+    handle: "@cryptorugmuncher"
+    title: "Crypto Rug Muncher — RMI Community"
+    id_last4: "5429"
+    type: channel
+    member_count: 6215
+    bot_status: administrator
+    telegram_description: >-
+      Crypto intelligence, scam detection, and market commentary by RugMunch. Real alerts,
+      real analysis, no fluff.
+    purpose: >-
+      Flagship community channel: intelligence, scam detection and market commentary. The
+      only channel chartered for market recaps and shill/breach intel; also the escalation
+      surface for everything important from the specialist channels.
+    kinds: [news, alerts, scans, whales, alpha, market_recaps, intel, updates]
+    tone: "Flagship longform: analysis, context, a clear take. No fluff, no filler."
+    max_chars: 1200
+    cadence: "<=10 posts/day; escalations + one daily market recap"
+    dedupe_scope: "cross-lane — one post per story, highest tier wins"
+
+  updates:
+    handle: "@rmiupdates"
+    title: "RMI Changelog"
+    id_last4: "7867"
+    type: channel
+    member_count: 4
+    bot_status: administrator
+    telegram_description: >-
+      Product updates and release notes. New features, fixes, chains added. For power users
+      who want to know what changed under the hood.
+    purpose: >-
+      Product changelog only — releases, fixes, new chains and features, written for power
+      users. Never news, never alerts.
+    kinds: [updates]
+    tone: "Precise changelog voice: what changed, why it matters, migration note if any."
+    max_chars: 900
+    cadence: "daily digest, silent when nothing shipped"
+    dedupe_scope: "per release tag / commit range"
+
+# ── content source → item kind ────────────────────────────────────────────────
+# Every producer in the platform maps to exactly one kind here. A producer that is
+# not listed resolves to no kind and is denied by default (route_content returns ()).
+sources:
+  scanner.finding: scans
+  scanner.deep_report: scans
+  lite_chain_indexer.launch: alpha
+  lite_chain_indexer.whale_transfer: whales
+  lite_chain_indexer.liquidity_event: alerts
+  rugbrain.news: news
+  rugbrain.exploit: alerts
+  rugbrain.whale: whales
+  rugbrain.alpha: alpha
+  rugbrain.shill: intel
+  telegram_scrape.news: news
+  portfolio.recap: market_recaps
+  market.daily_wrap: market_recaps
+  product.release: updates
+
+# ── alert category → item kind ────────────────────────────────────────────────
+# Legacy alert categories (PlatformAlert.category) translated to kinds so the tier
+# router's plan can be filtered by channel purpose without a second dispatcher.
+# ``scanner`` is severity-split: a high/critical finding is a critical token warning
+# (alerts), a lower one is a scanner card (scans).
+alert_category_kinds:
+  scanner: alerts  # severity split, see ALERT_CATEGORY_SEVERITY_SPLIT in code
+  scan: scans
+  scan_report: scans
+  launch: alpha
+  syndicate: alpha
+  whale: whales
+  whale_movement: whales
+  bulletin: news
+  news: news
+  cex_flow: news
+  market: market_recaps
+  roundup: market_recaps
+  exploit: alerts
+  hack: alerts
+  security_incident: alerts
+  rug_pull: alerts
+  rug_confirmed: alerts
+  scam: alerts
+  scam_report: alerts
+  scam_alert: alerts
+  honeypot: alerts
+  rug-risk: alerts
+  mempool: alerts
+  mint: alerts
+  blacklist: alerts
+  liquidity_remove: alerts
+  lp_expiry: alerts
+  deployer_sell: alerts
+  shill: intel
+  shill_campaign: intel
+  breach: intel
+  sanction: intel
+  wash_trading: intel
+  release: updates
+  shipped: updates
+  update: updates
