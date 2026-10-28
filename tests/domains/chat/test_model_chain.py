@@ -31,8 +31,11 @@ class Recorder:
 # ── ordering / fallback ────────────────────────────────────────────────
 async def test_falls_through_in_documented_order(monkeypatch):
     chain = resolve_chain()
-    assert [s.provider for s in chain][:3] == ["openrouter", "openrouter", "nvidia"]
-    assert chain[-1].provider == "local"
+    assert [s.provider for s in chain][:3] == ["openrouter", "openrouter", "local"]
+    assert chain[-1].provider == "mistral"
+    local = chain[2]
+    assert local.model == "chat"  # :8009 llama.cpp 'chat' alias, not the :8015 proxy
+    assert local.retry is False and local.timeout_s == 10.0
     failing = {chain[0].key, chain[1].key}
     recorder = Recorder(failing)
     monkeypatch.setattr("app.domains.chat.model_chain.request_provider", recorder)

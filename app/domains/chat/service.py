@@ -14,6 +14,7 @@ import time
 
 from app.core.logging import get_logger
 from app.domains.chat import compose, ports
+from app.domains.chat.cache import chat_cache
 from app.domains.chat.memory import ConversationMemory
 from app.domains.chat.retrieval import Passage, retrieve
 from app.domains.chat.schemas import ChatRequest, ChatResponse
@@ -56,9 +57,9 @@ def _degraded(
 async def _evidence(query: str) -> tuple[list[Passage], bool]:
     """RAG first; web only when the reranked top score is below the floor."""
     passages = await retrieve(query, top_k=TOP_K)
-    if passages and passages[0].score >= RERANK_MIN_SCORE:
+    if passages and passages[0].score is not None and passages[0].score >= RERANK_MIN_SCORE:
         return passages, False
-    log.info("chat_rag_weak top_score=%.3f", passages[0].score if passages else 0.0)
+    log.info("chat_rag_weak top_score=%s", passages[0].score if passages else None)
     web_passages = await search_and_extract(query)
     if web_passages:
         return web_passages, True
@@ -128,14 +129,33 @@ async def _run(req: ChatRequest, started: float) -> ChatResponse:
 
 
 async def answer(req: ChatRequest) -> ChatResponse:
-    """Always returns a :class:`ChatResponse` — never raises."""
+    """Always returns a :class:`ChatResponse` — never raises.
+
+    A repeat question is served from Redis (``chat:ans:v1``) before any embed
+    or model call: a hit is ~2 ms instead of ~5 s. Only successful drafts are
+    stored, so refusals and outages self-heal.
+    """
     started = time.perf_counter()
+    key = chat_cache.answer_key(req.message, req.persona, req.channel)
+    hit = await chat_cache.get_json(key)
+    if isinstance(hit, dict):
+        try:
+            cached = ChatResponse(**hit)
+        except Exception:  # schema drift -> treat as a miss
+            cached = None
+        if cached is not None:
+            log.info("chat_answer_cache_hit persona=%s channel=%s", req.persona, req.channel)
+            await _memory.append(req.conversation_id, req.message, cached.answer)
+            return cached
     try:
         async with asyncio.timeout(TOTAL_TIMEOUT_S):
-            return await _run(req, started)
+            response = await _run(req, started)
     except TimeoutError:
         log.warning("chat_timeout budget_s=%s", TOTAL_TIMEOUT_S)
         return _degraded(started, [], "timeout", False)
     except Exception as exc:
         log.error("chat_unhandled err=%s", type(exc).__name__)
         return _degraded(started, [], "error", False)
+    if not response.refused:
+        await chat_cache.set_json(key, response.model_dump(), chat_cache.answer_ttl_s(req.message))
+    return response
