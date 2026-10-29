@@ -46,7 +46,8 @@ SKIP_DIRS = {
     "crypto-skills",
 }
 
-MONKEY_RE = re.compile(r"monkeypatch\.|mock\.patch|@patch\(|patch\.object|del sys\.modules")
+# Test debt only: pytest's `monkeypatch` FIXTURE is the sanctioned DI seam, not debt
+MONKEY_RE = re.compile(r"mock\.patch|@patch\(|patch\.object|del sys\.modules")
 SLOP_RE = re.compile(r"#\s*(HACK|WORKAROUND|TEMP|XXX|!!!|FIX ME|DO NOT SHIP)\b", re.IGNORECASE)
 FSTRING_LOG_RE = re.compile(r"log(?:ger)?\.(?:debug|info|warning|error|critical)\(\s*f[\"']")
 WILDCARD_RE = re.compile(r"^\s*from\s+[\w.]+\s+import\s+\*", re.MULTILINE)
