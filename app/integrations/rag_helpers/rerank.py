@@ -41,7 +41,7 @@ RERANK_URL: str = os.getenv("RERANK_URL", "http://127.0.0.1:8003")
 # The 'live' tier routes directly to qwen3-reranker-4B (:8003) — the same
 # endpoint as 'deep'. RERANK_URL_LIVE is kept as an env-overridable alias
 # (RERANK_URL_FAST) for compatibility with existing deployments.
-RERANK_URL_LIVE: str = os.getenv("RERANK_URL_FAST", RERANK_URL)
+RERANK_URL_LIVE: str = os.getenv("RERANK_URL_FAST", "http://172.18.0.1:8025/v1/rerank")
 
 # ── Live-path budgets (Netcup RS: CPU-only, protect the vCPU budget) ───────
 LIVE_CANDIDATE_CAP: int = int(os.getenv("RERANK_LIVE_CANDIDATE_CAP", "40"))
@@ -210,7 +210,7 @@ async def _post_rerank(
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
-                f"{url.rstrip('/')}/rerank",
+                url if url.endswith("/rerank") else f"{url.rstrip('/')}/rerank",
                 json={
                     "query": apply_instruction(query),
                     "documents": documents,

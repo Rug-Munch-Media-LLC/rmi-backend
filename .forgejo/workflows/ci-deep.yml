@@ -3,6 +3,8 @@ on:
   schedule:
   - cron: 0 3 * * *
   workflow_dispatch:
+env:
+  GO_VERSION: "1.22.12"
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -502,6 +504,8 @@ jobs:
   mutation-test:
     runs-on: docker-x64
     continue-on-error: true  # informational only for now
+    env:
+      CI_GIT_TOKEN: ${{ github.token }}
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -513,6 +517,7 @@ jobs:
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         uv python install 3.11 && uv venv --python 3.11 .venv
         uv pip install --python .venv/bin/python -r requirements.txt
+        bash scripts/ci/private-deps.sh
         uv pip install --python .venv/bin/python -e ".[dev]" mutmut
     - name: Mutation testing (scoped to app/core)
       run: source .venv/bin/activate && mutmut run --paths-to-mutate app/core/ --test-timeout 10 || echo "Mutation score noted (non-blocking)"
@@ -527,6 +532,8 @@ jobs:
 
   crucible-gate:
     runs-on: docker-x64
+    env:
+      CI_GIT_TOKEN: ${{ github.token }}
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -556,6 +563,8 @@ jobs:
   slow-tests:
     runs-on: docker-x64
     continue-on-error: true
+    env:
+      CI_GIT_TOKEN: ${{ github.token }}
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -568,6 +577,7 @@ jobs:
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         uv python install 3.11 && uv venv --python 3.11 .venv
         uv pip install --python .venv/bin/python -r requirements.txt
+        bash scripts/ci/private-deps.sh
         uv pip install --python .venv/bin/python -e ".[dev]"
     - name: Detect slow tests
       run: |
@@ -584,6 +594,8 @@ jobs:
     # thresholds, and the rerank/context-budget wiring. Deterministic dry run
     # (no Redis/Qdrant/Infinity required). BLOCKS on regression.
     runs-on: docker-x64
+    env:
+      CI_GIT_TOKEN: ${{ github.token }}
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -596,6 +608,7 @@ jobs:
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         uv python install 3.11 && uv venv --python 3.11 .venv
         uv pip install --python .venv/bin/python -r requirements.txt
+        bash scripts/ci/private-deps.sh
         uv pip install --python .venv/bin/python -e ".[dev]"
     - name: Run RAG regression eval gate
       run: |
@@ -640,6 +653,8 @@ jobs:
 
   fuzz:
     runs-on: docker-x64
+    env:
+      CI_GIT_TOKEN: ${{ github.token }}
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -652,6 +667,7 @@ jobs:
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         uv python install 3.11 && uv venv --python 3.11 .venv
         uv pip install --python .venv/bin/python -r requirements.txt
+        bash scripts/ci/private-deps.sh
         uv pip install --python .venv/bin/python -e ".[dev]" hypothesis
     - name: Run fuzz tests
       run: |
@@ -661,6 +677,8 @@ jobs:
 
   contract-verify:
     runs-on: docker-x64
+    env:
+      CI_GIT_TOKEN: ${{ github.token }}
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -673,6 +691,7 @@ jobs:
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         uv python install 3.11 && uv venv --python 3.11 .venv
         uv pip install --python .venv/bin/python -r requirements.txt
+        bash scripts/ci/private-deps.sh
         uv pip install --python .venv/bin/python -e ".[dev]" pact-python
     - name: Download pact files (from consumer CI)
       uses: actions/download-artifact@v6.0.0
@@ -895,12 +914,37 @@ jobs:
       image: node:22-bookworm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+    # Go tarball was fetched on every nightly run; keyed on the pinned
+    # GO_VERSION so the key is stable until the version is bumped.
+    - name: Restore Go toolchain
+      id: go-toolchain
+      continue-on-error: true
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/go
+        key: go-${{ env.GO_VERSION }}-linux-amd64
+    # Module cache only. GOBIN is deliberately NOT cached: "@latest" would
+    # otherwise be pinned to whichever binary was cached first.
+    - name: Restore Go module cache
+      continue-on-error: true
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: gomod-${{ github.run_id }}
+        restore-keys: |
+          gomod-
     - name: Install Go
       run: |
-        apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-        curl -sSfL https://go.dev/dl/go1.22.12.linux-amd64.tar.gz | tar -C /usr/local -xz
         echo "/usr/local/go/bin" >> $GITHUB_PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
+        export PATH="/usr/local/go/bin:$PATH"
+        if ! command -v go >/dev/null 2>&1; then
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
+        else
+          echo "Go toolchain restored from cache"
+        fi
+        go version
     - name: Install archfit
       run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
       continue-on-error: true
@@ -919,12 +963,37 @@ jobs:
       image: node:22-bookworm
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+    # Go tarball was fetched on every nightly run; keyed on the pinned
+    # GO_VERSION so the key is stable until the version is bumped.
+    - name: Restore Go toolchain
+      id: go-toolchain
+      continue-on-error: true
+      uses: actions/cache@v4
+      with:
+        path: /usr/local/go
+        key: go-${{ env.GO_VERSION }}-linux-amd64
+    # Module cache only. GOBIN is deliberately NOT cached: "@latest" would
+    # otherwise be pinned to whichever binary was cached first.
+    - name: Restore Go module cache
+      continue-on-error: true
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: gomod-${{ github.run_id }}
+        restore-keys: |
+          gomod-
     - name: Install Go
       run: |
-        apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-        curl -sSfL https://go.dev/dl/go1.22.12.linux-amd64.tar.gz | tar -C /usr/local -xz
         echo "/usr/local/go/bin" >> $GITHUB_PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
+        export PATH="/usr/local/go/bin:$PATH"
+        if ! command -v go >/dev/null 2>&1; then
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
+        else
+          echo "Go toolchain restored from cache"
+        fi
+        go version
     - name: Install Draugr
       run: go install github.com/draugr-dev/draugr@latest || echo "Draugr install skipped"
       continue-on-error: true
@@ -970,7 +1039,6 @@ jobs:
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
-      options: --volume /srv/work/repos/standards:/workspace/RugMunchMedia/standards:ro
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
       with:
