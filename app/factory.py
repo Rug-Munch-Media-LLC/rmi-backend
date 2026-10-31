@@ -72,6 +72,19 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     register_middleware(app)
 
+    # Risk-policy health report: core owns the port (app.core may not import
+    # app.domains), the scanner domain supplies the adapter. Bound here, in the
+    # composition root, before the health router serves. Guarded: a missing
+    # domain is a health fact, not a boot failure.
+    from app.core import health_ports
+
+    try:
+        from app.domains.scanner.risk_policy import policy_report
+    except Exception:  # optional domain: health is non-critical
+        log.warning("risk_policy_report_unregistered")
+    else:
+        health_ports.register_risk_policy_report(policy_report)
+
     # Canonical health probes (/live liveness, /ready readiness, /health deep
     # diagnostic) — registered BEFORE mount_all so orchestrator probes work
     # even if a router mount fails. health_route is intentionally excluded

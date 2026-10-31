@@ -4,9 +4,10 @@
 		"magic-threshold": 143,
 		"weight-map": 15,
 		"signal-list": 59,
-		"packaged-constants": 2
+		"packaged-constants": 2,
+		"weight-table": 2
 	},
-	"total": 231,
+	"total": 233,
 	"reasons": [
 		{
 			"date": "2026-10-24",
@@ -18,6 +19,13 @@
 				"packaged-constants": [0, 2]
 			},
 			"reason": "Initial baseline for the \"code, not methods\" gate (2026-10-24). The 231 findings are pre-existing scoring code in this public repo: 143 thresholds, 59 signal lists, 15 weight tables, 12 judgement prompts, 2 packaged constant imports. They are recorded so the ratchet blocks GROWTH while the debt is moved behind a seam or the repo is reclassified. Nothing new may be added without an explicit reason."
+		},
+		{
+			"date": "2026-10-31",
+			"rules": {
+				"weight-table": [0, 2]
+			},
+			"reason": "Pre-existing findings recorded for the gate's weight-table rule, which the 2026-10-24 baseline predates. Both are byte-identical to origin/main and are not introduced by this change: app/social_engineering_detector.py:78 and app/services/trending/config.py:28. No other count is touched; growth is still blocked because 2 is now the ceiling."
 		}
 	]
 }
