@@ -39,10 +39,7 @@ def _momentum(first_px: float | None, last_px: float | None) -> float | None:
     """Price change mapped from [-50%, +150%] onto 0..1; None when undefined."""
     if not first_px or first_px <= 0 or last_px is None:
         return None
-    return (
-        _clip((float(last_px) - float(first_px)) / float(first_px) * 100.0 + 50.0, 0.0, 200.0)
-        / 200.0
-    )
+    return _clip((float(last_px) - float(first_px)) / float(first_px) * 100.0 + 50.0, 0.0, 200.0) / 200.0
 
 
 def _components(row: dict[str, Any]) -> dict[str, float | None]:
@@ -64,21 +61,34 @@ def _components(row: dict[str, Any]) -> dict[str, float | None]:
     }
 
 
+def _single_wallet_pump(row: dict[str, Any]) -> float:
+    return 0.5 if float(row.get("top1_share") or 0.0) > 0.5 else 1.0
+
+
+def _churn(row: dict[str, Any]) -> float:
+    traders = max(int(row.get("traders") or 0), 1)
+    return 0.6 if int(row.get("swaps") or 0) / traders > 15 else 1.0
+
+
+def _round_trip(row: dict[str, Any]) -> float:
+    return 0.7 if float(row.get("roundtrip_share") or 0.0) > 0.5 else 1.0
+
+
+def _stale_window(row: dict[str, Any]) -> float:
+    window_s = max(int(row.get("window_s") or 1), 1)
+    return 0.7 if int(row.get("stale_s") or 0) > 0.25 * window_s else 1.0
+
+
 def _guards(row: dict[str, Any], risk_multiplier: float, scam_hit: bool) -> dict[str, float]:
     """Anti-manipulation multipliers, named so a drop is never unexplained."""
-    swaps = int(row.get("swaps") or 0)
-    traders = max(int(row.get("traders") or 0), 1)
-    window_s = max(int(row.get("window_s") or 1), 1)
-    stale_s = int(row.get("stale_s") or 0)
-    guards = {
-        "single_wallet_pump": 0.5 if float(row.get("top1_share") or 0.0) > 0.5 else 1.0,
-        "churn": 0.6 if swaps / traders > 15 else 1.0,
-        "round_trip": 0.7 if float(row.get("roundtrip_share") or 0.0) > 0.5 else 1.0,
-        "stale_window": 0.7 if stale_s > 0.25 * window_s else 1.0,
+    return {
+        "single_wallet_pump": _single_wallet_pump(row),
+        "churn": _churn(row),
+        "round_trip": _round_trip(row),
+        "stale_window": _stale_window(row),
         "risk": risk_multiplier,
         "scam_overlap": 0.2 if scam_hit else 1.0,
     }
-    return guards
 
 
 def score_components(

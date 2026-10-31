@@ -19,7 +19,9 @@ app = FastAPI()
 app.include_router(route_mod.router, prefix="/api/v1")
 client = TestClient(app)
 
-NOW = datetime(2026, 10, 28, 12, 0, tzinfo=UTC)
+# Anchored on real now: ``_slot`` builds its window from datetime.now(UTC),
+# so a fixed constant here made every slot look expired once the date moved.
+NOW = datetime.now(UTC)
 
 
 def _row(**overrides):
@@ -112,9 +114,7 @@ def test_expired_wrong_chain_and_risk_blocked_slots_are_refused():
     )
     other_chain = _slot("bsc1", chain="bsc")
     risk = _slot("rugged")
-    promoted, rejected = select_promoted(
-        [expired, other_chain, risk], "solana", now=NOW, blocked={"rugged"}
-    )
+    promoted, rejected = select_promoted([expired, other_chain, risk], "solana", now=NOW, blocked={"rugged"})
     assert promoted == []
     assert rejected == [{"token": "rugged", "reason": "risk_flagged_not_promotable"}]
 
@@ -132,9 +132,7 @@ def test_route_ranks_per_chain_and_keeps_paid_slot_separate(monkeypatch):
 
     monkeypatch.setattr(route_mod, "fetch_chain_rows", fake)
     monkeypatch.setattr(route_mod, "load_slots", lambda: [_slot("paid1")])
-    resp = client.get(
-        "/api/v1/trending/per-chain", params={"chains": "solana,arbitrum,bsc", "window": 24}
-    )
+    resp = client.get("/api/v1/trending/per-chain", params={"chains": "solana,arbitrum,bsc", "window": 24})
     assert resp.status_code == 200
     body = resp.json()
     boards = {b["chain"]: b for b in body["boards"]}
