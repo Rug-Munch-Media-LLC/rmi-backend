@@ -4,7 +4,8 @@ Split of the former monolithic ``routes.py`` (894 lines) into focused
 sub-modules, each owning its own ``APIRouter`` with the canonical
 ``/api/v1/rugcharts`` prefix:
 
-- ``trending``  — trending tokens, health probe, analyze/ta snapshots, plugins
+- ``trending``  — trending tokens, health probe, analyze/ta snapshots
+- ``plugins``   — per-token plugin aggregation for the PluginViewer
 - ``ohlcv``     — OHLCV candles + AI-assisted TA overlay
 - ``intel``     — token intelligence, whales, volume analysis/breakdown
 - ``signals``   — trading signals from labeled whale-trade data
@@ -19,12 +20,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from . import intel, ohlcv, signals, trending
+from . import intel, ohlcv, plugins, signals, trending
 
 router = APIRouter(prefix="/api/v1/rugcharts", tags=["rugcharts"])
 router.include_router(trending.router)
+router.include_router(plugins.router)
 router.include_router(ohlcv.router)
 router.include_router(intel.router)
 router.include_router(signals.router)
 
-__all__ = ["intel", "ohlcv", "router", "signals", "trending"]
+__all__ = ["intel", "ohlcv", "plugins", "router", "signals", "trending"]
