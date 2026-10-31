@@ -85,14 +85,7 @@ jobs:
         run: |
           echo "## Testmon Statistics" >> $GITHUB_STEP_SUMMARY
           if [ -f .testmon/.testmondata ]; then
-            python3 -c "
-import json
-with open('.testmon/.testmondata') as f:
-    data = json.load(f)
-print(f'Tests tracked: {len(data.get(\"tests\", {}))}')
-print(f'Files tracked: {len(data.get(\"files\", {}))}')
-print(f'Last updated: {data.get(\"mtime\", \"unknown\")}')
-" >> $GITHUB_STEP_SUMMARY
+            python3 scripts/testmon-summary.py >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No testmon data file found" >> $GITHUB_STEP_SUMMARY
           fi

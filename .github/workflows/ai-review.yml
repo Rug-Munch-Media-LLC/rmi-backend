@@ -61,15 +61,9 @@ jobs:
             -d @/tmp/review-payload.json 2>/dev/null || true)
 
           if echo "$RESPONSE" | grep -q '"choices"'; then
-            echo "$RESPONSE" | python3 -c "import sys, json; exec(sys.stdin.read())" <<'PYEOF'
-try:
-    data = json.load(sys.stdin)
-    content = data['choices'][0]['message']['content']
-    print('=== AI Code Review ===')
-    print(content)
-except:
-    print('ℹ️  AI review response parsing failed')
-PYEOF
+            RESP_FILE=$(mktemp)
+            printf '%s' "$RESPONSE" > "$RESP_FILE"
+            python3 scripts/ai-review-print.py "$RESP_FILE"
           else
             echo "ℹ️  AI review API call failed or returned error (non-blocking)"
             echo "Response: $RESPONSE" | head -c 500
