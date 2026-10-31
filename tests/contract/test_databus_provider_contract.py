@@ -13,6 +13,7 @@ import ast
 import inspect
 import json
 import pathlib
+import sys
 from functools import lru_cache
 
 import httpx
@@ -37,14 +38,19 @@ def _chain_identifiers() -> frozenset[str]:
     names: set[str] = set()
     for pattern in CHAIN_GLOBS:
         for path in ROOT.glob(pattern):
-            names.update(n.id for n in ast.walk(ast.parse(path.read_text())) if isinstance(n, ast.Name))
+            names.update(
+                n.id
+                for n in ast.walk(ast.parse(path.read_text()))
+                if isinstance(n, ast.Name)
+            )
     return frozenset(names)
 
 
 @lru_cache(maxsize=1)
 def _known_drift() -> frozenset[str]:
     return frozenset(
-        line.strip() for line in BASELINE.read_text().splitlines()
+        line.strip()
+        for line in BASELINE.read_text().splitlines()
         if line.strip() and not line.startswith("#")
     )
 
@@ -60,7 +66,11 @@ def _discover() -> list[tuple[str, str, object]]:
             continue
         mod = importlib.import_module(f"{impl_pkg.__name__}.{info.name}")
         for name, obj in vars(mod).items():
-            if inspect.isfunction(obj) and obj.__module__ == mod.__name__ and name in referenced:
+            if (
+                inspect.isfunction(obj)
+                and obj.__module__ == mod.__name__
+                and name in referenced
+            ):
                 found.append((info.name, name, obj))
     return found
 
@@ -76,7 +86,7 @@ def _violations(modname: str, fn) -> str | None:
     params = inspect.signature(fn).parameters
     if not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
         return "must accept **kwargs (the chain calls fetch_fn(api_key=..., **kwargs))"
-    return _source_violations(inspect.getsource(fn.__module__), modname)
+    return _source_violations(inspect.getsource(sys.modules[fn.__module__]), modname)
 
 
 def _source_violations(source: str, modname: str) -> str | None:
@@ -90,9 +100,9 @@ def _source_violations(source: str, modname: str) -> str | None:
         if not isinstance(node, ast.Call):
             continue
         target = node.func
-        is_client = (isinstance(target, ast.Attribute) and target.attr == "AsyncClient") or (
-            isinstance(target, ast.Name) and target.id == "AsyncClient"
-        )
+        is_client = (
+            isinstance(target, ast.Attribute) and target.attr == "AsyncClient"
+        ) or (isinstance(target, ast.Name) and target.id == "AsyncClient")
         if is_client and all(k.arg != "timeout" for k in node.keywords):
             return f"AsyncClient without timeout at line {node.lineno}"
     return None
@@ -110,7 +120,9 @@ def _subclasses() -> list[type]:
 
 
 def test_discovery_finds_registered_providers():
-    assert len(PROVIDERS) >= 20, f"only {len(PROVIDERS)} providers — discovery is broken"
+    assert len(PROVIDERS) >= 20, (
+        f"only {len(PROVIDERS)} providers — discovery is broken"
+    )
 
 
 def test_a_conforming_provider_exists():
@@ -135,7 +147,9 @@ def test_databus_provider_subclass_conforms(cls):
     assert cls.name != "unnamed", f"{cls.__name__}.name must be set"
     problem = _source_violations(inspect.getsource(cls), cls.__name__)
     assert problem is None, f"{cls.__name__}: {problem}"
-    assert "secret-canary" not in repr(cls(api_key="secret-canary")), "repr leaks the API key"
+    assert "secret-canary" not in repr(cls(api_key="secret-canary")), (
+        "repr leaks the API key"
+    )
 
 
 # ── Migrated provider: contract + recorded fixture (DI transport, no patching) ──

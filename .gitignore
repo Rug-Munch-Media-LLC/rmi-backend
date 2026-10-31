@@ -70,6 +70,7 @@ secret-rotation*
 # when its pattern data is missing, so an ignored copy would block every build.
 !scripts/methodology-patterns.json
 !scripts/methodology-policy.json
+!tests/contract/fixtures/*.json
 *.onnx
 *.parquet
 *.pkl
