@@ -18,7 +18,9 @@ set -euo pipefail
 
 HOST="${CI_GIT_HOST:-https://git.rugmunch.io}"
 DEP_REPO="RugMunchMedia/rugmunch-scanner.git"
-TOKEN="${CI_GIT_TOKEN:-}"
+# A dedicated secret with cross-repo read wins; the repo-scoped job token is
+# the fallback (it cannot read another private repo).
+TOKEN="${CI_GIT_TOKEN_SECRET:-${CI_GIT_TOKEN:-}}"
 
 if [[ -z "$TOKEN" ]]; then
 	echo "::error::CI_GIT_TOKEN is empty — the step that installs the private pinned dependency must set 'env: {CI_GIT_TOKEN: \${{ github.token }}}'"
