@@ -1,0 +1,1020 @@
+# Scheduled gates moved out of the per-push path.
+# Identical job bodies; the schedule owns them.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-oracle-tautology:
+    # AI-TEST-ORACLE-POLICY advisory gate: flags tests that assert nothing
+    # (no asserts, negative-status-only, truthy-only). Advisory until the
+    # current 238-finding backlog is burned down, then flip to blocking.
+    continue-on-error: true
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Tautology scan (advisory)
+        run: |
+          python3 scripts/tautology-detector.py tests/ --json > tautology-report.json || true
+          python3 scripts/tautology-detector.py tests/ || true
+      - name: Store report artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tautology-report
+          path: tautology-report.json
+
+
+  pre-commit-mirror:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + pre-commit + hook tools
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl gcc libpq-dev
+          rm -rf /var/lib/apt/lists/*
+          pip install pre-commit ruff mypy pytest
+          # App deps: the pytest/mypy hooks analyze real modules.
+          pip install -e .
+      - name: Run ALL pre-commit hooks on all files
+        run: |
+          # Skip: local-only + dedicated-job hooks (see job comment).
+          SKIP=no-commit-to-branch,ruff,ruff-format,mypy,pytest,squawk pre-commit run --all-files --show-diff-on-failure
+
+  commitlint:
+    runs-on: docker-x64
+    container:
+      # full bookworm (not -slim): commitlint shells out to git, slim lacks it
+      image: node:22-bookworm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0  # Need full history to check all commits in PR
+      - name: Install commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+      - name: Validate all commits in PR
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Check all commits in the PR
+            git log --format="%H %s" origin/main..HEAD | while read hash msg; do
+              echo "$hash $msg" | commitlint --from="$hash^" --to="$hash" || exit 1
+            done
+          else
+            # On push to main, just check the latest commit
+            npx commitlint --from=HEAD~1 --to=HEAD
+          fi
+
+  changelog-check:
+    # git-cliff gate: on tagged releases, verify a non-empty changelog can be
+    # generated from conventional commits. Operates on a temp file so the
+    # committed CHANGELOG.md (curated) is never clobbered by CI.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: docker-x64
+    container:
+      image: localhost/ci-alpine-node:3.19
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0  # Need tags for git-cliff version detection
+      - name: Install git-cliff
+        run: |
+          apk add --no-cache curl tar
+          # musl build — the container is alpine (musl libc); the gnu build
+          # fails with "not found" (loader mismatch).
+          curl -fsSL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-musl.tar.gz -o /tmp/git-cliff.tar.gz
+          tar xzf /tmp/git-cliff.tar.gz -C /usr/local/bin --strip-components=1 git-cliff-2.13.1/git-cliff
+          git-cliff --version
+      - name: Generate changelog (to temp file) and verify non-empty
+        run: |
+          git-cliff --config cliff.toml --output /tmp/CHANGELOG.generated.md
+          if [ ! -s /tmp/CHANGELOG.generated.md ]; then
+            echo "❌ git-cliff produced an empty changelog for tag ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "✅ Changelog generated ($(wc -l < /tmp/CHANGELOG.generated.md) lines)"
+          head -40 /tmp/CHANGELOG.generated.md
+
+  aiverify:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install aiverify
+        run: pip install aiverify-cli 2>/dev/null || echo "aiverify install skipped"
+        continue-on-error: true
+      - name: Detect AI hallucinations
+        run: |
+          if command -v aiverify &>/dev/null; then
+            aiverify app/ --json || echo "AI-specific issues found — review needed"
+          else
+            echo "aiverify not installed — skipping"
+          fi
+        continue-on-error: true
+      - uses: actions/upload-artifact@v5.0.0
+        with:
+          name: aiverify-report
+          path: aiverify-output.json
+        continue-on-error: true
+
+  squawk:
+    # Squawk lints PostgreSQL migration SQL files (*.sql). Current migrations
+    # are Alembic Python (.py) files, so there are no .sql files to lint yet.
+    # The gate will activate when .sql migration files are added to
+    # alembic/versions/ or migrations/ directories.
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm-slim
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Squawk
+        run: npm install -g squawk-cli
+      - name: Lint Postgres migrations
+        run: |
+          SQL_FILES=$(find alembic/versions migrations -name "*.sql" 2>/dev/null || true)
+          if [ -n "$SQL_FILES" ]; then
+            COUNT=$(echo "$SQL_FILES" | wc -l)
+            echo "=== Squawk: linting $COUNT SQL migration file(s) ==="
+            echo "$SQL_FILES" | xargs squawk || echo "Squawk found issues — review migration files"
+          else
+            PY_COUNT=$(find alembic/versions -name "*.py" 2>/dev/null | wc -l)
+            echo "No SQL migration files found ($PY_COUNT Python Alembic files present)."
+            echo "Gate will activate when .sql migration files are added."
+          fi
+      - name: Migration file inventory
+        run: |
+          echo "=== Migration File Inventory ==="
+          PY_COUNT=$(find alembic/versions -name "*.py" 2>/dev/null | wc -l)
+          SQL_COUNT=$(find alembic/versions -name "*.sql" 2>/dev/null | wc -l)
+          echo "  Python (Alembic): $PY_COUNT files"
+          echo "  SQL (Squawk):     $SQL_COUNT files"
+          if [ -d "migrations" ]; then
+            MIG_SQL=$(find migrations -name "*.sql" 2>/dev/null | wc -l)
+            echo "  SQL (migrations/): $MIG_SQL files"
+          fi
+
+  sql-lint:
+    # sqlfluff SQL lint gate. Root .sqlfluff defaults to postgres; per-dir
+    # .sqlfluff overrides set clickhouse for app/db/clickhouse_migrations/
+    # and infra/. .sqlfluffignore excludes the ClickHouse TTL file whose
+    # MODIFY TTL ... DELETE syntax the clickhouse dialect cannot parse yet.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install sqlfluff
+        run: pip install sqlfluff==4.3.0
+      - name: Lint SQL files (structural rules)
+        run: |
+          sqlfluff lint . --nocolor
+      - name: Report linted files
+        run: |
+          SQL_FILES=$(find . -name "*.sql" -not -path "./.venv/*" -not -path "./.git/*" 2>/dev/null)
+          echo "=== SQL files in repo: $(echo "$SQL_FILES" | grep -c . ) ==="
+          echo "$SQL_FILES"
+
+  api-lint:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates nodejs npm && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Install Spectral
+        run: npm install -g @stoplight/spectral-cli
+      - name: Export OpenAPI schema
+        run: |
+          source .venv/bin/activate
+          python -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from app.main import app
+          schema = app.openapi()
+          with open('openapi.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          "
+      - name: Lint OpenAPI with Spectral (ratchet — no NEW errors)
+        # Baseline stored in spectral-baseline.txt (updated on successful runs).
+        # Blocks REGRESSIONS only — burn down and lower baseline over time.
+        run: |
+          spectral lint openapi.json --ruleset .spectral.yaml -f json -o spectral.json || true
+          COUNT=$(python3 -c "import json; d=json.load(open('spectral.json')); print(sum(1 for r in d if r.get('severity')==0))" 2>/dev/null || echo 0)
+          echo "spectral errors: $COUNT (baseline: $(cat spectral-baseline.txt))"
+          BASELINE=$(cat spectral-baseline.txt); if [ "$COUNT" -gt "$BASELINE" ]; then echo "❌ New spectral errors"; exit 1; fi
+          echo "✅ No new spectral errors"
+          # Update baseline on success (ratchet down)
+          echo "$COUNT" > spectral-baseline.txt
+          echo "Updated baseline to $COUNT"
+      - uses: actions/upload-artifact@v5.0.0
+        with:
+          name: openapi-schema
+          path: openapi.json
+
+  oasdiff:
+    # Detects BREAKING OpenAPI changes introduced by a PR.
+    # Compares PR HEAD against the LAST RELEASE TAG (v1.0.0) — a stable,
+    # reproducible baseline. The current-venv-running-old-code approach is
+    # fragile; release tags are immutable and have known-good dependencies.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Install oasdiff
+        run: |
+          curl -fsSL https://github.com/oasdiff/oasdiff/releases/download/v1.11.7/oasdiff_1.11.7_linux_amd64.tar.gz -o /tmp/oasdiff.tar.gz
+          tar xzf /tmp/oasdiff.tar.gz -C /usr/local/bin oasdiff
+          oasdiff --version
+      - name: Generate OpenAPI from app (PR head)
+        run: |
+          source .venv/bin/activate
+          python -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from app.main import app
+          schema = app.openapi()
+          with open('openapi.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          "
+          cp openapi.json /tmp/openapi-head.json
+      - name: Generate OpenAPI from app (last release tag v1.0.0)
+        run: |
+          LAST_RELEASE="v1.0.0"
+          git fetch origin "$LAST_RELEASE" 2>/dev/null || true
+          mkdir -p /tmp/rmi-release
+          git archive "$LAST_RELEASE" | tar -x -C /tmp/rmi-release
+          echo "Release tag: $LAST_RELEASE"
+      - name: Generate OpenAPI from release tag
+        run: |
+          cd /tmp/rmi-release
+          "$GITHUB_WORKSPACE/.venv/bin/python" -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from app.main import app
+          schema = app.openapi()
+          with open('/tmp/openapi-base.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          " || {
+            echo "::warning::Failed to generate OpenAPI from $LAST_RELEASE (deps incompatible) — skipping diff"
+            exit 0
+          }
+      - name: Detect breaking OpenAPI changes
+        run: |
+          # Skip cleanly when the base spec is missing or invalid.
+          if [ ! -s /tmp/openapi-base.json ] || ! python3 -c "import json; d=json.load(open('/tmp/openapi-base.json')); assert isinstance(d, dict) and 'openapi' in d" 2>/dev/null; then
+            echo "Base spec missing/invalid — skipping breaking-change diff."
+            exit 0
+          fi
+          # oasdiff cannot parse OpenAPI 3.1 (numeric exclusiveMinimum etc.;
+          # its Go schema expects 3.0-style bool). A parser failure is a tool
+          # limitation, not a breaking change — warn and skip; real diffs still
+          # fail the gate.
+          OUT=$(oasdiff breaking /tmp/openapi-base.json /tmp/openapi-head.json --fail-on ERR -f githubactions 2>&1) && STATUS=0 || STATUS=$?
+          if echo "$OUT" | grep -qE "failed to load|cannot unmarshal|failed to unmarshal"; then
+            echo "::warning::oasdiff cannot parse this OpenAPI 3.1 spec (known limitation) — gate skipped"
+            exit 0
+          fi
+          echo "$OUT"
+          exit $STATUS
+
+  import-linter:
+    # Enforces architectural layer contracts declared in .importlinter:
+    #   1. app.core never imports app.api (layers)
+    #   2. app.services never imports app.api/app.routers (forbidden)
+    #   3. app.adapters are leaf modules (forbidden)
+    # Static analysis only — no application code is imported.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install import-linter
+        run: pip install import-linter
+      - name: Enforce architectural contracts
+        run: lint-imports --config .importlinter
+
+  bandit:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install bandit
+        run: pip install bandit
+      - name: Bandit SAST scan (ratchet, baseline 47)
+        # B608 SQL-string warnings (40) are the bulk — mostly constant-built
+        # SQL; triage before tightening. Blocks REGRESSIONS meanwhile.
+        run: |
+          COUNT=$(bandit -r app/ -ll -q -f json 2>/dev/null | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('results',[])))" || echo 0)
+          bandit -r app/ -ll -f json -o bandit-report.json || true
+          echo "bandit MEDIUM+ findings: $COUNT (baseline: 47)"
+          if [ "$COUNT" -gt 47 ]; then echo "❌ New bandit findings"; exit 1; fi
+          echo "✅ No new bandit findings"
+      - name: Upload report
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  shellcheck:
+    runs-on: docker-x64
+    container:
+      # node image: checkout@v4 is a node20 action (shellcheck image had no node).
+      image: node:22-bookworm-slim
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install shellcheck
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar xJ -C /tmp
+          mv /tmp/shellcheck-v0.10.0/shellcheck /usr/local/bin/
+      - name: ShellCheck (ratchet, baseline 31)
+        run: |
+          COUNT=$(find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} + 2>&1 | grep -cE "SC[0-9]+" || true)
+          echo "shellcheck findings: $COUNT (baseline: 31)"
+          if [ "$COUNT" -gt 31 ]; then echo "❌ New shellcheck findings"; exit 1; fi
+          echo "✅ No new shellcheck findings"
+      - name: Bash Syntax
+        run: |
+          find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec bash -n {} \;
+
+  docker-lint:
+    # hadolint gate: lints the root Dockerfile for best-practice violations.
+    # node image + binary: checkout@v4 is a node20 action (the hadolint
+    # image has no node, so the job died at checkout).
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm-slim
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install hadolint
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint && chmod +x /usr/local/bin/hadolint
+      - name: Hadolint Dockerfile
+        run: hadolint Dockerfile
+
+  layerlint:
+    runs-on: docker-x64
+    container:
+      # localhost/ci-alpine-node:3.19 does not exist on this runner; node
+      # image also satisfies checkout@v4's node20 requirement.
+      image: node:22-bookworm-slim
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install layerLint
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSL https://github.com/vviveksharma/layerLint/releases/download/v1.0.1/layerLint_1.0.1_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin
+          chmod +x /usr/local/bin/layerlint
+      - name: Lint Dockerfiles for caching issues
+        run: |
+          find . -name "Dockerfile*" -not -path "*/node_modules/*" -not -path "*/.venv/*" | while read -r dockerfile; do
+            echo "=== $dockerfile ==="
+            layerlint scan --dockerfile "$dockerfile" --fail-on-severity high || echo "Caching issues found in $dockerfile"
+          done
+        continue-on-error: true
+
+  migration-test:
+    runs-on: docker-x64
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: rmi_test_migrations
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dependencies
+        run: |
+          pip install alembic sqlalchemy psycopg2-binary
+          pip install -r requirements.txt 2>/dev/null || true
+      - name: Apply all migrations
+        run: |
+          export ALEMBIC_DATABASE_URL=postgresql://postgres:test@postgres:5432/rmi_test_migrations
+          alembic upgrade head && echo "✅ All migrations applied cleanly" || { echo "❌ Migration apply failed"; exit 1; }
+      - name: Verify migration history
+        run: |
+          export ALEMBIC_DATABASE_URL=postgresql://postgres:test@postgres:5432/rmi_test_migrations
+          CURRENT=$(alembic current 2>/dev/null | head -1)
+          echo "  Current revision: $CURRENT"
+          HEAD=$(alembic heads | head -1)
+          echo "  Head revision:    $HEAD"
+          if [ "$CURRENT" = "$HEAD" ]; then
+            echo "✅ At head revision"
+          else
+            echo "❌ Not at head ($CURRENT vs $HEAD)"
+            exit 1
+          fi
+      - name: Rollback and re-apply
+        run: |
+          export ALEMBIC_DATABASE_URL=postgresql://postgres:test@postgres:5432/rmi_test_migrations
+          # Downgrade one revision (informational — some migrations lack downgrade)
+          if alembic downgrade -1 2>/dev/null; then
+            echo "✅ Rollback successful"
+            # Re-apply after rollback
+            alembic upgrade head && echo "✅ Re-apply successful after rollback" || { echo "❌ Re-apply failed"; exit 1; }
+          else
+            echo "⚠️  Rollback skipped (migration lacks downgrade path)"
+          fi
+
+  deps-freshness:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check dependency freshness
+        run: |
+          pip install libyear 2>/dev/null || true
+          if [ -f requirements.txt ]; then
+            pip install pip-tools && libyear --file requirements.txt || echo "Dep freshness check noted"
+          fi
+        continue-on-error: true
+
+  k6-smoke:
+    # k6 needs a RUNNING backend to test against. In PR CI the full Docker
+    # Compose stack (Postgres + Redis + ClickHouse + app) would be required,
+    # and secrets (DATABASE_PASSWORD, REDIS_PASSWORD, etc.) are not available
+    # in PR context. Runs on schedule against the live deployment instead.
+    # To enable: set K6_TARGET_URL as a repo variable (vars) or secret
+    # pointing to the deployed API (e.g., https://api.rugmunch.io).
+    #
+    # Non-blocking (continue-on-error) until the API is available in CI.
+    # Graduate to blocking by removing continue-on-error once a test
+    # environment is provisioned (e.g., ephemeral Docker Compose stack).
+    if: github.event_name == 'schedule'
+    continue-on-error: true
+    runs-on: docker-x64
+    container:
+      # Standard python+node image: actions/checkout is a node action and
+      # cannot run inside grafana/k6 (no node -> exitcode 127). k6 itself
+      # is installed below from the official static binary (v2.2.0).
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install k6
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -sSL -o /tmp/k6.tar.gz \
+            https://github.com/grafana/k6/releases/download/v2.2.0/k6-v2.2.0-linux-amd64.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          mv /tmp/k6-v2.2.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
+      - name: Create results directory
+        run: mkdir -p tests/k6/results
+      - name: Connectivity pre-check
+        run: |
+          echo "🔍 Checking API reachability at ${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }} ..."
+          curl -sSf -o /dev/null -w "HTTP %{http_code}\n" \
+            "${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }}/health" \
+            --connect-timeout 10 --max-time 15 \
+            && echo "✅ API is reachable — proceeding with k6 smoke test" \
+            || echo "⚠️  API not reachable — k6 will report failures (non-blocking)"
+        continue-on-error: true
+      - name: Run k6 smoke test against live deployment
+        run: |
+          k6 run tests/k6/smoke.js \
+            -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://api.rugmunch.io' }} \
+            --summary-export=tests/k6/results/smoke-summary.json
+      - uses: actions/upload-artifact@v5.0.0
+        if: always()
+        with:
+          name: k6-smoke-report
+          path: tests/k6/results/
+
+  mutation-test:
+    runs-on: docker-x64
+    continue-on-error: true  # informational only for now
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]" mutmut
+      - name: Mutation testing (scoped to app/core)
+        run: source .venv/bin/activate && mutmut run --paths-to-mutate app/core/ --test-timeout 10 || echo "Mutation score noted (non-blocking)"
+      - uses: actions/upload-artifact@v5.0.0
+        if: always()
+        with:
+          name: mutation-report
+          path: |
+            .mutmut-cache/
+            html/
+          include-hidden-files: true
+
+  crucible-gate:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + uv + mutmut
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python mutmut
+          # Install crucible if available
+          pip install crucible-harden 2>/dev/null || echo "Crucible not on PyPI yet — gate runs mutmut directly"
+      - name: Crucible mutation gate (score only, no AI)
+        run: |
+          source .venv/bin/activate
+          if command -v crucible &>/dev/null; then
+            crucible score . --module app/core || echo "Crucible gate noted"
+          else
+            # Fallback: run mutmut directly for the mutation gate
+            mutmut run --paths-to-mutate app/core/ 2>/dev/null && mutmut results || echo "Mutation gate noted (non-blocking)"
+          fi
+        continue-on-error: true
+
+  slow-tests:
+    runs-on: docker-x64
+    continue-on-error: true
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Detect slow tests
+        run: |
+          source .venv/bin/activate
+          python -m pytest --durations=10 tests/ -q --tb=short -m "not integration"
+      - uses: actions/upload-artifact@v5.0.0
+        if: always()
+        with:
+          name: slow-test-report
+          path: /tmp/slow-tests-*.log
+
+  rag-eval-gate:
+    # RAG regression gate (G3): golden-set size, hit-rate + faithfulness
+    # thresholds, and the rerank/context-budget wiring. Deterministic dry run
+    # (no Redis/Qdrant/Infinity required). BLOCKS on regression.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Run RAG regression eval gate
+        run: |
+          source .venv/bin/activate
+          bash scripts/rag-eval.sh --dry
+
+  pip-audit:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pip-audit + deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          pip install pip-audit
+          pip install -r requirements.txt
+      - name: Run pip-audit (blocking on HIGH/CRITICAL)
+        run: |
+          pip-audit --fail-on=high --desc --ignore-vulns PYSEC-2024-100 2>&1 || { echo "❌ pip-audit found HIGH/CRITICAL vulnerabilities — fix before merge"; exit 1; }
+
+  trivy-scan:
+    runs-on: docker-x64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build image for scanning
+        run: docker build -t app:${{ github.sha }} .
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'app:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+      - uses: actions/upload-artifact@v5.0.0
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+
+  fuzz:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]" hypothesis
+      - name: Run fuzz tests
+        run: |
+          source .venv/bin/activate
+          HYPOTHESIS_PROFILE=ci python -m pytest tests/fuzz/ -v --tb=short || echo "Fuzz tests noted"
+        continue-on-error: true
+
+  contract-verify:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Setup uv + deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]" pact-python
+      - name: Download pact files (from consumer CI)
+        uses: actions/download-artifact@v6.0.0
+        continue-on-error: true
+        with:
+          name: pacts
+          path: tests/contract/pacts/
+      - name: Verify provider contracts (Pact Broker)
+        id: contract-broker
+        continue-on-error: true
+        run: |
+          source .venv/bin/activate
+          if [ -n "$PACT_BROKER_URL" ]; then
+            python -m pytest tests/contract/ -v --tb=short -m integration
+          else
+            echo "ℹ️  PACT_BROKER_URL not set — skip broker verification"
+          fi
+        env:
+          PACT_BROKER_URL: ${{ secrets.PACT_BROKER_URL }}
+      - name: Verify provider against local pact files
+        if: steps.contract-broker.outcome == 'skipped' || steps.contract-broker.outcome == 'failure'
+        run: |
+          source .venv/bin/activate
+          if [ -d "tests/contract/pacts" ] && ls tests/contract/pacts/*.json 2>/dev/null; then
+            PACT_FILE=$(ls tests/contract/pacts/*.json 2>/dev/null | head -1)
+            echo "=== Verifying pact: $PACT_FILE ==="
+            pact-verifier --provider-base-url http://localhost:8000 \
+              --pact-url "$PACT_FILE" \
+              --provider-app-version "${{ github.sha }}" \
+            || { echo "❌ Pact verification failed against $PACT_FILE"; exit 1; }
+          elif [ -n "${{ secrets.PACT_BROKER_URL }}" ]; then
+            echo "ℹ️  Broker verification already attempted — see step above"
+          else
+            echo "ℹ️  No local pact files and no Pact Broker configured — publish consumer pacts first"
+          fi
+      - name: Upload provider verification results
+        uses: actions/upload-artifact@v5.0.0
+        if: always()
+        with:
+          name: provider-verification
+          path: |
+            tests/contract/pacts/
+            /tmp/pact-verification-*.log
+
+  sbom:
+    runs-on: docker-x64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output: sbom.spdx.json
+      - name: Verify SBOM (blocking — bad SBOM = broken build)
+        run: |
+          if [ -f sbom.spdx.json ]; then
+            bash scripts/sbom-verify.sh sbom.spdx.json
+          else
+            echo "❌ SBOM file not generated"
+            exit 1
+          fi
+      - name: Downgrade SBOM specVersion to 1.6 (DTrack compatibility)
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          with open("sbom.spdx.json") as f:
+              d = json.load(f)
+          if d.get("specVersion") == "1.7":
+              d["specVersion"] = "1.6"
+              with open("sbom.spdx.json", "w") as f:
+                  json.dump(d, f)
+              print("Downgraded specVersion to 1.6")
+          else:
+              print("specVersion already", d.get("specVersion"))
+          PYEOF
+
+      - name: Upload SBOM to Dependency-Track (conditional)
+        if: env.DTRACK_API_KEY != '' && vars.DTRACK_URL != ''
+        env:
+          DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
+          DTRACK_URL: ${{ vars.DTRACK_URL }}
+        run: |
+          set -euo pipefail
+          echo "📤 Uploading SBOM to Dependency-Track at $DTRACK_URL"
+          if ! curl -sf -X POST "${DTRACK_URL}/api/v1/bom" \
+               -H "X-Api-Key: ${DTRACK_API_KEY}" \
+               -F "projectName=rmi-backend" \
+               -F "projectVersion=${GITHUB_SHA::8}" \
+               -F "autoCreate=true" \
+               -F "bom=@sbom.spdx.json" \
+               --retry 2 --retry-delay 5 --max-time 30 > /tmp/dtrack-upload.json 2>&1; then
+            echo "⚠️  Dependency-Track upload failed or unreachable (skipping gracefully)"
+            cat /tmp/dtrack-upload.json
+            exit 0
+          fi
+          echo "✅ SBOM uploaded to Dependency-Track"
+          cat /tmp/dtrack-upload.json
+
+      - uses: actions/upload-artifact@v5.0.0
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+   # ── SLSA Provenance Constraint (Forgejo vs GitHub Actions) ────────────────
+   # Note: The slsa-framework/slsa-github-generator reusable workflow used in
+   # .github/workflows/ci.yml requires GitHub Actions OIDC identity (id-token:write)
+   # and GitHub Actions reusable workflow syntax, which Forgejo runners do not provide.
+   # Therefore, SLSA Build L3 provenance is generated ONLY on the GitHub Actions mirror
+   # (see .github/workflows/ci.yml slsa-provenance job). This sign-image job remains
+   # unchanged for cosign keyless signing on Forgejo.
+   # ────────────────────────────────────────────────────────────────
+  sign-image:
+    runs-on: docker-x64
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.3'
+      - name: Set up Docker BuildKit
+        run: |
+          echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
+          echo "BUILDKIT_PROGRESS=plain" >> $GITHUB_ENV
+      - name: Pull build cache
+        run: docker pull registry.rugmunch.io/rmi-backend:buildcache || echo "No cache image yet — building from scratch"
+      - name: Build Docker image with cache
+        run: |
+          docker build \
+            --cache-from registry.rugmunch.io/rmi-backend:buildcache \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t registry.rugmunch.io/rmi-backend:${{ github.sha }} \
+            .
+      - name: Push cache image
+        run: |
+          docker tag registry.rugmunch.io/rmi-backend:${{ github.sha }} registry.rugmunch.io/rmi-backend:buildcache
+          docker push registry.rugmunch.io/rmi-backend:buildcache
+      - name: Push release image
+        run: docker push registry.rugmunch.io/rmi-backend:${{ github.sha }}
+      - name: Sign image with keyless (OIDC)
+        run: |
+          cosign sign --yes registry.rugmunch.io/rmi-backend:${{ github.sha }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+      - name: Verify signature
+        run: |
+          cosign verify \
+            --certificate-identity "https://[INTERNAL_HOST]/RugMunchMedia/rmi-backend/.forgejo/workflows/ci.yml@refs/heads/main" \
+            --certificate-oidc-issuer "https://[INTERNAL_HOST]" \
+            registry.rugmunch.io/rmi-backend:${{ github.sha }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+  ocr-review:
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm-slim
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Install Open Code Review
+        run: npm install -g @alibaba-group/open-code-review@latest || echo "OCR install skipped (will retry next run)"
+        continue-on-error: true
+      - name: Configure OCR
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+        run: |
+          if command -v ocr &>/dev/null; then
+            ocr config set llm.url "$OCR_LLM_URL"
+            ocr config set llm.auth_token "$OCR_LLM_AUTH_TOKEN"
+            ocr config set llm.model "$OCR_LLM_MODEL"
+            ocr config set llm.use_anthropic false
+            ocr config set llm.extra_body '{"thinking": {"type": "disabled"}}'
+            ocr config set language English
+          else
+            echo "OCR not installed — skipping config"
+          fi
+        continue-on-error: true
+      - name: Run OCR code review
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+        run: |
+          if command -v ocr &>/dev/null; then
+            TARGET_BRANCH="${GITHUB_BASE_REF:-main}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            if [ -n "$HEAD_SHA" ]; then
+              git fetch origin "$TARGET_BRANCH" 2>/dev/null || true
+              ocr review \
+                --from "origin/$TARGET_BRANCH" \
+                --to "$HEAD_SHA" \
+                --format json \
+                > /tmp/ocr-result.json 2>/tmp/ocr-stderr.log || echo "OCR review completed with findings"
+              echo "=== OCR result ==="
+              cat /tmp/ocr-result.json
+            else
+              echo "Not a PR event — skipping review"
+            fi
+          else
+            echo "OCR not installed — skipping (non-blocking)"
+          fi
+        continue-on-error: true
+      - name: Upload OCR report
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: ocr-review-report
+          path: |
+            /tmp/ocr-result.json
+            /tmp/ocr-stderr.log
+        continue-on-error: true
+
+  archfit:
+    runs-on: docker-x64
+    container:
+      # node image: checkout@v4 is a node20 action (golang image had no node).
+      image: node:22-bookworm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Go
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://go.dev/dl/go1.22.12.linux-amd64.tar.gz | tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+      - name: Install archfit
+        run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
+        continue-on-error: true
+      - name: Run architecture fitness check
+        run: |
+          if command -v archfit &>/dev/null; then
+            archfit analyze
+          else
+            echo "archfit not installed — skipping (non-blocking)"
+          fi
+
+  draugr:
+    runs-on: docker-x64
+    container:
+      # node image: checkout@v4 is a node20 action (golang image had no node).
+      image: node:22-bookworm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Go
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://go.dev/dl/go1.22.12.linux-amd64.tar.gz | tar -C /usr/local -xz
+          echo "/usr/local/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+      - name: Install Draugr
+        run: go install github.com/draugr-dev/draugr@latest || echo "Draugr install skipped"
+        continue-on-error: true
+      - name: Install scanner tools
+        run: |
+          if command -v draugr &>/dev/null; then
+            draugr tools install || echo "Tool provisioning skipped"
+          fi
+        continue-on-error: true
+      - name: Run supply chain security scan
+        run: |
+          if command -v draugr &>/dev/null; then
+            draugr scan draugr.saga.yaml --fail-on warning --format sarif -o draugr-out/ || echo "Supply chain findings exist"
+          else
+            echo "Draugr not installed — skipping (use individual scanners instead)"
+          fi
+        continue-on-error: true
+      - name: Upload Draugr SARIF
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: draugr-sarif
+          path: draugr-out/
+        continue-on-error: true
+
+# Append these jobs under `jobs:` in any repo's ci.yml. Self-contained.
+  supply-chain:
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Install scanners
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl git ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -sSfL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner && chmod +x /usr/local/bin/osv-scanner
+          curl -sSfL https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.0/trufflehog_3.97.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin trufflehog
+      - name: OSV dependency scan (hallucinated/vulnerable deps)
+        run: osv-scanner scan source --format table ./ || echo "::warning::OSV findings — triaged baseline, see log"
+      - name: Trufflehog verified-live secrets (all history)
+        run: trufflehog git file://. --only-verified --fail --no-update
+
+  nightly-deep-scan:
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Noseyparker full-history secret hunt
+        run: |
+          curl -sSfL https://github.com/praetorian-inc/noseyparker/releases/latest/download/noseyparker-v0.24.0-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          ./noseyparker-v0.24.0-x86_64-unknown-linux-gnu/noseyparker scan --git-history-format all . || true
+          ./noseyparker-v0.24.0-x86_64-unknown-linux-gnu/noseyparker report || true
+      - name: Grype vulnerability match on working tree
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype dir:. --fail-on critical || echo "::warning::critical vulns in tree"
+
+  nightly-api-fuzz:
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Schemathesis property-based API fuzzing (live OpenAPI)
+        run: |
+          pip install schemathesis
+          st run --url "${SCHEMA_URL:-http://rmi-backend:8000/openapi.json}" --checks all --max-examples 50 || echo "::warning::API contract violations found"
+
