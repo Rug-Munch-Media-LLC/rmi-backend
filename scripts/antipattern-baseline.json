@@ -5,7 +5,7 @@
 		"god-file": 271,
 		"too-many-params": 248,
 		"fstring-logging": 1990,
-		"monkeypatch": 1363,
+		"monkeypatch": 688,
 		"wildcard-import": 3,
 		"eval-exec": 3,
 		"sync-io-async": 5,

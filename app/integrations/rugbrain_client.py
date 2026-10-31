@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 
 from app.databus.vault import resolve_key
+from app.integrations.qdrant_vectors import vector_name
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +74,9 @@ async def _deepinfra_embed(query: str) -> list[float] | None:
 
 
 async def _qdrant_direct_search(query: str, collections: list[str], limit: int) -> list[dict[str, Any]]:
-    """Direct Qdrant vector search (bypasses the unreachable/hung rugbrain API).
+    """Direct Qdrant search: embed once, fan out over every collection.
 
-    Embeds ``query`` once, then vector-searches every ``collection`` in
-    ``rmi-qdrant-v2`` concurrently. Returns hits in the rugbrain-compatible
-    shape (``content`` / ``rrf_score`` / ``metadata`` / ``doc_id`` +
-    ``collection`` / ``similarity``). Returns ``[]`` on failure — never raises.
-    """
+    Returns rugbrain-shaped hits; never raises (``[]`` on failure)."""
     vector = await _deepinfra_embed(query)
     if not vector:
         return []
@@ -89,12 +86,15 @@ async def _qdrant_direct_search(query: str, collections: list[str], limit: int) 
         url = f"{base}/collections/{col}/points/search"
         try:
             async with httpx.AsyncClient(timeout=20) as client:
+                name = await vector_name(client, base, col)
+                vec = {"name": name, "vector": vector} if name else vector
                 r = await client.post(
                     url,
-                    json={"vector": vector, "limit": limit, "with_payload": True},
+                    json={"vector": vec, "limit": limit, "with_payload": True},
                     headers={"Content-Type": "application/json"},
                 )
             if r.status_code != 200:
+                logger.warning("qdrant_direct_non_200 collection=%s status=%s", col, r.status_code)
                 return []
             raw = r.json()
             result = raw.get("result") if isinstance(raw, dict) else None

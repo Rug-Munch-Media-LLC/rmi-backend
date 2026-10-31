@@ -59,15 +59,6 @@ ignore_imports =
     app.domains.chat.mount -> app.routers.chat
     app.domains.premium.service -> app.routers.unified_scanner_router
     app.core.payment_challenge -> app.domains.billing.x402_exact.challenge
-    # ── SCOPED, EXPIRING (2026-12-31) — pre-existing, blocks every push ──
-    # app/core/health_route.py:157 imports the scanner risk-policy report from
-    # inside _risk_policy_report() — a LAZY, function-local import, so there is
-    # no import-time cycle and core stays loadable without the scanner domain.
-    # The probe defers it because /health must answer before the scanner domain
-    # finishes wiring. Root-cause fix: move policy_report() DOWN into app.core
-    # (or expose it through an app.services accessor) and delete this line.
-    # Owner: backend-lead.
-    app.core.health_route -> app.domains.scanner.risk_policy
 # ── Contract 2: No router → DB direct access ─────────────────────────
 # Routers must NOT import from db or db_client directly.
 # They must go through services or domains.
@@ -128,7 +119,3 @@ ignore_imports =
     # Deferred: it re-lays a payment primitive and is not in this lane.
     # Owner: backend-lead.
     app.core.payment_challenge -> app.domains.billing.x402_exact.challenge
-    # Same lazy health-probe edge as Contract 1 above (function-local import at
-    # app/core/health_route.py:157, no import-time cycle). Scoped + expiring
-    # 2026-12-31; removed when policy_report() moves down into app.core.
-    app.core.health_route -> app.domains.scanner.risk_policy

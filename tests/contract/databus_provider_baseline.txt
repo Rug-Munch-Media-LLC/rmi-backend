@@ -1,0 +1,9 @@
+# DataBus provider contract — known-drift inventory (shrink-only ratchet).
+#
+# One "module.function" per line. A listed provider is known to violate the
+# contract and may only be REMOVED from this list; an entry whose provider
+# starts conforming must be deleted here. Everything unlisted must conform.
+#
+# Empty as of the fixture/inspection repair: every discovered provider passes
+# the async / **kwargs / no-bare-except / no-pass-swallow / AsyncClient-timeout
+# checks. Add a line ONLY as a documented, dated exception.

@@ -59,7 +59,8 @@ async def request_provider(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=spec.timeout_s) as client:
+        timeout = httpx.Timeout(spec.timeout_s, connect=min(2.0, spec.timeout_s))
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(spec.url, json=body, headers=headers)
     except (httpx.TimeoutException, httpx.TransportError) as exc:
         raise ProviderError(f"{type(exc).__name__}: {exc}", retryable=True) from exc

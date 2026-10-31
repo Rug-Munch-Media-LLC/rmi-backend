@@ -9,8 +9,21 @@ on:
     # k6 smoke tests run against live deployment every 6 hours
   - cron: '0 */6 * * *'
 
-# PRs MUST pass all CI jobs before merge
-# Coverage thresholds below enforce quality gates
+# PR gate. Five jobs — the pull_request cap is <=6 (2a1e319926 "ci: cap
+# pull_request gate at <=6 jobs").
+#
+# Branch protection requires exactly these three contexts:
+#   CI / structure-gate, CI / build-and-test, CI / semgrep
+# so all three jobs always run and always report. On docs-only changes their
+# heavy steps are skipped at step level (`if:`), which keeps the required
+# contexts green without spending ~8 minutes building a README diff.
+# structure-gate and secret-scan run unconditionally.
+#
+# `pre-commit-mirror` was deleted here: .pre-commit-config.yaml defines only
+# ruff / mypy / pytest / squawk, and the job skipped all four
+# (SKIP=no-commit-to-branch,ruff,ruff-format,mypy,pytest,squawk), so it ran zero
+# hooks, re-billed the ~60 s dependency install, and failed on the private dep
+# (237 of 290 runs). Its only unique value — a secret scan — is now a real job.
 
 env:
   COVERAGE_THRESHOLD: 70
@@ -18,76 +31,74 @@ env:
   # CI-only dummy (>=32 chars): app Settings validation requires a secure
   # JWT secret; CI never exercises real tokens with it.
   JWT_SECRET: ci-dummy-jwt-secret-not-used-in-production-0000
-  # HS256 for CI: RS256 requires real key material (JWT_PRIVATE_KEY /
-  # JWT_PUBLIC_KEY) which CI must not hold; routers mount fine with HS256.
+  # HS256 for CI: an asymmetric algorithm needs real key material
+  # (JWT_PRIVATE_KEY / JWT_PUBLIC_KEY) which CI must not hold; routers
+  # mount fine with HS256.
   JWT_ALGORITHM: HS256
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
 
 jobs:
-  pre-commit-mirror:
+  changes:
+    # Classifies the diff so docs-only changes skip build/test. Fails open:
+    # any classification error yields docs_only=false (run everything).
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
-      options: --volume /srv/work/repos/standards:/workspace/RugMunchMedia/standards:ro
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
-    - name: Install system deps + pre-commit + hook tools
-      run: |
-        apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl gcc libpq-dev
-        rm -rf /var/lib/apt/lists/*
-        pip install pre-commit ruff mypy pytest
-        # App deps: the pytest/mypy hooks analyze real modules.
-        pip install -e .
-    - name: Run ALL pre-commit hooks on all files
-      run: |
-        # Skip: local-only + dedicated-job hooks (see job comment).
-        SKIP=no-commit-to-branch,ruff,ruff-format,mypy,pytest,squawk pre-commit run --all-files --show-diff-on-failure
-
-  semgrep:
-    runs-on: docker-x64
-    container:
-      image: nikolaik/python-nodejs:python3.12-nodejs22
-    steps:
-    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
-    - name: Install semgrep
-      run: pip install semgrep
-    - name: Semgrep SAST scan (community rules)
-        # BLOCKING — findings triaged 2026-09-05. Exclusions live in
-        # .semgrep/exclude-rules.txt (58x parameterized ClickHouse text(),
-        # 2x avoid-sqlalchemy-text parameterized where_clause, 2x ws://
-        # docstring/rewrite literals, 1x nan-injection FP annotated inline
-        # with nosemgrep). Re-triage before removing any exclusion.
-      run: |
-        EXCLUDE_RULES=$(grep -v '^#' .semgrep/exclude-rules.txt | grep -v '^$' | sed 's/^/--exclude-rule=/' | tr '\n' ' ')
-        semgrep scan --config=auto \
-          --severity=ERROR \
-          $EXCLUDE_RULES \
-          --error \
-          --exclude='tests/' \
-          --exclude='alembic/' \
-          --exclude='app/_archive/' \
-          --exclude='app/legacy/' \
-          --sarif \
-          --output=semgrep.sarif \
-          app/
-        echo "semgrep findings: $(python3 -c "import json;print(len(json.load(open('semgrep.sarif'))['runs'][0]['results']))" 2>/dev/null || echo '?') (blocking — see comment above)"
-    - uses: actions/upload-artifact@v5.0.0
-      if: always()
       with:
-        name: semgrep-report
-        path: semgrep.sarif
+        fetch-depth: 0
+    - id: classify
+      name: Classify changed paths
+      run: |
+        set +e
+        docs_only=false
+        changed=""
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base="${{ github.base_ref }}"
+          git fetch --no-tags origin "+refs/heads/${base}:refs/remotes/origin/${base}" >/dev/null 2>&1
+          changed="$(git diff --name-only "origin/${base}...HEAD" 2>/dev/null)"
+        fi
+        echo "changed files (${changed:+count=$(printf '%s\n' "$changed" | wc -l)}):"
+        printf '%s\n' "$changed" | head -50
+        if [ -n "$changed" ]; then
+          non_docs="$(printf '%s\n' "$changed" | grep -vE '^(docs/|.*\.md$|.*\.mdx$|.*\.rst$|LICENSE|\.github/)' )"
+          if [ -z "$non_docs" ]; then docs_only=true; fi
+        fi
+        echo "docs_only=$docs_only"
+        echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
 
   build-and-test:
+    needs: changes
     runs-on: docker-x64
     container:
       # Needs node for actions/checkout (node20 runtime) AND python 3.11.
       # python:3.11-slim has no node -> "exec: node: not found" in checkout
       # post-step. Keep in sync with env.PYTHON_VERSION below.
       image: nikolaik/python-nodejs:python3.11-nodejs22
-      options: --volume /srv/work/repos/standards:/workspace/RugMunchMedia/standards:ro
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
 
+    - name: Docs-only change — build/test skipped
+      if: needs.changes.outputs.docs_only == 'true'
+      run: echo "Only docs/markdown changed — dependency install, lint, type check and tests are skipped; structure-gate and secret-scan still run."
+
+    - name: Restore uv cache
+      if: needs.changes.outputs.docs_only != 'true'
+      id: uv-cache
+      continue-on-error: true
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: uv-${{ runner.os }}-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
+        restore-keys: |
+          uv-${{ runner.os }}-
+
     - name: Install system deps
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         apt-get update
         apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
@@ -97,21 +108,36 @@ jobs:
         # No pinned checksum: the installer's own digest verification covers
         # the binary, and a stale pin breaks whenever astral.sh updates the
         # script (this job had been failing on a checksum mismatch).
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Setup Python
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         uv python install ${{ env.PYTHON_VERSION }}
         uv venv --python ${{ env.PYTHON_VERSION }} .venv
 
+    - name: Resolve private pinned dependency
+      if: needs.changes.outputs.docs_only != 'true'
+      env:
+        # A repo secret is preferred: the job token is scoped to THIS repo and
+        # Forgejo grants no cross-repo read, so it cannot resolve the private
+        # pinned dependency. The job token stays as the fallback. Neither value
+        # is ever written into this file.
+        CI_GIT_TOKEN_SECRET: ${{ secrets.CI_GIT_TOKEN }}
+        CI_GIT_TOKEN: ${{ github.token }}
+      run: bash scripts/ci/private-deps.sh
+
     - name: Install dependencies
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         uv pip install --python .venv/bin/python -r requirements.txt
         uv pip install --python .venv/bin/python -e ".[dev]"
 
     - name: Lint (ruff)
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         source .venv/bin/activate
         COUNT=$(ruff check . 2>&1 | grep -oE "Found [0-9]+ errors" | grep -oE "[0-9]+" || echo 0)
@@ -120,6 +146,7 @@ jobs:
         echo "✅ No new lint errors"
 
     - name: Format check (ruff)
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         source .venv/bin/activate
         COUNT=$(ruff format --check . 2>&1 | grep -oE "[0-9]+ files would be reformatted" | grep -oE "[0-9]+" || echo 0)
@@ -128,6 +155,7 @@ jobs:
         echo "✅ No new formatting debt"
 
     - name: Type check (mypy)
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         source .venv/bin/activate
         COUNT=$(mypy app/ --ignore-missing-imports 2>&1 | grep -cE "error:" || true)
@@ -138,6 +166,7 @@ jobs:
     - name: Run unit tests with coverage
         # Coverage floor: 60% (matches pyproject.toml [tool.coverage.report] fail_under)
         # Tests MUST pass — blocks the pipeline on failure or insufficient coverage
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         source .venv/bin/activate
         pytest tests/ -x -q --tb=short -m "not integration and not benchmark" -n 4 --max-worker-restart=3 --dist=loadfile \
@@ -148,6 +177,7 @@ jobs:
           --cov-fail-under=60
 
     - name: Check coverage threshold
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         source .venv/bin/activate
         python -c "
@@ -163,6 +193,7 @@ jobs:
         "
 
     - name: Run E2E tests
+      if: needs.changes.outputs.docs_only != 'true'
       run: |
         source .venv/bin/activate
         pytest tests/e2e/ -x -q --tb=short \
@@ -172,6 +203,7 @@ jobs:
           --cov-fail-under=${{ env.COVERAGE_THRESHOLD }} || echo "E2E tests noted (non-blocking for coverage)"
 
     - name: Upload coverage to Codecov
+      if: needs.changes.outputs.docs_only != 'true'
       uses: codecov/codecov-action@v5
       with:
         files: coverage.xml
@@ -181,12 +213,76 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Upload coverage report
-      uses: actions/upload-artifact@v5.0.0
+      if: always() && needs.changes.outputs.docs_only != 'true'
+      uses: actions/upload-artifact@v3   # v4+ needs the GitHub artifact backend; Forgejo errors “not supported on GHES”
       with:
         name: coverage-report
         path: |
           coverage.xml
           coverage.lcov
+
+  semgrep:
+    needs: changes
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+
+    - name: Docs-only change — semgrep skipped
+      if: needs.changes.outputs.docs_only == 'true'
+      run: echo "Only docs/markdown changed — semgrep scan skipped; structure-gate and secret-scan still run."
+
+    - name: Restore pip + semgrep caches
+      if: needs.changes.outputs.docs_only != 'true'
+      id: semgrep-cache
+      continue-on-error: true
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/semgrep
+          ~/.cache/uv
+        key: semgrep-${{ runner.os }}-${{ hashFiles('.semgrep/exclude-rules.txt') }}
+        restore-keys: |
+          semgrep-${{ runner.os }}-
+
+    - name: Install semgrep
+      if: needs.changes.outputs.docs_only != 'true'
+      run: |
+        # uv resolves this in seconds; pip's resolver spent ~40 s here.
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
+        uv pip install --system semgrep
+        semgrep --version
+
+    - name: Semgrep SAST scan (community rules)
+        # BLOCKING — findings triaged 2026-09-05. Exclusions live in
+        # .semgrep/exclude-rules.txt (58x parameterized ClickHouse text(),
+        # 2x avoid-sqlalchemy-text parameterized where_clause, 2x ws://
+        # docstring/rewrite literals, 1x nan-injection FP annotated inline
+        # with nosemgrep). Re-triage before removing any exclusion.
+      if: needs.changes.outputs.docs_only != 'true'
+      run: |
+        EXCLUDE_RULES=$(grep -v '^#' .semgrep/exclude-rules.txt | grep -v '^$' | sed 's/^/--exclude-rule=/' | tr '\n' ' ')
+        semgrep scan --config=auto \
+          --severity=ERROR \
+          $EXCLUDE_RULES \
+          --error \
+          --exclude='tests/' \
+          --exclude='alembic/' \
+          --exclude='app/_archive/' \
+          --exclude='app/legacy/' \
+          --sarif \
+          --output=semgrep.sarif \
+          app/
+        echo "semgrep findings: $(python3 -c "import json;print(len(json.load(open('semgrep.sarif'))['runs'][0]['results']))" 2>/dev/null || echo '?') (blocking — see comment above)"
+
+    - uses: actions/upload-artifact@v3   # v4+ needs the GitHub artifact backend; Forgejo errors “not supported on GHES”
+      if: always() && needs.changes.outputs.docs_only != 'true'
+      with:
+        name: semgrep-report
+        path: semgrep.sarif
 
   structure-gate:
     # Fleet coding gates (canonical: standards/fleet/gates). BLOCKING ratchets —
@@ -194,6 +290,7 @@ jobs:
     # gate self-test. Baselines: scripts/{structure,monkeypatch,antipattern}-baseline.json.
     # Shrink freely; growth or NEW offenders fail the build. Regenerate deliberately
     # (--update-baseline); sync the toolkit with fleet-sync-gates.sh.
+    # Runs on EVERY change including docs-only: branch protection requires it.
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
@@ -207,6 +304,40 @@ jobs:
       run: python3 scripts/check-antipatterns.py --repo .
     - name: Gate self-test (proves each gate catches its violation class)
       run: bash scripts/ci-gate-selftest.sh
+
+  secret-scan:
+    # Secret scan on every change, docs-only included (a pasted key in a README
+    # still leaks). Scans the COMMITS THE CHANGE INTRODUCES, not the whole tree:
+    # a working-tree scan of this repo returns 28 pre-existing hits
+    # (.serena/*.pkl caches, sbom.json, methodology-hook fixtures) that are a
+    # separate remediation, not a PR verdict. Pinned binary + sha256, no credential.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+      with:
+        fetch-depth: 0
+    - name: Install gitleaks
+      run: |
+        apt-get update && apt-get install -y --no-install-recommends curl ca-certificates tar
+        rm -rf /var/lib/apt/lists/*
+        curl -sSfL -o /tmp/gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+        echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tgz" | sha256sum -c -
+        tar -xzf /tmp/gitleaks.tgz -C /usr/local/bin gitleaks
+        gitleaks version
+    - name: Scan the commits this change introduces
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base="${{ github.base_ref }}"
+          git fetch --no-tags origin "+refs/heads/${base}:refs/remotes/origin/${base}"
+          rng="origin/${base}..HEAD"
+        else
+          rng="HEAD~1..HEAD"
+        fi
+        echo "gitleaks range: $rng"
+        gitleaks git . --log-opts="$rng" --redact --no-banner --exit-code 1
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

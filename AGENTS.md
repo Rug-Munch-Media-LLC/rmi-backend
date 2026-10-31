@@ -321,3 +321,20 @@ ALL of these must be true before reporting completion:
 **IF ANY ITEM IS FALSE, THE TASK IS NOT DONE.**
 
 <!-- agent-guardrails:end -->
+
+<!-- agent-quickstart:start -->
+## Agent quickstart (repo facts only; doctrine is canonical, not repeated here)
+
+**What this is.** FastAPI hub: DataBus, scanner engine, Telegram bot, Celery.
+**Commands.** `make lint` / `make typecheck` / `make test` / `make check` / `make build`
+
+**Lane rule.** Build, test, lint and install run on Talos (`/srv/work/repos/rmi-backend`);
+Cinnabox is terminal-only, and `/home/dev` on Talos is the deploy root, not a code surface.
+
+**MCP first moves.** exact string/file -> `zoekt` (committed) or `rg-search` (uncommitted)
+/ symbol or callers -> `serena` / how we build it, verdicts, gotchas -> `context-crypto`
+(`rmi_playbook`, `rmi_gotchas`) / library API -> `context7`.
+**Token.** Forgejo API token: `/srv/secrets/forgejo_api_token` (Talos only, never copy to Cinnabox).
+
+**Canonical.** `standards/fleet/LEAD-CONTRACT.md` / runtime copy `/root/.config/opencode/LEAD-CONTRACT.md`.
+<!-- agent-quickstart:end -->

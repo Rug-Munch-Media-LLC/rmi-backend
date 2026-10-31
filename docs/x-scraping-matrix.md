@@ -1,7 +1,7 @@
 # X/Twitter Scraping Matrix — live audit (2026-10-24)
 
 Scope: every X content path in `rmi-backend` @ `x-audit`.
-Method: one live probe per path from Talos (`talos.rugmunch.io`), plus key-presence
+Method: one live probe per path from Talos (`[INTERNAL_HOST]`), plus key-presence
 checks inside the running `rmi-backend` container (names only, no values).
 Probe timestamp 2026-10-24; egress = Talos datacenter IP.
 

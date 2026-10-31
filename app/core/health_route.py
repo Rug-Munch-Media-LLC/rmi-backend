@@ -44,7 +44,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.core import health_rag, health_status
+from app.core import health_ports, health_rag, health_status
 from app.core.health_env import (
     _DATABASE_URL_DEV,
     _DATABASE_URL_DOCKER,
@@ -152,13 +152,13 @@ _START_TIME = time.monotonic()
 
 
 def _risk_policy_report() -> dict[str, Any]:
-    """Resolved scoring policy, degrading to a visible error (never silent)."""
-    try:
-        from app.domains.scanner.risk_policy import policy_report
+    """Resolved scoring policy, degrading to a visible error (never silent).
 
-        return policy_report()
-    except Exception as exc:  # a broken provider is a health fact, not a crash
-        return {"name": None, "source": "error", "illustrative": True, "error": str(exc)[:200]}
+    Delegates to the core-owned port (``app.core.health_ports``). Core may not
+    import ``app.domains``; the scanner domain binds the adapter in
+    ``app.factory``, the composition root.
+    """
+    return health_ports.risk_policy_report()
 
 
 async def _check_rag_pipeline() -> dict[str, Any]:

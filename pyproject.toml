@@ -199,9 +199,9 @@ skips = [
 ]
 
 [tool.ruff]
-extend = "../standards/templates/ruff-base.toml"
-line-length = 120
+# Quarantined code (app/_attic) is not maintained; it must be fixed before restore.
 extend-exclude = [
+    "app/_attic",
     "_legacy_main.py",
     "app/legacy/",
     "app/_archive/",
