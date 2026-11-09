@@ -55,7 +55,7 @@ jobs:
       - name: Generate SLSA Build L3 provenance attestation
         if: steps.resolve.outputs.digest != ''
         continue-on-error: true
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.10.0
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
         with:
           image: registry.rugmunch.io/rmi-backend:${{ github.sha }}
           digest: ${{ steps.resolve.outputs.digest }}
